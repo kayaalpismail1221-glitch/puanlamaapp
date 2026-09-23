@@ -13,8 +13,13 @@ export default function OnboardingLayout() {
         contentStyle: { backgroundColor: colors.background },
       }}>
       <Stack.Screen name="index" options={{ headerShown: false }} />
-      {/* Giriş yapıldıktan sonra geri dönülmesin */}
-      <Stack.Screen name="profil" options={{ headerBackVisible: false, gestureEnabled: false }} />
+      <Stack.Screen name="telefon" />
+      <Stack.Screen name="eposta" />
+      <Stack.Screen name="ad" />
+      <Stack.Screen name="sifre" />
+      {/* Hesap oluşturulduktan sonra kayıt adımlarına geri dönülmesin */}
+      <Stack.Screen name="ilk-puan" options={{ headerBackVisible: false, gestureEnabled: false }} />
+      <Stack.Screen name="takip" />
     </Stack>
   );
 }

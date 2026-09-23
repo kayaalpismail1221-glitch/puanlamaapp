@@ -42,13 +42,13 @@ Uygulama dili Türkçe.
 
 ## Ekranlar ve akış
 ### Onboarding
-1. Karşılama ekranı
-2. Giriş / kayıt (Apple ile Giriş öncelikli)
-3. Kullanıcı adı ve profil fotoğrafı
-4. **Son 3 deneyimini puanla:** kullanıcı en son gittiği mekânı (veya son 3 mekânı) arar, seçer ve puanlar.
-   Puanlama Beli tarzı: önce "Beğendim / İdare eder / Beğenmedim", sonra önceki mekânlarla ikili
-   karşılaştırma ("Hangisi daha iyiydi?") ile sıralamadaki yeri belirlenir. Puan 0–10 arası sıralamadan hesaplanır.
-5. Arkadaş bul (rehber / kullanıcı adı ile arama). Bu adım atlanabilir.
+1. Karşılama: lacivert kahraman kartta canlı sahneler (Sırala · Güven · Keşfet), kaydırmaya bağlı parallax,
+   "Başla" ve "Giriş yap". Beli'den ilham alınır ama görsel dil kendine özgüdür (harita+pin kopyası yok).
+2. Telefon (+90, 5XX XXX XX XX) → 3. E-posta → 4. Ad ve soyad (kullanıcı adı otomatik türetilir)
+   → 5. Şifre (güç göstergesi; şifre cihazda asla saklanmaz, Supabase Auth'a gidecek).
+   Her adımda tek soru, büyük giriş alanı, adım ikonu ve ince ilerleme çubuğu.
+6. En son gidilen 1 restoranı Beli tarzı puanla ("Beğendim / İdare eder / Beğenmedim" + ikili karşılaştırma).
+7. En az 5 kişiyi takip et ("Hepsini takip et" kısayolu) → Başla.
 
 ### Alt bar (5 sekme)
 - **Feed:** iki sekme. *Popüler* (varsayılan): konumun yakınındaki en popüler gönderiler (3→10→30 km,

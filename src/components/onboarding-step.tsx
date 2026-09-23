@@ -1,76 +1,175 @@
-import type { ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
+import { SymbolView, type SFSymbol } from 'expo-symbols';
+import { forwardRef, useState, type ReactNode } from 'react';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  TextInput,
+  View,
+  type TextInputProps,
+} from 'react-native';
+import Animated, { FadeIn, FadeInDown, LinearTransition } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Text } from '@/components/ui';
-import { colors, radius, spacing } from '@/constants/theme';
+import { colors, fonts, radius, spacing } from '@/constants/theme';
 
-const TOTAL_STEPS = 4;
+/** Kayıt akışındaki adım sayısı: telefon, e-posta, ad, şifre, ilk puan, takip */
+export const ONBOARDING_STEPS = 6;
 
 type Props = {
   step: number;
+  /** Adımın simgesi (lacivert kutu içinde) */
+  icon?: SFSymbol;
   title: string;
   subtitle?: string;
   children: ReactNode;
   footer?: ReactNode;
 };
 
-/** Onboarding adımları için ortak iskelet: ilerleme çubuğu, başlık, içerik, alt buton */
-export function OnboardingStep({ step, title, subtitle, children, footer }: Props) {
+/** Onboarding adımları için ortak iskelet: ince ilerleme çubuğu, serif başlık, içerik, alt buton */
+export function OnboardingStep({ step, icon, title, subtitle, children, footer }: Props) {
   const insets = useSafeAreaInsets();
   return (
     <KeyboardAvoidingView
       style={[styles.container, { paddingTop: insets.top + 52 }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={styles.progress}>
-        {Array.from({ length: TOTAL_STEPS }, (_, i) => (
-          <View
-            key={i}
-            style={[styles.segment, i < step && { backgroundColor: colors.primary }]}
-          />
-        ))}
+      <View style={styles.track}>
+        <Animated.View
+          layout={LinearTransition.springify()}
+          style={[styles.fill, { width: `${(step / ONBOARDING_STEPS) * 100}%` }]}
+        />
       </View>
-      <View style={styles.header}>
-        <Text variant="title" color={colors.primary}>
-          {title}
-        </Text>
+      <Animated.View entering={FadeInDown.duration(400)} style={styles.header}>
+        <View style={styles.topRow}>
+          {icon && (
+            <View style={styles.icon}>
+              <SymbolView name={icon} tintColor={colors.onPrimary} size={20} />
+            </View>
+          )}
+          <Text variant="footnote" color={colors.textSecondary} style={styles.stepLabel}>
+            {step}/{ONBOARDING_STEPS}
+          </Text>
+        </View>
+        <Text style={styles.title}>{title}</Text>
         {subtitle && (
           <Text variant="callout" color={colors.textSecondary}>
             {subtitle}
           </Text>
         )}
-      </View>
-      <View style={styles.content}>{children}</View>
+      </Animated.View>
+      <Animated.View entering={FadeIn.delay(150)} style={styles.content}>
+        {children}
+      </Animated.View>
       {footer && (
-        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
-          {footer}
-        </View>
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>{footer}</View>
       )}
     </KeyboardAvoidingView>
   );
 }
+
+type BigInputProps = TextInputProps & {
+  /** Alanın solunda sabit metin, ör. "+90" */
+  prefix?: string;
+  error?: string;
+  hint?: string;
+  accessory?: ReactNode;
+};
+
+/** Büyük, çerçevesiz giriş alanı: odaklanınca alt çizgi lacivert olur */
+export const BigInput = forwardRef<TextInput, BigInputProps>(function BigInput(
+  { prefix, error, hint, accessory, style, onFocus, onBlur, ...rest },
+  ref,
+) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <View style={styles.inputWrap}>
+      <View
+        style={[
+          styles.inputRow,
+          focused && { borderBottomColor: colors.primary },
+          !!error && { borderBottomColor: colors.danger },
+        ]}>
+        {prefix && <Text style={[styles.input, styles.prefix]}>{prefix}</Text>}
+        <TextInput
+          ref={ref}
+          placeholderTextColor={colors.textTertiary}
+          selectionColor={colors.primary}
+          onFocus={(e) => {
+            setFocused(true);
+            onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setFocused(false);
+            onBlur?.(e);
+          }}
+          style={[styles.input, styles.inputFlex, style]}
+          {...rest}
+        />
+        {accessory}
+      </View>
+      {error ? (
+        <Animated.View entering={FadeIn}>
+          <Text variant="footnote" color={colors.danger}>
+            {error}
+          </Text>
+        </Animated.View>
+      ) : hint ? (
+        <Text variant="footnote" color={colors.textSecondary}>
+          {hint}
+        </Text>
+      ) : null}
+    </View>
+  );
+});
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
   },
-  progress: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.xl,
-  },
-  segment: {
-    flex: 1,
-    height: 4,
+  track: {
+    height: 3,
+    marginHorizontal: spacing.xl,
     borderRadius: radius.full,
-    backgroundColor: colors.border,
+    backgroundColor: colors.surface,
+    overflow: 'hidden',
+  },
+  fill: {
+    height: '100%',
+    borderRadius: radius.full,
+    backgroundColor: colors.primary,
   },
   header: {
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.xl,
-    paddingBottom: spacing.lg,
+    paddingBottom: spacing.xl,
     gap: spacing.sm,
+  },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  icon: {
+    width: 48,
+    height: 48,
+    borderRadius: radius.card,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepLabel: {
+    fontWeight: '600',
+    fontVariant: ['tabular-nums'],
+  },
+  title: {
+    fontFamily: fonts.serif,
+    fontSize: 32,
+    lineHeight: 38,
+    fontWeight: '700',
+    color: colors.primary,
   },
   content: {
     flex: 1,
@@ -79,8 +178,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.md,
     gap: spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
     backgroundColor: colors.background,
+  },
+  inputWrap: {
+    paddingHorizontal: spacing.xl,
+    gap: spacing.sm,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderBottomWidth: 2,
+    borderBottomColor: colors.border,
+    paddingBottom: spacing.sm,
+  },
+  input: {
+    fontSize: 28,
+    fontWeight: '600',
+    color: colors.text,
+    paddingVertical: spacing.xs,
+  },
+  inputFlex: {
+    flex: 1,
+  },
+  prefix: {
+    color: colors.textSecondary,
   },
 });

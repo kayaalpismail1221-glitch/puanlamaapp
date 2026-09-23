@@ -64,6 +64,9 @@ export type Profile = {
   name: string;
   username: string;
   avatarUri?: string;
+  /** Kayıtta alınan iletişim bilgileri (şifre asla cihazda saklanmaz) */
+  phone?: string;
+  email?: string;
 };
 
 /** Oturum açmış kullanıcının kimliği (Supabase gelene kadar sabit) */

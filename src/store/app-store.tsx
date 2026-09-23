@@ -75,6 +75,7 @@ type Action =
   | { type: 'hydrate'; state: Partial<State> }
   | { type: 'signIn' }
   | { type: 'setProfile'; profile: Profile }
+  | { type: 'updateProfile'; patch: Partial<Profile> }
   | { type: 'completeOnboarding' }
   | { type: 'rank'; sentiment: Sentiment; index: number; entry: RankedEntry }
   | { type: 'unrank'; placeId: string }
@@ -105,7 +106,12 @@ function reducer(state: State, action: Action): State {
     case 'signIn':
       return { ...state, signedIn: true };
     case 'setProfile':
-      return { ...state, profile: action.profile };
+      return { ...state, profile: { ...state.profile, ...action.profile } };
+    case 'updateProfile':
+      return {
+        ...state,
+        profile: { name: '', username: '', ...state.profile, ...action.patch },
+      };
     case 'completeOnboarding':
       return { ...state, onboarded: true, joinedAt: state.joinedAt ?? new Date().toISOString() };
     case 'rank':
