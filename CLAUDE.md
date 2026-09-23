@@ -42,7 +42,9 @@ Uygulama dili Türkçe.
 5. Arkadaş bul (rehber / kullanıcı adı ile arama). Bu adım atlanabilir.
 
 ### Alt bar (5 sekme)
-- **Feed:** takip edilenlerin ve kullanıcının gönderileri. Gönderi = mekân + fotoğraflar (en fazla 5) + yorum
+- **Feed:** iki sekme. *Popüler* (varsayılan): konumun yakınındaki en popüler gönderiler (3→10→30 km,
+  yoksa en yakın şehir); kullanıcı şehir/ilçe seçerse o bölgenin popüler feed'i. *Takip*: takip edilenlerin
+  ve kullanıcının gönderileri. Gönderi = mekân + fotoğraflar (en fazla 5) + yorum
   + birlikte gidilen arkadaş etiketleri + puan. Beğenilir (çift dokunuş dahil), yorum yapılır, kaydedilir.
   Mekân sayfasında o mekânın gönderileri "Gönderiler" ızgarasında listelenir.
 - **Ara:** mekân ve kişi araması tek yerde (Tümü / Mekânlar / Kişiler)

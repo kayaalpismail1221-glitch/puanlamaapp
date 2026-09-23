@@ -33,6 +33,12 @@
       "expo-router",
       "expo-apple-authentication",
       [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Yakınındaki popüler mekânları ve gönderileri gösterebilmek için konumunu kullanıyoruz."
+        }
+      ],
+      [
         "expo-image-picker",
         {
           "photosPermission": "Profil fotoğrafı ve gönderi fotoğrafı seçebilmen için fotoğraflarına erişim gerekiyor.",

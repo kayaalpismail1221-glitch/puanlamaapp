@@ -50,6 +50,7 @@ function RootNavigator() {
         <Stack.Screen name="listeye-ekle" options={{ presentation: 'modal', title: 'Listeme ekle' }} />
         <Stack.Screen name="gonderi/[id]" options={{ title: 'Gönderi' }} />
         <Stack.Screen name="kaydedilen-gonderiler" options={{ title: 'Kaydedilen gönderiler' }} />
+        <Stack.Screen name="konum-sec" options={{ presentation: 'modal', title: 'Konum seç' }} />
         <Stack.Screen name="gonderi-olustur" options={{ presentation: 'modal', title: 'Gönderi paylaş' }} />
       </Stack.Protected>
 

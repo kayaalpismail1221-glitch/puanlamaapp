@@ -16,7 +16,10 @@ export type Place = {
   id: string;
   name: string;
   cuisine: Cuisine;
+  /** Semt / mahalle (ör. Moda) */
   neighborhood: string;
+  /** İlçe (ör. Kadıköy) */
+  district: string;
   city: string;
   priceLevel: 1 | 2 | 3 | 4;
   latitude: number;
@@ -89,3 +92,6 @@ export type Post = {
   /** Başkalarından gelen beğeni sayısı (kullanıcının kendi beğenisi hariç) */
   likeCount: number;
 };
+
+/** Popüler feed'in hangi bölgeyi gösterdiği */
+export type FeedArea = { type: 'near' } | { type: 'area'; city: string; district?: string };

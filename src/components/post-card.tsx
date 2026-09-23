@@ -8,6 +8,7 @@ import { Avatar, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { colors, hitSlop, spacing } from '@/constants/theme';
 import { placeById } from '@/data/mock';
 import { timeAgo } from '@/lib/format';
+import { formatDistance } from '@/lib/geo';
 import { haptics } from '@/lib/haptics';
 import { useAppStore } from '@/store/app-store';
 import { ME, type Post } from '@/types';
@@ -16,6 +17,8 @@ type Props = {
   post: Post;
   /** Gönderi detayında açıklama kısaltılmaz ve yorum bağlantısı gösterilmez */
   expanded?: boolean;
+  /** Yakınımda feed'inde mekâna uzaklık */
+  distanceKm?: number;
 };
 
 export function openUserProfile(userId: string) {
@@ -23,7 +26,7 @@ export function openUserProfile(userId: string) {
   else router.push({ pathname: '/kullanici/[id]', params: { id: userId } });
 }
 
-export function PostCard({ post, expanded }: Props) {
+export function PostCard({ post, expanded, distanceKm }: Props) {
   const { likedPosts, savedPosts, dispatch, getUser, commentsFor } = useAppStore();
   const heart = useSharedValue(1);
   const heartStyle = useAnimatedStyle(() => ({ transform: [{ scale: heart.get() }] }));
@@ -98,7 +101,7 @@ export function PostCard({ post, expanded }: Props) {
             <Text variant="footnote" color={colors.primary} style={styles.bold} onPress={openPlace}>
               {place.name}
             </Text>
-            {` · ${place.neighborhood} · ${timeAgo(post.createdAt)}`}
+            {` · ${distanceKm !== undefined ? formatDistance(distanceKm) : place.neighborhood} · ${timeAgo(post.createdAt)}`}
           </Text>
         </View>
         {post.score !== undefined && <ScoreBadge score={post.score} />}

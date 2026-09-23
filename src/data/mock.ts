@@ -23,24 +23,34 @@ const PHOTOS = {
 };
 
 export const PLACES: Place[] = [
-  { id: 'p1', name: 'Serpme Kahvaltı Evi', cuisine: 'Kahvaltıcı', neighborhood: 'Moda', city: 'İstanbul', priceLevel: 2, latitude: 40.9846, longitude: 29.0268, photoUrl: PHOTOS.kahvalti },
-  { id: 'p2', name: 'Hünkâr Esnaf Lokantası', cuisine: 'Esnaf lokantası', neighborhood: 'Kadıköy Çarşı', city: 'İstanbul', priceLevel: 1, latitude: 40.9905, longitude: 29.0254, photoUrl: PHOTOS.sofra },
-  { id: 'p3', name: 'Dürümcü Hasan Usta', cuisine: 'Dürümcü', neighborhood: 'Beşiktaş', city: 'İstanbul', priceLevel: 1, latitude: 41.0431, longitude: 29.0059, photoUrl: PHOTOS.izgara },
-  { id: 'p4', name: 'Kokoreççi Rıza', cuisine: 'Kokoreççi', neighborhood: 'Beşiktaş', city: 'İstanbul', priceLevel: 1, latitude: 41.0441, longitude: 29.0031 },
-  { id: 'p5', name: 'Ciğerci Bekir', cuisine: 'Ciğerci', neighborhood: 'Yeldeğirmeni', city: 'İstanbul', priceLevel: 2, latitude: 40.9951, longitude: 29.0292, photoUrl: PHOTOS.izgara },
-  { id: 'p6', name: 'Rumeli Balıkçısı', cuisine: 'Balıkçı', neighborhood: 'Rumelihisarı', city: 'İstanbul', priceLevel: 3, latitude: 41.0848, longitude: 29.0567, photoUrl: PHOTOS.balik },
-  { id: 'p7', name: 'Meyhane Asmalı', cuisine: 'Meyhane', neighborhood: 'Beyoğlu', city: 'İstanbul', priceLevel: 3, latitude: 41.0318, longitude: 28.9762, photoUrl: PHOTOS.meze },
-  { id: 'p8', name: 'Kuzguncuk Meze Evi', cuisine: 'Meyhane', neighborhood: 'Kuzguncuk', city: 'İstanbul', priceLevel: 3, latitude: 41.0356, longitude: 29.0311, photoUrl: PHOTOS.meze },
-  { id: 'p9', name: 'Etiler Burger Co.', cuisine: 'Burgerci', neighborhood: 'Etiler', city: 'İstanbul', priceLevel: 2, latitude: 41.0812, longitude: 29.0334, photoUrl: PHOTOS.burger },
-  { id: 'p10', name: 'Hisarüstü Kahve', cuisine: 'Kafe', neighborhood: 'Hisarüstü', city: 'İstanbul', priceLevel: 1, latitude: 41.0857, longitude: 29.0443, photoUrl: PHOTOS.kahve },
-  { id: 'p11', name: 'Karadeniz Pide Salonu', cuisine: 'Pideci', neighborhood: 'Beşiktaş', city: 'İstanbul', priceLevel: 1, latitude: 41.0422, longitude: 29.0072, photoUrl: PHOTOS.pide },
-  { id: 'p12', name: 'Adana Ocakbaşı', cuisine: 'Kebapçı', neighborhood: 'Levent', city: 'İstanbul', priceLevel: 2, latitude: 41.0781, longitude: 29.0123, photoUrl: PHOTOS.izgara },
-  { id: 'p13', name: 'Bahariye Tatlıcısı', cuisine: 'Tatlıcı', neighborhood: 'Bahariye', city: 'İstanbul', priceLevel: 1, latitude: 40.9878, longitude: 29.0305, photoUrl: PHOTOS.tatli },
-  { id: 'p14', name: 'Arnavutköy Kahvaltı Bahçesi', cuisine: 'Kahvaltıcı', neighborhood: 'Arnavutköy', city: 'İstanbul', priceLevel: 2, latitude: 41.0676, longitude: 29.0431, photoUrl: PHOTOS.kahvalti },
-  { id: 'p15', name: 'Yeşil Tabak', cuisine: 'Kafe', neighborhood: 'Cihangir', city: 'İstanbul', priceLevel: 2, latitude: 41.0319, longitude: 28.9834, photoUrl: PHOTOS.salata },
-  { id: 'p16', name: 'Çarşı Balık Ekmek', cuisine: 'Balıkçı', neighborhood: 'Beşiktaş', city: 'İstanbul', priceLevel: 1, latitude: 41.0425, longitude: 29.0049, photoUrl: PHOTOS.balik },
-  { id: 'p17', name: 'Usta Ev Yemekleri', cuisine: 'Esnaf lokantası', neighborhood: 'Levent', city: 'İstanbul', priceLevel: 1, latitude: 41.0795, longitude: 29.0101, photoUrl: PHOTOS.sofra },
-  { id: 'p18', name: 'Moda Sahil Meyhanesi', cuisine: 'Meyhane', neighborhood: 'Moda', city: 'İstanbul', priceLevel: 3, latitude: 40.9818, longitude: 29.0249, photoUrl: PHOTOS.mekan2 },
+  { id: 'p1', name: 'Serpme Kahvaltı Evi', cuisine: 'Kahvaltıcı', neighborhood: 'Moda', district: 'Kadıköy', city: 'İstanbul', priceLevel: 2, latitude: 40.9846, longitude: 29.0268, photoUrl: PHOTOS.kahvalti },
+  { id: 'p2', name: 'Hünkâr Esnaf Lokantası', cuisine: 'Esnaf lokantası', neighborhood: 'Kadıköy Çarşı', district: 'Kadıköy', city: 'İstanbul', priceLevel: 1, latitude: 40.9905, longitude: 29.0254, photoUrl: PHOTOS.sofra },
+  { id: 'p3', name: 'Dürümcü Hasan Usta', cuisine: 'Dürümcü', neighborhood: 'Çarşı', district: 'Beşiktaş', city: 'İstanbul', priceLevel: 1, latitude: 41.0431, longitude: 29.0059, photoUrl: PHOTOS.izgara },
+  { id: 'p4', name: 'Kokoreççi Rıza', cuisine: 'Kokoreççi', neighborhood: 'Çarşı', district: 'Beşiktaş', city: 'İstanbul', priceLevel: 1, latitude: 41.0441, longitude: 29.0031 },
+  { id: 'p5', name: 'Ciğerci Bekir', cuisine: 'Ciğerci', neighborhood: 'Yeldeğirmeni', district: 'Kadıköy', city: 'İstanbul', priceLevel: 2, latitude: 40.9951, longitude: 29.0292, photoUrl: PHOTOS.izgara },
+  { id: 'p6', name: 'Rumeli Balıkçısı', cuisine: 'Balıkçı', neighborhood: 'Rumelihisarı', district: 'Sarıyer', city: 'İstanbul', priceLevel: 3, latitude: 41.0848, longitude: 29.0567, photoUrl: PHOTOS.balik },
+  { id: 'p7', name: 'Meyhane Asmalı', cuisine: 'Meyhane', neighborhood: 'Asmalımescit', district: 'Beyoğlu', city: 'İstanbul', priceLevel: 3, latitude: 41.0318, longitude: 28.9762, photoUrl: PHOTOS.meze },
+  { id: 'p8', name: 'Kuzguncuk Meze Evi', cuisine: 'Meyhane', neighborhood: 'Kuzguncuk', district: 'Üsküdar', city: 'İstanbul', priceLevel: 3, latitude: 41.0356, longitude: 29.0311, photoUrl: PHOTOS.meze },
+  { id: 'p9', name: 'Etiler Burger Co.', cuisine: 'Burgerci', neighborhood: 'Etiler', district: 'Beşiktaş', city: 'İstanbul', priceLevel: 2, latitude: 41.0812, longitude: 29.0334, photoUrl: PHOTOS.burger },
+  { id: 'p10', name: 'Hisarüstü Kahve', cuisine: 'Kafe', neighborhood: 'Hisarüstü', district: 'Sarıyer', city: 'İstanbul', priceLevel: 1, latitude: 41.0857, longitude: 29.0443, photoUrl: PHOTOS.kahve },
+  { id: 'p11', name: 'Karadeniz Pide Salonu', cuisine: 'Pideci', neighborhood: 'Çarşı', district: 'Beşiktaş', city: 'İstanbul', priceLevel: 1, latitude: 41.0422, longitude: 29.0072, photoUrl: PHOTOS.pide },
+  { id: 'p12', name: 'Adana Ocakbaşı', cuisine: 'Kebapçı', neighborhood: 'Levent', district: 'Beşiktaş', city: 'İstanbul', priceLevel: 2, latitude: 41.0781, longitude: 29.0123, photoUrl: PHOTOS.izgara },
+  { id: 'p13', name: 'Bahariye Tatlıcısı', cuisine: 'Tatlıcı', neighborhood: 'Bahariye', district: 'Kadıköy', city: 'İstanbul', priceLevel: 1, latitude: 40.9878, longitude: 29.0305, photoUrl: PHOTOS.tatli },
+  { id: 'p14', name: 'Arnavutköy Kahvaltı Bahçesi', cuisine: 'Kahvaltıcı', neighborhood: 'Arnavutköy', district: 'Beşiktaş', city: 'İstanbul', priceLevel: 2, latitude: 41.0676, longitude: 29.0431, photoUrl: PHOTOS.kahvalti },
+  { id: 'p15', name: 'Yeşil Tabak', cuisine: 'Kafe', neighborhood: 'Cihangir', district: 'Beyoğlu', city: 'İstanbul', priceLevel: 2, latitude: 41.0319, longitude: 28.9834, photoUrl: PHOTOS.salata },
+  { id: 'p16', name: 'Çarşı Balık Ekmek', cuisine: 'Balıkçı', neighborhood: 'Çarşı', district: 'Beşiktaş', city: 'İstanbul', priceLevel: 1, latitude: 41.0425, longitude: 29.0049, photoUrl: PHOTOS.balik },
+  { id: 'p17', name: 'Usta Ev Yemekleri', cuisine: 'Esnaf lokantası', neighborhood: 'Levent', district: 'Beşiktaş', city: 'İstanbul', priceLevel: 1, latitude: 41.0795, longitude: 29.0101, photoUrl: PHOTOS.sofra },
+  { id: 'p18', name: 'Moda Sahil Meyhanesi', cuisine: 'Meyhane', neighborhood: 'Moda', district: 'Kadıköy', city: 'İstanbul', priceLevel: 3, latitude: 40.9818, longitude: 29.0249, photoUrl: PHOTOS.mekan2 },
+  // Ankara
+  { id: 'p19', name: 'Kızılay Döner Evi', cuisine: 'Dürümcü', neighborhood: 'Kızılay', district: 'Çankaya', city: 'Ankara', priceLevel: 1, latitude: 39.9208, longitude: 32.8541, photoUrl: PHOTOS.izgara },
+  { id: 'p20', name: 'Bahçeli Kahvaltı Sokağı', cuisine: 'Kahvaltıcı', neighborhood: 'Bahçelievler', district: 'Çankaya', city: 'Ankara', priceLevel: 2, latitude: 39.9227, longitude: 32.8237, photoUrl: PHOTOS.kahvalti },
+  { id: 'p21', name: 'Tunalı Meyhanesi', cuisine: 'Meyhane', neighborhood: 'Kavaklıdere', district: 'Çankaya', city: 'Ankara', priceLevel: 3, latitude: 39.905, longitude: 32.86, photoUrl: PHOTOS.meze },
+  { id: 'p22', name: 'Ulus Esnaf Lokantası', cuisine: 'Esnaf lokantası', neighborhood: 'Ulus', district: 'Altındağ', city: 'Ankara', priceLevel: 1, latitude: 39.9416, longitude: 32.8547, photoUrl: PHOTOS.sofra },
+  // İzmir
+  { id: 'p23', name: 'Kordon Balık', cuisine: 'Balıkçı', neighborhood: 'Alsancak', district: 'Konak', city: 'İzmir', priceLevel: 3, latitude: 38.438, longitude: 27.143, photoUrl: PHOTOS.balik },
+  { id: 'p24', name: 'Kemeraltı Boyoz Kahvaltı', cuisine: 'Kahvaltıcı', neighborhood: 'Kemeraltı', district: 'Konak', city: 'İzmir', priceLevel: 1, latitude: 38.4189, longitude: 27.1287, photoUrl: PHOTOS.kahvalti },
+  { id: 'p25', name: 'Bornova Kokoreç', cuisine: 'Kokoreççi', neighborhood: 'Küçükpark', district: 'Bornova', city: 'İzmir', priceLevel: 1, latitude: 38.4622, longitude: 27.2166 },
+  { id: 'p26', name: 'Karşıyaka Çarşı Tatlıcısı', cuisine: 'Tatlıcı', neighborhood: 'Çarşı', district: 'Karşıyaka', city: 'İzmir', priceLevel: 1, latitude: 38.4561, longitude: 27.1098, photoUrl: PHOTOS.tatli },
 ];
 
 export const USERS: User[] = [
@@ -66,6 +76,14 @@ export const POSTS: Post[] = [
   { id: 'g9', userId: 'u3', placeId: 'p10', score: 8.3, photos: [PHOTOS.kahve], caption: 'Ders çalışmak için sessiz ve priz bol.', taggedUserIds: [], createdAt: hoursAgo(96), likeCount: 11 },
   { id: 'g10', userId: 'u5', placeId: 'p7', score: 7.6, photos: [PHOTOS.mekan2], caption: 'Servis biraz yavaştı ama ortam güzel.', taggedUserIds: [], createdAt: hoursAgo(120), likeCount: 6 },
   { id: 'g11', userId: 'u6', placeId: 'p1', score: 8.9, photos: [PHOTOS.kahvalti], caption: 'Hafta içi sabah sakin, tavsiye.', taggedUserIds: [], createdAt: hoursAgo(150), likeCount: 5 },
+  { id: 'g12', userId: 'u4', placeId: 'p20', score: 9.1, photos: [PHOTOS.kahvalti], caption: 'Ankara’da serpme kahvaltının adresi. Sucuklu yumurta şahane.', taggedUserIds: ['u6'], createdAt: hoursAgo(6), likeCount: 27 },
+  { id: 'g13', userId: 'u6', placeId: 'p19', score: 8.4, photos: [PHOTOS.izgara], caption: 'Kızılay’da gece yarısı dönerci. Porsiyon büyük.', taggedUserIds: [], createdAt: hoursAgo(14), likeCount: 18 },
+  { id: 'g14', userId: 'u5', placeId: 'p21', score: 7.8, photos: [PHOTOS.meze, PHOTOS.mekan2], caption: 'Tunalı’da samimi bir meyhane, ara sıcaklar iyi.', taggedUserIds: ['u3'], createdAt: hoursAgo(30), likeCount: 12 },
+  { id: 'g15', userId: 'u2', placeId: 'p22', score: 8.9, photos: [PHOTOS.sofra], caption: 'Ulus’ta öğlen kuyruğu var ama değer. Etli nohut 10/10.', taggedUserIds: [], createdAt: hoursAgo(48), likeCount: 22 },
+  { id: 'g16', userId: 'u1', placeId: 'p23', score: 8.7, photos: [PHOTOS.balik], caption: 'Kordon’da gün batımı + çipura. İzmir’e gelen gitsin.', taggedUserIds: ['u5'], createdAt: hoursAgo(4), likeCount: 41 },
+  { id: 'g17', userId: 'u3', placeId: 'p24', score: 9.2, photos: [PHOTOS.kahvalti], caption: 'Boyoz, yumurta, çay. İzmir sabahı böyle başlar.', taggedUserIds: [], createdAt: hoursAgo(10), likeCount: 35 },
+  { id: 'g18', userId: 'u4', placeId: 'p25', score: 8.0, photos: [PHOTOS.izgara], caption: 'Öğrenci dostu fiyat, kokoreç bol baharatlı.', taggedUserIds: [], createdAt: hoursAgo(28), likeCount: 9 },
+  { id: 'g19', userId: 'u6', placeId: 'p26', score: 7.5, photos: [PHOTOS.tatli], caption: 'Lokma sıcak sıcak geliyor.', taggedUserIds: [], createdAt: hoursAgo(60), likeCount: 7 },
 ];
 
 export const COMMENTS: Comment[] = [
@@ -74,6 +92,9 @@ export const COMMENTS: Comment[] = [
   { id: 'c3', postId: 'g3', userId: 'u4', text: 'Rezervasyon gerekiyor mu?', createdAt: hoursAgo(8) },
   { id: 'c4', postId: 'g3', userId: 'u3', text: 'Hafta sonu kesin gerekiyor.', createdAt: hoursAgo(7) },
   { id: 'c5', postId: 'g6', userId: 'u5', text: 'Fiyatlar nasıl?', createdAt: hoursAgo(30) },
+  { id: 'c6', postId: 'g16', userId: 'u2', text: 'Kesin gidiyorum!', createdAt: hoursAgo(3) },
+  { id: 'c7', postId: 'g16', userId: 'u4', text: 'Rezervasyon şart mı?', createdAt: hoursAgo(2) },
+  { id: 'c8', postId: 'g12', userId: 'u1', text: 'Ankara’ya gelince ilk durak.', createdAt: hoursAgo(5) },
 ];
 
 /** Varsayılan harita merkezi: Beşiktaş–Bebek hattı */
@@ -92,7 +113,7 @@ export function searchPlaces(query: string): Place[] {
   const q = query.trim().toLocaleLowerCase('tr');
   if (!q) return PLACES;
   return PLACES.filter((p) =>
-    [p.name, p.cuisine, p.neighborhood].some((f) => f.toLocaleLowerCase('tr').includes(q)),
+    [p.name, p.cuisine, p.neighborhood, p.district, p.city].some((f) => f.toLocaleLowerCase('tr').includes(q)),
   );
 }
 

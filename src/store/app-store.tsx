@@ -14,6 +14,7 @@ import { emptyRankings, flattenRankings, insertEntry, removeFromRankings } from 
 import {
   ME,
   type Comment,
+  type FeedArea,
   type Post,
   type Profile,
   type RankedEntry,
@@ -43,6 +44,8 @@ type State = {
   likedPosts: string[];
   /** Kaydedilen gönderiler */
   savedPosts: string[];
+  /** Popüler feed bölgesi: yakınımda ya da seçilen şehir/ilçe */
+  feedArea: FeedArea;
 };
 
 const initialState: State = {
@@ -57,6 +60,7 @@ const initialState: State = {
   myComments: [],
   likedPosts: [],
   savedPosts: [],
+  feedArea: { type: 'near' },
 };
 
 type Action =
@@ -75,6 +79,7 @@ type Action =
   | { type: 'toggleLikePost'; postId: string }
   | { type: 'toggleSavePost'; postId: string }
   | { type: 'addComment'; comment: Comment }
+  | { type: 'setFeedArea'; area: FeedArea }
   | { type: 'reset' };
 
 const toggle = (list: string[], id: string) =>
@@ -135,6 +140,8 @@ function reducer(state: State, action: Action): State {
       return { ...state, savedPosts: toggle(state.savedPosts, action.postId) };
     case 'addComment':
       return { ...state, myComments: [...state.myComments, action.comment] };
+    case 'setFeedArea':
+      return { ...state, feedArea: action.area };
     case 'reset':
       return { ...initialState, hydrated: true };
   }
