@@ -46,6 +46,10 @@ type State = {
   savedPosts: string[];
   /** Popüler feed bölgesi: yakınımda ya da seçilen şehir/ilçe */
   feedArea: FeedArea;
+  /** Üyelik başlangıcı (onboarding bitişi) */
+  joinedAt?: string;
+  /** Bu yıl denenmek istenen mekân sayısı hedefi */
+  yearGoal?: number;
 };
 
 const initialState: State = {
@@ -80,6 +84,7 @@ type Action =
   | { type: 'toggleSavePost'; postId: string }
   | { type: 'addComment'; comment: Comment }
   | { type: 'setFeedArea'; area: FeedArea }
+  | { type: 'setYearGoal'; goal: number | undefined }
   | { type: 'reset' };
 
 const toggle = (list: string[], id: string) =>
@@ -97,7 +102,7 @@ function reducer(state: State, action: Action): State {
     case 'setProfile':
       return { ...state, profile: action.profile };
     case 'completeOnboarding':
-      return { ...state, onboarded: true };
+      return { ...state, onboarded: true, joinedAt: state.joinedAt ?? new Date().toISOString() };
     case 'rank':
       return {
         ...state,
@@ -142,6 +147,8 @@ function reducer(state: State, action: Action): State {
       return { ...state, myComments: [...state.myComments, action.comment] };
     case 'setFeedArea':
       return { ...state, feedArea: action.area };
+    case 'setYearGoal':
+      return { ...state, yearGoal: action.goal };
     case 'reset':
       return { ...initialState, hydrated: true };
   }

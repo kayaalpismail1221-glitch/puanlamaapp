@@ -40,6 +40,12 @@ type PressableScaleProps = PressableProps & {
   scaleTo?: number;
 };
 
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+/**
+ * Stil doğrudan dokunma alanına uygulanır; böylece `flex`, genişlik gibi
+ * yerleşim özellikleri satır/sütun içinde doğru çalışır.
+ */
 export function PressableScale({
   style,
   haptic = true,
@@ -54,8 +60,9 @@ export function PressableScale({
   const animated = useAnimatedStyle(() => ({ transform: [{ scale: scale.get() }] }));
 
   return (
-    <Pressable
+    <AnimatedPressable
       {...rest}
+      style={[style, animated]}
       onPressIn={(e) => {
         scale.set(withSpring(scaleTo, { duration: 150 }));
         onPressIn?.(e);
@@ -68,8 +75,8 @@ export function PressableScale({
         if (haptic) haptics.tap();
         onPress?.(e);
       }}>
-      <Animated.View style={[style, animated]}>{children as ReactNode}</Animated.View>
-    </Pressable>
+      {children as ReactNode}
+    </AnimatedPressable>
   );
 }
 
@@ -78,14 +85,15 @@ export function PressableScale({
 type ButtonProps = {
   title: string;
   onPress?: () => void;
-  variant?: 'primary' | 'secondary' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'outline';
+  size?: 'md' | 'sm';
   icon?: SFSymbol;
   disabled?: boolean;
   loading?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
-export function Button({ title, onPress, variant = 'primary', icon, disabled, loading, style }: ButtonProps) {
+export function Button({ title, onPress, variant = 'primary', size = 'md', icon, disabled, loading, style }: ButtonProps) {
   const fg =
     variant === 'primary' ? colors.onPrimary : colors.primary;
   return (
@@ -97,6 +105,8 @@ export function Button({ title, onPress, variant = 'primary', icon, disabled, lo
         styles.button,
         variant === 'primary' && { backgroundColor: colors.primary },
         variant === 'secondary' && { backgroundColor: colors.surface },
+        variant === 'outline' && styles.outline,
+        size === 'sm' && styles.small,
         (disabled || loading) && { opacity: 0.4 },
         style,
       ]}>
@@ -104,8 +114,8 @@ export function Button({ title, onPress, variant = 'primary', icon, disabled, lo
         <ActivityIndicator color={fg} />
       ) : (
         <>
-          {icon && <SymbolView name={icon} tintColor={fg} size={18} weight="semibold" />}
-          <Text variant="headline" color={fg}>
+          {icon && <SymbolView name={icon} tintColor={fg} size={size === 'sm' ? 15 : 18} weight="semibold" />}
+          <Text variant={size === 'sm' ? 'subhead' : 'headline'} color={fg} style={size === 'sm' && styles.smallText}>
             {title}
           </Text>
         </>
@@ -153,7 +163,7 @@ export function Avatar({ uri, name, size = 40 }: { uri?: string; name: string; s
   }
   return (
     <View style={[style, styles.avatarFallback]}>
-      <Text variant="headline" color={colors.onPrimary} style={{ fontSize: size * 0.38 }}>
+      <Text variant="headline" color={colors.textSecondary} style={{ fontSize: size * 0.4, fontWeight: '500' }}>
         {initials(name)}
       </Text>
     </View>
@@ -235,6 +245,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.sm,
   },
+  outline: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  small: {
+    height: 36,
+    paddingHorizontal: spacing.md,
+  },
+  smallText: {
+    fontWeight: '600',
+  },
   badge: {
     borderRadius: radius.full,
     borderWidth: 2,
@@ -243,7 +265,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   avatarFallback: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },

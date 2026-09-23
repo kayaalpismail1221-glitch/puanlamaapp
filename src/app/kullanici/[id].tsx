@@ -1,99 +1,105 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
+import { useMemo } from 'react';
+import { ScrollView, Share, StyleSheet, View } from 'react-native';
 
-import { PlaceRow } from '@/components/place-row';
 import { PostGrid } from '@/components/post-grid';
+import { MenuRow, ProfileIdentity, StatCard } from '@/components/profile-parts';
 import { ProfileStats } from '@/components/profile-stats';
-import { SegmentTabs } from '@/components/segment-tabs';
-import { Avatar, Divider, ScoreBadge, Text } from '@/components/ui';
+import { Button, Divider, PressableScale, Text } from '@/components/ui';
 import { FollowButton } from '@/components/user-row';
-import { colors, spacing } from '@/constants/theme';
-import { placeById } from '@/data/mock';
+import { colors, hitSlop, radius, spacing } from '@/constants/theme';
+import { useLeaderboard } from '@/hooks/use-leaderboard';
+import { rankedFromPosts, weeklyStreak } from '@/lib/stats';
 import { useAppStore } from '@/store/app-store';
+import { ME } from '@/types';
 
-type Tab = 'posts' | 'ranked';
-
-/** Başka bir kullanıcının profili: gönderileri ve mekân sıralaması */
+/** Başka bir kullanıcının profili */
 export default function UserProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { posts, getUser } = useAppStore();
-  const [tab, setTab] = useState<Tab>('posts');
+  const { posts, getUser, followingOf } = useAppStore();
+  const leaderboard = useLeaderboard('all', 'all');
   const user = getUser(id);
 
   const userPosts = useMemo(() => posts.filter((p) => p.userId === id), [posts, id]);
-
-  // Sıralama: her mekân için en yeni gönderideki puan, yüksekten düşüğe
-  const ranked = useMemo(
-    () =>
-      userPosts
-        .filter((p, i, list) => p.score !== undefined && list.findIndex((q) => q.placeId === p.placeId) === i)
-        .sort((a, b) => b.score! - a.score!),
-    [userPosts],
-  );
+  const been = useMemo(() => rankedFromPosts(posts, id), [posts, id]);
+  const rank = leaderboard.find((e) => e.userId === id);
+  const streak = weeklyStreak(userPosts.map((p) => p.createdAt));
+  const followsYou = followingOf(id).includes(ME);
 
   if (!user) {
     return (
-      <View style={styles.center}>
+      <View style={[styles.container, styles.center]}>
         <Text>Kullanıcı bulunamadı.</Text>
       </View>
     );
   }
 
+  const share = () => Share.share({ message: `Puanla’da @${user.username} hesabına göz at 🍽️` });
+
   return (
-    <ScrollView style={styles.container} contentInsetAdjustmentBehavior="automatic">
-      <View style={styles.identity}>
-        <Avatar uri={user.avatarUrl} name={user.name} size={88} />
-        <Text variant="title2" color={colors.primary}>
+    <>
+      <Stack.Screen
+        options={{
+          title: '',
+          headerRight: () => (
+            <PressableScale onPress={share} hitSlop={hitSlop} accessibilityLabel="Profili paylaş">
+              <SymbolView name="square.and.arrow.up" tintColor={colors.text} size={21} />
+            </PressableScale>
+          ),
+        }}
+      />
+      <ScrollView style={styles.container} contentInsetAdjustmentBehavior="automatic">
+        <Text variant="title2" align="center" style={styles.name}>
           {user.name}
         </Text>
-        <Text variant="subhead" color={colors.textSecondary}>
-          @{user.username}
-        </Text>
-      </View>
+        <ProfileIdentity name={user.name} username={user.username} avatarUri={user.avatarUrl} />
+        {followsYou && (
+          <View style={styles.followsYou}>
+            <Text variant="caption" color={colors.textSecondary}>
+              Seni takip ediyor
+            </Text>
+          </View>
+        )}
 
-      <ProfileStats userId={user.id} />
+        <ProfileStats userId={user.id} />
 
-      <View style={styles.follow}>
-        <FollowButton userId={user.id} large />
-      </View>
-
-      <SegmentTabs
-        tabs={[
-          { key: 'posts', label: `Gönderiler ${userPosts.length}` },
-          { key: 'ranked', label: `Gittikleri ${ranked.length}` },
-        ]}
-        value={tab}
-        onChange={setTab}
-      />
-
-      {tab === 'posts' ? (
-        <View style={{ paddingTop: 2 }}>
-          <PostGrid posts={userPosts} emptyText="Henüz gönderi paylaşmadı." />
+        <View style={styles.buttons}>
+          <View style={styles.flex}>
+            <FollowButton userId={user.id} large />
+          </View>
+          <Button title="Paylaş" variant="outline" size="sm" onPress={share} style={styles.share} />
         </View>
-      ) : ranked.length === 0 ? (
-        <Text variant="subhead" color={colors.textSecondary} align="center" style={styles.empty}>
-          Henüz puanladığı bir mekân yok.
+
+        <View style={styles.menu}>
+          <Divider />
+          <MenuRow
+            icon="checkmark.circle"
+            title="Gittikleri"
+            count={been.length}
+            onPress={() => router.push({ pathname: '/gittiklerim/[id]', params: { id: user.id } })}
+          />
+          <Divider />
+        </View>
+
+        <View style={styles.cards}>
+          <StatCard
+            icon="trophy"
+            title="Sıralama"
+            value={rank && rank.reviews > 0 ? `#${rank.rank}` : undefined}
+            locked={!rank || rank.reviews === 0}
+            onPress={() => router.push({ pathname: '/siralama', params: { vurgula: user.id } })}
+          />
+          <StatCard icon="flame" title="Seri" value={`${streak} hafta`} />
+        </View>
+
+        <Text variant="title3" style={styles.postsTitle}>
+          Gönderileri
         </Text>
-      ) : (
-        ranked.map((p, i) => {
-          const place = placeById(p.placeId);
-          if (!place) return null;
-          return (
-            <View key={p.id}>
-              {i > 0 && <Divider inset={spacing.lg + 52 + spacing.md} />}
-              <PlaceRow
-                place={place}
-                rank={i + 1}
-                onPress={() => router.push({ pathname: '/mekan/[id]', params: { id: place.id } })}
-                trailing={<ScoreBadge score={p.score!} size="sm" />}
-              />
-            </View>
-          );
-        })
-      )}
-      <View style={{ height: spacing.xxl }} />
-    </ScrollView>
+        <PostGrid posts={userPosts} emptyText="Henüz gönderi paylaşmadı." />
+        <View style={{ height: spacing.xxl }} />
+      </ScrollView>
+    </>
   );
 }
 
@@ -103,20 +109,47 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   center: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.background,
   },
-  identity: {
+  name: {
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.sm,
+  },
+  followsYou: {
+    alignSelf: 'center',
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface,
+  },
+  buttons: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
-    paddingTop: spacing.lg,
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
   },
-  follow: {
-    padding: spacing.lg,
+  flex: {
+    flex: 1,
   },
-  empty: {
-    padding: spacing.xxl,
+  share: {
+    height: 44,
+    paddingHorizontal: spacing.lg,
+  },
+  menu: {
+    marginTop: spacing.xl,
+  },
+  cards: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
+  },
+  postsTitle: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xxl,
+    paddingBottom: spacing.md,
   },
 });

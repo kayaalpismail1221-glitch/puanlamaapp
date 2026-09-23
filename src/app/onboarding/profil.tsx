@@ -7,17 +7,8 @@ import { StyleSheet, TextInput, View } from 'react-native';
 import { OnboardingStep } from '@/components/onboarding-step';
 import { Avatar, Button, PressableScale, Text } from '@/components/ui';
 import { colors, radius, spacing, typography } from '@/constants/theme';
+import { toUsername } from '@/lib/format';
 import { useAppStore } from '@/store/app-store';
-
-/** Türkçe karakterleri sadeleştirip geçerli bir kullanıcı adına çevirir */
-function toUsername(text: string) {
-  const map: Record<string, string> = { ç: 'c', ğ: 'g', ı: 'i', ö: 'o', ş: 's', ü: 'u' };
-  return text
-    .toLocaleLowerCase('tr')
-    .replace(/[çğıöşü]/g, (c) => map[c] ?? c)
-    .replace(/[^a-z0-9._]/g, '')
-    .slice(0, 24);
-}
 
 /** 3. Kullanıcı adı ve profil fotoğrafı */
 export default function ProfileSetupScreen() {

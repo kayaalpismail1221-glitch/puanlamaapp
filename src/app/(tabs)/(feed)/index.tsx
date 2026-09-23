@@ -5,7 +5,7 @@ import { ActivityIndicator, FlatList, Linking, StyleSheet, View } from 'react-na
 import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { PostCard } from '@/components/post-card';
-import { SegmentTabs } from '@/components/segment-tabs';
+import { SegmentedControl } from '@/components/segmented-control';
 import { Avatar, Button, Divider, PressableScale, Text } from '@/components/ui';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
 import { areaLabel, popularFeed, type FeedEntry } from '@/lib/feed';
@@ -73,7 +73,7 @@ export default function FeedScreen() {
         ItemSeparatorComponent={() => <Divider />}
         ListHeaderComponent={
           <View>
-            <SegmentTabs tabs={TABS} value={tab} onChange={setTab} />
+            <SegmentedControl options={TABS} value={tab} onChange={setTab} style={styles.segment} />
 
             {tab === 'popular' && (
               <PressableScale onPress={openAreaPicker} scaleTo={0.98} style={styles.areaButton} accessibilityLabel="Konum seç">
@@ -212,6 +212,9 @@ function EmptyState({
 }
 
 const styles = StyleSheet.create({
+  segment: {
+    paddingTop: spacing.xs,
+  },
   bold: {
     fontWeight: '600',
   },

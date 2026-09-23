@@ -20,3 +20,17 @@ export function initials(name: string): string {
     .map((w) => w[0]?.toLocaleUpperCase('tr'))
     .join('');
 }
+
+/** Türkçe karakterleri sadeleştirip geçerli bir kullanıcı adına çevirir */
+export function toUsername(text: string) {
+  const map: Record<string, string> = { ç: 'c', ğ: 'g', ı: 'i', ö: 'o', ş: 's', ü: 'u' };
+  return text
+    .toLocaleLowerCase('tr')
+    .replace(/[çğıöşü]/g, (c) => map[c] ?? c)
+    .replace(/[^a-z0-9._]/g, '')
+    .slice(0, 24);
+}
+
+/** "Eylül 2026" */
+export const monthYear = (iso: string) =>
+  new Date(iso).toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' });

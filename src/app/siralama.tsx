@@ -3,7 +3,7 @@ import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 
-import { SegmentTabs } from '@/components/segment-tabs';
+import { SegmentedControl } from '@/components/segmented-control';
 import { Avatar, Button, Divider, PressableScale, Text } from '@/components/ui';
 import { colors, radius, spacing } from '@/constants/theme';
 import { useLeaderboard, type LeaderboardScope } from '@/hooks/use-leaderboard';
@@ -43,7 +43,7 @@ export default function LeaderboardScreen() {
       ItemSeparatorComponent={() => <Divider inset={spacing.lg + 32 + 44 + spacing.md * 2} />}
       ListHeaderComponent={
         <View>
-          <SegmentTabs tabs={SCOPES} value={scope} onChange={setScope} />
+          <SegmentedControl options={SCOPES} value={scope} onChange={setScope} style={styles.segment} />
           <View style={styles.periods}>
             {PERIODS.map((p) => {
               const active = p.key === period;
@@ -147,6 +147,9 @@ function RankBadge({ rank, muted }: { rank: number; muted: boolean }) {
 }
 
 const styles = StyleSheet.create({
+  segment: {
+    paddingTop: spacing.sm,
+  },
   container: {
     flex: 1,
     backgroundColor: colors.background,

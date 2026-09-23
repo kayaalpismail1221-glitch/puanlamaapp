@@ -1,4 +1,3 @@
-import { BlurView } from 'expo-blur';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
@@ -7,6 +6,8 @@ import MapView, { Marker } from 'react-native-maps';
 import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { GlassSurface } from '@/components/glass-surface';
+import { SegmentedControl } from '@/components/segmented-control';
 import { PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { colors, radius, scoreColor, spacing } from '@/constants/theme';
 import { DEFAULT_REGION, placeById } from '@/data/mock';
@@ -75,43 +76,30 @@ export default function MapScreen() {
         ))}
       </MapView>
 
-      {/* Üstte bulanık filtre çubuğu */}
-      <BlurView intensity={80} tint="light" style={[styles.filterBar, { paddingTop: insets.top + spacing.sm }]}>
-        <View style={styles.segment}>
-          {FILTERS.map((f) => {
-            const active = f.key === filter;
-            return (
-              <PressableScale
-                key={f.key}
-                onPress={() => {
-                  haptics.select();
-                  setFilter(f.key);
-                  setSelectedId(null);
-                }}
-                haptic={false}
-                style={[styles.segmentItem, active && styles.segmentActive]}>
-                <Text
-                  variant="footnote"
-                  color={active ? colors.onPrimary : colors.primary}
-                  style={styles.segmentText}
-                  numberOfLines={1}>
-                  {f.label}
-                </Text>
-              </PressableScale>
-            );
-          })}
-        </View>
-      </BlurView>
+      {/* Üstte cam filtre (iOS 26: Liquid Glass) */}
+      <View style={[styles.filterWrap, { top: insets.top + spacing.sm }]} pointerEvents="box-none">
+        <GlassSurface style={styles.filterBar}>
+          <SegmentedControl
+            options={FILTERS}
+            value={filter}
+            onChange={(f) => {
+              setFilter(f);
+              setSelectedId(null);
+            }}
+            style={styles.filterSegment}
+          />
+        </GlassSurface>
+      </View>
 
       {pins.length === 0 && (
         <View style={styles.emptyWrap} pointerEvents="none">
-          <BlurView intensity={80} tint="light" style={styles.emptyCard}>
+          <GlassSurface style={styles.emptyCard}>
             <Text variant="subhead" color={colors.textSecondary} align="center">
               {filter === 'want'
                 ? 'Listene kaydettiğin mekânlar burada görünecek.'
                 : 'Puanladığın mekânlar haritada görünecek.'}
             </Text>
-          </BlurView>
+          </GlassSurface>
         </View>
       )}
 
@@ -121,9 +109,8 @@ export default function MapScreen() {
           entering={FadeInDown.springify()}
           exiting={FadeOutDown.duration(150)}
           style={[styles.cardWrap, { bottom: insets.bottom + 64 }]}>
-          <PressableScale
-            onPress={() => router.push({ pathname: '/mekan/[id]', params: { id: selected.place.id } })}
-            style={styles.card}>
+          <PressableScale onPress={() => router.push({ pathname: '/mekan/[id]', params: { id: selected.place.id } })}>
+            <GlassSurface interactive style={styles.card}>
             <PlaceImage uri={selected.place.photoUrl} style={styles.cardImage} />
             <View style={{ flex: 1, gap: 2 }}>
               <Text variant="headline" numberOfLines={1}>
@@ -138,6 +125,7 @@ export default function MapScreen() {
             ) : (
               <SymbolView name="bookmark.fill" tintColor={colors.primary} size={20} />
             )}
+            </GlassSurface>
           </PressableScale>
         </Animated.View>
       )}
@@ -174,34 +162,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.surface,
   },
-  filterBar: {
+  filterWrap: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
+    left: spacing.lg,
+    right: spacing.lg,
   },
-  segment: {
-    flexDirection: 'row',
-    backgroundColor: colors.surface,
-    borderRadius: radius.button,
-    padding: spacing.xs,
-    gap: spacing.xs,
+  filterBar: {
+    paddingVertical: spacing.sm,
   },
-  segmentItem: {
-    flex: 1,
-    height: 32,
-    borderRadius: radius.button - 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.xs,
-  },
-  segmentActive: {
-    backgroundColor: colors.primary,
-  },
-  segmentText: {
-    fontWeight: '600',
+  filterSegment: {
+    paddingHorizontal: spacing.sm,
   },
   emptyWrap: {
     ...StyleSheet.absoluteFill,
@@ -244,12 +214,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
     padding: spacing.md,
-    borderRadius: radius.card,
-    backgroundColor: colors.background,
-    shadowColor: colors.primary,
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 4 },
   },
   cardImage: {
     width: 56,

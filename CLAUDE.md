@@ -31,6 +31,15 @@ Uygulama dili Türkçe.
 - Renkleri ve ölçüleri tek bir `theme.ts` dosyasında token olarak tut. Bileşenlerde sabit renk yazma.
 - Dokunmalarda hafif haptik geri bildirim, geçişler akıcı olmalı
 
+## Kalite ve premium his (kalıcı ilke)
+- Uygulama premium hissettirmeli; güncel iOS tasarım dili ve yetenekleri tercih edilir.
+- Mümkün olan her yerde native bileşen: native tabs (iOS 26'da Liquid Glass), native stack başlıkları,
+  SwiftUI bileşenleri (`@expo/ui/swift-ui`, ör. segmented Picker), cam yüzeyler (`expo-glass-effect`,
+  eski iOS'ta `expo-blur` yedeği → `components/glass-surface.tsx`), SF Symbols, sistem paylaşım menüsü.
+- Her etkileşimde haptik + yay animasyonu (`PressableScale`); stil doğrudan dokunma alanına uygulanır.
+- Kod kalitesi: tip güvenliği, tek sorumluluklu bileşenler, mantık `lib/` altında ve test edilebilir.
+  Her adım sonunda `tsc`, `expo lint` ve iOS bundle temiz olmalı.
+
 ## Ekranlar ve akış
 ### Onboarding
 1. Karşılama ekranı

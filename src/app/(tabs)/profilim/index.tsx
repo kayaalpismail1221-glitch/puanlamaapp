@@ -1,138 +1,150 @@
 import { router, Stack } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { useMemo } from 'react';
+import { ActionSheetIOS, Alert, Platform, ScrollView, Share, StyleSheet, View } from 'react-native';
 
-import { PlaceRow } from '@/components/place-row';
 import { PostGrid } from '@/components/post-grid';
+import { GoalCard, MenuRow, ProfileIdentity, StatCard } from '@/components/profile-parts';
 import { ProfileStats } from '@/components/profile-stats';
-import { SegmentTabs } from '@/components/segment-tabs';
-import { Avatar, Button, Divider, PressableScale, ScoreBadge, Text } from '@/components/ui';
+import { Button, Divider, PressableScale, Text } from '@/components/ui';
 import { colors, hitSlop, spacing } from '@/constants/theme';
-import { placeById } from '@/data/mock';
+import { useLeaderboard } from '@/hooks/use-leaderboard';
+import { placesThisYear, weeklyStreak } from '@/lib/stats';
 import { useAppStore } from '@/store/app-store';
-import { ME, type Place } from '@/types';
+import { ME } from '@/types';
 
-type Tab = 'ranked' | 'posts';
-
-type Row = { place: Place; score: number; rank: number };
+/** Kişisel öneriler bu kadar puanlamadan sonra açılır */
+const RECS_UNLOCK = 10;
 
 export default function ProfileScreen() {
-  const { profile, scored, posts, dispatch } = useAppStore();
-  const [tab, setTab] = useState<Tab>('ranked');
-
-  const ranked = useMemo<Row[]>(
-    () =>
-      scored.flatMap((e) => {
-        const place = placeById(e.placeId);
-        return place ? [{ place, score: e.score, rank: e.rank }] : [];
-      }),
-    [scored],
-  );
+  const { profile, joinedAt, rankings, scored, saved, posts, yearGoal, dispatch } = useAppStore();
+  const leaderboard = useLeaderboard('all', 'all');
 
   const myPosts = useMemo(() => posts.filter((p) => p.userId === ME), [posts]);
+  const myRank = leaderboard.find((e) => e.userId === ME);
+  const allEntries = useMemo(() => Object.values(rankings).flat(), [rankings]);
+  const streak = weeklyStreak([...allEntries.map((e) => e.ratedAt), ...myPosts.map((p) => p.createdAt)]);
+  const thisYear = placesThisYear(allEntries);
+  const recsLocked = scored.length < RECS_UNLOCK;
 
-  // En sevilen mutfak: puanı 6.7 ve üstü mekânlarda en sık görülen mutfak
-  const favoriteCuisine = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const row of ranked) {
-      if (row.score < 6.7) continue;
-      counts.set(row.place.cuisine, (counts.get(row.place.cuisine) ?? 0) + 1);
-    }
-    return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
-  }, [ranked]);
+  const shareProfile = () =>
+    Share.share({ message: `Puanla’da beni takip et: @${profile?.username} 🍽️ Gittiğim her yeri puanlıyorum.` });
 
-  const confirmReset = () =>
-    Alert.alert('Çıkış yap', 'Tüm yerel veriler silinir ve karşılama ekranına dönersin.', [
-      { text: 'Vazgeç', style: 'cancel' },
-      { text: 'Çıkış yap', style: 'destructive', onPress: () => dispatch({ type: 'reset' }) },
-    ]);
+  const openMenu = () => {
+    const logout = () =>
+      Alert.alert('Çıkış yap', 'Tüm yerel veriler silinir ve karşılama ekranına dönersin.', [
+        { text: 'Vazgeç', style: 'cancel' },
+        { text: 'Çıkış yap', style: 'destructive', onPress: () => dispatch({ type: 'reset' }) },
+      ]);
+    if (Platform.OS !== 'ios') return logout();
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        options: ['Profili düzenle', 'Liderlik tablosu', 'Çıkış yap', 'Vazgeç'],
+        destructiveButtonIndex: 2,
+        cancelButtonIndex: 3,
+        tintColor: colors.primary,
+      },
+      (i) => {
+        if (i === 0) router.push('/profil-duzenle');
+        if (i === 1) router.push('/siralama');
+        if (i === 2) logout();
+      },
+    );
+  };
 
   return (
     <>
       <Stack.Screen
         options={{
+          title: '',
+          headerLeft: () => (
+            <Text variant="title3" style={styles.headerName} numberOfLines={1}>
+              {profile?.name}
+            </Text>
+          ),
           headerRight: () => (
-            <PressableScale onPress={confirmReset} hitSlop={hitSlop} accessibilityLabel="Ayarlar">
-              <SymbolView name="gearshape" tintColor={colors.primary} size={22} />
-            </PressableScale>
+            <View style={styles.headerActions}>
+              <PressableScale onPress={shareProfile} hitSlop={hitSlop} accessibilityLabel="Profili paylaş">
+                <SymbolView name="square.and.arrow.up" tintColor={colors.text} size={21} />
+              </PressableScale>
+              <PressableScale onPress={openMenu} hitSlop={hitSlop} accessibilityLabel="Menü">
+                <SymbolView name="line.3.horizontal" tintColor={colors.text} size={21} />
+              </PressableScale>
+            </View>
           ),
         }}
       />
       <ScrollView style={styles.container} contentInsetAdjustmentBehavior="automatic">
-        <View style={styles.identity}>
-          <Avatar uri={profile?.avatarUri} name={profile?.name ?? '?'} size={88} />
-          <Text variant="title2" color={colors.primary}>
-            {profile?.name}
-          </Text>
-          <Text variant="subhead" color={colors.textSecondary}>
-            @{profile?.username}
-          </Text>
-        </View>
+        <ProfileIdentity
+          name={profile?.name ?? '?'}
+          username={profile?.username ?? ''}
+          avatarUri={profile?.avatarUri}
+          joinedAt={joinedAt}
+          onAvatarPress={() => router.push('/profil-duzenle')}
+        />
 
         <ProfileStats userId={ME} />
 
-        {favoriteCuisine && (
-          <View style={styles.favorite}>
-            <SymbolView name="fork.knife" tintColor={colors.primary} size={16} />
-            <Text variant="subhead">
-              En sevdiğin mutfak: <Text variant="subhead" style={styles.bold}>{favoriteCuisine}</Text>
-            </Text>
-          </View>
-        )}
-
-        <View style={styles.tabs}>
-          <SegmentTabs
-            tabs={[
-              { key: 'ranked', label: `Gittiklerim ${ranked.length}` },
-              { key: 'posts', label: `Gönderilerim ${myPosts.length}` },
-            ]}
-            value={tab}
-            onChange={setTab}
-          />
+        <View style={styles.buttons}>
+          <Button title="Profili düzenle" variant="outline" size="sm" onPress={() => router.push('/profil-duzenle')} style={styles.flex} />
+          <Button title="Profili paylaş" variant="outline" size="sm" onPress={shareProfile} style={styles.flex} />
+          <Button title="" icon="person.badge.plus" variant="outline" size="sm" onPress={() => router.push('/arkadas-bul')} style={styles.iconButton} />
         </View>
 
-        {tab === 'ranked' ? (
-          <>
-            {ranked.length === 0 ? (
-              <Text variant="subhead" color={colors.textSecondary} align="center" style={styles.empty}>
-                Henüz puanladığın bir mekân yok.
-              </Text>
-            ) : (
-              ranked.map((item, i) => (
-                <View key={item.place.id}>
-                  {i > 0 && <Divider inset={spacing.lg + 52 + spacing.md} />}
-                  <PlaceRow
-                    place={item.place}
-                    rank={item.rank}
-                    onPress={() => router.push({ pathname: '/mekan/[id]', params: { id: item.place.id } })}
-                    trailing={<ScoreBadge score={item.score} size="sm" />}
-                  />
-                </View>
-              ))
-            )}
-            <Button
-              title="Mekân puanla"
-              icon="plus"
-              variant="secondary"
-              onPress={() => router.push('/mekan-puanla')}
-              style={styles.addButton}
-            />
-          </>
-        ) : (
-          <>
-            <View style={{ paddingTop: 2 }}>
-              <PostGrid posts={myPosts} emptyText="Henüz gönderi paylaşmadın." />
-            </View>
-            <Button
-              title="Gönderi paylaş"
-              icon="camera"
-              variant="secondary"
-              onPress={() => router.push('/gonderi-olustur')}
-              style={styles.addButton}
-            />
-          </>
-        )}
+        <View style={styles.menu}>
+          <Divider />
+          <MenuRow
+            icon="checkmark.circle"
+            title="Gittiklerim"
+            count={scored.length}
+            onPress={() => router.push({ pathname: '/gittiklerim/[id]', params: { id: ME } })}
+          />
+          <Divider inset={spacing.lg + 26 + spacing.lg} />
+          <MenuRow icon="bookmark" title="Listem" count={saved.length} onPress={() => router.navigate('/listem')} />
+          <Divider inset={spacing.lg + 26 + spacing.lg} />
+          <MenuRow
+            icon="heart.circle"
+            title="Sana özel öneriler"
+            subtitle={recsLocked ? `${scored.length}/${RECS_UNLOCK} mekân puanlayınca açılır` : undefined}
+            locked={recsLocked}
+            onPress={() =>
+              Alert.alert(
+                'Sana özel öneriler',
+                recsLocked
+                  ? `${RECS_UNLOCK - scored.length} mekân daha puanla, zevkine göre öneriler açılsın.`
+                  : 'Kişisel öneriler çok yakında burada!',
+              )
+            }
+          />
+          <Divider />
+        </View>
+
+        <View style={styles.cards}>
+          <StatCard
+            icon="trophy"
+            title="Sıralama"
+            value={myRank && myRank.reviews > 0 ? `#${myRank.rank}` : undefined}
+            locked={!myRank || myRank.reviews === 0}
+            onPress={() => router.push('/siralama')}
+          />
+          <StatCard icon="flame" title="Seri" value={`${streak} hafta`} />
+        </View>
+
+        <View style={styles.goal}>
+          <GoalCard goal={yearGoal} done={thisYear} onChange={(goal) => dispatch({ type: 'setYearGoal', goal })} />
+        </View>
+
+        <View style={styles.postsHeader}>
+          <Text variant="title3">Gönderilerim</Text>
+          <PressableScale onPress={() => router.push('/gonderi-olustur')} hitSlop={hitSlop} style={styles.newPost}>
+            <SymbolView name="plus" tintColor={colors.primary} size={14} weight="bold" />
+            <Text variant="subhead" color={colors.primary} style={styles.bold}>
+              Yeni
+            </Text>
+          </PressableScale>
+        </View>
+        <PostGrid posts={myPosts} emptyText="Henüz gönderi paylaşmadın. Gittiğin bir mekânı paylaş!" />
+        <View style={{ height: spacing.xxl }} />
       </ScrollView>
     </>
   );
@@ -143,28 +155,56 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  identity: {
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingTop: spacing.lg,
+  headerName: {
+    fontWeight: '700',
+    maxWidth: 220,
   },
-  favorite: {
+  headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: spacing.lg,
+  },
+  buttons: {
+    flexDirection: 'row',
     gap: spacing.sm,
-    marginTop: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+  },
+  flex: {
+    flex: 1,
+  },
+  iconButton: {
+    width: 44,
+    paddingHorizontal: 0,
+    gap: 0,
+  },
+  menu: {
+    marginTop: spacing.xl,
+  },
+  cards: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
+  },
+  goal: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+  },
+  postsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xxl,
+    paddingBottom: spacing.md,
+  },
+  newPost: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   bold: {
     fontWeight: '600',
-  },
-  tabs: {
-    marginTop: spacing.xl,
-  },
-  empty: {
-    padding: spacing.xxl,
-  },
-  addButton: {
-    margin: spacing.lg,
   },
 });
