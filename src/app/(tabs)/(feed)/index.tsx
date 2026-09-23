@@ -58,6 +58,12 @@ export default function FeedScreen() {
     <>
       <Stack.Screen
         options={{
+          // Başlık üst çubukta, + ile aynı hizada (büyük başlık yerine)
+          headerLargeTitleEnabled: false,
+          title: '',
+          headerLeft: () => <FeedTitle />,
+          // iOS 26: yazının arkasına cam kapsül eklenmesin
+          unstable_headerLeftItems: () => [{ type: 'custom', element: <FeedTitle />, hidesSharedBackground: true }],
           headerRight: () => (
             <PressableScale onPress={openComposer} hitSlop={hitSlop} accessibilityLabel="Gönderi paylaş">
               <SymbolView name="plus" tintColor={colors.primary} size={22} weight="semibold" />
@@ -147,6 +153,14 @@ export default function FeedScreen() {
   );
 }
 
+function FeedTitle() {
+  return (
+    <Text variant="title" color={colors.primary} style={styles.title}>
+      Feed
+    </Text>
+  );
+}
+
 /** Yakınımda modu için konum izni / yükleniyor durumu */
 function LocationPrompt({ status, onRetry }: { status: string; onRetry: () => void }) {
   if (status === 'loading' || status === 'granted') {
@@ -212,8 +226,12 @@ function EmptyState({
 }
 
 const styles = StyleSheet.create({
+  title: {
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
   segment: {
-    paddingTop: spacing.xs,
+    paddingTop: spacing.sm,
   },
   bold: {
     fontWeight: '600',
