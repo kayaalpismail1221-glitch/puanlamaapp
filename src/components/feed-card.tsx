@@ -12,7 +12,7 @@ import { useAppStore } from '@/store/app-store';
 import type { FeedItem } from '@/types';
 
 export function FeedCard({ item }: { item: FeedItem }) {
-  const { likedFeedItems, wantToGo, dispatch } = useAppStore();
+  const { likedFeedItems, isSaved, dispatch } = useAppStore();
   const user = userById(item.userId);
   const place = placeById(item.placeId);
   const heart = useSharedValue(1);
@@ -21,7 +21,8 @@ export function FeedCard({ item }: { item: FeedItem }) {
   if (!user || !place) return null;
 
   const liked = likedFeedItems.includes(item.id);
-  const saved = wantToGo.includes(place.id);
+  const saved = isSaved(place.id);
+  const openUser = () => router.push({ pathname: '/kullanici/[id]', params: { id: user.id } });
   const openPlace = () => router.push({ pathname: '/mekan/[id]', params: { id: place.id } });
 
   const toggleLike = () => {
@@ -33,10 +34,12 @@ export function FeedCard({ item }: { item: FeedItem }) {
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <Avatar uri={user.avatarUrl} name={user.name} size={36} />
+        <PressableScale onPress={openUser} haptic={false} accessibilityLabel={`${user.name} profili`}>
+          <Avatar uri={user.avatarUrl} name={user.name} size={36} />
+        </PressableScale>
         <View style={{ flex: 1 }}>
           <Text variant="subhead" numberOfLines={2}>
-            <Text variant="subhead" style={styles.bold}>
+            <Text variant="subhead" style={styles.bold} onPress={openUser}>
               {user.name.split(' ')[0]}
             </Text>
             {' puanladı: '}
@@ -84,7 +87,7 @@ export function FeedCard({ item }: { item: FeedItem }) {
         </View>
         <View style={{ flex: 1 }} />
         <PressableScale
-          onPress={() => dispatch({ type: 'toggleWantToGo', placeId: place.id })}
+          onPress={() => dispatch({ type: 'toggleSaved', placeId: place.id })}
           hitSlop={hitSlop}
           accessibilityLabel="Gitmek istiyorum">
           <SymbolView

@@ -26,7 +26,7 @@ export default function FeedScreen() {
       <Stack.Screen
         options={{
           headerRight: () => (
-            <PressableScale onPress={() => router.push('/ara')} hitSlop={hitSlop} accessibilityLabel="Mekân puanla">
+            <PressableScale onPress={() => router.push('/mekan-puanla')} hitSlop={hitSlop} accessibilityLabel="Mekân puanla">
               <SymbolView name="plus" tintColor={colors.primary} size={22} weight="semibold" />
             </PressableScale>
           ),

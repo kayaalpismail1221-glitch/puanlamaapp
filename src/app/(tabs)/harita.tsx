@@ -20,14 +20,14 @@ type Filter = 'all' | 'been' | 'want';
 const FILTERS: { key: Filter; label: string }[] = [
   { key: 'all', label: 'Tümü' },
   { key: 'been', label: 'Gittiklerim' },
-  { key: 'want', label: 'Gitmek istiyorum' },
+  { key: 'want', label: 'Listem' },
 ];
 
 type Pin = { place: Place; score?: number };
 
 export default function MapScreen() {
   const insets = useSafeAreaInsets();
-  const { scored, wantToGo } = useAppStore();
+  const { scored, saved } = useAppStore();
   const [filter, setFilter] = useState<Filter>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -35,14 +35,14 @@ export default function MapScreen() {
     const been = scored
       .map((e) => ({ place: placeById(e.placeId), score: e.score }))
       .filter((p): p is { place: Place; score: number } => !!p.place);
-    const want = wantToGo
-      .map((id) => placeById(id))
+    const want = saved
+      .map((s) => placeById(s.placeId))
       .filter((p): p is Place => !!p)
       .map((place) => ({ place }));
     if (filter === 'been') return been;
     if (filter === 'want') return want;
     return [...been, ...want];
-  }, [scored, wantToGo, filter]);
+  }, [scored, saved, filter]);
 
   const selected = pins.find((p) => p.place.id === selectedId);
 
@@ -100,7 +100,7 @@ export default function MapScreen() {
           <BlurView intensity={80} tint="light" style={styles.emptyCard}>
             <Text variant="subhead" color={colors.textSecondary} align="center">
               {filter === 'want'
-                ? 'Gitmek istediğin mekânları kaydet, burada görünsün.'
+                ? 'Listene kaydettiğin mekânlar burada görünecek.'
                 : 'Puanladığın mekânlar haritada görünecek.'}
             </Text>
           </BlurView>

@@ -1,19 +1,20 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Linking, ScrollView, StyleSheet, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 
-import { Avatar, Button, Divider, PlaceImage, ScoreBadge, Text } from '@/components/ui';
+import { Avatar, Button, Divider, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { colors, radius, spacing } from '@/constants/theme';
 import { FEED, placeById, userById } from '@/data/mock';
 import { priceLabel } from '@/lib/format';
+import { linkSource } from '@/lib/links';
 import { haptics } from '@/lib/haptics';
 import { useAppStore } from '@/store/app-store';
 
 export default function PlaceDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const place = placeById(id);
-  const { scoreOf, scored, wantToGo, following, dispatch } = useAppStore();
+  const { scoreOf, scored, isSaved, saved: savedPlaces, following, dispatch } = useAppStore();
 
   if (!place) {
     return (
@@ -25,7 +26,9 @@ export default function PlaceDetailScreen() {
 
   const myScore = scoreOf(place.id);
   const myEntry = scored.find((e) => e.placeId === place.id);
-  const saved = wantToGo.includes(place.id);
+  const saved = isSaved(place.id);
+  const savedEntry = savedPlaces.find((s) => s.placeId === place.id);
+  const source = savedEntry?.link ? linkSource(savedEntry.link) : null;
   const friendRatings = FEED.filter((f) => f.placeId === place.id && following.includes(f.userId));
 
   return (
@@ -52,6 +55,20 @@ export default function PlaceDetailScreen() {
           </Text>
         )}
 
+        {savedEntry && (savedEntry.note || source) && (
+          <View style={styles.savedInfo}>
+            {savedEntry.note && <Text variant="subhead">{savedEntry.note}</Text>}
+            {source && savedEntry.link && (
+              <PressableScale onPress={() => Linking.openURL(savedEntry.link!)} style={styles.sourceChip}>
+                <SymbolView name={source.icon} tintColor={colors.primary} size={14} />
+                <Text variant="footnote" color={colors.primary} style={{ fontWeight: '600' }}>
+                  {source.label} gönderisini aç
+                </Text>
+              </PressableScale>
+            )}
+          </View>
+        )}
+
         <View style={styles.actions}>
           <Button
             title={myScore !== undefined ? 'Yeniden puanla' : 'Puanla'}
@@ -66,7 +83,7 @@ export default function PlaceDetailScreen() {
               variant="secondary"
               onPress={() => {
                 haptics.success();
-                dispatch({ type: 'toggleWantToGo', placeId: place.id });
+                dispatch({ type: 'toggleSaved', placeId: place.id });
               }}
               style={{ flex: 1 }}
             />
@@ -155,6 +172,18 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     gap: spacing.md,
+  },
+  savedInfo: {
+    gap: spacing.sm,
+    padding: spacing.lg,
+    borderRadius: radius.card,
+    backgroundColor: colors.surface,
+  },
+  sourceChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: spacing.xs,
   },
   friendRow: {
     flexDirection: 'row',

@@ -37,6 +37,15 @@ export type RankedEntry = {
 /** Her grup en iyiden en kötüye sıralı */
 export type Rankings = Record<Sentiment, RankedEntry[]>;
 
+/** "Listem"e kaydedilen, henüz gidilmemiş mekân */
+export type SavedPlace = {
+  placeId: string;
+  /** Mekânı nerede gördüğü: Instagram, TikTok vb. bağlantı */
+  link?: string;
+  note?: string;
+  savedAt: string; // ISO tarih
+};
+
 export type User = {
   id: string;
   name: string;

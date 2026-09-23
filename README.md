@@ -15,9 +15,9 @@ iPhone'da Expo Go ile terminaldeki QR kodu okut. Bilgisayar ve telefon aynı Wi�
 
 - `src/app/` — Expo Router ekranları
   - `onboarding/` — karşılama → giriş → profil → ilk 3 puan → arkadaş bul
-  - `(tabs)/` — Feed, Harita, Profilim (native tabs)
+  - `(tabs)/` — Feed, Ara, Harita, Listem, Profilim (native tabs)
   - `degerlendir/[id]` — Beli tarzı puanlama (izlenim + ikili karşılaştırma)
-  - `mekan/[id]`, `ara`, `arkadas-bul`
+  - `mekan/[id]`, `kullanici/[id]`, `mekan-puanla`, `listeye-ekle`, `arkadas-bul`
 - `src/constants/theme.ts` — renk, boşluk, yarıçap ve yazı token'ları
 - `src/lib/ranking.ts` — sıralama ve 0–10 puan hesabı
 - `src/store/app-store.tsx` — uygulama durumu (şimdilik AsyncStorage)

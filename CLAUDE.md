@@ -41,10 +41,12 @@ Uygulama dili Türkçe.
    karşılaştırma ("Hangisi daha iyiydi?") ile sıralamadaki yeri belirlenir. Puan 0–10 arası sıralamadan hesaplanır.
 5. Arkadaş bul (rehber / kullanıcı adı ile arama). Bu adım atlanabilir.
 
-### Alt bar (3 sekme)
+### Alt bar (5 sekme)
 - **Feed:** arkadaşların son puanladığı mekânlar (fotoğraf, puan, kısa not, beğen/yorum)
-- **Harita:** gidilen mekânlar ve "gitmek istiyorum" listesi harita üzerinde, puana göre renkli pinler
-- **Profilim:** istatistikler (gidilen mekân sayısı, en sevilen mutfak), sıralı listelerim, "gitmek istiyorum" listesi
+- **Ara:** mekân ve kişi araması tek yerde (Tümü / Mekânlar / Kişiler)
+- **Harita:** gidilen mekânlar ve Listem harita üzerinde, puana göre renkli pinler
+- **Listem:** gitmek istenen mekânlar. Instagram/TikTok'ta görülen mekân, gönderi bağlantısı ve notla kaydedilir
+- **Profilim:** istatistikler (gidilen mekân sayısı, en sevilen mutfak), sıralı listem
 
 ## Türkiye'ye özgü notlar (ileride)
 - Kategoriler: kahvaltıcı, esnaf lokantası, dürümcü, kokoreççi, ciğerci, balıkçı, meyhane

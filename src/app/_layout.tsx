@@ -44,8 +44,10 @@ function RootNavigator() {
       <Stack.Protected guard={onboarded}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="mekan/[id]" options={{ title: '', headerTransparent: true }} />
-        <Stack.Screen name="ara" options={{ presentation: 'modal', title: 'Mekân ekle' }} />
+        <Stack.Screen name="mekan-puanla" options={{ presentation: 'modal', title: 'Mekân puanla' }} />
         <Stack.Screen name="arkadas-bul" options={{ presentation: 'modal', title: 'Arkadaş bul' }} />
+        <Stack.Screen name="kullanici/[id]" options={{ title: '' }} />
+        <Stack.Screen name="listeye-ekle" options={{ presentation: 'modal', title: 'Listeme ekle' }} />
       </Stack.Protected>
 
       {/* Puanlama akışı hem onboarding'de hem uygulama içinde kullanılır */}

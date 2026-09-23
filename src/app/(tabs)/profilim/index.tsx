@@ -1,23 +1,19 @@
 import { router, Stack } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Alert, FlatList, StyleSheet, View } from 'react-native';
 
 import { PlaceRow } from '@/components/place-row';
 import { Avatar, Button, Divider, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
 import { placeById } from '@/data/mock';
-import { haptics } from '@/lib/haptics';
 import { useAppStore } from '@/store/app-store';
 import type { Place } from '@/types';
 
-type Tab = 'ranked' | 'want';
-
-type Row = { place: Place; score?: number; rank?: number };
+type Row = { place: Place; score: number; rank: number };
 
 export default function ProfileScreen() {
-  const { profile, scored, wantToGo, following, dispatch } = useAppStore();
-  const [tab, setTab] = useState<Tab>('ranked');
+  const { profile, scored, saved, following, dispatch } = useAppStore();
 
   const ranked = useMemo<Row[]>(
     () =>
@@ -28,16 +24,11 @@ export default function ProfileScreen() {
     [scored],
   );
 
-  const want = useMemo<Row[]>(
-    () => wantToGo.flatMap((id) => (placeById(id) ? [{ place: placeById(id)! }] : [])),
-    [wantToGo],
-  );
-
   // En sevilen mutfak: puanı 6.7 ve üstü mekânlarda en sık görülen mutfak
   const favoriteCuisine = useMemo(() => {
     const counts = new Map<string, number>();
     for (const row of ranked) {
-      if ((row.score ?? 0) < 6.7) continue;
+      if (row.score < 6.7) continue;
       counts.set(row.place.cuisine, (counts.get(row.place.cuisine) ?? 0) + 1);
     }
     return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
@@ -48,8 +39,6 @@ export default function ProfileScreen() {
       { text: 'Vazgeç', style: 'cancel' },
       { text: 'Çıkış yap', style: 'destructive', onPress: () => dispatch({ type: 'reset' }) },
     ]);
-
-  const data = tab === 'ranked' ? ranked : want;
 
   return (
     <>
@@ -63,7 +52,7 @@ export default function ProfileScreen() {
         }}
       />
       <FlatList
-        data={data}
+        data={ranked}
         keyExtractor={(r) => r.place.id}
         contentInsetAdjustmentBehavior="automatic"
         ItemSeparatorComponent={() => <Divider inset={spacing.lg + 52 + spacing.md} />}
@@ -81,7 +70,7 @@ export default function ProfileScreen() {
 
             <View style={styles.stats}>
               <Stat value={String(ranked.length)} label="Gidilen" />
-              <Stat value={String(want.length)} label="Gitmek istiyorum" />
+              <Stat value={String(saved.length)} label="Listem" />
               <Stat value={String(following.length)} label="Takip" />
             </View>
 
@@ -94,64 +83,31 @@ export default function ProfileScreen() {
               </View>
             )}
 
-            <View style={styles.tabs}>
-              {(
-                [
-                  ['ranked', 'Sıralamam'],
-                  ['want', 'Gitmek istiyorum'],
-                ] as const
-              ).map(([key, label]) => {
-                const active = tab === key;
-                return (
-                  <PressableScale
-                    key={key}
-                    haptic={false}
-                    onPress={() => {
-                      haptics.select();
-                      setTab(key);
-                    }}
-                    style={[styles.tab, active && styles.tabActive]}>
-                    <Text variant="subhead" color={active ? colors.primary : colors.textSecondary} style={styles.bold}>
-                      {label}
-                    </Text>
-                  </PressableScale>
-                );
-              })}
-            </View>
-          </View>
-        }
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text variant="subhead" color={colors.textSecondary} align="center">
-              {tab === 'ranked'
-                ? 'Henüz puanladığın bir mekân yok.'
-                : 'Beğendiğin mekânları kaydet, sonra gitmek için burada bulursun.'}
+            <Text variant="title3" color={colors.primary} style={styles.sectionTitle}>
+              Sıralamam
             </Text>
           </View>
         }
+        ListEmptyComponent={
+          <Text variant="subhead" color={colors.textSecondary} align="center" style={styles.empty}>
+            Henüz puanladığın bir mekân yok.
+          </Text>
+        }
         ListFooterComponent={
-          tab === 'ranked' ? (
-            <Button
-              title="Mekân puanla"
-              icon="plus"
-              variant="secondary"
-              onPress={() => router.push('/ara')}
-              style={styles.addButton}
-            />
-          ) : null
+          <Button
+            title="Mekân puanla"
+            icon="plus"
+            variant="secondary"
+            onPress={() => router.push('/mekan-puanla')}
+            style={styles.addButton}
+          />
         }
         renderItem={({ item }) => (
           <PlaceRow
             place={item.place}
             rank={item.rank}
             onPress={() => router.push({ pathname: '/mekan/[id]', params: { id: item.place.id } })}
-            trailing={
-              item.score !== undefined ? (
-                <ScoreBadge score={item.score} size="sm" />
-              ) : (
-                <SymbolView name="chevron.right" tintColor={colors.textTertiary} size={14} />
-              )
-            }
+            trailing={<ScoreBadge score={item.score} size="sm" />}
           />
         )}
       />
@@ -201,21 +157,10 @@ const styles = StyleSheet.create({
   bold: {
     fontWeight: '600',
   },
-  tabs: {
-    flexDirection: 'row',
-    marginTop: spacing.xl,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  tab: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  tabActive: {
-    borderBottomColor: colors.primary,
+  sectionTitle: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.sm,
   },
   empty: {
     padding: spacing.xxl,

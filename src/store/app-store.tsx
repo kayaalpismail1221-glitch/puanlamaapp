@@ -10,7 +10,7 @@ import {
 } from 'react';
 
 import { emptyRankings, flattenRankings, insertEntry, removeFromRankings } from '@/lib/ranking';
-import type { Profile, RankedEntry, Rankings, Sentiment } from '@/types';
+import type { Profile, RankedEntry, Rankings, SavedPlace, Sentiment } from '@/types';
 
 /**
  * Uygulama durumu. Şimdilik cihazda (AsyncStorage) saklanıyor;
@@ -23,7 +23,8 @@ type State = {
   onboarded: boolean;
   profile: Profile | null;
   rankings: Rankings;
-  wantToGo: string[];
+  /** "Listem": gitmek istenen mekânlar, en yeni başta */
+  saved: SavedPlace[];
   following: string[];
   likedFeedItems: string[];
 };
@@ -34,7 +35,7 @@ const initialState: State = {
   onboarded: false,
   profile: null,
   rankings: emptyRankings(),
-  wantToGo: [],
+  saved: [],
   following: [],
   likedFeedItems: [],
 };
@@ -46,13 +47,18 @@ type Action =
   | { type: 'completeOnboarding' }
   | { type: 'rank'; sentiment: Sentiment; index: number; entry: RankedEntry }
   | { type: 'unrank'; placeId: string }
-  | { type: 'toggleWantToGo'; placeId: string }
+  | { type: 'savePlace'; entry: SavedPlace }
+  | { type: 'unsavePlace'; placeId: string }
+  | { type: 'toggleSaved'; placeId: string }
   | { type: 'toggleFollow'; userId: string }
   | { type: 'toggleLike'; feedItemId: string }
   | { type: 'reset' };
 
 const toggle = (list: string[], id: string) =>
   list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
+
+const withoutSaved = (list: SavedPlace[], placeId: string) =>
+  list.filter((s) => s.placeId !== placeId);
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -68,13 +74,23 @@ function reducer(state: State, action: Action): State {
       return {
         ...state,
         rankings: insertEntry(state.rankings, action.sentiment, action.index, action.entry),
-        // Puanlanan mekân artık "gitmek istiyorum" listesinde durmasın
-        wantToGo: state.wantToGo.filter((id) => id !== action.entry.placeId),
+        // Puanlanan mekân artık "Listem"de durmasın
+        saved: withoutSaved(state.saved, action.entry.placeId),
       };
     case 'unrank':
       return { ...state, rankings: removeFromRankings(state.rankings, action.placeId) };
-    case 'toggleWantToGo':
-      return { ...state, wantToGo: toggle(state.wantToGo, action.placeId) };
+    case 'savePlace':
+      // Aynı mekân tekrar kaydedilirse bilgileri güncellenir ve başa alınır
+      return { ...state, saved: [action.entry, ...withoutSaved(state.saved, action.entry.placeId)] };
+    case 'unsavePlace':
+      return { ...state, saved: withoutSaved(state.saved, action.placeId) };
+    case 'toggleSaved':
+      return state.saved.some((s) => s.placeId === action.placeId)
+        ? { ...state, saved: withoutSaved(state.saved, action.placeId) }
+        : {
+            ...state,
+            saved: [{ placeId: action.placeId, savedAt: new Date().toISOString() }, ...state.saved],
+          };
     case 'toggleFollow':
       return { ...state, following: toggle(state.following, action.userId) };
     case 'toggleLike':
@@ -86,10 +102,21 @@ function reducer(state: State, action: Action): State {
 
 const STORAGE_KEY = 'puanla:state:v1';
 
+/** Eski kayıt biçimlerini güncel duruma çevirir */
+function migrate(raw: Record<string, unknown>): Partial<State> {
+  const { wantToGo, ...rest } = raw as Partial<State> & { wantToGo?: string[] };
+  if (!rest.saved && Array.isArray(wantToGo)) {
+    const now = new Date().toISOString();
+    rest.saved = wantToGo.map((placeId) => ({ placeId, savedAt: now }));
+  }
+  return rest;
+}
+
 type Store = State & {
   dispatch: (action: Action) => void;
   scored: ReturnType<typeof flattenRankings>;
   scoreOf: (placeId: string) => number | undefined;
+  isSaved: (placeId: string) => boolean;
 };
 
 const StoreContext = createContext<Store | null>(null);
@@ -100,7 +127,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   // Açılışta kayıtlı durumu yükle
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
-      .then((raw) => dispatch({ type: 'hydrate', state: raw ? JSON.parse(raw) : {} }))
+      .then((raw) => dispatch({ type: 'hydrate', state: raw ? migrate(JSON.parse(raw)) : {} }))
       .catch(() => dispatch({ type: 'hydrate', state: {} }));
   }, []);
 
@@ -116,10 +143,14 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     (placeId: string) => scored.find((e) => e.placeId === placeId)?.score,
     [scored],
   );
+  const isSaved = useCallback(
+    (placeId: string) => state.saved.some((s) => s.placeId === placeId),
+    [state.saved],
+  );
 
   const value = useMemo(
-    () => ({ ...state, dispatch, scored, scoreOf }),
-    [state, scored, scoreOf],
+    () => ({ ...state, dispatch, scored, scoreOf, isSaved }),
+    [state, scored, scoreOf, isSaved],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
