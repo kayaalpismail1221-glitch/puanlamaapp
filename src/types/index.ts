@@ -37,9 +37,13 @@ export type RankedEntry = {
 /** Her grup en iyiden en kötüye sıralı */
 export type Rankings = Record<Sentiment, RankedEntry[]>;
 
+/** Kaydın nereden geldiği: sosyal medyada görülen ya da uygulama içinde kaydedilen */
+export type SaveOrigin = 'social' | 'app';
+
 /** "Listem"e kaydedilen, henüz gidilmemiş mekân */
 export type SavedPlace = {
   placeId: string;
+  origin: SaveOrigin;
   /** Mekânı nerede gördüğü: Instagram, TikTok vb. bağlantı */
   link?: string;
   note?: string;

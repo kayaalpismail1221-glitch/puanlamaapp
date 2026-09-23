@@ -112,7 +112,10 @@ function reducer(state: State, action: Action): State {
         ? { ...state, saved: withoutSaved(state.saved, action.placeId) }
         : {
             ...state,
-            saved: [{ placeId: action.placeId, savedAt: new Date().toISOString() }, ...state.saved],
+            saved: [
+              { placeId: action.placeId, origin: 'app', savedAt: new Date().toISOString() },
+              ...state.saved,
+            ],
           };
     case 'toggleFollow':
       return { ...state, following: toggle(state.following, action.userId) };
@@ -147,8 +150,10 @@ function migrate(raw: Record<string, unknown>): Partial<State> {
   };
   if (!rest.saved && Array.isArray(wantToGo)) {
     const now = new Date().toISOString();
-    rest.saved = wantToGo.map((placeId) => ({ placeId, savedAt: now }));
+    rest.saved = wantToGo.map((placeId) => ({ placeId, origin: 'app' as const, savedAt: now }));
   }
+  // Kaynağı olmayan eski kayıtlar: bağlantı varsa sosyal medyadan gelmiştir
+  rest.saved = rest.saved?.map((s) => ({ ...s, origin: s.origin ?? (s.link ? 'social' : 'app') }));
   return rest;
 }
 
@@ -163,6 +168,8 @@ type Store = State & {
   commentsFor: (postId: string) => Comment[];
   /** `ME` dahil herhangi bir kullanıcıyı çözer */
   getUser: (userId: string) => User | undefined;
+  /** Takip edilenlerin bu mekâna verdiği puanların ortalaması */
+  friendScoreOf: (placeId: string) => { average: number; count: number } | undefined;
 };
 
 const StoreContext = createContext<Store | null>(null);
@@ -220,9 +227,37 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     [state.profile],
   );
 
+  const friendScoreOf = useCallback(
+    (placeId: string) => {
+      // Kişi başına en yeni gönderideki puan
+      const seen = new Set<string>();
+      const scores: number[] = [];
+      for (const p of posts) {
+        if (p.placeId !== placeId || p.score === undefined || !state.following.includes(p.userId)) continue;
+        if (seen.has(p.userId)) continue;
+        seen.add(p.userId);
+        scores.push(p.score);
+      }
+      if (!scores.length) return undefined;
+      return { average: scores.reduce((a, b) => a + b, 0) / scores.length, count: scores.length };
+    },
+    [posts, state.following],
+  );
+
   const value = useMemo(
-    () => ({ ...state, dispatch, scored, scoreOf, isSaved, posts, postById, commentsFor, getUser }),
-    [state, scored, scoreOf, isSaved, posts, postById, commentsFor, getUser],
+    () => ({
+      ...state,
+      dispatch,
+      scored,
+      scoreOf,
+      isSaved,
+      posts,
+      postById,
+      commentsFor,
+      getUser,
+      friendScoreOf,
+    }),
+    [state, scored, scoreOf, isSaved, posts, postById, commentsFor, getUser, friendScoreOf],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

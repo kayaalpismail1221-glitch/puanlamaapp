@@ -47,7 +47,10 @@ Uygulama dili Türkçe.
   Mekân sayfasında o mekânın gönderileri "Gönderiler" ızgarasında listelenir.
 - **Ara:** mekân ve kişi araması tek yerde (Tümü / Mekânlar / Kişiler)
 - **Harita:** gidilen mekânlar ve Listem harita üzerinde, puana göre renkli pinler
-- **Listem:** gitmek istenen mekânlar. Instagram/TikTok'ta görülen mekân, gönderi bağlantısı ve notla kaydedilir
+- **Listem:** gitmek istenen mekânlar, iki bölüm:
+  - *Sosyal medyadan*: Instagram/TikTok'ta görülen mekân, gönderi bağlantısı ve notla (panodaki link otomatik yakalanır)
+  - *Kaydettiklerim*: uygulama içinde yer imiyle kaydedilen mekânlar ve gönderiler
+  - Mutfak/kaynak filtresi, sıralama (en yeni, arkadaş puanı, A–Z), sola kaydır → Gittim / Sil, haritada gör
 - **Profilim:** istatistikler (gidilen mekân sayısı, en sevilen mutfak), sıralı listem
 
 ## Türkiye'ye özgü notlar (ileride)

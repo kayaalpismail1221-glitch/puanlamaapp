@@ -1,5 +1,5 @@
 import { BlurView } from 'expo-blur';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -28,7 +28,15 @@ type Pin = { place: Place; score?: number };
 export default function MapScreen() {
   const insets = useSafeAreaInsets();
   const { scored, saved } = useAppStore();
-  const [filter, setFilter] = useState<Filter>('all');
+  // Listem'deki harita butonu `filtre=want` ile açar
+  const { filtre } = useLocalSearchParams<{ filtre?: Filter }>();
+  const [filter, setFilter] = useState<Filter>(filtre ?? 'all');
+  // Parametre değişince filtreyi güncelle (render sırasında, efekt olmadan)
+  const [lastParam, setLastParam] = useState(filtre);
+  if (filtre !== lastParam) {
+    setLastParam(filtre);
+    if (filtre) setFilter(filtre);
+  }
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const pins = useMemo<Pin[]>(() => {
