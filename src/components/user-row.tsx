@@ -1,17 +1,17 @@
-import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
 import { Avatar, PressableScale, Text } from '@/components/ui';
 import { colors, radius, spacing } from '@/constants/theme';
+import { openUserProfile } from '@/lib/navigation';
 import { useAppStore } from '@/store/app-store';
-import type { User } from '@/types';
+import { ME, type User } from '@/types';
 
 /** Kişi satırı: dokununca profili açılır, sağda takip butonu */
 export function UserRow({ user, subtitle }: { user: User; subtitle?: string }) {
   return (
     <PressableScale
       scaleTo={0.98}
-      onPress={() => router.push({ pathname: '/kullanici/[id]', params: { id: user.id } })}
+      onPress={() => openUserProfile(user.id)}
       style={styles.row}>
       <Avatar uri={user.avatarUrl} name={user.name} size={44} />
       <View style={styles.info}>
@@ -22,7 +22,7 @@ export function UserRow({ user, subtitle }: { user: User; subtitle?: string }) {
           {subtitle ?? `@${user.username}`}
         </Text>
       </View>
-      <FollowButton userId={user.id} />
+      {user.id !== ME && <FollowButton userId={user.id} />}
     </PressableScale>
   );
 }

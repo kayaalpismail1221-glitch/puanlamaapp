@@ -51,6 +51,8 @@ function RootNavigator() {
         <Stack.Screen name="gonderi/[id]" options={{ title: 'Gönderi' }} />
         <Stack.Screen name="kaydedilen-gonderiler" options={{ title: 'Kaydedilen gönderiler' }} />
         <Stack.Screen name="konum-sec" options={{ presentation: 'modal', title: 'Konum seç' }} />
+        <Stack.Screen name="siralama" options={{ title: 'Liderlik tablosu' }} />
+        <Stack.Screen name="baglantilar/[id]" options={{ title: '' }} />
         <Stack.Screen name="gonderi-olustur" options={{ presentation: 'modal', title: 'Gönderi paylaş' }} />
       </Stack.Protected>
 

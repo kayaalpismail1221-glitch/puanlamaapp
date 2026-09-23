@@ -10,6 +10,7 @@ import { placeById } from '@/data/mock';
 import { timeAgo } from '@/lib/format';
 import { formatDistance } from '@/lib/geo';
 import { haptics } from '@/lib/haptics';
+import { openUserProfile } from '@/lib/navigation';
 import { useAppStore } from '@/store/app-store';
 import { ME, type Post } from '@/types';
 
@@ -20,11 +21,6 @@ type Props = {
   /** Yakınımda feed'inde mekâna uzaklık */
   distanceKm?: number;
 };
-
-export function openUserProfile(userId: string) {
-  if (userId === ME) router.navigate('/profilim');
-  else router.push({ pathname: '/kullanici/[id]', params: { id: userId } });
-}
 
 export function PostCard({ post, expanded, distanceKm }: Props) {
   const { likedPosts, savedPosts, dispatch, getUser, commentsFor } = useAppStore();

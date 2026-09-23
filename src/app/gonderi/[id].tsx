@@ -4,11 +4,12 @@ import { useState } from 'react';
 import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { openUserProfile, PostCard } from '@/components/post-card';
+import { PostCard } from '@/components/post-card';
 import { Avatar, Divider, PressableScale, Text } from '@/components/ui';
 import { colors, hitSlop, radius, spacing, typography } from '@/constants/theme';
 import { timeAgo } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
+import { openUserProfile } from '@/lib/navigation';
 import { useAppStore } from '@/store/app-store';
 import { ME } from '@/types';
 

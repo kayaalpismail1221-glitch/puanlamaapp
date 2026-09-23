@@ -53,7 +53,9 @@ Uygulama dili Türkçe.
   - *Sosyal medyadan*: Instagram/TikTok'ta görülen mekân, gönderi bağlantısı ve notla (panodaki link otomatik yakalanır)
   - *Kaydettiklerim*: uygulama içinde yer imiyle kaydedilen mekânlar ve gönderiler
   - Mutfak/kaynak filtresi, sıralama (en yeni, arkadaş puanı, A–Z), sola kaydır → Gittim / Sil, haritada gör
-- **Profilim:** istatistikler (gidilen mekân sayısı, en sevilen mutfak), sıralı listem
+- **Profilim:** Beli tarzı istatistik satırı: Takipçi · Takip · Sıralama. Sıralama = paylaşılan değerlendirme
+  (gönderi) sayısına göre liderlik tablosundaki yer (eşitlikte beğeni); ilk değerlendirmeye kadar kilitli.
+  Liderlik tablosu: Genel / Arkadaşlar, Tüm zamanlar / Bu ay. Altında Gittiklerim ve Gönderilerim sekmeleri.
 
 ## Türkiye'ye özgü notlar (ileride)
 - Kategoriler: kahvaltıcı, esnaf lokantası, dürümcü, kokoreççi, ciğerci, balıkçı, meyhane

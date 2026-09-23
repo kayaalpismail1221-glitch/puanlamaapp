@@ -5,24 +5,20 @@ import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
 import { PlaceRow } from '@/components/place-row';
 import { PostGrid } from '@/components/post-grid';
+import { ProfileStats } from '@/components/profile-stats';
 import { SegmentTabs } from '@/components/segment-tabs';
 import { Avatar, Button, Divider, PressableScale, ScoreBadge, Text } from '@/components/ui';
-import { colors, hitSlop, radius, spacing } from '@/constants/theme';
+import { colors, hitSlop, spacing } from '@/constants/theme';
 import { placeById } from '@/data/mock';
 import { useAppStore } from '@/store/app-store';
 import { ME, type Place } from '@/types';
 
 type Tab = 'ranked' | 'posts';
 
-const TABS = [
-  { key: 'ranked', label: 'Sıralamam' },
-  { key: 'posts', label: 'Gönderilerim' },
-] as const;
-
 type Row = { place: Place; score: number; rank: number };
 
 export default function ProfileScreen() {
-  const { profile, scored, posts, following, dispatch } = useAppStore();
+  const { profile, scored, posts, dispatch } = useAppStore();
   const [tab, setTab] = useState<Tab>('ranked');
 
   const ranked = useMemo<Row[]>(
@@ -74,11 +70,7 @@ export default function ProfileScreen() {
           </Text>
         </View>
 
-        <View style={styles.stats}>
-          <Stat value={ranked.length} label="Gidilen" />
-          <Stat value={myPosts.length} label="Gönderi" />
-          <Stat value={following.length} label="Takip" />
-        </View>
+        <ProfileStats userId={ME} />
 
         {favoriteCuisine && (
           <View style={styles.favorite}>
@@ -90,7 +82,14 @@ export default function ProfileScreen() {
         )}
 
         <View style={styles.tabs}>
-          <SegmentTabs tabs={TABS} value={tab} onChange={setTab} />
+          <SegmentTabs
+            tabs={[
+              { key: 'ranked', label: `Gittiklerim ${ranked.length}` },
+              { key: 'posts', label: `Gönderilerim ${myPosts.length}` },
+            ]}
+            value={tab}
+            onChange={setTab}
+          />
         </View>
 
         {tab === 'ranked' ? (
@@ -139,19 +138,6 @@ export default function ProfileScreen() {
   );
 }
 
-function Stat({ value, label }: { value: number; label: string }) {
-  return (
-    <View style={styles.stat}>
-      <Text variant="title3" color={colors.primary} style={{ fontVariant: ['tabular-nums'] }}>
-        {value}
-      </Text>
-      <Text variant="caption" color={colors.textSecondary}>
-        {label}
-      </Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -161,19 +147,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
     paddingTop: spacing.lg,
-  },
-  stats: {
-    flexDirection: 'row',
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.xl,
-    paddingVertical: spacing.lg,
-    borderRadius: radius.card,
-    backgroundColor: colors.surface,
-  },
-  stat: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 2,
   },
   favorite: {
     flexDirection: 'row',

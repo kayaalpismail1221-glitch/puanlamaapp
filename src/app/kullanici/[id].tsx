@@ -4,19 +4,15 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { PlaceRow } from '@/components/place-row';
 import { PostGrid } from '@/components/post-grid';
+import { ProfileStats } from '@/components/profile-stats';
 import { SegmentTabs } from '@/components/segment-tabs';
 import { Avatar, Divider, ScoreBadge, Text } from '@/components/ui';
 import { FollowButton } from '@/components/user-row';
-import { colors, radius, spacing } from '@/constants/theme';
+import { colors, spacing } from '@/constants/theme';
 import { placeById } from '@/data/mock';
 import { useAppStore } from '@/store/app-store';
 
 type Tab = 'posts' | 'ranked';
-
-const TABS = [
-  { key: 'posts', label: 'Gönderiler' },
-  { key: 'ranked', label: 'Sıralaması' },
-] as const;
 
 /** Başka bir kullanıcının profili: gönderileri ve mekân sıralaması */
 export default function UserProfileScreen() {
@@ -56,16 +52,20 @@ export default function UserProfileScreen() {
         </Text>
       </View>
 
-      <View style={styles.stats}>
-        <Stat value={userPosts.length} label="Gönderi" />
-        <Stat value={ranked.length} label="Mekân" />
-      </View>
+      <ProfileStats userId={user.id} />
 
       <View style={styles.follow}>
         <FollowButton userId={user.id} large />
       </View>
 
-      <SegmentTabs tabs={TABS} value={tab} onChange={setTab} />
+      <SegmentTabs
+        tabs={[
+          { key: 'posts', label: `Gönderiler ${userPosts.length}` },
+          { key: 'ranked', label: `Gittikleri ${ranked.length}` },
+        ]}
+        value={tab}
+        onChange={setTab}
+      />
 
       {tab === 'posts' ? (
         <View style={{ paddingTop: 2 }}>
@@ -97,19 +97,6 @@ export default function UserProfileScreen() {
   );
 }
 
-function Stat({ value, label }: { value: number; label: string }) {
-  return (
-    <View style={styles.stat}>
-      <Text variant="title3" color={colors.primary} style={{ fontVariant: ['tabular-nums'] }}>
-        {value}
-      </Text>
-      <Text variant="caption" color={colors.textSecondary}>
-        {label}
-      </Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -125,19 +112,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
     paddingTop: spacing.lg,
-  },
-  stats: {
-    flexDirection: 'row',
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.xl,
-    paddingVertical: spacing.lg,
-    borderRadius: radius.card,
-    backgroundColor: colors.surface,
-  },
-  stat: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 2,
   },
   follow: {
     padding: spacing.lg,

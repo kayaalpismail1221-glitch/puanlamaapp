@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 
-import { COMMENTS, POSTS, userById } from '@/data/mock';
+import { COMMENTS, FOLLOWS, POSTS, USERS, userById } from '@/data/mock';
 import { emptyRankings, flattenRankings, insertEntry, removeFromRankings } from '@/lib/ranking';
 import {
   ME,
@@ -177,6 +177,9 @@ type Store = State & {
   getUser: (userId: string) => User | undefined;
   /** Takip edilenlerin bu mekâna verdiği puanların ortalaması */
   friendScoreOf: (placeId: string) => { average: number; count: number } | undefined;
+  /** Bir kullanıcının takip ettikleri ve takipçileri (`ME` dahil) */
+  followingOf: (userId: string) => string[];
+  followersOf: (userId: string) => string[];
 };
 
 const StoreContext = createContext<Store | null>(null);
@@ -251,6 +254,15 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     [posts, state.following],
   );
 
+  const followingOf = useCallback(
+    (userId: string) => (userId === ME ? state.following : (FOLLOWS[userId] ?? [])),
+    [state.following],
+  );
+  const followersOf = useCallback(
+    (userId: string) => [...USERS.map((u) => u.id), ME].filter((id) => id !== userId && followingOf(id).includes(userId)),
+    [followingOf],
+  );
+
   const value = useMemo(
     () => ({
       ...state,
@@ -263,8 +275,10 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       commentsFor,
       getUser,
       friendScoreOf,
+      followingOf,
+      followersOf,
     }),
-    [state, scored, scoreOf, isSaved, posts, postById, commentsFor, getUser, friendScoreOf],
+    [state, scored, scoreOf, isSaved, posts, postById, commentsFor, getUser, friendScoreOf, followingOf, followersOf],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

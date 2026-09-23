@@ -1,4 +1,4 @@
-import type { Comment, Place, Post, User } from '@/types';
+import { ME, type Comment, type Place, type Post, type User } from '@/types';
 
 /**
  * Geliştirme için sahte veri. Mekân adları kurgusaldır.
@@ -61,6 +61,16 @@ export const USERS: User[] = [
   { id: 'u5', name: 'Elif Demir', username: 'elifdemir', avatarUrl: 'https://i.pravatar.cc/200?img=45' },
   { id: 'u6', name: 'Mert Şahin', username: 'mertsahin', avatarUrl: 'https://i.pravatar.cc/200?img=53' },
 ];
+
+/** Örnek kullanıcıların kimi takip ettiği (bazıları seni de takip ediyor) */
+export const FOLLOWS: Record<string, string[]> = {
+  u1: ['u2', 'u3', 'u5', ME],
+  u2: ['u1', 'u4', 'u6'],
+  u3: ['u1', 'u2', 'u5', ME],
+  u4: ['u2', 'u6'],
+  u5: ['u1', 'u3', ME],
+  u6: ['u2', 'u4'],
+};
 
 const hoursAgo = (h: number) => new Date(Date.now() - h * 3600_000).toISOString();
 
