@@ -10,6 +10,7 @@ import {
 } from 'react';
 
 import { COMMENTS, FOLLOWS, POSTS, USERS, userById } from '@/data/mock';
+import { setHapticsEnabled } from '@/lib/haptics';
 import { emptyRankings, flattenRankings, insertEntry, removeFromRankings } from '@/lib/ranking';
 import {
   ME,
@@ -50,6 +51,8 @@ type State = {
   joinedAt?: string;
   /** Bu yıl denenmek istenen mekân sayısı hedefi */
   yearGoal?: number;
+  /** Ayarlar: dokunmalarda titreşim */
+  hapticsEnabled: boolean;
 };
 
 const initialState: State = {
@@ -65,6 +68,7 @@ const initialState: State = {
   likedPosts: [],
   savedPosts: [],
   feedArea: { type: 'near' },
+  hapticsEnabled: true,
 };
 
 type Action =
@@ -85,6 +89,7 @@ type Action =
   | { type: 'addComment'; comment: Comment }
   | { type: 'setFeedArea'; area: FeedArea }
   | { type: 'setYearGoal'; goal: number | undefined }
+  | { type: 'setHapticsEnabled'; enabled: boolean }
   | { type: 'reset' };
 
 const toggle = (list: string[], id: string) =>
@@ -149,6 +154,8 @@ function reducer(state: State, action: Action): State {
       return { ...state, feedArea: action.area };
     case 'setYearGoal':
       return { ...state, yearGoal: action.goal };
+    case 'setHapticsEnabled':
+      return { ...state, hapticsEnabled: action.enabled };
     case 'reset':
       return { ...initialState, hydrated: true };
   }
@@ -200,6 +207,9 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       .then((raw) => dispatch({ type: 'hydrate', state: raw ? migrate(JSON.parse(raw)) : {} }))
       .catch(() => dispatch({ type: 'hydrate', state: {} }));
   }, []);
+
+  // Titreşim tercihini haptik yardımcısına yansıt
+  useEffect(() => setHapticsEnabled(state.hapticsEnabled), [state.hapticsEnabled]);
 
   // Her değişiklikte kaydet
   useEffect(() => {

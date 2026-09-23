@@ -64,7 +64,9 @@ Uygulama dili Türkçe.
   - Mutfak/kaynak filtresi, sıralama (en yeni, arkadaş puanı, A–Z), sola kaydır → Gittim / Sil, haritada gör
 - **Profilim:** Beli tarzı istatistik satırı: Takipçi · Takip · Sıralama. Sıralama = paylaşılan değerlendirme
   (gönderi) sayısına göre liderlik tablosundaki yer (eşitlikte beğeni); ilk değerlendirmeye kadar kilitli.
-  Liderlik tablosu: Genel / Arkadaşlar, Tüm zamanlar / Bu ay. Altında Gittiklerim ve Gönderilerim sekmeleri.
+  Liderlik tablosu: Genel / Arkadaşlar, Tüm zamanlar / Bu ay.
+  Beli'nin kopyası değil, kendi karakteri var: Top 3'üm vitrini, Damak zevkin (mutfak payları),
+  Türk mutfağına özel rozetler, Seri, yıllık hedef, Gönderilerim ızgarası. Sağ üstte paylaş + ⚙️ Ayarlar.
 
 ## Türkiye'ye özgü notlar (ileride)
 - Kategoriler: kahvaltıcı, esnaf lokantası, dürümcü, kokoreççi, ciğerci, balıkçı, meyhane

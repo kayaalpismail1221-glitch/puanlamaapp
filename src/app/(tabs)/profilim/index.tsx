@@ -1,14 +1,24 @@
 import { router, Stack } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo } from 'react';
-import { ActionSheetIOS, Alert, Platform, ScrollView, Share, StyleSheet, View } from 'react-native';
+import { Alert, ScrollView, Share, StyleSheet, View } from 'react-native';
 
 import { PostGrid } from '@/components/post-grid';
-import { GoalCard, MenuRow, ProfileIdentity, StatCard } from '@/components/profile-parts';
+import {
+  BadgeStrip,
+  GoalCard,
+  MenuRow,
+  ProfileIdentity,
+  StatCard,
+  TasteCard,
+  TopThree,
+} from '@/components/profile-parts';
 import { ProfileStats } from '@/components/profile-stats';
 import { Button, Divider, PressableScale, Text } from '@/components/ui';
 import { colors, hitSlop, spacing } from '@/constants/theme';
+import { placeById } from '@/data/mock';
 import { useLeaderboard } from '@/hooks/use-leaderboard';
+import { computeBadges, tasteProfile, type ScoredPlace } from '@/lib/insights';
 import { placesThisYear, weeklyStreak } from '@/lib/stats';
 import { useAppStore } from '@/store/app-store';
 import { ME } from '@/types';
@@ -21,54 +31,36 @@ export default function ProfileScreen() {
   const leaderboard = useLeaderboard('all', 'all');
 
   const myPosts = useMemo(() => posts.filter((p) => p.userId === ME), [posts]);
-  const myRank = leaderboard.find((e) => e.userId === ME);
+  const myPlaces = useMemo<ScoredPlace[]>(
+    () => scored.flatMap((e) => (placeById(e.placeId) ? [{ place: placeById(e.placeId)!, score: e.score }] : [])),
+    [scored],
+  );
   const allEntries = useMemo(() => Object.values(rankings).flat(), [rankings]);
+
+  const myRank = leaderboard.find((e) => e.userId === ME);
   const streak = weeklyStreak([...allEntries.map((e) => e.ratedAt), ...myPosts.map((p) => p.createdAt)]);
-  const thisYear = placesThisYear(allEntries);
+  const taste = useMemo(() => tasteProfile(myPlaces), [myPlaces]);
+  const badges = useMemo(
+    () => computeBadges({ places: myPlaces, postCount: myPosts.length, streakWeeks: streak }),
+    [myPlaces, myPosts.length, streak],
+  );
   const recsLocked = scored.length < RECS_UNLOCK;
 
   const shareProfile = () =>
     Share.share({ message: `Puanla’da beni takip et: @${profile?.username} 🍽️ Gittiğim her yeri puanlıyorum.` });
-
-  const openMenu = () => {
-    const logout = () =>
-      Alert.alert('Çıkış yap', 'Tüm yerel veriler silinir ve karşılama ekranına dönersin.', [
-        { text: 'Vazgeç', style: 'cancel' },
-        { text: 'Çıkış yap', style: 'destructive', onPress: () => dispatch({ type: 'reset' }) },
-      ]);
-    if (Platform.OS !== 'ios') return logout();
-    ActionSheetIOS.showActionSheetWithOptions(
-      {
-        options: ['Profili düzenle', 'Liderlik tablosu', 'Çıkış yap', 'Vazgeç'],
-        destructiveButtonIndex: 2,
-        cancelButtonIndex: 3,
-        tintColor: colors.primary,
-      },
-      (i) => {
-        if (i === 0) router.push('/profil-duzenle');
-        if (i === 1) router.push('/siralama');
-        if (i === 2) logout();
-      },
-    );
-  };
 
   return (
     <>
       <Stack.Screen
         options={{
           title: '',
-          headerLeft: () => (
-            <Text variant="title3" style={styles.headerName} numberOfLines={1}>
-              {profile?.name}
-            </Text>
-          ),
           headerRight: () => (
             <View style={styles.headerActions}>
               <PressableScale onPress={shareProfile} hitSlop={hitSlop} accessibilityLabel="Profili paylaş">
-                <SymbolView name="square.and.arrow.up" tintColor={colors.text} size={21} />
+                <SymbolView name="square.and.arrow.up" tintColor={colors.primary} size={21} />
               </PressableScale>
-              <PressableScale onPress={openMenu} hitSlop={hitSlop} accessibilityLabel="Menü">
-                <SymbolView name="line.3.horizontal" tintColor={colors.text} size={21} />
+              <PressableScale onPress={() => router.push('/ayarlar')} hitSlop={hitSlop} accessibilityLabel="Ayarlar">
+                <SymbolView name="gearshape" tintColor={colors.primary} size={22} />
               </PressableScale>
             </View>
           ),
@@ -87,7 +79,7 @@ export default function ProfileScreen() {
 
         <View style={styles.buttons}>
           <Button title="Profili düzenle" variant="outline" size="sm" onPress={() => router.push('/profil-duzenle')} style={styles.flex} />
-          <Button title="Profili paylaş" variant="outline" size="sm" onPress={shareProfile} style={styles.flex} />
+          <Button title="Paylaş" variant="outline" size="sm" onPress={shareProfile} style={styles.flex} />
           <Button title="" icon="person.badge.plus" variant="outline" size="sm" onPress={() => router.push('/arkadas-bul')} style={styles.iconButton} />
         </View>
 
@@ -103,7 +95,7 @@ export default function ProfileScreen() {
           <MenuRow icon="bookmark" title="Listem" count={saved.length} onPress={() => router.navigate('/listem')} />
           <Divider inset={spacing.lg + 26 + spacing.lg} />
           <MenuRow
-            icon="heart.circle"
+            icon="sparkles"
             title="Sana özel öneriler"
             subtitle={recsLocked ? `${scored.length}/${RECS_UNLOCK} mekân puanlayınca açılır` : undefined}
             locked={recsLocked}
@@ -119,6 +111,8 @@ export default function ProfileScreen() {
           <Divider />
         </View>
 
+        <TopThree items={myPlaces} title="Top 3’üm" />
+
         <View style={styles.cards}>
           <StatCard
             icon="trophy"
@@ -130,8 +124,16 @@ export default function ProfileScreen() {
           <StatCard icon="flame" title="Seri" value={`${streak} hafta`} />
         </View>
 
+        <TasteCard slices={taste} title="Damak zevkin" />
+
+        <BadgeStrip badges={badges} />
+
         <View style={styles.goal}>
-          <GoalCard goal={yearGoal} done={thisYear} onChange={(goal) => dispatch({ type: 'setYearGoal', goal })} />
+          <GoalCard
+            goal={yearGoal}
+            done={placesThisYear(allEntries)}
+            onChange={(goal) => dispatch({ type: 'setYearGoal', goal })}
+          />
         </View>
 
         <View style={styles.postsHeader}>
@@ -154,10 +156,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-  },
-  headerName: {
-    fontWeight: '700',
-    maxWidth: 220,
   },
   headerActions: {
     flexDirection: 'row',
@@ -189,7 +187,7 @@ const styles = StyleSheet.create({
   },
   goal: {
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
+    paddingTop: spacing.xl,
   },
   postsHeader: {
     flexDirection: 'row',

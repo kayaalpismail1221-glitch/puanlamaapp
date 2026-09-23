@@ -1,11 +1,13 @@
+import { router } from 'expo-router';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
-import { Alert, Platform, StyleSheet, View } from 'react-native';
+import { Alert, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { LinearTransition } from 'react-native-reanimated';
 
-import { Avatar, PressableScale, Text } from '@/components/ui';
+import { Avatar, PlaceImage, PressableScale, Text } from '@/components/ui';
 import { colors, radius, spacing } from '@/constants/theme';
-import { monthYear } from '@/lib/format';
+import { formatScore, monthYear } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
+import type { Badge, ScoredPlace, TasteSlice } from '@/lib/insights';
 
 /* ---------- Kimlik: avatar, kullanıcı adı, üyelik ---------- */
 
@@ -27,14 +29,13 @@ export function ProfileIdentity({
       <PressableScale onPress={onAvatarPress} disabled={!onAvatarPress} haptic={false}>
         <Avatar uri={avatarUri} name={name} size={96} />
       </PressableScale>
-      <Text variant="headline" style={styles.username}>
-        @{username}
+      <Text variant="title2" color={colors.primary} style={styles.name}>
+        {name}
       </Text>
-      {joinedAt && (
-        <Text variant="footnote" color={colors.textSecondary}>
-          Üyelik: {monthYear(joinedAt)}
-        </Text>
-      )}
+      <Text variant="subhead" color={colors.textSecondary}>
+        @{username}
+        {joinedAt ? ` · Üyelik: ${monthYear(joinedAt)}` : ''}
+      </Text>
     </View>
   );
 }
@@ -212,14 +213,256 @@ export function GoalCard({
   );
 }
 
+/* ---------- Top 3 vitrini ---------- */
+
+export function TopThree({ items, title }: { items: ScoredPlace[]; title: string }) {
+  if (!items.length) return null;
+  return (
+    <View style={styles.section}>
+      <Text variant="title3" style={styles.sectionTitle}>
+        {title}
+      </Text>
+      <View style={styles.topRow}>
+        {items.slice(0, 3).map(({ place, score }, i) => (
+          <PressableScale
+            key={place.id}
+            scaleTo={0.96}
+            onPress={() => router.push({ pathname: '/mekan/[id]', params: { id: place.id } })}
+            style={styles.topCard}>
+            <PlaceImage uri={place.photoUrl} style={StyleSheet.absoluteFill} />
+            <View style={styles.topShade} />
+            <View style={styles.topRank}>
+              <Text variant="caption" color={colors.primary} style={styles.heavy}>
+                {i + 1}
+              </Text>
+            </View>
+            <View style={styles.topInfo}>
+              <Text variant="footnote" color={colors.onPrimary} numberOfLines={2} style={styles.heavy}>
+                {place.name}
+              </Text>
+              <Text variant="caption" color={colors.onPrimary}>
+                {formatScore(score)} · {place.district}
+              </Text>
+            </View>
+          </PressableScale>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+/* ---------- Damak zevki ---------- */
+
+export function TasteCard({ slices, title }: { slices: TasteSlice[]; title: string }) {
+  if (!slices.length) return null;
+  return (
+    <View style={styles.section}>
+      <Text variant="title3" style={styles.sectionTitle}>
+        {title}
+      </Text>
+      <View style={styles.tasteCard}>
+        {slices.map((s) => (
+          <View key={s.cuisine} style={styles.tasteRow}>
+            <View style={styles.tasteLabel}>
+              <Text variant="subhead" style={styles.bold} numberOfLines={1}>
+                {s.cuisine}
+              </Text>
+              <Text variant="caption" color={colors.textSecondary}>
+                {s.count} mekân · ort. {formatScore(s.average)}
+              </Text>
+            </View>
+            <View style={styles.tasteTrack}>
+              <Animated.View
+                layout={LinearTransition.springify()}
+                style={[styles.tasteFill, { width: `${Math.max(s.share * 100, 6)}%` }]}
+              />
+            </View>
+            <Text variant="footnote" color={colors.primary} style={styles.tastePct}>
+              %{Math.round(s.share * 100)}
+            </Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+/* ---------- Rozetler ---------- */
+
+export function BadgeStrip({ badges }: { badges: Badge[] }) {
+  const earned = badges.filter((b) => b.earned).length;
+  return (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <Text variant="title3">Rozetler</Text>
+        <Text variant="subhead" color={colors.textSecondary}>
+          {earned}/{badges.length}
+        </Text>
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.badgeRow}>
+        {badges.map((b) => (
+          <PressableScale
+            key={b.id}
+            scaleTo={0.95}
+            onPress={() =>
+              Alert.alert(
+                b.title,
+                b.earned ? `${b.description}. Kazandın! 🎉` : `${b.description}.\nİlerleme: ${b.progress}/${b.target}`,
+              )
+            }
+            style={[styles.badge, !b.earned && styles.badgeLocked]}>
+            <View style={[styles.badgeIcon, b.earned && styles.badgeIconEarned]}>
+              <SymbolView name={b.icon} tintColor={b.earned ? colors.onPrimary : colors.textTertiary} size={22} />
+            </View>
+            <Text variant="caption" align="center" numberOfLines={2} style={styles.badgeTitle}>
+              {b.title}
+            </Text>
+            {!b.earned && (
+              <View style={styles.badgeTrack}>
+                <View style={[styles.badgeFill, { width: `${(b.progress / b.target) * 100}%` }]} />
+              </View>
+            )}
+          </PressableScale>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  section: {
+    paddingTop: spacing.xl,
+  },
+  sectionTitle: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
+  },
+  heavy: {
+    fontWeight: '700',
+  },
+  topRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+  },
+  topCard: {
+    flex: 1,
+    aspectRatio: 0.78,
+    borderRadius: radius.card,
+    overflow: 'hidden',
+    backgroundColor: colors.surface,
+  },
+  topShade: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: colors.overlay,
+  },
+  topRank: {
+    position: 'absolute',
+    top: spacing.sm,
+    left: spacing.sm,
+    width: 24,
+    height: 24,
+    borderRadius: radius.full,
+    backgroundColor: colors.onPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topInfo: {
+    position: 'absolute',
+    left: spacing.sm,
+    right: spacing.sm,
+    bottom: spacing.sm,
+    gap: 2,
+  },
+  tasteCard: {
+    marginHorizontal: spacing.lg,
+    padding: spacing.lg,
+    gap: spacing.lg,
+    borderRadius: radius.card,
+    backgroundColor: colors.surface,
+  },
+  tasteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  tasteLabel: {
+    width: 118,
+  },
+  tasteTrack: {
+    flex: 1,
+    height: 8,
+    borderRadius: radius.full,
+    backgroundColor: colors.background,
+    overflow: 'hidden',
+  },
+  tasteFill: {
+    height: '100%',
+    borderRadius: radius.full,
+    backgroundColor: colors.primary,
+  },
+  tastePct: {
+    width: 40,
+    textAlign: 'right',
+    fontWeight: '600',
+    fontVariant: ['tabular-nums'],
+  },
+  badgeRow: {
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+  },
+  badge: {
+    width: 96,
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  badgeLocked: {
+    backgroundColor: colors.surface,
+    borderColor: colors.surface,
+  },
+  badgeIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: radius.full,
+    backgroundColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeIconEarned: {
+    backgroundColor: colors.primary,
+  },
+  badgeTitle: {
+    minHeight: 30,
+  },
+  badgeTrack: {
+    alignSelf: 'stretch',
+    height: 4,
+    borderRadius: radius.full,
+    backgroundColor: colors.border,
+    overflow: 'hidden',
+  },
+  badgeFill: {
+    height: '100%',
+    backgroundColor: colors.primary,
+  },
   identity: {
     alignItems: 'center',
     gap: spacing.xs,
     paddingTop: spacing.sm,
   },
-  username: {
-    marginTop: spacing.sm,
+  name: {
+    marginTop: spacing.md,
   },
   bold: {
     fontWeight: '600',

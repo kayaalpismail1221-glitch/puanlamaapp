@@ -55,6 +55,7 @@ function RootNavigator() {
         <Stack.Screen name="baglantilar/[id]" options={{ title: '' }} />
         <Stack.Screen name="gittiklerim/[id]" options={{ title: 'Gittiklerim' }} />
         <Stack.Screen name="profil-duzenle" options={{ presentation: 'modal', title: 'Profili düzenle' }} />
+        <Stack.Screen name="ayarlar" options={{ title: 'Ayarlar' }} />
         <Stack.Screen name="gonderi-olustur" options={{ presentation: 'modal', title: 'Gönderi paylaş' }} />
       </Stack.Protected>
 

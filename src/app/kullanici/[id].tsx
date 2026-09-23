@@ -4,12 +4,14 @@ import { useMemo } from 'react';
 import { ScrollView, Share, StyleSheet, View } from 'react-native';
 
 import { PostGrid } from '@/components/post-grid';
-import { MenuRow, ProfileIdentity, StatCard } from '@/components/profile-parts';
+import { MenuRow, ProfileIdentity, StatCard, TasteCard, TopThree } from '@/components/profile-parts';
 import { ProfileStats } from '@/components/profile-stats';
 import { Button, Divider, PressableScale, Text } from '@/components/ui';
 import { FollowButton } from '@/components/user-row';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
+import { placeById } from '@/data/mock';
 import { useLeaderboard } from '@/hooks/use-leaderboard';
+import { tasteProfile, type ScoredPlace } from '@/lib/insights';
 import { rankedFromPosts, weeklyStreak } from '@/lib/stats';
 import { useAppStore } from '@/store/app-store';
 import { ME } from '@/types';
@@ -23,6 +25,11 @@ export default function UserProfileScreen() {
 
   const userPosts = useMemo(() => posts.filter((p) => p.userId === id), [posts, id]);
   const been = useMemo(() => rankedFromPosts(posts, id), [posts, id]);
+  const beenPlaces = useMemo<ScoredPlace[]>(
+    () => been.flatMap((p) => (placeById(p.placeId) ? [{ place: placeById(p.placeId)!, score: p.score! }] : [])),
+    [been],
+  );
+  const taste = useMemo(() => tasteProfile(beenPlaces), [beenPlaces]);
   const rank = leaderboard.find((e) => e.userId === id);
   const streak = weeklyStreak(userPosts.map((p) => p.createdAt));
   const followsYou = followingOf(id).includes(ME);
@@ -50,9 +57,6 @@ export default function UserProfileScreen() {
         }}
       />
       <ScrollView style={styles.container} contentInsetAdjustmentBehavior="automatic">
-        <Text variant="title2" align="center" style={styles.name}>
-          {user.name}
-        </Text>
         <ProfileIdentity name={user.name} username={user.username} avatarUri={user.avatarUrl} />
         {followsYou && (
           <View style={styles.followsYou}>
@@ -82,6 +86,8 @@ export default function UserProfileScreen() {
           <Divider />
         </View>
 
+        <TopThree items={beenPlaces} title={`${user.name.split(' ')[0]} için Top 3`} />
+
         <View style={styles.cards}>
           <StatCard
             icon="trophy"
@@ -92,6 +98,8 @@ export default function UserProfileScreen() {
           />
           <StatCard icon="flame" title="Seri" value={`${streak} hafta`} />
         </View>
+
+        <TasteCard slices={taste} title="Damak zevki" />
 
         <Text variant="title3" style={styles.postsTitle}>
           Gönderileri
@@ -111,10 +119,6 @@ const styles = StyleSheet.create({
   center: {
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  name: {
-    paddingTop: spacing.xs,
-    paddingBottom: spacing.sm,
   },
   followsYou: {
     alignSelf: 'center',
