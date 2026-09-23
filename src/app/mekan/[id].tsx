@@ -5,8 +5,9 @@ import MapView, { Marker } from 'react-native-maps';
 
 import { Avatar, Button, Divider, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { colors, radius, spacing } from '@/constants/theme';
-import { FEED, placeById, userById } from '@/data/mock';
-import { priceLabel } from '@/lib/format';
+import { PostGrid } from '@/components/post-grid';
+import { placeById } from '@/data/mock';
+import { formatScore, priceLabel } from '@/lib/format';
 import { linkSource } from '@/lib/links';
 import { haptics } from '@/lib/haptics';
 import { useAppStore } from '@/store/app-store';
@@ -14,7 +15,7 @@ import { useAppStore } from '@/store/app-store';
 export default function PlaceDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const place = placeById(id);
-  const { scoreOf, scored, isSaved, saved: savedPlaces, following, dispatch } = useAppStore();
+  const { scoreOf, scored, isSaved, saved: savedPlaces, following, posts, getUser, dispatch } = useAppStore();
 
   if (!place) {
     return (
@@ -29,7 +30,14 @@ export default function PlaceDetailScreen() {
   const saved = isSaved(place.id);
   const savedEntry = savedPlaces.find((s) => s.placeId === place.id);
   const source = savedEntry?.link ? linkSource(savedEntry.link) : null;
-  const friendRatings = FEED.filter((f) => f.placeId === place.id && following.includes(f.userId));
+  const placePosts = posts.filter((p) => p.placeId === place.id);
+  // Takip edilenlerin bu mekâna verdiği puanlar (kişi başına en yeni gönderi)
+  const friendScores = placePosts
+    .filter((p) => following.includes(p.userId) && p.score !== undefined)
+    .filter((p, i, list) => list.findIndex((q) => q.userId === p.userId) === i);
+  const friendAverage = friendScores.length
+    ? friendScores.reduce((sum, p) => sum + p.score!, 0) / friendScores.length
+    : undefined;
 
   return (
     <ScrollView style={styles.container} contentInsetAdjustmentBehavior="never">
@@ -89,35 +97,48 @@ export default function PlaceDetailScreen() {
             />
           )}
         </View>
+        <Button
+          title="Gönderi paylaş"
+          icon="camera"
+          variant="secondary"
+          onPress={() => router.push({ pathname: '/gonderi-olustur', params: { placeId: place.id } })}
+        />
 
         <Divider />
 
-        <Text variant="headline">Arkadaşların ne dedi?</Text>
-        {friendRatings.length === 0 ? (
+        <View style={styles.sectionHeader}>
+          <Text variant="headline">Arkadaşların puanı</Text>
+          {friendAverage !== undefined && (
+            <Text variant="subhead" color={colors.textSecondary}>
+              Ortalama {formatScore(friendAverage)}
+            </Text>
+          )}
+        </View>
+        {friendScores.length === 0 ? (
           <Text variant="subhead" color={colors.textSecondary}>
             Takip ettiğin kimse burayı henüz puanlamadı.
           </Text>
         ) : (
-          friendRatings.map((f) => {
-            const user = userById(f.userId);
-            if (!user) return null;
-            return (
-              <View key={f.id} style={styles.friendRow}>
-                <Avatar uri={user.avatarUrl} name={user.name} size={36} />
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text variant="subhead" style={{ fontWeight: '600' }}>
-                    {user.name}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.friendScores}>
+            {friendScores.map((p) => {
+              const user = getUser(p.userId);
+              if (!user) return null;
+              return (
+                <PressableScale
+                  key={p.id}
+                  onPress={() => router.push({ pathname: '/gonderi/[id]', params: { id: p.id } })}
+                  style={styles.friendScore}>
+                  <Avatar uri={user.avatarUrl} name={user.name} size={48} />
+                  <View style={styles.friendBadge}>
+                    <ScoreBadge score={p.score!} size="sm" />
+                  </View>
+                  <Text variant="caption" numberOfLines={1}>
+                    {user.name.split(' ')[0]}
                   </Text>
-                  {f.note && (
-                    <Text variant="subhead" color={colors.textSecondary}>
-                      {f.note}
-                    </Text>
-                  )}
-                </View>
-                <ScoreBadge score={f.score} size="sm" />
-              </View>
-            );
-          })
+                </PressableScale>
+              );
+            })}
+          </ScrollView>
         )}
 
         <Divider />
@@ -142,7 +163,14 @@ export default function PlaceDetailScreen() {
             </Marker>
           </MapView>
         </View>
+
+        <Text variant="headline">
+          Gönderiler{placePosts.length > 0 ? ` (${placePosts.length})` : ''}
+        </Text>
       </View>
+
+      <PostGrid posts={placePosts} emptyText="Bu mekân hakkında henüz gönderi yok. İlk paylaşan sen ol!" />
+      <View style={{ height: spacing.xxl }} />
     </ScrollView>
   );
 }
@@ -185,16 +213,27 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     gap: spacing.xs,
   },
-  friendRow: {
+  sectionHeader: {
     flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+  },
+  friendScores: {
+    gap: spacing.lg,
+  },
+  friendScore: {
     alignItems: 'center',
-    gap: spacing.md,
+    gap: spacing.xs,
+    width: 64,
+  },
+  friendBadge: {
+    marginTop: -spacing.lg,
+    marginLeft: spacing.xl,
   },
   mapWrap: {
     height: 160,
     borderRadius: radius.card,
     overflow: 'hidden',
-    marginBottom: spacing.xxl,
   },
   pin: {
     width: 32,

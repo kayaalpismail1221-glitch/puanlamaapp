@@ -59,14 +59,29 @@ export type Profile = {
   avatarUri?: string;
 };
 
-export type FeedItem = {
+/** Oturum açmış kullanıcının kimliği (Supabase gelene kadar sabit) */
+export const ME = 'me';
+
+export type Comment = {
+  id: string;
+  postId: string;
+  userId: string;
+  text: string;
+  createdAt: string;
+};
+
+/** Bir mekân hakkında paylaşılan gönderi: fotoğraflar, yorum, birlikte gidilen arkadaşlar */
+export type Post = {
   id: string;
   userId: string;
   placeId: string;
-  score: number;
-  note?: string;
-  photoUrl?: string;
+  photos: string[];
+  caption?: string;
+  /** Gönderide etiketlenen arkadaşlar */
+  taggedUserIds: string[];
+  /** Paylaşanın o mekâna verdiği puan */
+  score?: number;
   createdAt: string;
+  /** Başkalarından gelen beğeni sayısı (kullanıcının kendi beğenisi hariç) */
   likeCount: number;
-  commentCount: number;
 };

@@ -42,7 +42,9 @@ Uygulama dili Türkçe.
 5. Arkadaş bul (rehber / kullanıcı adı ile arama). Bu adım atlanabilir.
 
 ### Alt bar (5 sekme)
-- **Feed:** arkadaşların son puanladığı mekânlar (fotoğraf, puan, kısa not, beğen/yorum)
+- **Feed:** takip edilenlerin ve kullanıcının gönderileri. Gönderi = mekân + fotoğraflar (en fazla 5) + yorum
+  + birlikte gidilen arkadaş etiketleri + puan. Beğenilir (çift dokunuş dahil), yorum yapılır, kaydedilir.
+  Mekân sayfasında o mekânın gönderileri "Gönderiler" ızgarasında listelenir.
 - **Ara:** mekân ve kişi araması tek yerde (Tümü / Mekânlar / Kişiler)
 - **Harita:** gidilen mekânlar ve Listem harita üzerinde, puana göre renkli pinler
 - **Listem:** gitmek istenen mekânlar. Instagram/TikTok'ta görülen mekân, gönderi bağlantısı ve notla kaydedilir

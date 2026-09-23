@@ -2,14 +2,14 @@ import * as Clipboard from 'expo-clipboard';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useState } from 'react';
-import { FlatList, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { PlaceRow } from '@/components/place-row';
-import { Button, Divider, PlaceImage, PressableScale, SearchField, Text } from '@/components/ui';
+import { PlacePicker } from '@/components/place-picker';
+import { Button, PlaceImage, PressableScale, Text } from '@/components/ui';
 import { colors, radius, spacing, typography } from '@/constants/theme';
-import { placeById, searchPlaces } from '@/data/mock';
+import { placeById } from '@/data/mock';
 import { haptics } from '@/lib/haptics';
 import { linkSource, normalizeUrl } from '@/lib/links';
 import { useAppStore } from '@/store/app-store';
@@ -27,7 +27,6 @@ export default function AddToListScreen() {
   const existing = saved.find((s) => s.placeId === placeId);
   const [link, setLink] = useState(existing?.link ?? '');
   const [note, setNote] = useState(existing?.note ?? '');
-  const [query, setQuery] = useState('');
   const [clipboardHasUrl, setClipboardHasUrl] = useState(false);
 
   // Panoda bağlantı var mı? (Bu kontrol iOS'ta yapıştırma izni sormaz.)
@@ -49,38 +48,15 @@ export default function AddToListScreen() {
   // 1. adım: mekân seç
   if (!place) {
     return (
-      <View style={styles.container}>
-        <View style={styles.searchWrap}>
-          <Text variant="subhead" color={colors.textSecondary}>
-            Hangi mekânı gördün?
-          </Text>
-          <SearchField value={query} onChangeText={setQuery} placeholder="Mekân, semt veya mutfak ara" autoFocus />
-        </View>
-        <FlatList
-          data={searchPlaces(query)}
-          keyExtractor={(p) => p.id}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-          ItemSeparatorComponent={() => <Divider inset={spacing.lg + 52 + spacing.md} />}
-          ListEmptyComponent={
-            <Text variant="subhead" color={colors.textSecondary} align="center" style={styles.empty}>
-              Bulamadık. Mekân veritabanı bağlanınca her yer aranabilecek.
-            </Text>
-          }
-          renderItem={({ item }) => (
-            <PlaceRow
-              place={item}
-              onPress={() => {
-                const prev = saved.find((s) => s.placeId === item.id);
-                setLink((l) => l || prev?.link || '');
-                setNote((n) => n || prev?.note || '');
-                setPlaceId(item.id);
-              }}
-              trailing={<SymbolView name="chevron.right" tintColor={colors.textTertiary} size={14} />}
-            />
-          )}
-        />
-      </View>
+      <PlacePicker
+        title="Hangi mekânı gördün?"
+        onSelect={(item) => {
+          const prev = saved.find((s) => s.placeId === item.id);
+          setLink((l) => l || prev?.link || '');
+          setNote((n) => n || prev?.note || '');
+          setPlaceId(item.id);
+        }}
+      />
     );
   }
 
@@ -197,14 +173,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-  },
-  searchWrap: {
-    padding: spacing.lg,
-    paddingBottom: spacing.sm,
-    gap: spacing.sm,
-  },
-  empty: {
-    padding: spacing.xl,
   },
   form: {
     padding: spacing.lg,

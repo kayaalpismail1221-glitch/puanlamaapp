@@ -48,6 +48,8 @@ function RootNavigator() {
         <Stack.Screen name="arkadas-bul" options={{ presentation: 'modal', title: 'Arkadaş bul' }} />
         <Stack.Screen name="kullanici/[id]" options={{ title: '' }} />
         <Stack.Screen name="listeye-ekle" options={{ presentation: 'modal', title: 'Listeme ekle' }} />
+        <Stack.Screen name="gonderi/[id]" options={{ title: 'Gönderi' }} />
+        <Stack.Screen name="gonderi-olustur" options={{ presentation: 'modal', title: 'Gönderi paylaş' }} />
       </Stack.Protected>
 
       {/* Puanlama akışı hem onboarding'de hem uygulama içinde kullanılır */}

@@ -1,4 +1,4 @@
-import type { FeedItem, Place, User } from '@/types';
+import type { Comment, Place, Post, User } from '@/types';
 
 /**
  * Geliştirme için sahte veri. Mekân adları kurgusaldır.
@@ -54,16 +54,26 @@ export const USERS: User[] = [
 
 const hoursAgo = (h: number) => new Date(Date.now() - h * 3600_000).toISOString();
 
-export const FEED: FeedItem[] = [
-  { id: 'f1', userId: 'u1', placeId: 'p1', score: 9.4, note: 'Pazar sabahı için en iyisi. Menemen efsane, çay sınırsız.', photoUrl: PHOTOS.kahvalti, createdAt: hoursAgo(2), likeCount: 12, commentCount: 3 },
-  { id: 'f2', userId: 'u2', placeId: 'p4', score: 8.8, note: 'Gece 2’de bile kuyruk vardı, hak ediyor.', createdAt: hoursAgo(5), likeCount: 8, commentCount: 1 },
-  { id: 'f3', userId: 'u3', placeId: 'p7', score: 8.1, note: 'Mezeler taze, fava ve topik mutlaka.', photoUrl: PHOTOS.meze, createdAt: hoursAgo(9), likeCount: 21, commentCount: 6 },
-  { id: 'f4', userId: 'u4', placeId: 'p9', score: 6.2, note: 'Fena değil ama fiyatına göre küçük.', photoUrl: PHOTOS.burger, createdAt: hoursAgo(20), likeCount: 4, commentCount: 2 },
-  { id: 'f5', userId: 'u5', placeId: 'p2', score: 9.0, note: 'Kuru fasulye pilav, annemin yemeği gibi.', photoUrl: PHOTOS.sofra, createdAt: hoursAgo(26), likeCount: 15, commentCount: 4 },
-  { id: 'f6', userId: 'u1', placeId: 'p6', score: 8.6, note: 'Manzara + levrek. Ders çıkışı gidilir.', photoUrl: PHOTOS.balik, createdAt: hoursAgo(40), likeCount: 30, commentCount: 9 },
-  { id: 'f7', userId: 'u6', placeId: 'p3', score: 7.4, createdAt: hoursAgo(52), likeCount: 3, commentCount: 0 },
-  { id: 'f8', userId: 'u2', placeId: 'p13', score: 7.9, note: 'Kazandibi çok iyi.', photoUrl: PHOTOS.tatli, createdAt: hoursAgo(70), likeCount: 9, commentCount: 2 },
-  { id: 'f9', userId: 'u3', placeId: 'p10', score: 8.3, note: 'Ders çalışmak için sessiz ve priz bol.', photoUrl: PHOTOS.kahve, createdAt: hoursAgo(96), likeCount: 11, commentCount: 1 },
+export const POSTS: Post[] = [
+  { id: 'g1', userId: 'u1', placeId: 'p1', score: 9.4, photos: [PHOTOS.kahvalti, PHOTOS.kahve], caption: 'Pazar sabahı için en iyisi. Menemen efsane, çay sınırsız.', taggedUserIds: ['u3'], createdAt: hoursAgo(2), likeCount: 12 },
+  { id: 'g2', userId: 'u2', placeId: 'p4', score: 8.8, photos: [PHOTOS.izgara], caption: 'Gece 2’de bile kuyruk vardı, hak ediyor.', taggedUserIds: ['u4', 'u6'], createdAt: hoursAgo(5), likeCount: 8 },
+  { id: 'g3', userId: 'u3', placeId: 'p7', score: 8.1, photos: [PHOTOS.meze, PHOTOS.mekan2, PHOTOS.balik], caption: 'Mezeler taze, fava ve topik mutlaka. Rakı masası için ideal.', taggedUserIds: ['u1', 'u5'], createdAt: hoursAgo(9), likeCount: 21 },
+  { id: 'g4', userId: 'u4', placeId: 'p9', score: 6.2, photos: [PHOTOS.burger], caption: 'Fena değil ama fiyatına göre küçük.', taggedUserIds: [], createdAt: hoursAgo(20), likeCount: 4 },
+  { id: 'g5', userId: 'u5', placeId: 'p2', score: 9.0, photos: [PHOTOS.sofra], caption: 'Kuru fasulye pilav, annemin yemeği gibi.', taggedUserIds: [], createdAt: hoursAgo(26), likeCount: 15 },
+  { id: 'g6', userId: 'u1', placeId: 'p6', score: 8.6, photos: [PHOTOS.balik, PHOTOS.meze], caption: 'Manzara + levrek. Ders çıkışı gidilir.', taggedUserIds: ['u2'], createdAt: hoursAgo(40), likeCount: 30 },
+  { id: 'g7', userId: 'u6', placeId: 'p3', score: 7.4, photos: [PHOTOS.izgara], caption: 'Acılı dürüm iyi, lavaş biraz kuru.', taggedUserIds: [], createdAt: hoursAgo(52), likeCount: 3 },
+  { id: 'g8', userId: 'u2', placeId: 'p13', score: 7.9, photos: [PHOTOS.tatli], caption: 'Kazandibi çok iyi.', taggedUserIds: [], createdAt: hoursAgo(70), likeCount: 9 },
+  { id: 'g9', userId: 'u3', placeId: 'p10', score: 8.3, photos: [PHOTOS.kahve], caption: 'Ders çalışmak için sessiz ve priz bol.', taggedUserIds: [], createdAt: hoursAgo(96), likeCount: 11 },
+  { id: 'g10', userId: 'u5', placeId: 'p7', score: 7.6, photos: [PHOTOS.mekan2], caption: 'Servis biraz yavaştı ama ortam güzel.', taggedUserIds: [], createdAt: hoursAgo(120), likeCount: 6 },
+  { id: 'g11', userId: 'u6', placeId: 'p1', score: 8.9, photos: [PHOTOS.kahvalti], caption: 'Hafta içi sabah sakin, tavsiye.', taggedUserIds: [], createdAt: hoursAgo(150), likeCount: 5 },
+];
+
+export const COMMENTS: Comment[] = [
+  { id: 'c1', postId: 'g1', userId: 'u2', text: 'Bir dahakine beni de çağır!', createdAt: hoursAgo(1.5) },
+  { id: 'c2', postId: 'g1', userId: 'u3', text: 'Menemen gerçekten iyiydi 🙌', createdAt: hoursAgo(1) },
+  { id: 'c3', postId: 'g3', userId: 'u4', text: 'Rezervasyon gerekiyor mu?', createdAt: hoursAgo(8) },
+  { id: 'c4', postId: 'g3', userId: 'u3', text: 'Hafta sonu kesin gerekiyor.', createdAt: hoursAgo(7) },
+  { id: 'c5', postId: 'g6', userId: 'u5', text: 'Fiyatlar nasıl?', createdAt: hoursAgo(30) },
 ];
 
 /** Varsayılan harita merkezi: Beşiktaş–Bebek hattı */

@@ -35,7 +35,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Profil fotoğrafı seçebilmen için fotoğraflarına erişim gerekiyor."
+          "photosPermission": "Profil fotoğrafı ve gönderi fotoğrafı seçebilmen için fotoğraflarına erişim gerekiyor.",
+          "cameraPermission": "Gönderine yemek fotoğrafı çekebilmen için kamera erişimi gerekiyor."
         }
       ],
       [

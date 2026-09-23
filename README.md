@@ -17,10 +17,10 @@ iPhone'da Expo Go ile terminaldeki QR kodu okut. Bilgisayar ve telefon aynı Wi�
   - `onboarding/` — karşılama → giriş → profil → ilk 3 puan → arkadaş bul
   - `(tabs)/` — Feed, Ara, Harita, Listem, Profilim (native tabs)
   - `degerlendir/[id]` — Beli tarzı puanlama (izlenim + ikili karşılaştırma)
-  - `mekan/[id]`, `kullanici/[id]`, `mekan-puanla`, `listeye-ekle`, `arkadas-bul`
+  - `mekan/[id]`, `kullanici/[id]`, `gonderi/[id]`, `gonderi-olustur`, `mekan-puanla`, `listeye-ekle`, `arkadas-bul`
 - `src/constants/theme.ts` — renk, boşluk, yarıçap ve yazı token'ları
 - `src/lib/ranking.ts` — sıralama ve 0–10 puan hesabı
 - `src/store/app-store.tsx` — uygulama durumu (şimdilik AsyncStorage)
-- `src/data/mock.ts` — sahte mekân, kullanıcı ve feed verisi
+- `src/data/mock.ts` — sahte mekân, kullanıcı, gönderi ve yorum verisi
 
 Test sırasında baştan başlamak için: Profilim → sağ üstteki dişli → Çıkış yap.

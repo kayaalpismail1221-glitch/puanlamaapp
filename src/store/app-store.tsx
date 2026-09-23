@@ -9,8 +9,19 @@ import {
   type ReactNode,
 } from 'react';
 
+import { COMMENTS, POSTS, userById } from '@/data/mock';
 import { emptyRankings, flattenRankings, insertEntry, removeFromRankings } from '@/lib/ranking';
-import type { Profile, RankedEntry, Rankings, SavedPlace, Sentiment } from '@/types';
+import {
+  ME,
+  type Comment,
+  type Post,
+  type Profile,
+  type RankedEntry,
+  type Rankings,
+  type SavedPlace,
+  type Sentiment,
+  type User,
+} from '@/types';
 
 /**
  * Uygulama durumu. Şimdilik cihazda (AsyncStorage) saklanıyor;
@@ -26,7 +37,12 @@ type State = {
   /** "Listem": gitmek istenen mekânlar, en yeni başta */
   saved: SavedPlace[];
   following: string[];
-  likedFeedItems: string[];
+  /** Kullanıcının paylaştığı gönderiler ve yazdığı yorumlar */
+  myPosts: Post[];
+  myComments: Comment[];
+  likedPosts: string[];
+  /** Kaydedilen gönderiler */
+  savedPosts: string[];
 };
 
 const initialState: State = {
@@ -37,7 +53,10 @@ const initialState: State = {
   rankings: emptyRankings(),
   saved: [],
   following: [],
-  likedFeedItems: [],
+  myPosts: [],
+  myComments: [],
+  likedPosts: [],
+  savedPosts: [],
 };
 
 type Action =
@@ -51,7 +70,11 @@ type Action =
   | { type: 'unsavePlace'; placeId: string }
   | { type: 'toggleSaved'; placeId: string }
   | { type: 'toggleFollow'; userId: string }
-  | { type: 'toggleLike'; feedItemId: string }
+  | { type: 'createPost'; post: Post }
+  | { type: 'deletePost'; postId: string }
+  | { type: 'toggleLikePost'; postId: string }
+  | { type: 'toggleSavePost'; postId: string }
+  | { type: 'addComment'; comment: Comment }
   | { type: 'reset' };
 
 const toggle = (list: string[], id: string) =>
@@ -93,8 +116,22 @@ function reducer(state: State, action: Action): State {
           };
     case 'toggleFollow':
       return { ...state, following: toggle(state.following, action.userId) };
-    case 'toggleLike':
-      return { ...state, likedFeedItems: toggle(state.likedFeedItems, action.feedItemId) };
+    case 'createPost':
+      return { ...state, myPosts: [action.post, ...state.myPosts] };
+    case 'deletePost':
+      return {
+        ...state,
+        myPosts: state.myPosts.filter((p) => p.id !== action.postId),
+        myComments: state.myComments.filter((c) => c.postId !== action.postId),
+        likedPosts: state.likedPosts.filter((id) => id !== action.postId),
+        savedPosts: state.savedPosts.filter((id) => id !== action.postId),
+      };
+    case 'toggleLikePost':
+      return { ...state, likedPosts: toggle(state.likedPosts, action.postId) };
+    case 'toggleSavePost':
+      return { ...state, savedPosts: toggle(state.savedPosts, action.postId) };
+    case 'addComment':
+      return { ...state, myComments: [...state.myComments, action.comment] };
     case 'reset':
       return { ...initialState, hydrated: true };
   }
@@ -104,7 +141,10 @@ const STORAGE_KEY = 'puanla:state:v1';
 
 /** Eski kayıt biçimlerini güncel duruma çevirir */
 function migrate(raw: Record<string, unknown>): Partial<State> {
-  const { wantToGo, ...rest } = raw as Partial<State> & { wantToGo?: string[] };
+  const { wantToGo, likedFeedItems: _, ...rest } = raw as Partial<State> & {
+    wantToGo?: string[];
+    likedFeedItems?: string[];
+  };
   if (!rest.saved && Array.isArray(wantToGo)) {
     const now = new Date().toISOString();
     rest.saved = wantToGo.map((placeId) => ({ placeId, savedAt: now }));
@@ -117,6 +157,12 @@ type Store = State & {
   scored: ReturnType<typeof flattenRankings>;
   scoreOf: (placeId: string) => number | undefined;
   isSaved: (placeId: string) => boolean;
+  /** Mock gönderiler + kullanıcının kendi gönderileri, en yeni başta */
+  posts: Post[];
+  postById: (postId: string) => Post | undefined;
+  commentsFor: (postId: string) => Comment[];
+  /** `ME` dahil herhangi bir kullanıcıyı çözer */
+  getUser: (userId: string) => User | undefined;
 };
 
 const StoreContext = createContext<Store | null>(null);
@@ -148,9 +194,35 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     [state.saved],
   );
 
+  const posts = useMemo(
+    () =>
+      [...state.myPosts, ...POSTS].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)),
+    [state.myPosts],
+  );
+  const postById = useCallback((postId: string) => posts.find((p) => p.id === postId), [posts]);
+  const commentsFor = useCallback(
+    (postId: string) =>
+      [...COMMENTS, ...state.myComments]
+        .filter((c) => c.postId === postId)
+        .sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt)),
+    [state.myComments],
+  );
+  const getUser = useCallback(
+    (userId: string): User | undefined =>
+      userId === ME
+        ? {
+            id: ME,
+            name: state.profile?.name ?? 'Sen',
+            username: state.profile?.username ?? '',
+            avatarUrl: state.profile?.avatarUri,
+          }
+        : userById(userId),
+    [state.profile],
+  );
+
   const value = useMemo(
-    () => ({ ...state, dispatch, scored, scoreOf, isSaved }),
-    [state, scored, scoreOf, isSaved],
+    () => ({ ...state, dispatch, scored, scoreOf, isSaved, posts, postById, commentsFor, getUser }),
+    [state, scored, scoreOf, isSaved, posts, postById, commentsFor, getUser],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

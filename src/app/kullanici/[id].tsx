@@ -1,16 +1,40 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { FlatList, StyleSheet, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { PlaceRow } from '@/components/place-row';
+import { PostGrid } from '@/components/post-grid';
+import { SegmentTabs } from '@/components/segment-tabs';
 import { Avatar, Divider, ScoreBadge, Text } from '@/components/ui';
 import { FollowButton } from '@/components/user-row';
-import { colors, spacing } from '@/constants/theme';
-import { FEED, placeById, userById } from '@/data/mock';
+import { colors, radius, spacing } from '@/constants/theme';
+import { placeById } from '@/data/mock';
+import { useAppStore } from '@/store/app-store';
 
-/** Başka bir kullanıcının profili: puanladığı mekânlar puana göre sıralı */
+type Tab = 'posts' | 'ranked';
+
+const TABS = [
+  { key: 'posts', label: 'Gönderiler' },
+  { key: 'ranked', label: 'Sıralaması' },
+] as const;
+
+/** Başka bir kullanıcının profili: gönderileri ve mekân sıralaması */
 export default function UserProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const user = userById(id);
+  const { posts, getUser } = useAppStore();
+  const [tab, setTab] = useState<Tab>('posts');
+  const user = getUser(id);
+
+  const userPosts = useMemo(() => posts.filter((p) => p.userId === id), [posts, id]);
+
+  // Sıralama: her mekân için en yeni gönderideki puan, yüksekten düşüğe
+  const ranked = useMemo(
+    () =>
+      userPosts
+        .filter((p, i, list) => p.score !== undefined && list.findIndex((q) => q.placeId === p.placeId) === i)
+        .sort((a, b) => b.score! - a.score!),
+    [userPosts],
+  );
 
   if (!user) {
     return (
@@ -20,52 +44,69 @@ export default function UserProfileScreen() {
     );
   }
 
-  const ratings = FEED.filter((f) => f.userId === user.id).sort((a, b) => b.score - a.score);
-
   return (
-    <FlatList
-      style={styles.container}
-      data={ratings}
-      keyExtractor={(f) => f.id}
-      contentInsetAdjustmentBehavior="automatic"
-      ItemSeparatorComponent={() => <Divider inset={spacing.lg + 52 + spacing.md} />}
-      ListHeaderComponent={
-        <View>
-          <View style={styles.identity}>
-            <Avatar uri={user.avatarUrl} name={user.name} size={88} />
-            <Text variant="title2" color={colors.primary}>
-              {user.name}
-            </Text>
-            <Text variant="subhead" color={colors.textSecondary}>
-              @{user.username} · {ratings.length} mekân
-            </Text>
-            <View style={styles.follow}>
-              <FollowButton userId={user.id} large />
-            </View>
-          </View>
-          <Text variant="title3" color={colors.primary} style={styles.sectionTitle}>
-            Sıralaması
-          </Text>
+    <ScrollView style={styles.container} contentInsetAdjustmentBehavior="automatic">
+      <View style={styles.identity}>
+        <Avatar uri={user.avatarUrl} name={user.name} size={88} />
+        <Text variant="title2" color={colors.primary}>
+          {user.name}
+        </Text>
+        <Text variant="subhead" color={colors.textSecondary}>
+          @{user.username}
+        </Text>
+      </View>
+
+      <View style={styles.stats}>
+        <Stat value={userPosts.length} label="Gönderi" />
+        <Stat value={ranked.length} label="Mekân" />
+      </View>
+
+      <View style={styles.follow}>
+        <FollowButton userId={user.id} large />
+      </View>
+
+      <SegmentTabs tabs={TABS} value={tab} onChange={setTab} />
+
+      {tab === 'posts' ? (
+        <View style={{ paddingTop: 2 }}>
+          <PostGrid posts={userPosts} emptyText="Henüz gönderi paylaşmadı." />
         </View>
-      }
-      ListEmptyComponent={
+      ) : ranked.length === 0 ? (
         <Text variant="subhead" color={colors.textSecondary} align="center" style={styles.empty}>
           Henüz puanladığı bir mekân yok.
         </Text>
-      }
-      renderItem={({ item, index }) => {
-        const place = placeById(item.placeId);
-        if (!place) return null;
-        return (
-          <PlaceRow
-            place={place}
-            rank={index + 1}
-            onPress={() => router.push({ pathname: '/mekan/[id]', params: { id: place.id } })}
-            trailing={<ScoreBadge score={item.score} size="sm" />}
-          />
-        );
-      }}
-    />
+      ) : (
+        ranked.map((p, i) => {
+          const place = placeById(p.placeId);
+          if (!place) return null;
+          return (
+            <View key={p.id}>
+              {i > 0 && <Divider inset={spacing.lg + 52 + spacing.md} />}
+              <PlaceRow
+                place={place}
+                rank={i + 1}
+                onPress={() => router.push({ pathname: '/mekan/[id]', params: { id: place.id } })}
+                trailing={<ScoreBadge score={p.score!} size="sm" />}
+              />
+            </View>
+          );
+        })
+      )}
+      <View style={{ height: spacing.xxl }} />
+    </ScrollView>
+  );
+}
+
+function Stat({ value, label }: { value: number; label: string }) {
+  return (
+    <View style={styles.stat}>
+      <Text variant="title3" color={colors.primary} style={{ fontVariant: ['tabular-nums'] }}>
+        {value}
+      </Text>
+      <Text variant="caption" color={colors.textSecondary}>
+        {label}
+      </Text>
+    </View>
   );
 }
 
@@ -84,16 +125,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
     paddingTop: spacing.lg,
-    paddingHorizontal: spacing.xl,
+  },
+  stats: {
+    flexDirection: 'row',
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.xl,
+    paddingVertical: spacing.lg,
+    borderRadius: radius.card,
+    backgroundColor: colors.surface,
+  },
+  stat: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 2,
   },
   follow: {
-    alignSelf: 'stretch',
-    marginTop: spacing.md,
-  },
-  sectionTitle: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.sm,
+    padding: spacing.lg,
   },
   empty: {
     padding: spacing.xxl,

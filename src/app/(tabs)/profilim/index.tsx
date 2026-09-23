@@ -1,19 +1,29 @@
 import { router, Stack } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useMemo } from 'react';
-import { Alert, FlatList, StyleSheet, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
 import { PlaceRow } from '@/components/place-row';
+import { PostGrid } from '@/components/post-grid';
+import { SegmentTabs } from '@/components/segment-tabs';
 import { Avatar, Button, Divider, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
 import { placeById } from '@/data/mock';
 import { useAppStore } from '@/store/app-store';
-import type { Place } from '@/types';
+import { ME, type Place } from '@/types';
+
+type Tab = 'ranked' | 'posts';
+
+const TABS = [
+  { key: 'ranked', label: 'Sıralamam' },
+  { key: 'posts', label: 'Gönderilerim' },
+] as const;
 
 type Row = { place: Place; score: number; rank: number };
 
 export default function ProfileScreen() {
-  const { profile, scored, saved, following, dispatch } = useAppStore();
+  const { profile, scored, posts, following, dispatch } = useAppStore();
+  const [tab, setTab] = useState<Tab>('ranked');
 
   const ranked = useMemo<Row[]>(
     () =>
@@ -23,6 +33,8 @@ export default function ProfileScreen() {
       }),
     [scored],
   );
+
+  const myPosts = useMemo(() => posts.filter((p) => p.userId === ME), [posts]);
 
   // En sevilen mutfak: puanı 6.7 ve üstü mekânlarda en sık görülen mutfak
   const favoriteCuisine = useMemo(() => {
@@ -51,71 +63,83 @@ export default function ProfileScreen() {
           ),
         }}
       />
-      <FlatList
-        data={ranked}
-        keyExtractor={(r) => r.place.id}
-        contentInsetAdjustmentBehavior="automatic"
-        ItemSeparatorComponent={() => <Divider inset={spacing.lg + 52 + spacing.md} />}
-        ListHeaderComponent={
-          <View>
-            <View style={styles.identity}>
-              <Avatar uri={profile?.avatarUri} name={profile?.name ?? '?'} size={88} />
-              <Text variant="title2" color={colors.primary}>
-                {profile?.name}
-              </Text>
-              <Text variant="subhead" color={colors.textSecondary}>
-                @{profile?.username}
-              </Text>
-            </View>
+      <ScrollView style={styles.container} contentInsetAdjustmentBehavior="automatic">
+        <View style={styles.identity}>
+          <Avatar uri={profile?.avatarUri} name={profile?.name ?? '?'} size={88} />
+          <Text variant="title2" color={colors.primary}>
+            {profile?.name}
+          </Text>
+          <Text variant="subhead" color={colors.textSecondary}>
+            @{profile?.username}
+          </Text>
+        </View>
 
-            <View style={styles.stats}>
-              <Stat value={String(ranked.length)} label="Gidilen" />
-              <Stat value={String(saved.length)} label="Listem" />
-              <Stat value={String(following.length)} label="Takip" />
-            </View>
+        <View style={styles.stats}>
+          <Stat value={ranked.length} label="Gidilen" />
+          <Stat value={myPosts.length} label="Gönderi" />
+          <Stat value={following.length} label="Takip" />
+        </View>
 
-            {favoriteCuisine && (
-              <View style={styles.favorite}>
-                <SymbolView name="fork.knife" tintColor={colors.primary} size={16} />
-                <Text variant="subhead">
-                  En sevdiğin mutfak: <Text variant="subhead" style={styles.bold}>{favoriteCuisine}</Text>
-                </Text>
-              </View>
-            )}
-
-            <Text variant="title3" color={colors.primary} style={styles.sectionTitle}>
-              Sıralamam
+        {favoriteCuisine && (
+          <View style={styles.favorite}>
+            <SymbolView name="fork.knife" tintColor={colors.primary} size={16} />
+            <Text variant="subhead">
+              En sevdiğin mutfak: <Text variant="subhead" style={styles.bold}>{favoriteCuisine}</Text>
             </Text>
           </View>
-        }
-        ListEmptyComponent={
-          <Text variant="subhead" color={colors.textSecondary} align="center" style={styles.empty}>
-            Henüz puanladığın bir mekân yok.
-          </Text>
-        }
-        ListFooterComponent={
-          <Button
-            title="Mekân puanla"
-            icon="plus"
-            variant="secondary"
-            onPress={() => router.push('/mekan-puanla')}
-            style={styles.addButton}
-          />
-        }
-        renderItem={({ item }) => (
-          <PlaceRow
-            place={item.place}
-            rank={item.rank}
-            onPress={() => router.push({ pathname: '/mekan/[id]', params: { id: item.place.id } })}
-            trailing={<ScoreBadge score={item.score} size="sm" />}
-          />
         )}
-      />
+
+        <View style={styles.tabs}>
+          <SegmentTabs tabs={TABS} value={tab} onChange={setTab} />
+        </View>
+
+        {tab === 'ranked' ? (
+          <>
+            {ranked.length === 0 ? (
+              <Text variant="subhead" color={colors.textSecondary} align="center" style={styles.empty}>
+                Henüz puanladığın bir mekân yok.
+              </Text>
+            ) : (
+              ranked.map((item, i) => (
+                <View key={item.place.id}>
+                  {i > 0 && <Divider inset={spacing.lg + 52 + spacing.md} />}
+                  <PlaceRow
+                    place={item.place}
+                    rank={item.rank}
+                    onPress={() => router.push({ pathname: '/mekan/[id]', params: { id: item.place.id } })}
+                    trailing={<ScoreBadge score={item.score} size="sm" />}
+                  />
+                </View>
+              ))
+            )}
+            <Button
+              title="Mekân puanla"
+              icon="plus"
+              variant="secondary"
+              onPress={() => router.push('/mekan-puanla')}
+              style={styles.addButton}
+            />
+          </>
+        ) : (
+          <>
+            <View style={{ paddingTop: 2 }}>
+              <PostGrid posts={myPosts} emptyText="Henüz gönderi paylaşmadın." />
+            </View>
+            <Button
+              title="Gönderi paylaş"
+              icon="camera"
+              variant="secondary"
+              onPress={() => router.push('/gonderi-olustur')}
+              style={styles.addButton}
+            />
+          </>
+        )}
+      </ScrollView>
     </>
   );
 }
 
-function Stat({ value, label }: { value: string; label: string }) {
+function Stat({ value, label }: { value: number; label: string }) {
   return (
     <View style={styles.stat}>
       <Text variant="title3" color={colors.primary} style={{ fontVariant: ['tabular-nums'] }}>
@@ -129,6 +153,10 @@ function Stat({ value, label }: { value: string; label: string }) {
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   identity: {
     alignItems: 'center',
     gap: spacing.xs,
@@ -157,10 +185,8 @@ const styles = StyleSheet.create({
   bold: {
     fontWeight: '600',
   },
-  sectionTitle: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.sm,
+  tabs: {
+    marginTop: spacing.xl,
   },
   empty: {
     padding: spacing.xxl,

@@ -36,9 +36,10 @@ const SENTIMENT_ICONS: Record<Sentiment, SFSymbol> = {
  * 3) Hesaplanan puan + isteğe bağlı not
  */
 export default function RateScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  // `from=gonderi`: gönderi ekranından açıldıysa oraya geri dönülür
+  const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
   const place = placeById(id);
-  const { rankings, dispatch } = useAppStore();
+  const { rankings, onboarded, dispatch } = useAppStore();
   const insets = useSafeAreaInsets();
 
   const [sentiment, setSentiment] = useState<Sentiment | null>(null);
@@ -86,7 +87,7 @@ export default function RateScreen() {
     }
   };
 
-  const save = () => {
+  const save = (thenShare = false) => {
     if (!sentiment || !comparison) return;
     haptics.success();
     dispatch({
@@ -95,7 +96,8 @@ export default function RateScreen() {
       index: comparison.low,
       entry: { placeId: place.id, note: note.trim() || undefined, ratedAt: new Date().toISOString() },
     });
-    router.back();
+    if (thenShare) router.replace({ pathname: '/gonderi-olustur', params: { placeId: place.id } });
+    else router.back();
   };
 
   return (
@@ -182,7 +184,11 @@ export default function RateScreen() {
 
       {phase === 'result' && (
         <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
-          <Button title="Kaydet" onPress={save} />
+          <Button title="Kaydet" onPress={() => save()} />
+          {/* Onboarding sırasında gönderi ekranı henüz erişilebilir değil */}
+          {onboarded && from !== 'gonderi' && (
+            <Button title="Kaydet ve gönderi paylaş" icon="camera" variant="ghost" onPress={() => save(true)} />
+          )}
         </View>
       )}
     </KeyboardAvoidingView>
@@ -352,5 +358,6 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.md,
+    gap: spacing.xs,
   },
 });

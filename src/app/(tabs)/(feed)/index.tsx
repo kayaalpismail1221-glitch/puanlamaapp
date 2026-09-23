@@ -3,22 +3,21 @@ import { SymbolView } from 'expo-symbols';
 import { useMemo } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 
-import { FeedCard } from '@/components/feed-card';
-import { Button, Divider, PressableScale, Text } from '@/components/ui';
-import { colors, hitSlop, spacing } from '@/constants/theme';
-import { FEED } from '@/data/mock';
+import { PostCard } from '@/components/post-card';
+import { Avatar, Button, Divider, PressableScale, Text } from '@/components/ui';
+import { colors, hitSlop, radius, spacing } from '@/constants/theme';
 import { useAppStore } from '@/store/app-store';
+import { ME } from '@/types';
 
-/** Arkadaşların son puanladığı mekânlar */
+const openComposer = () => router.push('/gonderi-olustur');
+
+/** Takip edilenlerin ve kullanıcının kendi gönderileri, en yeni başta */
 export default function FeedScreen() {
-  const { following } = useAppStore();
+  const { following, posts, profile } = useAppStore();
 
   const items = useMemo(
-    () =>
-      FEED.filter((f) => following.includes(f.userId)).sort(
-        (a, b) => +new Date(b.createdAt) - +new Date(a.createdAt),
-      ),
-    [following],
+    () => posts.filter((p) => p.userId === ME || following.includes(p.userId)),
+    [posts, following],
   );
 
   return (
@@ -26,7 +25,7 @@ export default function FeedScreen() {
       <Stack.Screen
         options={{
           headerRight: () => (
-            <PressableScale onPress={() => router.push('/mekan-puanla')} hitSlop={hitSlop} accessibilityLabel="Mekân puanla">
+            <PressableScale onPress={openComposer} hitSlop={hitSlop} accessibilityLabel="Gönderi paylaş">
               <SymbolView name="plus" tintColor={colors.primary} size={22} weight="semibold" />
             </PressableScale>
           ),
@@ -34,11 +33,23 @@ export default function FeedScreen() {
       />
       <FlatList
         data={items}
-        keyExtractor={(i) => i.id}
+        keyExtractor={(p) => p.id}
         contentInsetAdjustmentBehavior="automatic"
-        renderItem={({ item }) => <FeedCard item={item} />}
+        renderItem={({ item }) => <PostCard post={item} />}
         ItemSeparatorComponent={() => <Divider />}
         contentContainerStyle={items.length === 0 && styles.emptyContainer}
+        ListHeaderComponent={
+          <>
+            <PressableScale onPress={openComposer} scaleTo={0.98} style={styles.composer}>
+              <Avatar uri={profile?.avatarUri} name={profile?.name ?? '?'} size={36} />
+              <Text variant="callout" color={colors.textSecondary} style={{ flex: 1 }}>
+                Nerede yedin? Paylaş…
+              </Text>
+              <SymbolView name="camera" tintColor={colors.primary} size={20} />
+            </PressableScale>
+            <Divider />
+          </>
+        }
         ListEmptyComponent={
           <View style={styles.empty}>
             <SymbolView name="person.2" tintColor={colors.textTertiary} size={44} />
@@ -46,7 +57,7 @@ export default function FeedScreen() {
               Feed’in henüz boş
             </Text>
             <Text variant="subhead" color={colors.textSecondary} align="center">
-              Arkadaşlarını takip et, puanladıkları mekânlar burada görünsün.
+              Arkadaşlarını takip et, gittikleri mekânlardan paylaşımları burada görünsün.
             </Text>
             <Button title="Arkadaş bul" onPress={() => router.push('/arkadas-bul')} style={styles.emptyButton} />
           </View>
@@ -57,6 +68,17 @@ export default function FeedScreen() {
 }
 
 const styles = StyleSheet.create({
+  composer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.md,
+    height: 52,
+    borderRadius: radius.card,
+    backgroundColor: colors.surface,
+  },
   emptyContainer: {
     flexGrow: 1,
   },

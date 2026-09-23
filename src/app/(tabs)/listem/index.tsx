@@ -1,7 +1,10 @@
 import { router, Stack } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
+import { useState } from 'react';
 import { ActionSheetIOS, Alert, FlatList, Linking, Platform, StyleSheet, View } from 'react-native';
 
+import { PostGrid } from '@/components/post-grid';
+import { SegmentTabs } from '@/components/segment-tabs';
 import { Button, Divider, PlaceImage, PressableScale, Text } from '@/components/ui';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
 import { placeById } from '@/data/mock';
@@ -11,13 +14,22 @@ import { linkSource } from '@/lib/links';
 import { useAppStore } from '@/store/app-store';
 import type { Place, SavedPlace } from '@/types';
 
-/** Gitmek istediğin mekânlar: Instagram'da, TikTok'ta gördüklerin buraya */
+type Tab = 'places' | 'posts';
+
+const TABS = [
+  { key: 'places', label: 'Mekânlar' },
+  { key: 'posts', label: 'Gönderiler' },
+] as const;
+
+/** Gitmek istediğin mekânlar (Instagram'da, TikTok'ta gördüklerin) ve kaydettiğin gönderiler */
 export default function SavedListScreen() {
-  const { saved } = useAppStore();
+  const { saved, savedPosts, postById } = useAppStore();
+  const [tab, setTab] = useState<Tab>('places');
   const rows = saved.flatMap((s) => {
     const place = placeById(s.placeId);
     return place ? [{ entry: s, place }] : [];
   });
+  const posts = savedPosts.flatMap((id) => postById(id) ?? []).reverse();
 
   return (
     <>
@@ -31,19 +43,31 @@ export default function SavedListScreen() {
         }}
       />
       <FlatList
-        data={rows}
+        data={tab === 'places' ? rows : []}
         keyExtractor={(r) => r.place.id}
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={rows.length === 0 && styles.emptyContainer}
+        contentContainerStyle={tab === 'places' && rows.length === 0 && styles.emptyContainer}
         ItemSeparatorComponent={() => <Divider inset={spacing.lg} />}
         ListHeaderComponent={
-          rows.length > 0 ? (
-            <Text variant="footnote" color={colors.textSecondary} style={styles.count}>
-              {rows.length} mekân kaydettin
-            </Text>
-          ) : null
+          <>
+            <SegmentTabs tabs={TABS} value={tab} onChange={setTab} />
+            {tab === 'places' && rows.length > 0 && (
+              <Text variant="footnote" color={colors.textSecondary} style={styles.count}>
+                {rows.length} mekân kaydettin
+              </Text>
+            )}
+            {tab === 'posts' && (
+              <View style={{ paddingTop: 2 }}>
+                <PostGrid
+                  posts={posts}
+                  emptyText="Feed’de beğendiğin gönderileri yer imi ile kaydet, burada toplansın."
+                />
+              </View>
+            )}
+          </>
         }
         ListEmptyComponent={
+          tab === 'posts' ? null : (
           <View style={styles.empty}>
             <SymbolView name="bookmark" tintColor={colors.textTertiary} size={44} />
             <Text variant="title3" align="center">
@@ -55,6 +79,7 @@ export default function SavedListScreen() {
             </Text>
             <Button title="Mekân kaydet" icon="plus" onPress={() => router.push('/listeye-ekle')} style={styles.emptyButton} />
           </View>
+          )
         }
         renderItem={({ item }) => <SavedRow entry={item.entry} place={item.place} />}
       />
@@ -139,6 +164,7 @@ function SavedRow({ entry, place }: { entry: SavedPlace; place: Place }) {
 const styles = StyleSheet.create({
   count: {
     paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
     paddingBottom: spacing.sm,
   },
   row: {
