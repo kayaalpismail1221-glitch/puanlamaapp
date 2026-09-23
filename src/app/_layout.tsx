@@ -1,18 +1,71 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
+import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+import { colors } from '@/constants/theme';
+import { AppStoreProvider, useAppStore } from '@/store/app-store';
 
 SplashScreen.preventAutoHideAsync();
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+const navigationTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    primary: colors.primary,
+    background: colors.background,
+    card: colors.background,
+    text: colors.text,
+    border: colors.border,
+  },
+};
+
+function RootNavigator() {
+  const { hydrated, onboarded } = useAppStore();
+
+  useEffect(() => {
+    if (hydrated) SplashScreen.hideAsync();
+  }, [hydrated]);
+
+  if (!hydrated) return null;
+
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
+    <Stack
+      screenOptions={{
+        headerTintColor: colors.primary,
+        headerBackButtonDisplayMode: 'minimal',
+        contentStyle: { backgroundColor: colors.background },
+      }}>
+      <Stack.Protected guard={!onboarded}>
+        <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+      </Stack.Protected>
+
+      <Stack.Protected guard={onboarded}>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="mekan/[id]" options={{ title: '', headerTransparent: true }} />
+        <Stack.Screen name="ara" options={{ presentation: 'modal', title: 'Mekân ekle' }} />
+        <Stack.Screen name="arkadas-bul" options={{ presentation: 'modal', title: 'Arkadaş bul' }} />
+      </Stack.Protected>
+
+      {/* Puanlama akışı hem onboarding'de hem uygulama içinde kullanılır */}
+      <Stack.Screen
+        name="degerlendir/[id]"
+        options={{ presentation: 'modal', headerShown: false, gestureEnabled: false }}
+      />
+    </Stack>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeProvider value={navigationTheme}>
+        <AppStoreProvider>
+          <StatusBar style="dark" />
+          <RootNavigator />
+        </AppStoreProvider>
+      </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }

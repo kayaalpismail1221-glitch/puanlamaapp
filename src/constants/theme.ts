@@ -1,65 +1,69 @@
 /**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
+ * Tasarım token'ları. Bileşenlerde sabit renk/ölçü yazma; hepsini buradan al.
  */
 
-import '@/global.css';
+export const colors = {
+  // Yüzeyler
+  background: '#FFFFFF',
+  surface: '#F5F6F8',
+  border: '#E5E7EB',
 
-import { Platform } from 'react-native';
+  // Marka
+  primary: '#0F1E3D',
+  onPrimary: '#FFFFFF',
 
-export const Colors = {
-  light: {
-    text: '#000000',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
-  },
-  dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
-  },
+  // Metin
+  text: '#111827',
+  textSecondary: '#6B7280',
+  textTertiary: '#9CA3AF',
+
+  // Durumlar
+  danger: '#DC2626',
+  like: '#E11D48',
+  overlay: 'rgba(15, 30, 61, 0.45)',
+
+  // Puan renkleri (harita pinleri ve rozet vurguları)
+  scoreHigh: '#0F1E3D',
+  scoreMid: '#5B6B8C',
+  scoreLow: '#A7B0C2',
 } as const;
 
-export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
-
-export const Fonts = Platform.select({
-  ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
-    serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
-    mono: 'ui-monospace',
-  },
-  default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
-    mono: 'monospace',
-  },
-  web: {
-    sans: 'var(--font-display)',
-    serif: 'var(--font-serif)',
-    rounded: 'var(--font-rounded)',
-    mono: 'var(--font-mono)',
-  },
-});
-
-export const Spacing = {
-  half: 2,
-  one: 4,
-  two: 8,
-  three: 16,
-  four: 24,
-  five: 32,
-  six: 64,
+export const spacing = {
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 24,
+  xxl: 32,
 } as const;
 
-export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
-export const MaxContentWidth = 800;
+export const radius = {
+  card: 16,
+  button: 12,
+  full: 999,
+} as const;
+
+// iOS sistem fontu (SF Pro) kullanılır; fontFamily belirtmiyoruz.
+export const typography = {
+  largeTitle: { fontSize: 34, fontWeight: '700', letterSpacing: 0.4 },
+  title: { fontSize: 28, fontWeight: '700', letterSpacing: 0.3 },
+  title2: { fontSize: 22, fontWeight: '700' },
+  title3: { fontSize: 20, fontWeight: '600' },
+  headline: { fontSize: 17, fontWeight: '600' },
+  body: { fontSize: 17, fontWeight: '400' },
+  callout: { fontSize: 16, fontWeight: '400' },
+  subhead: { fontSize: 15, fontWeight: '400' },
+  footnote: { fontSize: 13, fontWeight: '400' },
+  caption: { fontSize: 12, fontWeight: '500' },
+} as const;
+
+export type TypographyVariant = keyof typeof typography;
+
+export const hitSlop = { top: 8, bottom: 8, left: 8, right: 8 } as const;
+
+/** Puana göre pin/rozet rengi */
+export function scoreColor(score: number): string {
+  if (score >= 6.7) return colors.scoreHigh;
+  if (score >= 3.4) return colors.scoreMid;
+  return colors.scoreLow;
+}
