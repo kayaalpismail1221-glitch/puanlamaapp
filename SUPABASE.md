@@ -46,18 +46,12 @@ npx supabase db push
 - *Confirm email* **açık** kalsın: başkası senin e-postanla hesap açamaz.
 - Uygulama doğrulamayı bağlantıyla değil **6 haneli kodla** yapar. Bu yüzden e-posta şablonlarına kod eklenmeli.
 
-**Authentication → Emails → Templates**
-- **Confirm signup** gövdesi:
-  ```html
-  <h2>Puanla'ya hoş geldin</h2>
-  <p>Doğrulama kodun: <strong>{{ .Token }}</strong></p>
-  ```
-- **Magic Link** gövdesi (şifremi unuttum akışı bunu kullanır):
-  ```html
-  <h2>Puanla giriş kodu</h2>
-  <p>Kodun: <strong>{{ .Token }}</strong></p>
-  <p>Bu isteği sen yapmadıysan bu e-postayı yok sayabilirsin.</p>
-  ```
+**Authentication → Emails → Templates**: markaya uygun Türkçe şablonlar `supabase/templates/` klasöründe.
+Dosyanın baştaki `<!-- -->` açıklaması hariç tamamını "Message body" alanına yapıştır:
+- **Confirm signup** ← `confirm-signup.html` · Konu: `Puanla doğrulama kodun: {{ .Token }}`
+- **Magic Link** ← `magic-link.html` · Konu: `Puanla giriş kodun: {{ .Token }}` (şifremi unuttum akışı)
+
+Konuya kodun eklenmesi, iPhone'un kodu bildirimden okuyup klavyede önermesini sağlar.
 
 **E-posta gönderimi:** Supabase'in yerleşik e-posta servisi saatte yalnızca birkaç e-posta gönderir ve sadece test içindir.
 Beta'dan önce **Authentication → Emails → SMTP Settings** bölümünden kendi SMTP servisini bağla (ör. Resend, Postmark, Amazon SES).

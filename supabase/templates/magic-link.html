@@ -1,0 +1,65 @@
+<!--
+  Supabase → Authentication → Emails → Templates → "Magic Link"
+  Konu (Subject): Puanla giriş kodun: {{ .Token }}
+  Uygulamadaki "Şifremi unuttum" akışı bu şablonu kullanır (kodla giriş, ardından yeni şifre).
+-->
+<!DOCTYPE html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>Puanla giriş kodu</title>
+  </head>
+  <body style="margin:0;padding:0;background:#F5F6F8;">
+    <!-- Gelen kutusundaki önizleme satırı -->
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;">
+      Giriş kodun: {{ .Token }} · Şifreni sıfırlamak için uygulamaya gir.
+    </div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F5F6F8;">
+      <tr>
+        <td align="center" style="padding:40px 16px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:460px;background:#FFFFFF;border-radius:20px;overflow:hidden;">
+            <!-- Üst şerit -->
+            <tr>
+              <td style="background:#0F1E3D;padding:28px 32px;">
+                <span style="font-family:Georgia,'Times New Roman',serif;font-size:32px;line-height:32px;color:#FFFFFF;font-weight:bold;letter-spacing:-0.5px;">puanla</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:36px 32px 8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                <p style="margin:0 0 8px;font-size:22px;line-height:28px;color:#0F1E3D;font-weight:700;">Giriş kodun</p>
+                <p style="margin:0;font-size:15px;line-height:23px;color:#6B7280;">
+                  Şifreni sıfırlamak için aşağıdaki kodu uygulamaya gir, ardından yeni şifreni belirle.
+                </p>
+              </td>
+            </tr>
+            <!-- Kod -->
+            <tr>
+              <td style="padding:24px 32px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td align="center" style="background:#F5F6F8;border:1px solid #E5E7EB;border-radius:14px;padding:22px 12px;font-family:'SF Mono',Menlo,Consolas,'Courier New',monospace;font-size:36px;line-height:40px;letter-spacing:12px;font-weight:700;color:#0F1E3D;">
+                      {{ .Token }}
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:0 32px 32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                <p style="margin:0;padding-top:20px;border-top:1px solid #E5E7EB;font-size:12px;line-height:18px;color:#9CA3AF;">
+                  Kod 1 saat geçerli. Bu isteği sen yapmadıysan bu e-postayı yok sayabilirsin; şifren değişmez.
+                  Kodu kimseyle paylaşma, Puanla çalışanları bu kodu asla istemez.
+                </p>
+              </td>
+            </tr>
+          </table>
+          <p style="margin:20px 0 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#9CA3AF;">
+            Puanla · Gittiğin her yeri puanla, arkadaşlarının nerede yediğini gör.
+          </p>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
