@@ -1,18 +1,17 @@
+import { useNavigation, type NativeStackNavigationProp } from 'expo-router';
+import type { ParamListBase } from 'expo-router/react-navigation';
 import { SymbolView } from 'expo-symbols';
-import { forwardRef, useEffect, useRef, useState, type ReactNode } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type ReactNode } from 'react';
 import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import Animated, {
+  Easing,
   FadeIn,
-  FadeInDown,
-  FadeInUp,
+  FadeOut,
   useAnimatedStyle,
   useSharedValue,
   withSequence,
-  withSpring,
   withTiming,
-  ZoomIn,
-  ZoomOut,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -27,8 +26,9 @@ type Props = {
   footer?: ReactNode;
 };
 
-/** Yaylı, hafif gecikmeli giriş: başlık → açıklama → içerik → buton sırayla gelir */
-const enter = (order: number) => FadeInDown.delay(80 + order * 70).springify().damping(18).stiffness(160);
+/** Sakin giriş: zıplama yok, içerik tek seferde yumuşakça belirir */
+const EASE = Easing.out(Easing.cubic);
+const enter = FadeIn.duration(280).easing(EASE);
 
 /**
  * Onboarding adımları için ortak iskelet: serif başlık, içerik ve
@@ -40,30 +40,22 @@ export function OnboardingStep({ title, subtitle, children, footer }: Props) {
   return (
     <View style={[styles.container, { paddingTop: insets.top + 56 }]}>
       <View style={styles.header}>
-        <Animated.Text entering={enter(0)} style={styles.title}>
-          {title}
-        </Animated.Text>
+        <Text style={styles.title}>{title}</Text>
         {subtitle && (
-          <Animated.View entering={enter(1)}>
-            <Text variant="callout" color={colors.textSecondary} style={styles.subtitle}>
-              {subtitle}
-            </Text>
-          </Animated.View>
+          <Text variant="callout" color={colors.textSecondary} style={styles.subtitle}>
+            {subtitle}
+          </Text>
         )}
       </View>
 
-      <Animated.View entering={enter(2)} style={styles.content}>
+      <Animated.View entering={enter} style={styles.content}>
         {children}
       </Animated.View>
 
       {footer && (
         // Klavye açılınca buton klavyenin hemen üstüne yumuşakça çıkar
         <KeyboardStickyView offset={{ closed: 0, opened: bottom - spacing.md }}>
-          <Animated.View
-            entering={FadeInUp.delay(320).springify().damping(18)}
-            style={[styles.footer, { paddingBottom: bottom }]}>
-            {footer}
-          </Animated.View>
+          <View style={[styles.footer, { paddingBottom: bottom }]}>{footer}</View>
         </KeyboardStickyView>
       )}
     </View>
@@ -82,27 +74,42 @@ type BigInputProps = TextInputProps & {
 
 /**
  * Büyük, çerçevesiz giriş alanı.
- * Odaklanınca lacivert çizgi soldan dolar; hata olunca alan titrer; geçerli olunca ✓ belirir.
+ * Odaklanınca lacivert çizgi soldan dolar; hata olunca alan hafifçe titrer; geçerli olunca ✓ belirir.
+ * `autoFocus` verilirse klavye, sayfa geçişi bittikten sonra açılır (geçiş sırasında içerik itilmez).
  */
 export const BigInput = forwardRef<TextInput, BigInputProps>(function BigInput(
-  { prefix, error, hint, accessory, valid, style, onFocus, onBlur, ...rest },
+  { prefix, error, hint, accessory, valid, style, onFocus, onBlur, autoFocus, ...rest },
   ref,
 ) {
   const [focused, setFocused] = useState(false);
+  const inputRef = useRef<TextInput>(null);
+  useImperativeHandle(ref, () => inputRef.current as TextInput);
+  const navigation = useNavigation<NativeStackNavigationProp<ParamListBase>>();
+
+  useEffect(() => {
+    if (!autoFocus) return;
+    const focus = () => inputRef.current?.focus();
+    // Geçiş animasyonu bitince odaklan; olay gelmezse kısa bir yedek süre
+    const unsubscribe = navigation.addListener('transitionEnd', focus);
+    const fallback = setTimeout(focus, 450);
+    return () => {
+      unsubscribe();
+      clearTimeout(fallback);
+    };
+  }, [autoFocus, navigation]);
+
   const underline = useSharedValue(0);
   const shake = useSharedValue(0);
   const wasValid = useRef(valid);
 
-  // Hata gelince yatayda kısa bir titreme
+  // Hata gelince yatayda küçük, kısa bir uyarı hareketi
   useEffect(() => {
     if (!error) return;
     shake.set(
       withSequence(
-        withTiming(-10, { duration: 50 }),
-        withTiming(10, { duration: 70 }),
-        withTiming(-6, { duration: 60 }),
-        withTiming(6, { duration: 60 }),
-        withTiming(0, { duration: 50 }),
+        withTiming(-4, { duration: 60 }),
+        withTiming(4, { duration: 80 }),
+        withTiming(0, { duration: 60 }),
       ),
     );
   }, [error, shake]);
@@ -121,12 +128,12 @@ export const BigInput = forwardRef<TextInput, BigInputProps>(function BigInput(
       <View style={styles.inputRow}>
         {prefix && <Text style={[styles.input, styles.prefixText]}>{prefix}</Text>}
         <TextInput
-          ref={ref}
+          ref={inputRef}
           placeholderTextColor={colors.textTertiary}
           selectionColor={colors.primary}
           onFocus={(e) => {
             setFocused(true);
-            underline.set(withSpring(1, { damping: 20, stiffness: 180 }));
+            underline.set(withTiming(1, { duration: 260, easing: EASE }));
             onFocus?.(e);
           }}
           onBlur={(e) => {
@@ -138,7 +145,7 @@ export const BigInput = forwardRef<TextInput, BigInputProps>(function BigInput(
           {...rest}
         />
         {valid && (
-          <Animated.View entering={ZoomIn.springify().damping(12)} exiting={ZoomOut.duration(150)}>
+          <Animated.View entering={FadeIn.duration(180)} exiting={FadeOut.duration(120)}>
             <SymbolView name="checkmark.circle.fill" tintColor={colors.primary} size={24} />
           </Animated.View>
         )}
