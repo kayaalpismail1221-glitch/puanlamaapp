@@ -7,6 +7,7 @@ import { isAppleSignInAvailable, resendSignupCode, signIn, signInWithApple } fro
 import { showError } from '@/api/errors';
 import { BigInput, OnboardingStep } from '@/components/onboarding-step';
 import { Button, PressableScale, Text } from '@/components/ui';
+import { EMAIL_CODES_ENABLED } from '@/constants/features';
 import { colors, radius, spacing } from '@/constants/theme';
 import { haptics } from '@/lib/haptics';
 import { isValidEmail } from '@/lib/validation';
@@ -93,14 +94,16 @@ export default function SignInScreen() {
           onSubmitEditing={submit}
           style={styles.input}
         />
-        <PressableScale
-          onPress={() => router.push({ pathname: '/onboarding/sifre-sifirla', params: { email } })}
-          haptic={false}
-          style={styles.forgot}>
-          <Text variant="footnote" color={colors.primary} style={styles.bold}>
-            Şifremi unuttum
-          </Text>
-        </PressableScale>
+        {EMAIL_CODES_ENABLED && (
+          <PressableScale
+            onPress={() => router.push({ pathname: '/onboarding/sifre-sifirla', params: { email } })}
+            haptic={false}
+            style={styles.forgot}>
+            <Text variant="footnote" color={colors.primary} style={styles.bold}>
+              Şifremi unuttum
+            </Text>
+          </PressableScale>
+        )}
 
         {appleAvailable && (
           <View style={styles.apple}>

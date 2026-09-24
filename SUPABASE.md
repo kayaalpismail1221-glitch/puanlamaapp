@@ -42,8 +42,14 @@ npx supabase db push
 
 ## 4. Giriş ayarları (Authentication)
 
+> **Şu anki durum:** Kendi SMTP servisimiz henüz yok. Supabase, SMTP bağlanmadan şablonları düzenletmiyor ve
+> varsayılan e-postası kod değil bağlantı gönderiyor. Bu yüzden *Confirm email* **kapalı** ve uygulamada
+> `EMAIL_CODES_ENABLED = false` (`src/constants/features.ts`); "Şifremi unuttum" gizli.
+> Alan adı alınınca: Resend'i SMTP olarak bağla → aşağıdaki şablonları yükle → *Confirm email*'i aç →
+> `EMAIL_CODES_ENABLED = true` yap.
+
 **Authentication → Sign In / Providers → Email**
-- *Confirm email* **açık** kalsın: başkası senin e-postanla hesap açamaz.
+- *Confirm email* açıkken başkası senin e-postanla hesap açamaz (SMTP bağlanınca açılacak).
 - Uygulama doğrulamayı bağlantıyla değil **6 haneli kodla** yapar. Bu yüzden e-posta şablonlarına kod eklenmeli.
 
 **Authentication → Emails → Templates**: markaya uygun Türkçe şablonlar `supabase/templates/` klasöründe.
