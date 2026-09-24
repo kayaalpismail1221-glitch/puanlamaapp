@@ -22,13 +22,17 @@ export const SENTIMENT_LABELS: Record<Sentiment, string> = {
 
 export const emptyRankings = (): Rankings => ({ liked: [], fine: [], disliked: [] });
 
-/** Grup içinde `index` sırasındaki (0 = en iyi) mekânın puanı */
+/**
+ * Grup içinde `index` sırasındaki (0 = en iyi) mekânın puanı.
+ * Sunucudaki `sentiment_score` ile birebir aynı sonucu vermesi için onda birler cinsinden tam sayılarla hesaplanır.
+ */
 export function scoreAt(sentiment: Sentiment, index: number, count: number): number {
   const { min, max } = SENTIMENT_RANGES[sentiment];
   if (count <= 1) return max;
   // En iyi `max`, en kötü `min` alır; aradakiler eşit aralıklı dağılır.
-  const value = max - ((max - min) * index) / (count - 1);
-  return Math.round(value * 10) / 10;
+  const hi = Math.round(max * 10);
+  const lo = Math.round(min * 10);
+  return Math.round(hi - ((hi - lo) * index) / (count - 1)) / 10;
 }
 
 export type ScoredEntry = RankedEntry & { sentiment: Sentiment; score: number; rank: number };
