@@ -1,7 +1,7 @@
 import * as ImagePicker from 'expo-image-picker';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import {
   ActionSheetIOS,
   Alert,
@@ -20,20 +20,38 @@ import { Avatar, Button, PlaceImage, PressableScale, ScoreBadge, Text } from '@/
 import { colors, hitSlop, radius, spacing, typography } from '@/constants/theme';
 import { placeById, USERS } from '@/data/mock';
 import { haptics } from '@/lib/haptics';
+import { HIGHLIGHTS, MEALS, PRICE_BUCKETS, placeSummary } from '@/lib/post-meta';
 import { useAppStore } from '@/store/app-store';
-import { ME } from '@/types';
+import { ME, type Meal, type PriceBucket } from '@/types';
 
 const MAX_PHOTOS = 5;
+const MAX_DISHES = 5;
+const MAX_HIGHLIGHTS = 3;
 
-/** Gönderi paylaş: mekân + fotoğraflar + yorum + birlikte gidilen arkadaşlar */
+type Params = {
+  placeId?: string;
+  /** 'onboarding': kayıt sonrası ilk gönderi (atlanabilir) */
+  akis?: string;
+};
+
+/**
+ * Gönderi paylaş: mekân + puan + (isteğe bağlı) fotoğraf ve yorum
+ * + işe yarar bilgiler: kişi başı hesap, öğün, ne yenildi, öne çıkanlar, kimlerle gidildi.
+ */
 export default function CreatePostScreen() {
-  const params = useLocalSearchParams<{ placeId?: string }>();
-  const { following, scoreOf, dispatch } = useAppStore();
+  const params = useLocalSearchParams<Params>();
+  const { following, scoreOf, posts, dispatch } = useAppStore();
   const insets = useSafeAreaInsets();
+  const onboarding = params.akis === 'onboarding';
 
   const [placeId, setPlaceId] = useState(params.placeId);
   const [photos, setPhotos] = useState<string[]>([]);
   const [caption, setCaption] = useState('');
+  const [price, setPrice] = useState<PriceBucket>();
+  const [meal, setMeal] = useState<Meal>();
+  const [dishes, setDishes] = useState<string[]>([]);
+  const [dishInput, setDishInput] = useState('');
+  const [highlights, setHighlights] = useState<string[]>([]);
   const [tagged, setTagged] = useState<string[]>([]);
 
   // Takip edilenler başta; etiketlenecek arkadaş listesi
@@ -42,13 +60,20 @@ export default function CreatePostScreen() {
     [following],
   );
 
+  // Bu mekân için başkalarının yazdığı yemekler öneri olarak
+  const dishSuggestions = useMemo(() => {
+    if (!placeId) return [];
+    return placeSummary(posts.filter((p) => p.placeId === placeId))
+      .dishes.map((d) => d.name)
+      .filter((d) => !dishes.some((x) => x.toLocaleLowerCase('tr') === d.toLocaleLowerCase('tr')));
+  }, [placeId, posts, dishes]);
+
   const place = placeId ? placeById(placeId) : undefined;
   if (!place) {
     return <PlacePicker title="Nerede yedin?" onSelect={(p) => setPlaceId(p.id)} />;
   }
 
   const score = scoreOf(place.id);
-  const canShare = photos.length > 0 || caption.trim().length > 0;
 
   const addFromLibrary = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -81,13 +106,21 @@ export default function CreatePostScreen() {
     );
   };
 
-  const toggleTag = (userId: string) => {
+  const addDish = (name: string) => {
+    const clean = name.trim().replace(/\s+/g, ' ');
+    if (!clean || dishes.length >= MAX_DISHES) return;
+    if (dishes.some((d) => d.toLocaleLowerCase('tr') === clean.toLocaleLowerCase('tr'))) return;
     haptics.select();
-    setTagged((t) => (t.includes(userId) ? t.filter((id) => id !== userId) : [...t, userId]));
+    setDishes((d) => [...d, clean]);
+    setDishInput('');
   };
+
+  const toggle = <T,>(list: T[], item: T, max = Infinity) =>
+    list.includes(item) ? list.filter((x) => x !== item) : list.length < max ? [...list, item] : list;
 
   const share = () => {
     haptics.success();
+    const pendingDish = dishInput.trim();
     dispatch({
       type: 'createPost',
       post: {
@@ -100,6 +133,10 @@ export default function CreatePostScreen() {
         score,
         createdAt: new Date().toISOString(),
         likeCount: 0,
+        pricePerPerson: price,
+        meal,
+        dishes: pendingDish && dishes.length < MAX_DISHES ? [...dishes, pendingDish] : dishes,
+        highlights,
       },
     });
     router.back();
@@ -110,7 +147,14 @@ export default function CreatePostScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={64}>
+      <Stack.Screen options={{ title: onboarding ? 'İlk gönderin' : 'Gönderi paylaş' }} />
       <ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
+        {onboarding && (
+          <Text variant="subhead" color={colors.textSecondary}>
+            Fotoğraf zorunlu değil. Birkaç bilgi eklersen arkadaşların için çok daha faydalı olur.
+          </Text>
+        )}
+
         {/* Mekân ve puan */}
         <Animated.View entering={FadeIn} style={styles.placeCard}>
           <PressableScale
@@ -141,11 +185,7 @@ export default function CreatePostScreen() {
           )}
         </Animated.View>
 
-        {/* Fotoğraflar */}
-        <View style={styles.field}>
-          <Text variant="footnote" color={colors.textSecondary}>
-            Fotoğraflar ({photos.length}/{MAX_PHOTOS})
-          </Text>
+        <Section title="Fotoğraflar" hint={`İsteğe bağlı · ${photos.length}/${MAX_PHOTOS}`}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoRow}>
             {photos.map((uri, i) => (
               <Animated.View key={`${uri}-${i}`} entering={FadeIn} layout={LinearTransition} style={styles.photoTile}>
@@ -168,29 +208,108 @@ export default function CreatePostScreen() {
               </PressableScale>
             )}
           </ScrollView>
-        </View>
+        </Section>
 
-        {/* Yorum */}
-        <View style={styles.field}>
-          <Text variant="footnote" color={colors.textSecondary}>
-            Yorumun
-          </Text>
+        <Section title="Yorumun" hint="İsteğe bağlı">
           <TextInput
             value={caption}
             onChangeText={setCaption}
-            placeholder="Ne yedin, nasıldı? Tavsiyen ne?"
+            placeholder="Nasıldı? Neyi tavsiye edersin?"
             placeholderTextColor={colors.textTertiary}
             multiline
             maxLength={500}
             style={[typography.body, styles.caption]}
           />
-        </View>
+        </Section>
 
-        {/* Arkadaş etiketle */}
-        <View style={styles.field}>
-          <Text variant="footnote" color={colors.textSecondary}>
-            Kimlerle gittin?
-          </Text>
+        <Section title="Kişi başı ne tuttu?">
+          <View style={styles.chips}>
+            {PRICE_BUCKETS.map((b) => (
+              <Chip key={b.key} label={b.label} active={price === b.key} onPress={() => setPrice(price === b.key ? undefined : b.key)} />
+            ))}
+          </View>
+        </Section>
+
+        <Section title="Hangi öğün?">
+          <View style={styles.mealRow}>
+            {MEALS.map((m) => {
+              const active = meal === m.key;
+              return (
+                <PressableScale
+                  key={m.key}
+                  haptic={false}
+                  onPress={() => {
+                    haptics.select();
+                    setMeal(active ? undefined : m.key);
+                  }}
+                  style={[styles.meal, active && styles.chipActive]}>
+                  <SymbolView name={m.icon} tintColor={active ? colors.onPrimary : colors.primary} size={20} />
+                  <Text variant="caption" color={active ? colors.onPrimary : colors.text} style={styles.bold}>
+                    {m.label}
+                  </Text>
+                </PressableScale>
+              );
+            })}
+          </View>
+        </Section>
+
+        <Section title="Ne yedin?" hint={`${dishes.length}/${MAX_DISHES}`}>
+          {dishes.length > 0 && (
+            <View style={styles.chips}>
+              {dishes.map((d) => (
+                <Animated.View key={d} entering={FadeIn} layout={LinearTransition}>
+                  <PressableScale onPress={() => setDishes((x) => x.filter((y) => y !== d))} style={[styles.chip, styles.chipActive, styles.dishChip]}>
+                    <Text variant="subhead" color={colors.onPrimary}>
+                      {d}
+                    </Text>
+                    <SymbolView name="xmark" tintColor={colors.onPrimary} size={10} weight="bold" />
+                  </PressableScale>
+                </Animated.View>
+              ))}
+            </View>
+          )}
+          {dishes.length < MAX_DISHES && (
+            <View style={styles.dishInputRow}>
+              <TextInput
+                value={dishInput}
+                onChangeText={setDishInput}
+                onSubmitEditing={() => addDish(dishInput)}
+                placeholder="Ör. İskender, künefe…"
+                placeholderTextColor={colors.textTertiary}
+                returnKeyType="done"
+                blurOnSubmit={false}
+                style={[typography.body, styles.dishInput]}
+              />
+              {dishInput.trim() ? (
+                <PressableScale onPress={() => addDish(dishInput)} hitSlop={hitSlop} accessibilityLabel="Yemeği ekle">
+                  <SymbolView name="plus.circle.fill" tintColor={colors.primary} size={24} />
+                </PressableScale>
+              ) : null}
+            </View>
+          )}
+          {dishSuggestions.length > 0 && dishes.length < MAX_DISHES && (
+            <View style={styles.chips}>
+              {dishSuggestions.map((d) => (
+                <Chip key={d} label={`+ ${d}`} active={false} onPress={() => addDish(d)} />
+              ))}
+            </View>
+          )}
+        </Section>
+
+        <Section title="Öne çıkanlar" hint={`En fazla ${MAX_HIGHLIGHTS}`}>
+          <View style={styles.chips}>
+            {HIGHLIGHTS.map((h) => (
+              <Chip
+                key={h}
+                label={h}
+                active={highlights.includes(h)}
+                onPress={() => setHighlights((x) => toggle(x, h, MAX_HIGHLIGHTS))}
+              />
+            ))}
+          </View>
+        </Section>
+
+        <Section title="Kimlerle gittin?">
           <View style={styles.chips}>
             {friends.map((u) => {
               const active = tagged.includes(u.id);
@@ -198,24 +317,59 @@ export default function CreatePostScreen() {
                 <PressableScale
                   key={u.id}
                   haptic={false}
-                  onPress={() => toggleTag(u.id)}
-                  style={[styles.chip, active && styles.chipActive]}>
+                  onPress={() => {
+                    haptics.select();
+                    setTagged((t) => toggle(t, u.id));
+                  }}
+                  style={[styles.chip, styles.friendChip, active && styles.chipActive]}>
                   <Avatar uri={u.avatarUrl} name={u.name} size={24} />
                   <Text variant="subhead" color={active ? colors.onPrimary : colors.text}>
                     {u.name.split(' ')[0]}
                   </Text>
-                  {active && <SymbolView name="checkmark" tintColor={colors.onPrimary} size={12} weight="bold" />}
                 </PressableScale>
               );
             })}
           </View>
-        </View>
+        </Section>
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
-        <Button title="Paylaş" icon="paperplane.fill" onPress={share} disabled={!canShare} />
+        <Button title="Paylaş" onPress={share} disabled={score === undefined && !photos.length && !caption.trim()} />
+        {onboarding && <Button title="Şimdilik atla" variant="ghost" onPress={() => router.back()} />}
       </View>
     </KeyboardAvoidingView>
+  );
+}
+
+function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
+  return (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <Text variant="headline">{title}</Text>
+        {hint && (
+          <Text variant="footnote" color={colors.textSecondary}>
+            {hint}
+          </Text>
+        )}
+      </View>
+      {children}
+    </View>
+  );
+}
+
+function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  return (
+    <PressableScale
+      haptic={false}
+      onPress={() => {
+        haptics.select();
+        onPress();
+      }}
+      style={[styles.chip, active && styles.chipActive]}>
+      <Text variant="subhead" color={active ? colors.onPrimary : colors.text}>
+        {label}
+      </Text>
+    </PressableScale>
   );
 }
 
@@ -227,6 +381,9 @@ const styles = StyleSheet.create({
   form: {
     padding: spacing.lg,
     gap: spacing.xl,
+  },
+  bold: {
+    fontWeight: '600',
   },
   placeCard: {
     flexDirection: 'row',
@@ -255,11 +412,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     justifyContent: 'center',
   },
-  bold: {
-    fontWeight: '600',
+  section: {
+    gap: spacing.md,
   },
-  field: {
-    gap: spacing.sm,
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
   },
   photoRow: {
     gap: spacing.sm,
@@ -291,7 +450,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   caption: {
-    minHeight: 112,
+    minHeight: 96,
     borderRadius: radius.button,
     backgroundColor: colors.surface,
     padding: spacing.lg,
@@ -309,17 +468,49 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
     height: 36,
-    paddingLeft: spacing.xs + 2,
-    paddingRight: spacing.md,
+    paddingHorizontal: spacing.md,
     borderRadius: radius.full,
     backgroundColor: colors.surface,
   },
   chipActive: {
     backgroundColor: colors.primary,
   },
+  dishChip: {
+    paddingRight: spacing.md,
+  },
+  friendChip: {
+    paddingLeft: spacing.xs + 2,
+  },
+  mealRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  meal: {
+    flex: 1,
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.md,
+    borderRadius: radius.button,
+    backgroundColor: colors.surface,
+  },
+  dishInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    height: 48,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.button,
+    backgroundColor: colors.surface,
+  },
+  dishInput: {
+    flex: 1,
+    height: '100%',
+    color: colors.text,
+  },
   footer: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
+    gap: spacing.xs,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
   },

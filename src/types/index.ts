@@ -80,6 +80,11 @@ export type Comment = {
   createdAt: string;
 };
 
+/** Kişi başı hesap aralığı */
+export type PriceBucket = 'u250' | '250-500' | '500-1000' | '1000-2000' | 'o2000';
+
+export type Meal = 'kahvalti' | 'ogle' | 'aksam' | 'gece';
+
 /** Bir mekân hakkında paylaşılan gönderi: fotoğraflar, yorum, birlikte gidilen arkadaşlar */
 export type Post = {
   id: string;
@@ -94,6 +99,11 @@ export type Post = {
   createdAt: string;
   /** Başkalarından gelen beğeni sayısı (kullanıcının kendi beğenisi hariç) */
   likeCount: number;
+  /** Yapılandırılmış bilgiler (hepsi isteğe bağlı) */
+  pricePerPerson?: PriceBucket;
+  dishes?: string[];
+  highlights?: string[];
+  meal?: Meal;
 };
 
 /** Popüler feed'in hangi bölgeyi gösterdiği */

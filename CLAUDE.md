@@ -42,12 +42,13 @@ Uygulama dili Türkçe.
 
 ## Ekranlar ve akış
 ### Onboarding
-1. Karşılama: lacivert kahraman kartta canlı sahneler (Sırala · Güven · Keşfet), kaydırmaya bağlı parallax,
-   "Başla" ve "Giriş yap". Beli'den ilham alınır ama görsel dil kendine özgüdür (harita+pin kopyası yok).
+1. Karşılama: süzülen İstanbul haritası ve puan pinleri, beyaza eriyen geçiş, serif "puanla" logosu,
+   otomatik ilerleyen 3 slayt (Hatırla · Güven · Keşfet), "Başla" (oksuz) ve "Giriş yap".
 2. Telefon (+90, 5XX XXX XX XX) → 3. E-posta → 4. Ad ve soyad (kullanıcı adı otomatik türetilir)
    → 5. Şifre (güç göstergesi; şifre cihazda asla saklanmaz, Supabase Auth'a gidecek).
    Her adımda tek soru, büyük giriş alanı, adım ikonu ve ince ilerleme çubuğu.
-6. En son gidilen 1 restoranı Beli tarzı puanla ("Beğendim / İdare eder / Beğenmedim" + ikili karşılaştırma).
+6. En son gidilen 1 restoranı Beli tarzı puanla ("Beğendim / İdare eder / Beğenmedim" + ikili karşılaştırma),
+   ardından normal gönderi ekranı açılır (fotoğraf isteğe bağlı, "Şimdilik atla" var).
 7. En az 5 kişiyi takip et ("Hepsini takip et" kısayolu) → Başla.
 
 ### Alt bar (5 sekme)
@@ -56,6 +57,9 @@ Uygulama dili Türkçe.
   ve kullanıcının gönderileri. Gönderi = mekân + fotoğraflar (en fazla 5) + yorum
   + birlikte gidilen arkadaş etiketleri + puan. Beğenilir (çift dokunuş dahil), yorum yapılır, kaydedilir.
   Mekân sayfasında o mekânın gönderileri "Gönderiler" ızgarasında listelenir.
+  Gönderide yapılandırılmış bilgiler (hepsi isteğe bağlı): kişi başı hesap aralığı, öğün, ne yenildi,
+  öne çıkanlar (fiyat/performans, öğrenci dostu…). Mekân sayfası bunlardan "Puanla kullanıcılarına göre"
+  özetini çıkarır (genel kişi başı, en çok yenilenler, öne çıkanlar).
 - **Ara:** mekân ve kişi araması tek yerde (Tümü / Mekânlar / Kişiler)
 - **Harita:** gidilen mekânlar ve Listem harita üzerinde, puana göre renkli pinler
 - **Listem:** gitmek istenen mekânlar, iki bölüm:

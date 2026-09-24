@@ -4,13 +4,14 @@ import { ActionSheetIOS, Alert, Platform, StyleSheet, View } from 'react-native'
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring } from 'react-native-reanimated';
 
 import { PhotoCarousel } from '@/components/photo-carousel';
-import { Avatar, PressableScale, ScoreBadge, Text } from '@/components/ui';
-import { colors, hitSlop, spacing } from '@/constants/theme';
+import { Avatar, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
+import { colors, hitSlop, radius, spacing } from '@/constants/theme';
 import { placeById } from '@/data/mock';
 import { timeAgo } from '@/lib/format';
 import { formatDistance } from '@/lib/geo';
 import { haptics } from '@/lib/haptics';
 import { openUserProfile } from '@/lib/navigation';
+import { mealLabel, priceBucketLabel } from '@/lib/post-meta';
 import { useAppStore } from '@/store/app-store';
 import { ME, type Post } from '@/types';
 
@@ -124,10 +125,24 @@ export function PostCard({ post, expanded, distanceKm }: Props) {
         </View>
       )}
 
-      {post.photos.length > 0 && (
+      {post.photos.length > 0 ? (
         <View style={styles.photos}>
           <PhotoCarousel photos={post.photos} onDoubleTap={likeFromPhoto} onPress={expanded ? undefined : openPost} />
         </View>
+      ) : (
+        // Fotoğrafsız gönderi: mekân görseli ve büyük puanla sade bir kart
+        <PressableScale onPress={openPlace} scaleTo={0.98} haptic={false} style={styles.tile}>
+          <PlaceImage uri={place.photoUrl} style={styles.tileImage} />
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text variant="headline" numberOfLines={1}>
+              {place.name}
+            </Text>
+            <Text variant="footnote" color={colors.textSecondary} numberOfLines={1}>
+              {place.cuisine} · {place.neighborhood}
+            </Text>
+          </View>
+          {post.score !== undefined && <ScoreBadge score={post.score} size="lg" />}
+        </PressableScale>
       )}
 
       {/* Aksiyonlar */}
@@ -169,6 +184,8 @@ export function PostCard({ post, expanded, distanceKm }: Props) {
         </Text>
       )}
 
+      <PostMeta post={post} />
+
       {!expanded && commentCount > 0 && (
         <Text variant="subhead" color={colors.textSecondary} style={styles.caption} onPress={openPost}>
           {commentCount === 1 ? '1 yorumu gör' : `${commentCount} yorumun tümünü gör`}
@@ -178,7 +195,74 @@ export function PostCard({ post, expanded, distanceKm }: Props) {
   );
 }
 
+/** Kişi başı, öğün, yenilenler ve öne çıkanlar */
+function PostMeta({ post }: { post: Post }) {
+  const chips = [
+    priceBucketLabel(post.pricePerPerson) && `${priceBucketLabel(post.pricePerPerson)} / kişi`,
+    mealLabel(post.meal),
+    ...(post.highlights ?? []),
+  ].filter((c): c is string => !!c);
+  if (!chips.length && !post.dishes?.length) return null;
+  return (
+    <View style={styles.meta}>
+      {!!post.dishes?.length && (
+        <View style={styles.dishes}>
+          <SymbolView name="fork.knife" tintColor={colors.textSecondary} size={13} />
+          <Text variant="subhead" style={{ flex: 1 }} numberOfLines={2}>
+            {post.dishes.join(', ')}
+          </Text>
+        </View>
+      )}
+      {chips.length > 0 && (
+        <View style={styles.metaChips}>
+          {chips.map((c) => (
+            <View key={c} style={styles.metaChip}>
+              <Text variant="caption" color={colors.primary}>
+                {c}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  tile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginHorizontal: spacing.lg,
+    padding: spacing.md,
+    borderRadius: radius.card,
+    backgroundColor: colors.surface,
+  },
+  tileImage: {
+    width: 64,
+    height: 64,
+    borderRadius: radius.button,
+  },
+  meta: {
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+  },
+  dishes: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  metaChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  metaChip: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface,
+  },
   card: {
     paddingVertical: spacing.lg,
     gap: spacing.md,

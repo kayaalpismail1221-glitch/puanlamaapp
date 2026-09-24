@@ -11,15 +11,17 @@ import { colors, radius, spacing } from '@/constants/theme';
 import { placeById, searchPlaces } from '@/data/mock';
 import { useAppStore } from '@/store/app-store';
 
-const rate = (id: string) => router.push({ pathname: '/degerlendir/[id]', params: { id } });
+// Puanlayınca doğrudan gönderi ekranı açılır (fotoğraf isteğe bağlı)
+const rate = (id: string) => router.push({ pathname: '/degerlendir/[id]', params: { id, sonra: 'gonderi' } });
 
 /** 5. En son gidilen restoranı puanla */
 export default function FirstRatingStep() {
-  const { scored, scoreOf } = useAppStore();
+  const { scored, scoreOf, myPosts } = useAppStore();
   const [query, setQuery] = useState('');
 
   const first = scored[0];
   const firstPlace = first ? placeById(first.placeId) : undefined;
+  const posted = !!firstPlace && myPosts.some((p) => p.placeId === firstPlace.id);
   const results = useMemo(() => searchPlaces(query).filter((p) => scoreOf(p.id) === undefined), [query, scoreOf]);
 
   return (
@@ -36,7 +38,7 @@ export default function FirstRatingStep() {
               <View style={styles.ratedLabel}>
                 <SymbolView name="checkmark.circle.fill" tintColor={colors.primary} size={14} />
                 <Text variant="caption" color={colors.primary} style={styles.bold}>
-                  İlk puanın kaydedildi
+                  {posted ? 'İlk gönderin paylaşıldı' : 'İlk puanın kaydedildi'}
                 </Text>
               </View>
               <Text variant="headline" numberOfLines={1}>
@@ -51,6 +53,17 @@ export default function FirstRatingStep() {
           <Text variant="subhead" color={colors.textSecondary} style={styles.note}>
             Harika! Bundan sonra gittiğin her yeri puanladıkça Puanla onları senin için sıralayacak.
           </Text>
+          {!posted && (
+            <View style={styles.postLink}>
+              <Button
+                title="Gönderi olarak paylaş"
+                variant="secondary"
+                onPress={() =>
+                  router.push({ pathname: '/gonderi-olustur', params: { placeId: firstPlace.id, akis: 'onboarding' } })
+                }
+              />
+            </View>
+          )}
         </>
       ) : (
         <>
@@ -106,6 +119,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   note: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
+  },
+  postLink: {
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.lg,
   },

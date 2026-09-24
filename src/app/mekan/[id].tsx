@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView, type SFSymbol } from 'expo-symbols';
+import type { ReactNode } from 'react';
 import { Linking, ScrollView, StyleSheet, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 
@@ -9,6 +10,7 @@ import { PostGrid } from '@/components/post-grid';
 import { placeById } from '@/data/mock';
 import { formatScore, priceLabel } from '@/lib/format';
 import { linkSource } from '@/lib/links';
+import { placeSummary, priceBucketLabel } from '@/lib/post-meta';
 import { haptics } from '@/lib/haptics';
 import { useAppStore } from '@/store/app-store';
 
@@ -31,6 +33,8 @@ export default function PlaceDetailScreen() {
   const savedEntry = savedPlaces.find((s) => s.placeId === place.id);
   const source = savedEntry?.link ? linkSource(savedEntry.link) : null;
   const placePosts = posts.filter((p) => p.placeId === place.id);
+  const summary = placeSummary(placePosts);
+  const hasSummary = !!summary.price || summary.highlights.length > 0 || summary.dishes.length > 0;
   // Takip edilenlerin bu mekâna verdiği puanlar (kişi başına en yeni gönderi)
   const friendScores = placePosts
     .filter((p) => following.includes(p.userId) && p.score !== undefined)
@@ -106,6 +110,46 @@ export default function PlaceDetailScreen() {
 
         <Divider />
 
+        {hasSummary && (
+          <>
+            <Text variant="headline">Puanla kullanıcılarına göre</Text>
+            <View style={styles.summary}>
+              {summary.price && (
+                <SummaryRow icon="creditcard" label="Kişi başı genelde">
+                  <Text variant="headline" color={colors.primary}>
+                    {priceBucketLabel(summary.price.key)}
+                  </Text>
+                  <Text variant="caption" color={colors.textSecondary}>
+                    {summary.priceVotes} kişiye göre
+                  </Text>
+                </SummaryRow>
+              )}
+              {summary.dishes.length > 0 && (
+                <SummaryRow icon="fork.knife" label="En çok yenilenler">
+                  <Text variant="subhead" style={{ fontWeight: '600' }}>
+                    {summary.dishes.map((d) => d.name).join(', ')}
+                  </Text>
+                </SummaryRow>
+              )}
+              {summary.highlights.length > 0 && (
+                <View style={styles.summaryChips}>
+                  {summary.highlights.map((h) => (
+                    <View key={h.label} style={styles.summaryChip}>
+                      <Text variant="footnote" color={colors.primary} style={{ fontWeight: '600' }}>
+                        {h.label}
+                      </Text>
+                      <Text variant="caption" color={colors.textSecondary}>
+                        {h.count}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+            <Divider />
+          </>
+        )}
+
         <View style={styles.sectionHeader}>
           <Text variant="headline">Arkadaşların puanı</Text>
           {friendAverage !== undefined && (
@@ -175,7 +219,53 @@ export default function PlaceDetailScreen() {
   );
 }
 
+function SummaryRow({ icon, label, children }: { icon: SFSymbol; label: string; children: ReactNode }) {
+  return (
+    <View style={styles.summaryRow}>
+      <View style={styles.summaryIcon}>
+        <SymbolView name={icon} tintColor={colors.primary} size={16} />
+      </View>
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text variant="footnote" color={colors.textSecondary}>
+          {label}
+        </Text>
+        {children}
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  summary: {
+    gap: spacing.md,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  summaryIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  summaryChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  summaryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface,
+  },
   container: {
     flex: 1,
     backgroundColor: colors.background,

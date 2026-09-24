@@ -37,7 +37,8 @@ const SENTIMENT_ICONS: Record<Sentiment, SFSymbol> = {
  */
 export default function RateScreen() {
   // `from=gonderi`: gönderi ekranından açıldıysa oraya geri dönülür
-  const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
+  // `sonra=gonderi`: kaydedince doğrudan gönderi ekranına geçilir (onboarding)
+  const { id, from, sonra } = useLocalSearchParams<{ id: string; from?: string; sonra?: string }>();
   const place = placeById(id);
   const { rankings, onboarded, dispatch } = useAppStore();
   const insets = useSafeAreaInsets();
@@ -96,8 +97,11 @@ export default function RateScreen() {
       index: comparison.low,
       entry: { placeId: place.id, note: note.trim() || undefined, ratedAt: new Date().toISOString() },
     });
-    if (thenShare) router.replace({ pathname: '/gonderi-olustur', params: { placeId: place.id } });
-    else router.back();
+    if (sonra === 'gonderi') {
+      router.replace({ pathname: '/gonderi-olustur', params: { placeId: place.id, akis: 'onboarding' } });
+    } else if (thenShare) {
+      router.replace({ pathname: '/gonderi-olustur', params: { placeId: place.id } });
+    } else router.back();
   };
 
   return (
@@ -184,7 +188,7 @@ export default function RateScreen() {
 
       {phase === 'result' && (
         <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
-          <Button title="Kaydet" onPress={() => save()} />
+          <Button title={sonra === 'gonderi' ? 'Kaydet ve devam et' : 'Kaydet'} onPress={() => save()} />
           {/* Onboarding sırasında gönderi ekranı henüz erişilebilir değil */}
           {onboarded && from !== 'gonderi' && (
             <Button title="Kaydet ve gönderi paylaş" icon="camera" variant="ghost" onPress={() => save(true)} />

@@ -56,10 +56,10 @@ function RootNavigator() {
         <Stack.Screen name="gittiklerim/[id]" options={{ title: 'Gittiklerim' }} />
         <Stack.Screen name="profil-duzenle" options={{ presentation: 'modal', title: 'Profili düzenle' }} />
         <Stack.Screen name="ayarlar" options={{ title: 'Ayarlar' }} />
-        <Stack.Screen name="gonderi-olustur" options={{ presentation: 'modal', title: 'Gönderi paylaş' }} />
       </Stack.Protected>
 
-      {/* Puanlama akışı hem onboarding'de hem uygulama içinde kullanılır */}
+      {/* Puanlama ve gönderi akışı hem onboarding'de hem uygulama içinde kullanılır */}
+      <Stack.Screen name="gonderi-olustur" options={{ presentation: 'modal', title: 'Gönderi paylaş' }} />
       <Stack.Screen
         name="degerlendir/[id]"
         options={{ presentation: 'modal', headerShown: false, gestureEnabled: false }}
