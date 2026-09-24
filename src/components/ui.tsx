@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
-import { useState, type ReactNode } from 'react';
+import { useState, type ComponentProps, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -14,7 +14,7 @@ import {
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 
 import { colors, radius, scoreColor, spacing, typography, type TypographyVariant } from '@/constants/theme';
 import { formatScore, initials } from '@/lib/format';
@@ -34,13 +34,14 @@ export function Text({ variant = 'body', color = colors.text, align, style, ...r
 
 /* ---------- Basınca küçülen, haptikli dokunma alanı ---------- */
 
-type PressableScaleProps = PressableProps & {
-  style?: StyleProp<ViewStyle>;
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+type PressableScaleProps = Omit<PressableProps, 'style'> & {
+  /** Düz ya da animasyonlu (Reanimated) stil */
+  style?: ComponentProps<typeof AnimatedPressable>['style'];
   haptic?: boolean;
   scaleTo?: number;
 };
-
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 /**
  * Stil doğrudan dokunma alanına uygulanır; böylece `flex`, genişlik gibi
@@ -94,21 +95,24 @@ type ButtonProps = {
 };
 
 export function Button({ title, onPress, variant = 'primary', size = 'md', icon, disabled, loading, style }: ButtonProps) {
-  const fg =
-    variant === 'primary' ? colors.onPrimary : colors.primary;
+  const fg = variant === 'primary' ? colors.onPrimary : colors.primary;
+  const inactive = !!disabled && !loading;
+  // Aktif/pasif geçişi ani değil, yumuşak
+  const fade = useAnimatedStyle(() => ({ opacity: withTiming(inactive ? 0.35 : 1, { duration: 220 }) }));
   return (
     <PressableScale
       onPress={onPress}
       disabled={disabled || loading}
       accessibilityRole="button"
+      accessibilityState={{ disabled: !!disabled, busy: !!loading }}
       style={[
         styles.button,
         variant === 'primary' && { backgroundColor: colors.primary },
         variant === 'secondary' && { backgroundColor: colors.surface },
         variant === 'outline' && styles.outline,
         size === 'sm' && styles.small,
-        (disabled || loading) && { opacity: 0.4 },
         style,
+        fade,
       ]}>
       {loading ? (
         <ActivityIndicator color={fg} />

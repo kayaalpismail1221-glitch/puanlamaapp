@@ -10,6 +10,8 @@ export default function OnboardingLayout() {
         headerTransparent: true,
         headerTintColor: colors.primary,
         headerBackButtonDisplayMode: 'minimal',
+        // Ekranın her yerinden sağa kaydırarak geri dönülebilir
+        fullScreenGestureEnabled: true,
         contentStyle: { backgroundColor: colors.background },
       }}>
       <Stack.Screen name="index" options={{ headerShown: false }} />

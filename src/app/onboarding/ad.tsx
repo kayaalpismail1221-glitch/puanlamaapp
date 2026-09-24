@@ -37,6 +37,7 @@ export default function NameStep() {
           value={firstName}
           onChangeText={setFirstName}
           placeholder="Ad"
+          valid={firstName.trim().length >= 2}
           textContentType="givenName"
           autoComplete="given-name"
           autoCapitalize="words"
@@ -49,6 +50,7 @@ export default function NameStep() {
           value={lastName}
           onChangeText={setLastName}
           placeholder="Soyad"
+          valid={lastName.trim().length >= 2}
           textContentType="familyName"
           autoComplete="family-name"
           autoCapitalize="words"

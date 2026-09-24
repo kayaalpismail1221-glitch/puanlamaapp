@@ -30,7 +30,8 @@ export default function PhoneStep() {
       subtitle="Arkadaşların seni rehberinden bulabilsin. Numaran profilinde görünmez."
       footer={<Button title="Devam" onPress={next} disabled={digits.length < 10} />}>
       <BigInput
-        prefix="+90"
+        prefix="🇹🇷 +90"
+        valid={valid}
         value={formatPhone(digits)}
         onChangeText={(t) => setDigits(phoneDigits(t))}
         placeholder="5XX XXX XX XX"

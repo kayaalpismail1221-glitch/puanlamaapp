@@ -44,6 +44,7 @@ export default function EmailStep() {
         autoFocus
         onSubmitEditing={next}
         style={{ fontSize: 24 }}
+        valid={valid}
         error={touched && !valid ? 'Bu e-posta adresi geçerli görünmüyor.' : undefined}
       />
     </OnboardingStep>

@@ -3,6 +3,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 import { colors } from '@/constants/theme';
 import { AppStoreProvider, useAppStore } from '@/store/app-store';
@@ -71,12 +72,14 @@ function RootNavigator() {
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <ThemeProvider value={navigationTheme}>
-        <AppStoreProvider>
-          <StatusBar style="dark" />
-          <RootNavigator />
-        </AppStoreProvider>
-      </ThemeProvider>
+      <KeyboardProvider>
+        <ThemeProvider value={navigationTheme}>
+          <AppStoreProvider>
+            <StatusBar style="dark" />
+            <RootNavigator />
+          </AppStoreProvider>
+        </ThemeProvider>
+      </KeyboardProvider>
     </GestureHandlerRootView>
   );
 }

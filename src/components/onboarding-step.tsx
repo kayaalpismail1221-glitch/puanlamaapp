@@ -1,17 +1,24 @@
-import { forwardRef, useState, type ReactNode } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  StyleSheet,
-  TextInput,
-  View,
-  type TextInputProps,
-} from 'react-native';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import { SymbolView } from 'expo-symbols';
+import { forwardRef, useEffect, useRef, useState, type ReactNode } from 'react';
+import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
+import { KeyboardStickyView } from 'react-native-keyboard-controller';
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  FadeInUp,
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+  withTiming,
+  ZoomIn,
+  ZoomOut,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Text } from '@/components/ui';
 import { colors, fonts, spacing } from '@/constants/theme';
+import { haptics } from '@/lib/haptics';
 
 type Props = {
   title: string;
@@ -20,73 +27,137 @@ type Props = {
   footer?: ReactNode;
 };
 
-/** Onboarding adımları için ortak iskelet: serif başlık, içerik, alt buton */
+/** Yaylı, hafif gecikmeli giriş: başlık → açıklama → içerik → buton sırayla gelir */
+const enter = (order: number) => FadeInDown.delay(80 + order * 70).springify().damping(18).stiffness(160);
+
+/**
+ * Onboarding adımları için ortak iskelet: serif başlık, içerik ve
+ * klavyeyle kare kare senkron yükselen alt buton.
+ */
 export function OnboardingStep({ title, subtitle, children, footer }: Props) {
   const insets = useSafeAreaInsets();
+  const bottom = Math.max(insets.bottom, spacing.lg);
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { paddingTop: insets.top + 52 }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <Animated.View entering={FadeInDown.duration(400)} style={styles.header}>
-        <Text style={styles.title}>{title}</Text>
+    <View style={[styles.container, { paddingTop: insets.top + 56 }]}>
+      <View style={styles.header}>
+        <Animated.Text entering={enter(0)} style={styles.title}>
+          {title}
+        </Animated.Text>
         {subtitle && (
-          <Text variant="callout" color={colors.textSecondary}>
-            {subtitle}
-          </Text>
+          <Animated.View entering={enter(1)}>
+            <Text variant="callout" color={colors.textSecondary} style={styles.subtitle}>
+              {subtitle}
+            </Text>
+          </Animated.View>
         )}
-      </Animated.View>
-      <Animated.View entering={FadeIn.delay(150)} style={styles.content}>
+      </View>
+
+      <Animated.View entering={enter(2)} style={styles.content}>
         {children}
       </Animated.View>
+
       {footer && (
-        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>{footer}</View>
+        // Klavye açılınca buton klavyenin hemen üstüne yumuşakça çıkar
+        <KeyboardStickyView offset={{ closed: 0, opened: bottom - spacing.md }}>
+          <Animated.View
+            entering={FadeInUp.delay(320).springify().damping(18)}
+            style={[styles.footer, { paddingBottom: bottom }]}>
+            {footer}
+          </Animated.View>
+        </KeyboardStickyView>
       )}
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
 type BigInputProps = TextInputProps & {
-  /** Alanın solunda sabit metin, ör. "+90" */
+  /** Alanın solunda sabit içerik, ör. "+90" */
   prefix?: string;
   error?: string;
   hint?: string;
   accessory?: ReactNode;
+  /** Değer geçerli olunca sağda onay işareti ve hafif titreşim */
+  valid?: boolean;
 };
 
-/** Büyük, çerçevesiz giriş alanı: odaklanınca alt çizgi lacivert olur */
+/**
+ * Büyük, çerçevesiz giriş alanı.
+ * Odaklanınca lacivert çizgi soldan dolar; hata olunca alan titrer; geçerli olunca ✓ belirir.
+ */
 export const BigInput = forwardRef<TextInput, BigInputProps>(function BigInput(
-  { prefix, error, hint, accessory, style, onFocus, onBlur, ...rest },
+  { prefix, error, hint, accessory, valid, style, onFocus, onBlur, ...rest },
   ref,
 ) {
   const [focused, setFocused] = useState(false);
+  const underline = useSharedValue(0);
+  const shake = useSharedValue(0);
+  const wasValid = useRef(valid);
+
+  // Hata gelince yatayda kısa bir titreme
+  useEffect(() => {
+    if (!error) return;
+    shake.set(
+      withSequence(
+        withTiming(-10, { duration: 50 }),
+        withTiming(10, { duration: 70 }),
+        withTiming(-6, { duration: 60 }),
+        withTiming(6, { duration: 60 }),
+        withTiming(0, { duration: 50 }),
+      ),
+    );
+  }, [error, shake]);
+
+  // Geçersizden geçerliye dönünce tek bir hafif titreşim
+  useEffect(() => {
+    if (valid && !wasValid.current) haptics.select();
+    wasValid.current = valid;
+  }, [valid]);
+
+  const shakeStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shake.get() }] }));
+  const lineStyle = useAnimatedStyle(() => ({ transform: [{ scaleX: underline.get() }] }));
+
   return (
-    <View style={styles.inputWrap}>
-      <View
-        style={[
-          styles.inputRow,
-          focused && { borderBottomColor: colors.primary },
-          !!error && { borderBottomColor: colors.danger },
-        ]}>
-        {prefix && <Text style={[styles.input, styles.prefix]}>{prefix}</Text>}
+    <Animated.View style={[styles.inputWrap, shakeStyle]}>
+      <View style={styles.inputRow}>
+        {prefix && <Text style={[styles.input, styles.prefixText]}>{prefix}</Text>}
         <TextInput
           ref={ref}
           placeholderTextColor={colors.textTertiary}
           selectionColor={colors.primary}
           onFocus={(e) => {
             setFocused(true);
+            underline.set(withSpring(1, { damping: 20, stiffness: 180 }));
             onFocus?.(e);
           }}
           onBlur={(e) => {
             setFocused(false);
+            underline.set(withTiming(0, { duration: 220 }));
             onBlur?.(e);
           }}
           style={[styles.input, styles.inputFlex, style]}
           {...rest}
         />
+        {valid && (
+          <Animated.View entering={ZoomIn.springify().damping(12)} exiting={ZoomOut.duration(150)}>
+            <SymbolView name="checkmark.circle.fill" tintColor={colors.primary} size={24} />
+          </Animated.View>
+        )}
         {accessory}
       </View>
+
+      {/* Alt çizgi: gri taban + odakta soldan dolan lacivert (hatada kırmızı) çizgi */}
+      <View style={styles.lineBase}>
+        <Animated.View
+          style={[
+            styles.lineFill,
+            { backgroundColor: error ? colors.danger : colors.primary },
+            error && !focused ? styles.lineFull : lineStyle,
+          ]}
+        />
+      </View>
+
       {error ? (
-        <Animated.View entering={FadeIn}>
+        <Animated.View entering={FadeIn.duration(200)}>
           <Text variant="footnote" color={colors.danger}>
             {error}
           </Text>
@@ -96,7 +167,7 @@ export const BigInput = forwardRef<TextInput, BigInputProps>(function BigInput(
           {hint}
         </Text>
       ) : null}
-    </View>
+    </Animated.View>
   );
 });
 
@@ -107,16 +178,20 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.xl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xxl,
     gap: spacing.sm,
   },
   title: {
     fontFamily: fonts.serif,
-    fontSize: 32,
-    lineHeight: 38,
+    fontSize: 34,
+    lineHeight: 40,
     fontWeight: '700',
     color: colors.primary,
+    letterSpacing: -0.3,
+  },
+  subtitle: {
+    lineHeight: 22,
   },
   content: {
     flex: 1,
@@ -135,9 +210,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    borderBottomWidth: 2,
-    borderBottomColor: colors.border,
-    paddingBottom: spacing.sm,
   },
   input: {
     fontSize: 28,
@@ -148,7 +220,20 @@ const styles = StyleSheet.create({
   inputFlex: {
     flex: 1,
   },
-  prefix: {
+  prefixText: {
     color: colors.textSecondary,
+    paddingRight: spacing.xs,
+  },
+  lineBase: {
+    height: 2,
+    backgroundColor: colors.border,
+    overflow: 'hidden',
+  },
+  lineFill: {
+    height: '100%',
+    transformOrigin: 'left',
+  },
+  lineFull: {
+    transform: [{ scaleX: 1 }],
   },
 });
