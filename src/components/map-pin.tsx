@@ -5,8 +5,19 @@ import { Text } from '@/components/ui';
 import { colors, radius, scoreColor, spacing } from '@/constants/theme';
 import { formatScore } from '@/lib/format';
 
-/** Puana göre renklenen pin; puansızsa "gitmek istiyorum" pini */
-export function MapPin({ score, active }: { score?: number; active?: boolean }) {
+/**
+ * Puana göre renklenen pin. Puansızsa `unscored` simgesi gösterilir:
+ * "want" (gitmek istiyorum, yer imi) ya da "visited" (gidildi ama puanlanmadı, çatal bıçak).
+ */
+export function MapPin({
+  score,
+  active,
+  unscored = 'want',
+}: {
+  score?: number;
+  active?: boolean;
+  unscored?: 'want' | 'visited';
+}) {
   const isWant = score === undefined;
   const color = isWant ? colors.primary : scoreColor(score);
   return (
@@ -19,7 +30,7 @@ export function MapPin({ score, active }: { score?: number; active?: boolean }) 
         active && styles.pinActive,
       ]}>
       {isWant ? (
-        <SymbolView name="bookmark.fill" tintColor={color} size={12} />
+        <SymbolView name={unscored === 'want' ? 'bookmark.fill' : 'fork.knife'} tintColor={color} size={12} />
       ) : (
         <Text variant="caption" color={colors.onPrimary} style={styles.pinText}>
           {formatScore(score)}
@@ -29,9 +40,9 @@ export function MapPin({ score, active }: { score?: number; active?: boolean }) 
   );
 }
 
-/** Küçük harita önizlemeleri için yazısız nokta pin */
-export function MapDot({ score }: { score: number }) {
-  return <View style={[styles.dot, { backgroundColor: scoreColor(score) }]} />;
+/** Küçük harita önizlemeleri için yazısız nokta pin (puansızsa lacivert) */
+export function MapDot({ score }: { score?: number }) {
+  return <View style={[styles.dot, { backgroundColor: score === undefined ? colors.primary : scoreColor(score) }]} />;
 }
 
 const styles = StyleSheet.create({

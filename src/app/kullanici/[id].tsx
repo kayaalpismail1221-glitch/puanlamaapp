@@ -3,12 +3,12 @@ import { SymbolView } from 'expo-symbols';
 import { useMemo } from 'react';
 import { ScrollView, Share, StyleSheet, View } from 'react-native';
 
-import { FootprintCard } from '@/components/footprint-card';
 import { PostGrid } from '@/components/post-grid';
 import { MenuRow, ProfileIdentity, SchoolChip, StatCard, TasteCard, TopThree } from '@/components/profile-parts';
 import { ProfileStats } from '@/components/profile-stats';
 import { Button, Divider, ErrorView, LoadingView, PressableScale, Text } from '@/components/ui';
 import { FollowButton } from '@/components/user-row';
+import { VisitedMap } from '@/components/visited-map';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
 import { getPlace, useEntitiesVersion } from '@/data/entities';
 import { useUserPosts, useUserProfile, useUserRank, useUserRankings } from '@/hooks/queries';
@@ -99,9 +99,7 @@ export default function UserProfileScreen() {
           <Divider />
         </View>
 
-        <FootprintCard userId={user.id} title="Ayak izi" />
-
-        <TopThree items={beenPlaces} title={`${user.name.split(' ')[0]} için Top 3`} />
+                <TopThree items={beenPlaces} title={`${user.name.split(' ')[0]} için Top 3`} />
 
         <View style={styles.cards}>
           <StatCard
@@ -124,6 +122,7 @@ export default function UserProfileScreen() {
         <Text variant="title3" style={styles.postsTitle}>
           Gönderileri
         </Text>
+        <VisitedMap userId={user.id} />
         {postsQuery.isPending ? <LoadingView /> : <PostGrid posts={userPosts} emptyText="Henüz gönderi paylaşmadı." />}
         <View style={{ height: spacing.xxl }} />
       </ScrollView>

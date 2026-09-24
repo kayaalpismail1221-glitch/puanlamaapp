@@ -70,7 +70,7 @@ function RootNavigator() {
         <Stack.Screen name="siralama" options={{ title: 'Liderlik tablosu' }} />
         <Stack.Screen name="baglantilar/[id]" options={{ title: '' }} />
         <Stack.Screen name="gittiklerim/[id]" options={{ title: 'Gittiklerim' }} />
-        <Stack.Screen name="ayak-izi/[id]" options={{ title: 'Ayak izi' }} />
+        <Stack.Screen name="gittigi-yerler/[id]" options={{ title: '' }} />
         <Stack.Screen name="profil-duzenle" options={{ presentation: 'modal', title: 'Profili düzenle' }} />
         <Stack.Screen name="ayarlar" options={{ title: 'Ayarlar' }} />
         <Stack.Screen name="okul-sec" options={{ presentation: 'modal', title: 'Okulun' }} />

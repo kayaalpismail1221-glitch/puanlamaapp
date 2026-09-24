@@ -3,7 +3,7 @@ import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
 import { Alert, RefreshControl, ScrollView, Share, StyleSheet, View } from 'react-native';
 
-import { FootprintCard } from '@/components/footprint-card';
+import { VisitedMap } from '@/components/visited-map';
 import { PostGrid } from '@/components/post-grid';
 import {
   BadgeStrip,
@@ -150,8 +150,6 @@ export default function ProfileScreen() {
           <Divider />
         </View>
 
-        <FootprintCard userId={me} title="Ayak izim" />
-
         <TopThree items={myPlaces} title="Top 3’üm" />
 
         <View style={styles.cards}>
@@ -186,6 +184,7 @@ export default function ProfileScreen() {
             </Text>
           </PressableScale>
         </View>
+        <VisitedMap userId={me} />
         {postsQuery.isPending ? (
           <LoadingView />
         ) : (
