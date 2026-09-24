@@ -175,6 +175,8 @@ export default function ProfileScreen() {
           />
         </View>
 
+        <VisitedMap userId={me} name={profile?.name ?? ''} />
+
         <View style={styles.postsHeader}>
           <Text variant="title3">Gönderilerim</Text>
           <PressableScale onPress={() => router.push('/gonderi-olustur')} hitSlop={hitSlop} style={styles.newPost}>
@@ -184,7 +186,6 @@ export default function ProfileScreen() {
             </Text>
           </PressableScale>
         </View>
-        <VisitedMap userId={me} name={profile?.name ?? ''} />
         {postsQuery.isPending ? (
           <LoadingView />
         ) : (

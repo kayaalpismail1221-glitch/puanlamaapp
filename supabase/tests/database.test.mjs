@@ -382,6 +382,15 @@ describe('feed ve arama', () => {
     assert.ok(byDistrict.length > 0 && byDistrict.every((p) => p.district === 'Kadıköy'));
     const typo = await rows(me, `select name from search_places('hunkar esnaf')`);
     assert.equal(typo[0].name, 'Hünkâr Esnaf Lokantası');
+    // Konum yokken boş arama: en popüler mekânlar önce (alfabetik değil)
+    const popular = await rows(me, `select id, name from search_places('')`);
+    const { rows: counts } = await db.query(
+      `select pl.id, (select count(*) from rankings r where r.place_id = pl.id) + (select count(*) from posts p where p.place_id = pl.id) as n
+       from places pl`,
+    );
+    const pop = Object.fromEntries(counts.map((c) => [c.id, Number(c.n)]));
+    for (let i = 1; i < popular.length; i++) assert.ok(pop[popular[i - 1].id] >= pop[popular[i].id]);
+    assert.notEqual(popular[0].name, 'Adana Ocakbaşı');
     const near = await rows(me, `select name from search_places('', $1, $2, 3)`, [KADIKOY.lat, KADIKOY.lng]);
     assert.equal(near.length, 3);
     const users = await rows(me, `select username from search_users('@zeyn')`);

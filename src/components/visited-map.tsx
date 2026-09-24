@@ -74,7 +74,7 @@ export function VisitedMap({ userId, name }: { userId: string; name: string }) {
 const styles = StyleSheet.create({
   card: {
     marginHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
+    marginTop: spacing.xxl,
     padding: spacing.lg,
     gap: spacing.md,
     borderRadius: radius.card,

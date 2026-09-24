@@ -95,11 +95,13 @@ function invalidatePostLists(post: Pick<Post, 'userId' | 'placeId'>) {
 }
 
 export function useCreatePost() {
-  const { userId } = useAppStore();
+  const { userId, actions } = useAppStore();
   const [progress, setProgress] = useState(0);
   const mutation = useMutation({
-    mutationFn: (input: api.NewPost) => {
+    mutationFn: async (input: api.NewPost) => {
       setProgress(0);
+      // Gönderinin puanı sunucudaki sıralamadan gelir; az önce puanlandıysa yazılmasını bekle
+      await actions.waitForRank(input.placeId);
       return api.createPost(userId!, input, setProgress);
     },
     onSuccess: invalidatePostLists,

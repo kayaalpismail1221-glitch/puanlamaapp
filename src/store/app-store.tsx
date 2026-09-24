@@ -237,6 +237,8 @@ export type Actions = {
   updateAvatar: (image: LocalImage | null) => Promise<boolean>;
   completeOnboarding: () => Promise<boolean>;
   rank: (placeId: string, sentiment: Sentiment, index: number, note?: string) => void;
+  /** Mekânın puanı hâlâ sunucuya yazılıyorsa bitmesini bekler (gönderi puanı boş kalmasın) */
+  waitForRank: (placeId: string) => Promise<void>;
   unrank: (placeId: string) => void;
   savePlace: (entry: SavedPlace) => void;
   unsavePlace: (placeId: string) => void;
@@ -271,6 +273,8 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
   // Eşzamansız işlemler en güncel duruma baksın
   const stateRef = useRef(state);
+  // Sunucuya yazılmakta olan puanlamalar
+  const pendingRanks = useRef(new Map<string, Promise<void>>());
   useLayoutEffect(() => {
     stateRef.current = state;
   });
@@ -372,12 +376,15 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       call: () => Promise<unknown>,
       errorTitle: string,
       onSuccess?: () => void,
-    ) => {
+    ): Promise<void> => {
       dispatch(action);
-      call().then(onSuccess, (error) => {
-        dispatch({ type: 'restore', patch: snapshot });
-        showError(error, errorTitle);
-      });
+      return call().then(
+        () => onSuccess?.(),
+        (error) => {
+          dispatch({ type: 'restore', patch: snapshot });
+          showError(error, errorTitle);
+        },
+      );
     };
 
     const invalidateSocial = (userId: string) => {
@@ -491,7 +498,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       rank: (placeId, sentiment, index, note) => {
         const { rankings, saved } = stateRef.current;
         const entry = { placeId, note: note?.trim() || undefined, ratedAt: new Date().toISOString() };
-        optimistic(
+        const write = optimistic(
           { type: 'rank', sentiment, index, entry },
           { rankings, saved },
           () => meApi.rankPlace(placeId, sentiment, index, entry.note),
@@ -501,7 +508,14 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
             queryClient.invalidateQueries({ queryKey: keys.userRankings(me()) });
           },
         );
+        // Gönderi paylaşılırken puanın sunucuya yazılmış olması beklenir (bkz. waitForRank)
+        const tracked = write.finally(() => {
+          if (pendingRanks.current.get(placeId) === tracked) pendingRanks.current.delete(placeId);
+        });
+        pendingRanks.current.set(placeId, tracked);
       },
+
+      waitForRank: (placeId) => pendingRanks.current.get(placeId) ?? Promise.resolve(),
 
       unrank: (placeId) =>
         optimistic(

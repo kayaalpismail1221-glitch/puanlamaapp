@@ -2,7 +2,6 @@ import { router, Stack } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Linking, RefreshControl, StyleSheet, View } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { PostCard } from '@/components/post-card';
 import { SegmentedControl } from '@/components/segmented-control';
@@ -13,6 +12,7 @@ import { useFollowingFeed, usePopularFeed } from '@/hooks/queries';
 import { areaLabel } from '@/lib/feed';
 import { useUserLocation } from '@/lib/location';
 import { useAppStore } from '@/store/app-store';
+import type { FeedArea } from '@/types';
 
 type Tab = 'popular' | 'following';
 
@@ -20,6 +20,9 @@ const TABS = [
   { key: 'popular', label: 'Popüler' },
   { key: 'following', label: 'Takip' },
 ] as const;
+
+/** Konum izni yoksa feed boş kalmasın: en çok gönderinin olduğu şehir gösterilir */
+const FALLBACK_AREA: FeedArea = { type: 'area', city: 'İstanbul' };
 
 const openComposer = () => router.push('/gonderi-olustur');
 const openAreaPicker = () => router.push('/konum-sec');
@@ -35,7 +38,11 @@ export default function FeedScreen() {
 
   // Konum yalnızca "Yakınımda" modunda istenir
   const location = useUserLocation(tab === 'popular' && feedArea.type === 'near');
-  const popular = usePopularFeed(feedArea, location.coords, tab === 'popular');
+  // Yakınımda seçili ama konum alınamıyor (izin yok ya da hata): yedek şehrin popüler gönderileri
+  const locationUnavailable =
+    feedArea.type === 'near' && !location.coords && ['denied', 'undetermined', 'error'].includes(location.status);
+  const area = locationUnavailable ? FALLBACK_AREA : feedArea;
+  const popular = usePopularFeed(area, location.coords, tab === 'popular');
   const followingFeed = useFollowingFeed(tab === 'following');
   const active = tab === 'popular' ? popular : followingFeed;
 
@@ -48,8 +55,8 @@ export default function FeedScreen() {
     [tab, popular.data, followingFeed.data],
   );
 
-  // Yakınımda modunda konum bekleniyor ya da izin yok
-  const locationBlocked = tab === 'popular' && feedArea.type === 'near' && !location.coords;
+  // Yakınımda modunda konum henüz gelmedi
+  const locationPending = tab === 'popular' && feedArea.type === 'near' && !location.coords && !locationUnavailable;
   const [refreshing, setRefreshing] = useState(false);
   const refresh = async () => {
     setRefreshing(true);
@@ -85,7 +92,11 @@ export default function FeedScreen() {
             <SegmentedControl options={TABS} value={tab} onChange={setTab} style={styles.segment} />
 
             {tab === 'popular' && (
-              <PressableScale onPress={openAreaPicker} scaleTo={0.98} style={styles.areaButton} accessibilityLabel="Konum seç">
+              <PressableScale
+                onPress={openAreaPicker}
+                scaleTo={0.98}
+                style={styles.areaButton}
+                accessibilityLabel="Konum seç">
                 <View style={styles.areaIcon}>
                   <SymbolView
                     name={feedArea.type === 'near' ? 'location.fill' : 'mappin.and.ellipse'}
@@ -101,13 +112,15 @@ export default function FeedScreen() {
                     <SymbolView name="chevron.down" tintColor={colors.primary} size={12} weight="bold" />
                   </View>
                   <Text variant="caption" color={colors.textSecondary} numberOfLines={1}>
-                    {locationBlocked
+                    {locationPending
                       ? 'Konumun alınıyor…'
-                      : firstPage?.fallbackCity
-                        ? `Yakınında gönderi yok · ${firstPage.fallbackCity} gösteriliyor`
-                        : firstPage?.radiusKm
-                          ? `${firstPage.radiusKm} km çevrendeki popüler gönderiler`
-                          : 'Bu bölgedeki popüler gönderiler'}
+                      : locationUnavailable
+                        ? `Konum kapalı · ${FALLBACK_AREA.type === 'area' ? FALLBACK_AREA.city : ''} gösteriliyor`
+                        : firstPage?.fallbackCity
+                          ? `Yakınında gönderi yok · ${firstPage.fallbackCity} gösteriliyor`
+                          : firstPage?.radiusKm
+                            ? `${firstPage.radiusKm} km çevrendeki popüler gönderiler`
+                            : 'Bu bölgedeki popüler gönderiler'}
                   </Text>
                 </View>
                 <Text variant="footnote" color={colors.primary} style={styles.bold}>
@@ -116,7 +129,11 @@ export default function FeedScreen() {
               </PressableScale>
             )}
 
-            {!locationBlocked && (
+            {tab === 'popular' && locationUnavailable && (
+              <LocationBanner denied={location.status === 'denied'} onRetry={location.retry} />
+            )}
+
+            {!locationPending && (
               <>
                 <PressableScale onPress={openComposer} scaleTo={0.98} style={styles.composer}>
                   <Avatar uri={profile?.avatarUri} name={profile?.name ?? '?'} size={36} />
@@ -131,9 +148,7 @@ export default function FeedScreen() {
           </View>
         }
         ListEmptyComponent={
-          locationBlocked ? (
-            <LocationPrompt status={location.status} onRetry={location.retry} />
-          ) : active.isPending ? (
+          locationPending || active.isPending ? (
             <ActivityIndicator color={colors.primary} style={styles.more} />
           ) : active.isError ? (
             <ErrorView onRetry={() => active.refetch()} />
@@ -160,40 +175,22 @@ export default function FeedScreen() {
   );
 }
 
-/** Yakınımda modu için konum izni / yükleniyor durumu */
-function LocationPrompt({ status, onRetry }: { status: string; onRetry: () => void }) {
-  if (status === 'loading' || status === 'granted') {
-    return (
-      <View style={styles.empty}>
-        <ActivityIndicator color={colors.primary} />
-        <Text variant="subhead" color={colors.textSecondary}>
-          Konumun alınıyor…
-        </Text>
-      </View>
-    );
-  }
-  const denied = status === 'denied';
+/** Konum kapalıyken feed'in üstünde küçük öneri: yakındakileri görmek için konumu aç */
+function LocationBanner({ denied, onRetry }: { denied: boolean; onRetry: () => void }) {
   return (
-    <Animated.View entering={FadeIn} style={styles.empty}>
-      <View style={styles.bigIcon}>
-        <SymbolView name="location.fill" tintColor={colors.onPrimary} size={28} />
-      </View>
-      <Text variant="title3" align="center">
-        Yakınındaki lezzetleri gör
+    <PressableScale
+      onPress={denied ? () => Linking.openSettings() : onRetry}
+      scaleTo={0.98}
+      style={styles.banner}
+      accessibilityLabel="Konumu aç">
+      <SymbolView name="location.fill" tintColor={colors.primary} size={16} />
+      <Text variant="footnote" color={colors.text} style={{ flex: 1 }}>
+        Yakınındaki lezzetleri görmek için konumunu aç.
       </Text>
-      <Text variant="subhead" color={colors.textSecondary} align="center">
-        {denied
-          ? 'Konum izni kapalı. Ayarlar’dan açabilir ya da bir şehir seçebilirsin.'
-          : 'Çevrendeki en popüler gönderileri göstermek için konumunu kullanalım.'}
+      <Text variant="footnote" color={colors.primary} style={styles.bold}>
+        {denied ? 'Ayarlar' : 'Aç'}
       </Text>
-      <Button
-        title={denied ? 'Ayarlar’ı aç' : 'Konumumu kullan'}
-        icon="location"
-        onPress={denied ? () => Linking.openSettings() : onRetry}
-        style={styles.emptyButton}
-      />
-      <Button title="Şehir veya ilçe seç" variant="secondary" onPress={openAreaPicker} style={styles.emptyButton} />
-    </Animated.View>
+    </PressableScale>
   );
 }
 
@@ -225,6 +222,17 @@ function EmptyState({
 }
 
 const styles = StyleSheet.create({
+  banner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.button,
+    backgroundColor: colors.surface,
+  },
   more: {
     padding: spacing.xl,
   },
