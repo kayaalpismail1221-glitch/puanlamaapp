@@ -1,83 +1,100 @@
 import { Link } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import { useMemo, useState } from 'react';
+import { Share, StyleSheet, View } from 'react-native';
 
-import { MapDot } from '@/components/map-pin';
-import { PressableScale } from '@/components/ui';
-import { colors, radius, spacing } from '@/constants/theme';
+import { PressableScale, Text } from '@/components/ui';
+import { WorldMap } from '@/components/world-map';
+import { colors, hitSlop, radius, spacing } from '@/constants/theme';
 import { useVisitedPlaces } from '@/hooks/use-visited-places';
-import { initialCity, ISTANBUL_REGION, visitedCities } from '@/lib/visited';
+import { isMe } from '@/lib/session';
+import { cityDots, visitedSummary } from '@/lib/visited';
+import { fitView } from '@/lib/world-projection';
 
-/** Önizlemede çizilecek en fazla nokta (performans için) */
-const MAX_DOTS = 150;
+/** Harita kutusunun en-boy oranı */
+const ASPECT = 1.6;
+/** Tek şehir varsa bile ülke ölçeğinde kalsın (harita birimi) */
+const MIN_VIEW_WIDTH = 70;
 
 /**
- * Profilde gönderilerin üstündeki küçük harita: kişinin gittiği yerler nokta olarak.
- * Dokununca (iOS 18+'da yakınlaşarak) büyük haritaya açılır. Hiç yer yoksa gösterilmez.
+ * Profilde gönderilerin üstündeki lezzet haritası: kişinin gönderi paylaştığı ve puanladığı
+ * şehirler çizim tarzı dünya haritasında nokta olarak. Harita noktalara göre kendiliğinden
+ * yakınlaşır (herkes İstanbul'daysa Türkiye, dünyayı gezdiyse dünya).
+ * Dokununca (iOS 18+'da yakınlaşarak) ayrıntılı haritaya açılır. Hiç yer yoksa gösterilmez.
  */
-export function VisitedMap({ userId }: { userId: string }) {
+export function VisitedMap({ userId, name }: { userId: string; name: string }) {
   const { items } = useVisitedPlaces(userId);
-  const region = useMemo(() => initialCity(visitedCities(items))?.region ?? ISTANBUL_REGION, [items]);
+  const [width, setWidth] = useState(0);
+  const dots = useMemo(() => cityDots(items), [items]);
+  const summary = useMemo(() => visitedSummary(items), [items]);
+  const view = useMemo(() => fitView(dots.map((d) => d.point), ASPECT, MIN_VIEW_WIDTH), [dots]);
+  const mine = isMe(userId);
 
   if (!items.length) return null;
 
+  const share = () =>
+    Share.share({
+      message: mine
+        ? `Puanla’da ${summary.cities} şehirde ${summary.places} mekân puanladım. Lezzet haritama göz at 🍽️`
+        : `${name} Puanla’da ${summary.cities} şehirde ${summary.places} mekân puanladı 🍽️`,
+    });
+
   return (
-    <Link href={{ pathname: '/gittigi-yerler/[id]', params: { id: userId } }} asChild>
-      <Link.AppleZoom>
-        <PressableScale scaleTo={0.98} style={styles.card} accessibilityRole="button" accessibilityLabel="Gittiği yerler haritası">
-          {/* Önizleme: dokunma karta gider, harita kaydırılmaz */}
-          <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-            <MapView
-              // Yeni bir şehir eklenince haritayı yeniden konumlandır
-              key={`${region.latitude.toFixed(3)},${region.longitude.toFixed(3)}`}
-              style={StyleSheet.absoluteFill}
-              initialRegion={region}
-              scrollEnabled={false}
-              zoomEnabled={false}
-              rotateEnabled={false}
-              pitchEnabled={false}
-              showsPointsOfInterests={false}
-              toolbarEnabled={false}>
-              {items.slice(0, MAX_DOTS).map(({ place, score }) => (
-                <Marker
-                  key={place.id}
-                  coordinate={{ latitude: place.latitude, longitude: place.longitude }}
-                  tracksViewChanges={false}
-                  anchor={{ x: 0.5, y: 0.5 }}>
-                  <MapDot score={score} />
-                </Marker>
-              ))}
-            </MapView>
-          </View>
-          <View style={styles.expand} pointerEvents="none">
-            <SymbolView name="arrow.up.left.and.arrow.down.right" tintColor={colors.primary} size={12} weight="bold" />
-          </View>
+    <View style={styles.card}>
+      <View style={styles.header}>
+        <View style={styles.flex}>
+          <Text variant="title3" color={colors.primary}>
+            {mine ? 'Lezzet haritam' : 'Lezzet haritası'}
+          </Text>
+          <Text variant="subhead" color={colors.textSecondary}>
+            {summary.cities} şehir · {summary.places} mekân
+          </Text>
+        </View>
+        <PressableScale onPress={share} hitSlop={hitSlop} accessibilityLabel="Lezzet haritasını paylaş">
+          <SymbolView name="square.and.arrow.up" tintColor={colors.primary} size={20} />
         </PressableScale>
-      </Link.AppleZoom>
-    </Link>
+      </View>
+
+      <Link href={{ pathname: '/gittigi-yerler/[id]', params: { id: userId } }} asChild>
+        <Link.AppleZoom>
+          <PressableScale
+            scaleTo={0.98}
+            style={styles.map}
+            onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
+            accessibilityRole="button"
+            accessibilityLabel="Lezzet haritasını büyüt">
+            {width > 0 && <WorldMap view={view} width={width} height={width / ASPECT} dots={dots} />}
+          </PressableScale>
+        </Link.AppleZoom>
+      </Link>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    height: 160,
     marginHorizontal: spacing.lg,
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
+    padding: spacing.lg,
+    gap: spacing.md,
     borderRadius: radius.card,
-    overflow: 'hidden',
-    backgroundColor: colors.surface,
-  },
-  expand: {
-    position: 'absolute',
-    top: spacing.sm,
-    right: spacing.sm,
-    width: 28,
-    height: 28,
-    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.border,
     backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+  },
+  flex: {
+    flex: 1,
+    gap: 2,
+  },
+  map: {
+    aspectRatio: ASPECT,
+    borderRadius: radius.button,
+    overflow: 'hidden',
+    backgroundColor: colors.mapWater,
   },
 });

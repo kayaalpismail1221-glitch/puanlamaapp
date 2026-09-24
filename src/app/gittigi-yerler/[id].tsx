@@ -1,202 +1,178 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useMemo, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
-import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useMemo, useState } from 'react';
+import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
 
-import { GlassSurface } from '@/components/glass-surface';
-import { MapPin } from '@/components/map-pin';
-import { LoadingView, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
-import { colors, radius, spacing } from '@/constants/theme';
+import { PlaceRow } from '@/components/place-row';
+import { PostGrid } from '@/components/post-grid';
+import { SegmentedControl } from '@/components/segmented-control';
+import { Divider, LoadingView, PressableScale, ScoreBadge, Text } from '@/components/ui';
+import { WorldMap } from '@/components/world-map';
+import { colors, hitSlop, radius, spacing } from '@/constants/theme';
 import { useUser } from '@/data/entities';
 import { useVisitedPlaces } from '@/hooks/use-visited-places';
 import { haptics } from '@/lib/haptics';
 import { isMe } from '@/lib/session';
-import { initialCity, ISTANBUL_REGION, regionFor, visitedCities, type Region, type VisitedPlace } from '@/lib/visited';
+import {
+  breakdown,
+  cityDots,
+  itemsOf,
+  visitedSummary,
+  type BreakdownKind,
+  type BreakdownRow,
+  type BreakdownSort,
+} from '@/lib/visited';
+import { fitView } from '@/lib/world-projection';
 
-/** Mekâna yakınlaşınca kullanılan bölge boyutu */
-const PLACE_DELTA = 0.012;
+const ASPECT = 1.3;
+const MIN_VIEW_WIDTH = 70;
 
-/** Şehir seçicide "Tümü" */
-const ALL = '*';
+const KINDS: { key: BreakdownKind; label: string }[] = [
+  { key: 'cuisine', label: 'Mutfaklar' },
+  { key: 'city', label: 'Şehirler' },
+  { key: 'district', label: 'İlçeler' },
+];
 
-const openPost = (id: string) => router.push({ pathname: '/gonderi/[id]', params: { id } });
-const openPlace = (id: string) => router.push({ pathname: '/mekan/[id]', params: { id } });
+const KIND_NOUN: Record<BreakdownKind, string> = { cuisine: 'mutfak', city: 'şehir', district: 'ilçe' };
+
+type Selection = { kind: BreakdownKind; key: string };
 
 /**
- * Profildeki küçük haritanın büyümüş hâli: kişinin gittiği yerler.
- * Bir yere dokununca o yerdeki gönderileri çıkar; gönderiye dokununca açılır.
+ * Lezzet haritasının büyük hâli: çizim tarzı harita + mutfak / şehir / ilçe kırılımı.
+ * Bir şehir noktasına ya da satıra dokununca oradaki gönderiler çıkar; gönderiye dokununca açılır.
  */
 export default function VisitedPlacesScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const insets = useSafeAreaInsets();
-  const mapRef = useRef<MapView>(null);
+  const { width: screenWidth } = useWindowDimensions();
   const user = useUser(id);
   const mine = isMe(id);
   const { items, loading } = useVisitedPlaces(id);
 
-  const cities = useMemo(() => visitedCities(items), [items]);
-  const start = initialCity(cities);
-  const [city, setCity] = useState<string>();
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const activeCity = city ?? start?.name;
-  const selected = items.find((i) => i.place.id === selectedId);
+  const [kind, setKind] = useState<BreakdownKind>('city');
+  const [sort, setSort] = useState<BreakdownSort>('count');
+  const [selection, setSelection] = useState<Selection | null>(null);
 
-  const title = mine ? 'Gittiğim yerler' : user ? `${user.name.split(' ')[0]} nerelere gitti` : '';
+  const dots = useMemo(() => cityDots(items), [items]);
+  const summary = useMemo(() => visitedSummary(items), [items]);
+  const rows = useMemo(() => breakdown(items, kind, sort), [items, kind, sort]);
+  const mapWidth = screenWidth - spacing.lg * 2;
+  const view = useMemo(() => fitView(dots.map((d) => d.point), ASPECT, MIN_VIEW_WIDTH), [dots]);
 
-  const moveTo = (region: Region | undefined) => region && mapRef.current?.animateToRegion(region, 450);
+  const selectedItems = selection ? itemsOf(items, selection.kind, selection.key) : [];
+  const selectedPosts = selectedItems.flatMap((i) => i.posts).sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
+  const placesWithoutPosts = selectedItems.filter((i) => !i.posts.length);
+  const selectedRow = selection && breakdown(items, selection.kind, 'count').find((r) => r.key === selection.key);
+  // Haritada vurgulanan şehir
+  const highlightedCity = selection?.kind === 'city' ? selection.key : selection?.kind === 'district' ? selection.key.split('/')[0] : null;
 
-  const chooseCity = (name: string) => {
+  const select = (next: Selection | null) => {
     haptics.select();
-    setCity(name);
-    setSelectedId(null);
-    moveTo(name === ALL ? regionFor(items.map((i) => i.place), 0.2) : cities.find((c) => c.name === name)?.region);
+    setSelection(next);
   };
 
-  const select = ({ place }: VisitedPlace) => {
-    haptics.select();
-    setSelectedId(place.id);
-    if (activeCity !== ALL) setCity(place.city);
-    moveTo({
-      latitude: place.latitude,
-      longitude: place.longitude,
-      latitudeDelta: PLACE_DELTA,
-      longitudeDelta: PLACE_DELTA,
-    });
-  };
+  const title = mine ? 'Lezzet haritam' : user ? `${user.name.split(' ')[0]} · lezzet haritası` : '';
 
   if (loading && !items.length) return <LoadingView style={styles.container} />;
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentInsetAdjustmentBehavior="automatic">
       <Stack.Screen options={{ title }} />
-      <MapView
-        ref={mapRef}
-        style={StyleSheet.absoluteFill}
-        initialRegion={start?.region ?? ISTANBUL_REGION}
-        showsPointsOfInterests={false}
-        onPress={() => setSelectedId(null)}>
-        {items.map((item) => (
-          <Marker
-            key={item.place.id}
-            coordinate={{ latitude: item.place.latitude, longitude: item.place.longitude }}
-            // Seçili pin öne çıksın
-            zIndex={item.place.id === selectedId ? 1 : 0}
-            onPress={(e) => {
-              e.stopPropagation();
-              select(item);
-            }}>
-            <MapPin score={item.score} active={item.place.id === selectedId} unscored="visited" />
-          </Marker>
-        ))}
-      </MapView>
 
-      {/* Şehirler (birden fazla şehir varsa) */}
-      {cities.length > 1 && (
-        <View style={styles.citiesWrap} pointerEvents="box-none">
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cities}>
-            <CityChip label="Tümü" count={items.length} active={activeCity === ALL} onPress={() => chooseCity(ALL)} />
-            {cities.map((c) => (
-              <CityChip
-                key={c.name}
-                label={c.name}
-                count={c.count}
-                active={activeCity === c.name}
-                onPress={() => chooseCity(c.name)}
-              />
-            ))}
-          </ScrollView>
-        </View>
-      )}
+      <Text variant="subhead" color={colors.textSecondary} style={styles.summary}>
+        {summary.cities} şehir · {summary.places} mekân · {summary.posts} gönderi
+      </Text>
 
-      {selected && (
-        <Animated.View
-          key={selected.place.id}
-          entering={FadeInDown.springify()}
-          exiting={FadeOutDown.duration(150)}
-          style={[styles.cardWrap, { bottom: insets.bottom + spacing.lg }]}>
-          <PlaceCard item={selected} />
-        </Animated.View>
-      )}
-    </View>
-  );
-}
+      <View style={[styles.map, { width: mapWidth, height: mapWidth / ASPECT }]}>
+        <WorldMap
+          view={view}
+          width={mapWidth}
+          height={mapWidth / ASPECT}
+          dots={dots}
+          selectedKey={highlightedCity}
+          onDotPress={(city) =>
+            select(selection?.kind === 'city' && selection.key === city ? null : { kind: 'city', key: city })
+          }
+        />
+      </View>
 
-/**
- * Seçilen yer: tek gönderi varsa dokununca o gönderi açılır;
- * birden fazlaysa küçük fotoğraflardan biri seçilir; hiç yoksa mekân sayfası açılır.
- */
-function PlaceCard({ item }: { item: VisitedPlace }) {
-  const { place, score, posts } = item;
-  const [latest] = posts;
-  const cover = latest?.thumbs[0] ?? place.thumbUrl ?? place.photoUrl;
-
-  return (
-    <GlassSurface interactive style={styles.card}>
-      <PressableScale
-        onPress={() => (latest ? openPost(latest.id) : openPlace(place.id))}
-        scaleTo={0.98}
-        style={styles.cardMain}>
-        <PlaceImage uri={cover} style={styles.cardImage} />
-        <View style={styles.cardText}>
-          <Text variant="headline" numberOfLines={1}>
-            {place.name}
-          </Text>
-          <Text variant="footnote" color={colors.textSecondary} numberOfLines={1}>
-            {place.cuisine} · {place.neighborhood || place.district}
-          </Text>
-          <View style={styles.cardLink}>
-            <Text variant="footnote" color={colors.primary} style={styles.bold}>
-              {posts.length === 0 ? 'Mekânı gör' : posts.length === 1 ? 'Gönderiyi gör' : `${posts.length} gönderi`}
-            </Text>
-            <SymbolView name="chevron.right" tintColor={colors.primary} size={11} weight="bold" />
-          </View>
-        </View>
-        {score !== undefined && <ScoreBadge score={score} />}
-      </PressableScale>
-
-      {posts.length > 1 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.thumbs}>
-          {posts.map((post) => (
-            <PressableScale key={post.id} onPress={() => openPost(post.id)} scaleTo={0.94} style={styles.thumb}>
-              {post.thumbs[0] ? (
-                <PlaceImage uri={post.thumbs[0]} style={StyleSheet.absoluteFill} />
-              ) : (
-                <Text variant="caption" numberOfLines={3} style={styles.thumbText}>
-                  {post.caption}
-                </Text>
-              )}
+      {selection && selectedRow ? (
+        <Animated.View key={`${selection.kind}:${selection.key}`} entering={FadeIn.duration(200)}>
+          <View style={styles.selectionHeader}>
+            <View style={styles.flex}>
+              <Text variant="title3">{selectedRow.label}</Text>
+              <Text variant="footnote" color={colors.textSecondary}>
+                {selectedRow.sublabel ? `${selectedRow.sublabel} · ` : ''}
+                {selectedRow.count} mekân · {selectedPosts.length} gönderi
+              </Text>
+            </View>
+            {selectedRow.average !== undefined && <ScoreBadge score={selectedRow.average} />}
+            <PressableScale onPress={() => select(null)} hitSlop={hitSlop} style={styles.close} accessibilityLabel="Kapat">
+              <SymbolView name="xmark" tintColor={colors.primary} size={13} weight="bold" />
             </PressableScale>
+          </View>
+          {selectedPosts.length > 0 && <PostGrid posts={selectedPosts} emptyText="" />}
+          {placesWithoutPosts.length > 0 && (
+            <>
+              <Text variant="footnote" color={colors.textSecondary} style={styles.subheading}>
+                {selectedPosts.length ? 'GÖNDERİ PAYLAŞMADAN PUANLADIKLARI' : 'PUANLADIKLARI'}
+              </Text>
+              {placesWithoutPosts.map((item) => (
+                <PlaceRow
+                  key={item.place.id}
+                  place={item.place}
+                  onPress={() => router.push({ pathname: '/mekan/[id]', params: { id: item.place.id } })}
+                  trailing={item.score !== undefined ? <ScoreBadge score={item.score} size="sm" /> : undefined}
+                />
+              ))}
+            </>
+          )}
+        </Animated.View>
+      ) : (
+        <>
+          <SegmentedControl options={KINDS} value={kind} onChange={setKind} style={styles.segment} />
+          <View style={styles.listHeader}>
+            <Text variant="headline" color={colors.textSecondary}>
+              {rows.length} {KIND_NOUN[kind]}
+            </Text>
+            <PressableScale
+              onPress={() => {
+                haptics.select();
+                setSort(sort === 'count' ? 'score' : 'count');
+              }}
+              style={styles.sort}
+              accessibilityLabel="Sıralamayı değiştir">
+              <SymbolView name="arrow.up.arrow.down" tintColor={colors.primary} size={13} weight="semibold" />
+              <Text variant="footnote" color={colors.primary} style={styles.bold}>
+                {sort === 'count' ? 'Sayıya göre' : 'Puana göre'}
+              </Text>
+            </PressableScale>
+          </View>
+          {rows.map((row, i) => (
+            <View key={row.key}>
+              {i > 0 && <Divider inset={spacing.lg} />}
+              <BreakdownItem row={row} onPress={() => select({ kind, key: row.key })} />
+            </View>
           ))}
-        </ScrollView>
+        </>
       )}
-    </GlassSurface>
+      <View style={{ height: spacing.xxl }} />
+    </ScrollView>
   );
 }
 
-function CityChip({
-  label,
-  count,
-  active,
-  onPress,
-}: {
-  label: string;
-  count: number;
-  active: boolean;
-  onPress: () => void;
-}) {
+function BreakdownItem({ row, onPress }: { row: BreakdownRow; onPress: () => void }) {
   return (
-    <PressableScale onPress={onPress} haptic={false} scaleTo={0.95}>
-      <GlassSurface interactive style={[styles.chip, active && styles.chipActive]}>
-        <Text variant="subhead" color={active ? colors.onPrimary : colors.primary} style={styles.bold}>
-          {label}
+    <PressableScale onPress={onPress} scaleTo={0.98} haptic={false} style={styles.row}>
+      <View style={styles.flex}>
+        <Text variant="headline">{row.label}</Text>
+        <Text variant="subhead" color={colors.textSecondary}>
+          {row.sublabel ? `${row.sublabel} · ` : ''}
+          {row.count} mekân
         </Text>
-        <Text variant="caption" color={active ? colors.onPrimary : colors.textSecondary}>
-          {count}
-        </Text>
-      </GlassSurface>
+      </View>
+      {row.average !== undefined && <ScoreBadge score={row.average} size="sm" />}
+      <SymbolView name="chevron.right" tintColor={colors.textTertiary} size={13} weight="semibold" />
     </PressableScale>
   );
 }
@@ -204,74 +180,73 @@ function CityChip({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.background,
   },
-  citiesWrap: {
-    position: 'absolute',
-    top: spacing.sm,
-    left: 0,
-    right: 0,
-  },
-  cities: {
-    gap: spacing.sm,
+  summary: {
     paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
   },
-  chip: {
+  map: {
+    alignSelf: 'center',
+    borderRadius: radius.card,
+    overflow: 'hidden',
+    backgroundColor: colors.mapWater,
+  },
+  segment: {
+    paddingTop: spacing.lg,
+  },
+  listHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.sm,
+  },
+  sort: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    height: 36,
     paddingHorizontal: spacing.md,
+    height: 32,
     borderRadius: radius.full,
-    overflow: 'hidden',
-  },
-  chipActive: {
-    backgroundColor: colors.primary,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   bold: {
     fontWeight: '600',
   },
-  cardWrap: {
-    position: 'absolute',
-    left: spacing.lg,
-    right: spacing.lg,
-  },
-  card: {
-    gap: spacing.md,
-    padding: spacing.md,
-  },
-  cardMain: {
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.background,
   },
-  cardImage: {
-    width: 64,
-    height: 64,
-    borderRadius: radius.button,
-  },
-  cardText: {
+  flex: {
     flex: 1,
     gap: 2,
   },
-  cardLink: {
+  selectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
-    paddingTop: 2,
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.md,
   },
-  thumbs: {
-    gap: spacing.sm,
-  },
-  thumb: {
-    width: 64,
-    height: 80,
-    borderRadius: radius.button,
-    overflow: 'hidden',
+  close: {
+    width: 30,
+    height: 30,
+    borderRadius: radius.full,
     backgroundColor: colors.surface,
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  thumbText: {
-    padding: spacing.xs,
+  subheading: {
+    fontWeight: '600',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
   },
 });

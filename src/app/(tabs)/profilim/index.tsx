@@ -184,7 +184,7 @@ export default function ProfileScreen() {
             </Text>
           </PressableScale>
         </View>
-        <VisitedMap userId={me} />
+        <VisitedMap userId={me} name={profile?.name ?? ''} />
         {postsQuery.isPending ? (
           <LoadingView />
         ) : (

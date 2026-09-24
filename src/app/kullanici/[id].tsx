@@ -122,7 +122,7 @@ export default function UserProfileScreen() {
         <Text variant="title3" style={styles.postsTitle}>
           Gönderileri
         </Text>
-        <VisitedMap userId={user.id} />
+        <VisitedMap userId={user.id} name={user.name} />
         {postsQuery.isPending ? <LoadingView /> : <PostGrid posts={userPosts} emptyText="Henüz gönderi paylaşmadı." />}
         <View style={{ height: spacing.xxl }} />
       </ScrollView>

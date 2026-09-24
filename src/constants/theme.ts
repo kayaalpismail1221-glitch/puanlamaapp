@@ -28,6 +28,11 @@ export const colors = {
   scoreHigh: '#0F1E3D',
   scoreMid: '#5B6B8C',
   scoreLow: '#A7B0C2',
+
+  // Çizim tarzı dünya haritası (profildeki lezzet haritası)
+  mapWater: '#EAF0F8',
+  mapLand: '#D3D9E2',
+  mapBorder: '#FFFFFF',
 } as const;
 
 export const spacing = {
