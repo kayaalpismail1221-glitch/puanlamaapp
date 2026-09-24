@@ -1,3 +1,5 @@
+import i18n from '@/i18n';
+
 /** Kayıt formu doğrulamaları */
 
 /** Yalnızca rakamları alır; baştaki 0 ve 90 ülke kodunu atar, en fazla 10 hane */
@@ -23,17 +25,23 @@ export type PasswordCheck = { label: string; ok: boolean };
 
 export function passwordChecks(pw: string): PasswordCheck[] {
   return [
-    { label: 'En az 8 karakter', ok: pw.length >= 8 },
-    { label: 'Harf ve rakam', ok: /[A-Za-zÇĞİÖŞÜçğıöşü]/.test(pw) && /\d/.test(pw) },
-    { label: 'Büyük ve küçük harf', ok: /[A-ZÇĞİÖŞÜ]/.test(pw) && /[a-zçğıöşü]/.test(pw) },
-    { label: 'Sembol (!?#…)', ok: /[^A-Za-z0-9ÇĞİÖŞÜçğıöşü\s]/.test(pw) },
+    { label: i18n.t('password.minLength'), ok: pw.length >= 8 },
+    { label: i18n.t('password.lettersDigits'), ok: /[A-Za-zÇĞİÖŞÜçğıöşü]/.test(pw) && /\d/.test(pw) },
+    { label: i18n.t('password.mixedCase'), ok: /[A-ZÇĞİÖŞÜ]/.test(pw) && /[a-zçğıöşü]/.test(pw) },
+    { label: i18n.t('password.symbol'), ok: /[^A-Za-z0-9ÇĞİÖŞÜçğıöşü\s]/.test(pw) },
   ];
 }
 
 /** 0–4 arası güç ve etiketi */
 export function passwordStrength(pw: string): { score: number; label: string } {
   const score = pw ? passwordChecks(pw).filter((c) => c.ok).length : 0;
-  const labels = ['', 'Zayıf', 'Orta', 'Güçlü', 'Çok güçlü'];
+  const labels = [
+    '',
+    i18n.t('password.strength.weak'),
+    i18n.t('password.strength.medium'),
+    i18n.t('password.strength.strong'),
+    i18n.t('password.strength.veryStrong'),
+  ];
   return { score, label: labels[score] ?? '' };
 }
 

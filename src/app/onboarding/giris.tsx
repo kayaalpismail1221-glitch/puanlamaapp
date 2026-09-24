@@ -1,13 +1,14 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, TextInput, View } from 'react-native';
 
 import { isAppleSignInAvailable, resendSignupCode, signIn, signInWithApple } from '@/api/auth';
 import { showError } from '@/api/errors';
 import { BigInput, OnboardingStep } from '@/components/onboarding-step';
 import { Button, PressableScale, Text } from '@/components/ui';
-import { EMAIL_CODES_ENABLED } from '@/constants/features';
+import { APPLE_SIGN_IN_ENABLED, EMAIL_CODES_ENABLED } from '@/constants/features';
 import { colors, radius, spacing } from '@/constants/theme';
 import { haptics } from '@/lib/haptics';
 import { isValidEmail } from '@/lib/validation';
@@ -18,6 +19,7 @@ import { isValidEmail } from '@/lib/validation';
  */
 export default function SignInScreen() {
   const params = useLocalSearchParams<{ email?: string }>();
+  const { t } = useTranslation();
   const [email, setEmail] = useState(params.email ?? '');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
@@ -25,6 +27,7 @@ export default function SignInScreen() {
   const passwordRef = useRef<TextInput>(null);
 
   useEffect(() => {
+    if (!APPLE_SIGN_IN_ENABLED) return;
     isAppleSignInAvailable()
       .then(setAppleAvailable)
       .catch(() => {});
@@ -45,7 +48,7 @@ export default function SignInScreen() {
       if (/email not confirmed/i.test((error as Error).message ?? '')) {
         resendSignupCode(normalized).catch(() => {});
         router.push({ pathname: '/onboarding/dogrula', params: { email: normalized } });
-      } else showError(error, 'Giriş yapılamadı');
+      } else showError(error, t('failures.signIn'));
     } finally {
       setBusy(false);
     }
@@ -55,20 +58,20 @@ export default function SignInScreen() {
     try {
       await signInWithApple();
     } catch (error) {
-      showError(error, 'Apple ile giriş yapılamadı');
+      showError(error, t('failures.appleSignIn'));
     }
   };
 
   return (
     <OnboardingStep
-      title="Tekrar hoş geldin"
-      subtitle="Hesabına giriş yap."
-      footer={<Button title="Giriş yap" onPress={submit} disabled={!canSubmit} loading={busy} />}>
+      title={t('onboarding.welcomeBack')}
+      subtitle={t('onboarding.signInSubtitle')}
+      footer={<Button title={t('onboarding.signIn')} onPress={submit} disabled={!canSubmit} loading={busy} />}>
       <View style={styles.fields}>
         <BigInput
           value={email}
           onChangeText={setEmail}
-          placeholder="E-posta"
+          placeholder={t('onboarding.emailField')}
           keyboardType="email-address"
           textContentType="emailAddress"
           autoComplete="email"
@@ -83,7 +86,7 @@ export default function SignInScreen() {
           ref={passwordRef}
           value={password}
           onChangeText={setPassword}
-          placeholder="Şifre"
+          placeholder={t('onboarding.password')}
           secureTextEntry
           textContentType="password"
           autoComplete="current-password"
@@ -100,7 +103,7 @@ export default function SignInScreen() {
             haptic={false}
             style={styles.forgot}>
             <Text variant="footnote" color={colors.primary} style={styles.bold}>
-              Şifremi unuttum
+              {t('onboarding.forgot')}
             </Text>
           </PressableScale>
         )}
@@ -110,7 +113,7 @@ export default function SignInScreen() {
             <View style={styles.or}>
               <View style={styles.line} />
               <Text variant="caption" color={colors.textSecondary}>
-                veya
+                {t('onboarding.or')}
               </Text>
               <View style={styles.line} />
             </View>

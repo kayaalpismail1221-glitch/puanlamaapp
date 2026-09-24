@@ -1,23 +1,33 @@
 import { Alert } from 'react-native';
 
+import i18n from '@/i18n';
+
 /**
- * Supabase ve ağ hatalarını kullanıcıya gösterilecek Türkçe mesajlara çevirir.
+ * Supabase ve ağ hatalarını kullanıcıya gösterilecek, etkin dildeki mesajlara çevirir.
  */
 
 type ErrorLike = { message?: string; code?: string; status?: number; hint?: string; name?: string };
 
-const AUTH_MESSAGES: [RegExp, string][] = [
-  [/invalid login credentials/i, 'E-posta ya da şifre hatalı.'],
-  [/user already registered|already been registered/i, 'Bu e-postayla açılmış bir hesap var. Giriş yapmayı dene.'],
-  [/email not confirmed/i, 'E-posta adresin henüz doğrulanmadı. Gelen kutunu kontrol et.'],
-  [/token has expired|otp.*expired|invalid.*otp|token.*invalid/i, 'Kod hatalı ya da süresi dolmuş. Yeni kod iste.'],
-  [/password should be at least|weak password|password.*characters/i, 'Şifre çok zayıf. En az 8 karakter; harf ve rakam kullan.'],
-  [/new password should be different/i, 'Yeni şifre eskisinden farklı olmalı.'],
-  [/rate limit|too many requests|security purposes/i, 'Çok fazla deneme yapıldı. Biraz bekleyip tekrar dene.'],
-  [/signups not allowed|signup.*disabled/i, 'Şu anda yeni kayıt alınmıyor.'],
-  [/unable to validate email|invalid email|email address.*invalid/i, 'Bu e-posta adresi geçerli görünmüyor.'],
-  [/user not found/i, 'Bu e-postayla kayıtlı bir hesap bulunamadı.'],
+const AUTH_MESSAGES: [RegExp, () => string][] = [
+  [/invalid login credentials/i, () => i18n.t('errors.auth.invalidCredentials')],
+  [/user already registered|already been registered/i, () => i18n.t('errors.auth.alreadyRegistered')],
+  [/email not confirmed/i, () => i18n.t('errors.auth.emailNotConfirmed')],
+  [/token has expired|otp.*expired|invalid.*otp|token.*invalid/i, () => i18n.t('errors.auth.badCode')],
+  [/password should be at least|weak password|password.*characters/i, () => i18n.t('errors.auth.weakPassword')],
+  [/new password should be different/i, () => i18n.t('errors.auth.samePassword')],
+  [/rate limit|too many requests|security purposes/i, () => i18n.t('errors.auth.rateLimited')],
+  [/signups not allowed|signup.*disabled/i, () => i18n.t('errors.auth.signupsDisabled')],
+  [/unable to validate email|invalid email|email address.*invalid/i, () => i18n.t('errors.auth.invalidEmail')],
+  [/user not found/i, () => i18n.t('errors.auth.userNotFound')],
 ];
+
+// Veritabanının günlük sınır mesajındaki Türkçe etiket → i18n anahtarı
+const LIMIT_THINGS: Record<string, 'post' | 'comment' | 'place' | 'report'> = {
+  gönderi: 'post',
+  yorum: 'comment',
+  mekân: 'place',
+  şikâyet: 'report',
+};
 
 export function isNetworkError(error: unknown): boolean {
   const e = error as ErrorLike;
@@ -31,18 +41,22 @@ export function toUserMessage(error: unknown): string {
   const e = (error ?? {}) as ErrorLike;
   const message = e.message ?? '';
 
-  if (isNetworkError(error)) return 'İnternet bağlantısı yok gibi görünüyor. Bağlantını kontrol edip tekrar dene.';
-  // Veritabanı fonksiyonlarının kendi Türkçe mesajları (ör. günlük sınır)
-  if (e.code === 'P0001' || e.hint === 'rate_limit') return message;
-  if (e.code === '23505') return /username/.test(message) ? 'Bu kullanıcı adı alınmış.' : 'Bu kayıt zaten var.';
-  if (e.code === '42501' || e.status === 401 || e.status === 403) return 'Bu işlem için yetkin yok. Tekrar giriş yapmayı dene.';
-  if (e.code === '23514' || e.code === '22023') return 'Girdiğin bilgilerden biri geçerli değil.';
-  for (const [pattern, text] of AUTH_MESSAGES) if (pattern.test(message)) return text;
-  return 'Bir şeyler ters gitti. Lütfen tekrar dene.';
+  if (isNetworkError(error)) return i18n.t('errors.network');
+  // Veritabanı kuralları: günlük sınır ve topluluk kuralları filtresi
+  if (e.hint === 'rate_limit') {
+    const label = /Günlük (.+) sınırına/.exec(message)?.[1] ?? '';
+    return i18n.t('errors.dailyLimit', { thing: i18n.t(`errors.limitThing.${LIMIT_THINGS[label] ?? 'other'}`) });
+  }
+  if (e.hint === 'objectionable') return i18n.t('errors.objectionable');
+  if (e.code === '23505') return /username/.test(message) ? i18n.t('errors.usernameTaken') : i18n.t('errors.duplicate');
+  if (e.code === '42501' || e.status === 401 || e.status === 403) return i18n.t('errors.forbidden');
+  if (e.code === '23514' || e.code === '22023') return i18n.t('errors.invalid');
+  for (const [pattern, text] of AUTH_MESSAGES) if (pattern.test(message)) return text();
+  return i18n.t('errors.generic');
 }
 
 /** Hatayı sistem uyarısıyla gösterir */
-export function showError(error: unknown, title = 'Olmadı') {
+export function showError(error: unknown, title = i18n.t('errors.title')) {
   if (__DEV__) console.warn('[puanla]', error);
   Alert.alert(title, toUserMessage(error));
 }

@@ -1,23 +1,32 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo } from 'react';
-import { ScrollView, Share, StyleSheet, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { PostGrid } from '@/components/post-grid';
 import { MenuRow, ProfileIdentity, SchoolChip, StatCard, TasteCard, TopThree } from '@/components/profile-parts';
 import { ProfileStats } from '@/components/profile-stats';
-import { Button, Divider, ErrorView, LoadingView, PressableScale, Text } from '@/components/ui';
+import { PostGridSkeleton, ProfileSkeleton } from '@/components/skeleton';
+import { Button, Divider, ErrorView, PressableScale, Text } from '@/components/ui';
 import { FollowButton } from '@/components/user-row';
 import { VisitedMap } from '@/components/visited-map';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
 import { getPlace, useEntitiesVersion } from '@/data/entities';
 import { useUserPosts, useUserProfile, useUserRank, useUserRankings } from '@/hooks/queries';
 import { tasteProfile, type ScoredPlace } from '@/lib/insights';
+import { confirmBlock, openReportMenu, showMenu } from '@/lib/moderation';
+import { queryClient } from '@/lib/query-client';
+import { shareProfile } from '@/lib/share';
+import { isMe } from '@/lib/session';
 import { weeklyStreak } from '@/lib/stats';
+import { useAppStore } from '@/store/app-store';
 
 /** Başka bir kullanıcının profili */
 export default function UserProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { t } = useTranslation();
+  const { actions } = useAppStore();
   const profile = useUserProfile(id);
   const postsQuery = useUserPosts(id);
   const rankings = useUserRankings(id);
@@ -39,37 +48,64 @@ export default function UserProfileScreen() {
 
   const user = profile.data;
   if (!user) {
-    if (profile.isPending) return <LoadingView style={styles.container} />;
+    if (profile.isPending) return <ProfileSkeleton />;
     if (profile.isError) return <ErrorView onRetry={() => profile.refetch()} style={styles.container} />;
     return (
       <View style={[styles.container, styles.center]}>
-        <Text>Kullanıcı bulunamadı.</Text>
+        <Text>{t('user.notFound')}</Text>
       </View>
     );
   }
   const followsYou = user.followsMe;
 
-  const share = () => Share.share({ message: `Puanla’da @${user.username} hesabına göz at 🍽️` });
+  const share = () => shareProfile(user);
+
+  // Kullanıcı içeriği güvenliği: profilden şikâyet ve engelleme
+  const openMenu = () =>
+    showMenu(undefined, [
+      { label: t('common.share'), onPress: share },
+      { label: t('moderation.reportUser'), destructive: true, onPress: () => openReportMenu({ userId: user.id }) },
+      {
+        label: t('moderation.blockUser', { name: user.name.split(' ')[0] }),
+        destructive: true,
+        onPress: () =>
+          confirmBlock(user, () => {
+            queryClient.invalidateQueries();
+            actions.refresh();
+            router.back();
+          }),
+      },
+    ]);
 
   return (
     <>
       <Stack.Screen
         options={{
           title: '',
-          headerRight: () => (
-            <PressableScale onPress={share} hitSlop={hitSlop} accessibilityLabel="Profili paylaş">
-              <SymbolView name="square.and.arrow.up" tintColor={colors.text} size={21} />
-            </PressableScale>
-          ),
+          headerRight: () =>
+            isMe(user.id) ? null : (
+              <PressableScale onPress={openMenu} hitSlop={hitSlop} accessibilityLabel={t('moderation.options')}>
+                <SymbolView name="ellipsis.circle" tintColor={colors.text} size={22} />
+              </PressableScale>
+            ),
         }}
       />
       <ScrollView style={styles.container} contentInsetAdjustmentBehavior="automatic">
-        <ProfileIdentity name={user.name} username={user.username} avatarUri={user.avatarUrl} />
+        <ProfileIdentity
+          name={user.name}
+          username={user.username}
+          avatarUri={user.avatarUrl}
+          onAvatarPress={
+            user.avatarUrl
+              ? () => router.push({ pathname: '/profil-fotografi', params: { uri: user.avatarUrl!, name: user.name } })
+              : undefined
+          }
+        />
         <SchoolChip userId={user.id} schoolId={user.schoolId} />
         {followsYou && (
           <View style={styles.followsYou}>
             <Text variant="caption" color={colors.textSecondary}>
-              Seni takip ediyor
+              {t('user.followsYou')}
             </Text>
           </View>
         )}
@@ -80,14 +116,14 @@ export default function UserProfileScreen() {
           <View style={styles.flex}>
             <FollowButton userId={user.id} large />
           </View>
-          <Button title="Paylaş" variant="outline" size="sm" onPress={share} style={styles.share} />
+          <Button title={t('common.share')} variant="outline" size="sm" onPress={share} style={styles.share} />
         </View>
 
         <View style={styles.menu}>
           <Divider />
           <MenuRow
             icon="checkmark.circle"
-            title="Gittikleri"
+            title={t('user.beenTo')}
             count={rankings.data?.length ?? 0}
             onPress={() =>
               router.push({
@@ -99,12 +135,12 @@ export default function UserProfileScreen() {
           <Divider />
         </View>
 
-                <TopThree items={beenPlaces} title={`${user.name.split(' ')[0]} için Top 3`} />
+        <TopThree items={beenPlaces} title={t('user.topThree', { name: user.name.split(' ')[0] })} />
 
         <View style={styles.cards}>
           <StatCard
             icon="trophy"
-            title="Sıralama"
+            title={t('me.ranking')}
             value={rank ? `#${rank}` : undefined}
             locked={!rank}
             onPress={() =>
@@ -114,17 +150,17 @@ export default function UserProfileScreen() {
               })
             }
           />
-          <StatCard icon="flame" title="Seri" value={`${streak} hafta`} />
+          <StatCard icon="flame" title={t('me.streak')} value={t('me.weeks', { count: streak })} />
         </View>
 
-        <TasteCard slices={taste} title="Damak zevki" />
+        <TasteCard slices={taste} title={t('user.taste')} />
 
         <VisitedMap userId={user.id} name={user.name} />
 
         <Text variant="title3" style={styles.postsTitle}>
-          Gönderileri
+          {t('user.posts')}
         </Text>
-        {postsQuery.isPending ? <LoadingView /> : <PostGrid posts={userPosts} emptyText="Henüz gönderi paylaşmadı." />}
+        {postsQuery.isPending ? <PostGridSkeleton count={6} /> : <PostGrid posts={userPosts} emptyText={t('user.noPosts')} />}
         <View style={{ height: spacing.xxl }} />
       </ScrollView>
     </>

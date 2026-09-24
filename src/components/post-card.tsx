@@ -1,12 +1,13 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { ActionSheetIOS, Alert, Platform, StyleSheet, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { Alert, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring } from 'react-native-reanimated';
 
 import { PhotoCarousel } from '@/components/photo-carousel';
 import { Avatar, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
+import { cuisineLabel } from '@/constants/cuisines';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
-import { block, report, type ReportReason } from '@/api/content';
 import { showError } from '@/api/errors';
 import { getUser, usePlace, usePost, useUser } from '@/data/entities';
 import { useDeletePost } from '@/hooks/queries';
@@ -14,39 +15,13 @@ import { timeAgo } from '@/lib/format';
 import { formatDistance } from '@/lib/geo';
 import { haptics } from '@/lib/haptics';
 import { openUserProfile } from '@/lib/navigation';
-import { mealLabel, priceBucketLabel } from '@/lib/post-meta';
+import { confirmBlock, openReportMenu, showMenu } from '@/lib/moderation';
+import { sharePost } from '@/lib/share';
+import { highlightLabel, mealLabel } from '@/lib/post-meta';
 import { queryClient } from '@/lib/query-client';
 import { isMe } from '@/lib/session';
 import { useAppStore } from '@/store/app-store';
 import type { Post } from '@/types';
-
-const REPORT_REASONS: { key: ReportReason; label: string }[] = [
-  { key: 'spam', label: 'Spam ya da reklam' },
-  { key: 'offensive', label: 'Rahatsız edici içerik' },
-  { key: 'fake', label: 'Sahte ya da yanıltıcı' },
-  { key: 'other', label: 'Başka bir sebep' },
-];
-
-/** iOS'ta sistem menüsü, diğerlerinde uyarı penceresi */
-function showMenu(title: string | undefined, options: { label: string; destructive?: boolean; onPress: () => void }[]) {
-  if (Platform.OS === 'ios') {
-    ActionSheetIOS.showActionSheetWithOptions(
-      {
-        title,
-        options: [...options.map((o) => o.label), 'Vazgeç'],
-        destructiveButtonIndex: options.flatMap((o, i) => (o.destructive ? [i] : [])),
-        cancelButtonIndex: options.length,
-        tintColor: colors.primary,
-      },
-      (i) => options[i]?.onPress(),
-    );
-  } else {
-    Alert.alert(title ?? '', undefined, [
-      ...options.map((o) => ({ text: o.label, onPress: o.onPress, style: o.destructive ? ('destructive' as const) : undefined })),
-      { text: 'Vazgeç', style: 'cancel' as const },
-    ]);
-  }
-}
 
 type Props = {
   post: Post;
@@ -58,6 +33,7 @@ type Props = {
 
 export function PostCard({ post: initial, expanded, distanceKm }: Props) {
   const { isLiked, isPostSaved, likeCountOf, actions } = useAppStore();
+  const { t } = useTranslation();
   const deletePost = useDeletePost();
   const heart = useSharedValue(1);
   const heartStyle = useAnimatedStyle(() => ({ transform: [{ scale: heart.get() }] }));
@@ -99,10 +75,10 @@ export function PostCard({ post: initial, expanded, distanceKm }: Props) {
   const mine = isMe(post.userId);
 
   const confirmDelete = () =>
-    Alert.alert('Gönderiyi sil', 'Bu gönderi ve fotoğrafları kalıcı olarak silinecek.', [
-      { text: 'Vazgeç', style: 'cancel' },
+    Alert.alert(t('post.deleteTitle'), t('post.deleteText'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Sil',
+        text: t('common.delete'),
         style: 'destructive',
         onPress: () =>
           deletePost.mutate(post, {
@@ -110,51 +86,34 @@ export function PostCard({ post: initial, expanded, distanceKm }: Props) {
               haptics.success();
               if (expanded) router.back();
             },
-            onError: (error) => showError(error, 'Gönderi silinemedi'),
+            onError: (error) => showError(error, t('failures.postDelete')),
           }),
       },
     ]);
 
-  const reportPost = () =>
-    showMenu(
-      'Neden şikâyet ediyorsun?',
-      REPORT_REASONS.map((r) => ({
-        label: r.label,
-        onPress: () =>
-          report({ postId: post.id }, r.key).then(
-            () => Alert.alert('Teşekkürler', 'Şikâyetini aldık; en kısa sürede inceleyeceğiz.'),
-            (error) => showError(error, 'Şikâyet gönderilemedi'),
-          ),
-      })),
-    );
-
   const blockUser = () =>
-    Alert.alert(`${user.name} engellensin mi?`, 'Birbirinizin gönderilerini ve profilini göremezsiniz; takip de kalkar.', [
-      { text: 'Vazgeç', style: 'cancel' },
-      {
-        text: 'Engelle',
-        style: 'destructive',
-        onPress: () =>
-          block(user.id).then(
-            () => {
-              haptics.success();
-              queryClient.invalidateQueries();
-              actions.refresh();
-              if (expanded) router.back();
-            },
-            (error) => showError(error, 'Engellenemedi'),
-          ),
-      },
-    ]);
+    confirmBlock(user, () => {
+      queryClient.invalidateQueries();
+      actions.refresh();
+      if (expanded) router.back();
+    });
 
   const showPostMenu = () =>
     showMenu(
       undefined,
       mine
-        ? [{ label: 'Gönderiyi sil', destructive: true, onPress: confirmDelete }]
+        ? [
+            { label: t('common.share'), onPress: () => sharePost(post, place, user.name) },
+            {
+              label: t('editPost.edit'),
+              onPress: () => router.push({ pathname: '/gonderi-duzenle', params: { id: post.id } }),
+            },
+            { label: t('post.deleteTitle'), destructive: true, onPress: confirmDelete },
+          ]
         : [
-            { label: 'Şikâyet et', destructive: true, onPress: reportPost },
-            { label: `${user.name.split(' ')[0]} kişisini engelle`, destructive: true, onPress: blockUser },
+            { label: t('common.share'), onPress: () => sharePost(post, place, user.name) },
+            { label: t('moderation.report'), destructive: true, onPress: () => openReportMenu({ postId: post.id }) },
+            { label: t('moderation.blockUser', { name: user.name.split(' ')[0] }), destructive: true, onPress: blockUser },
           ],
     );
 
@@ -162,7 +121,7 @@ export function PostCard({ post: initial, expanded, distanceKm }: Props) {
     <View style={styles.card}>
       {/* Üst: kim, nerede, puan */}
       <View style={styles.header}>
-        <PressableScale onPress={() => openUserProfile(user.id)} haptic={false} accessibilityLabel={`${user.name} profili`}>
+        <PressableScale onPress={() => openUserProfile(user.id)} haptic={false} accessibilityLabel={t('post.profileOf', { name: user.name })}>
           <Avatar uri={user.avatarUrl} name={user.name} size={40} />
         </PressableScale>
         <View style={styles.headerText}>
@@ -179,7 +138,7 @@ export function PostCard({ post: initial, expanded, distanceKm }: Props) {
           </Text>
         </View>
         {post.score !== undefined && <ScoreBadge score={post.score} />}
-        <PressableScale onPress={showPostMenu} hitSlop={hitSlop} accessibilityLabel="Seçenekler">
+        <PressableScale onPress={showPostMenu} hitSlop={hitSlop} accessibilityLabel={t('moderation.options')}>
           <SymbolView name="ellipsis" tintColor={colors.textSecondary} size={18} />
         </PressableScale>
       </View>
@@ -189,13 +148,14 @@ export function PostCard({ post: initial, expanded, distanceKm }: Props) {
         <View style={styles.tagged}>
           <SymbolView name="person.2.fill" tintColor={colors.textSecondary} size={14} />
           <Text variant="footnote" color={colors.textSecondary} numberOfLines={1} style={{ flex: 1 }}>
+            {t('post.togetherPrefix')}
             {tagged.map((u, i) => (
               <Text key={u.id} variant="footnote" color={colors.text} style={styles.bold} onPress={() => openUserProfile(u.id)}>
                 {u.name.split(' ')[0]}
                 {i < tagged.length - 1 ? <Text variant="footnote" color={colors.textSecondary}>, </Text> : null}
               </Text>
             ))}
-            {' ile birlikte'}
+            {t('post.togetherSuffix')}
           </Text>
         </View>
       )}
@@ -213,7 +173,7 @@ export function PostCard({ post: initial, expanded, distanceKm }: Props) {
               {place.name}
             </Text>
             <Text variant="footnote" color={colors.textSecondary} numberOfLines={1}>
-              {place.cuisine} · {place.neighborhood}
+              {cuisineLabel(place.cuisine)} · {place.neighborhood}
             </Text>
           </View>
           {post.score !== undefined && <ScoreBadge score={post.score} size="lg" />}
@@ -222,7 +182,7 @@ export function PostCard({ post: initial, expanded, distanceKm }: Props) {
 
       {/* Aksiyonlar */}
       <View style={styles.actions}>
-        <PressableScale onPress={toggleLike} haptic={false} hitSlop={hitSlop} style={styles.action} accessibilityLabel="Beğen">
+        <PressableScale onPress={toggleLike} haptic={false} hitSlop={hitSlop} style={styles.action} accessibilityLabel={t('post.like')}>
           <Animated.View style={heartStyle}>
             <SymbolView
               name={liked ? 'heart.fill' : 'heart'}
@@ -234,14 +194,14 @@ export function PostCard({ post: initial, expanded, distanceKm }: Props) {
             {likeCountOf(post)}
           </Text>
         </PressableScale>
-        <PressableScale onPress={openPost} hitSlop={hitSlop} style={styles.action} accessibilityLabel="Yorumlar">
+        <PressableScale onPress={openPost} hitSlop={hitSlop} style={styles.action} accessibilityLabel={t('post.comments')}>
           <SymbolView name="bubble.right" tintColor={colors.text} size={23} />
           <Text variant="subhead" style={styles.bold}>
             {commentCount}
           </Text>
         </PressableScale>
         <View style={{ flex: 1 }} />
-        <PressableScale onPress={toggleSave} haptic={false} hitSlop={hitSlop} accessibilityLabel={saved ? 'Kaydedilenlerden çıkar' : 'Gönderiyi kaydet'}>
+        <PressableScale onPress={toggleSave} haptic={false} hitSlop={hitSlop} accessibilityLabel={saved ? t('post.unsave') : t('post.save')}>
           <SymbolView
             name={saved ? 'bookmark.fill' : 'bookmark'}
             tintColor={saved ? colors.primary : colors.text}
@@ -263,31 +223,22 @@ export function PostCard({ post: initial, expanded, distanceKm }: Props) {
 
       {!expanded && commentCount > 0 && (
         <Text variant="subhead" color={colors.textSecondary} style={styles.caption} onPress={openPost}>
-          {commentCount === 1 ? '1 yorumu gör' : `${commentCount} yorumun tümünü gör`}
+          {t('post.viewComments', { count: commentCount })}
         </Text>
       )}
     </View>
   );
 }
 
-/** Kişi başı, öğün, yenilenler ve öne çıkanlar */
+/** Öğün ve öne çıkanlar */
 function PostMeta({ post }: { post: Post }) {
-  const chips = [
-    priceBucketLabel(post.pricePerPerson) && `${priceBucketLabel(post.pricePerPerson)} / kişi`,
-    mealLabel(post.meal),
-    ...(post.highlights ?? []),
-  ].filter((c): c is string => !!c);
-  if (!chips.length && !post.dishes?.length) return null;
+  useTranslation(); // dil değişince etiketler güncellensin
+  const chips = [mealLabel(post.meal), ...(post.highlights ?? []).map(highlightLabel)].filter(
+    (c): c is string => !!c,
+  );
+  if (!chips.length) return null;
   return (
     <View style={styles.meta}>
-      {!!post.dishes?.length && (
-        <View style={styles.dishes}>
-          <SymbolView name="fork.knife" tintColor={colors.textSecondary} size={13} />
-          <Text variant="subhead" style={{ flex: 1 }} numberOfLines={2}>
-            {post.dishes.join(', ')}
-          </Text>
-        </View>
-      )}
       {chips.length > 0 && (
         <View style={styles.metaChips}>
           {chips.map((c) => (
@@ -321,11 +272,6 @@ const styles = StyleSheet.create({
   meta: {
     gap: spacing.sm,
     paddingHorizontal: spacing.lg,
-  },
-  dishes: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
   },
   metaChips: {
     flexDirection: 'row',

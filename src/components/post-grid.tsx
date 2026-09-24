@@ -3,7 +3,7 @@ import { SymbolView } from 'expo-symbols';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { PlaceImage, PressableScale, Text } from '@/components/ui';
-import { colors, radius, spacing } from '@/constants/theme';
+import { colors, onScoreColor, radius, scoreColor, spacing } from '@/constants/theme';
 import { formatScore } from '@/lib/format';
 import type { Post } from '@/types';
 
@@ -45,8 +45,8 @@ export function PostGrid({ posts, emptyText }: { posts: Post[]; emptyText: strin
             </View>
           )}
           {post.score !== undefined && (
-            <View style={styles.score}>
-              <Text variant="caption" color={colors.onPrimary} style={styles.scoreText}>
+            <View style={[styles.score, { backgroundColor: scoreColor(post.score) }]}>
+              <Text variant="caption" color={onScoreColor(post.score)} style={styles.scoreText}>
                 {formatScore(post.score)}
               </Text>
             </View>
@@ -84,7 +84,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
     borderRadius: radius.full,
-    backgroundColor: colors.primary,
   },
   scoreText: {
     fontWeight: '700',

@@ -1,9 +1,11 @@
 import { router, Stack } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, SectionList, StyleSheet, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { SectionList, StyleSheet, View } from 'react-native';
 
 import { PlaceRow } from '@/components/place-row';
+import { PlaceRowsSkeleton, UserRowsSkeleton } from '@/components/skeleton';
 import { Button, Divider, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { UserRow } from '@/components/user-row';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
@@ -14,11 +16,7 @@ import type { Place, User } from '@/types';
 
 type Scope = 'all' | 'places' | 'people';
 
-const SCOPES: { key: Scope; label: string }[] = [
-  { key: 'all', label: 'Tümü' },
-  { key: 'places', label: 'Mekânlar' },
-  { key: 'people', label: 'Kişiler' },
-];
+const SCOPES: Scope[] = ['all', 'places', 'people'];
 
 type Section =
   | { key: 'people'; title: string; data: User[] }
@@ -27,6 +25,8 @@ type Section =
 /** Hem mekân hem kişi araması */
 export default function SearchTab() {
   const { following, scoreOf, isSaved, actions } = useAppStore();
+  const { t } = useTranslation();
+  const scopeLabel = (s: Scope) => (s === 'all' ? t('common.all') : s === 'places' ? t('common.places') : t('common.people'));
   const [query, setQuery] = useState('');
   const [scope, setScope] = useState<Scope>('all');
   const searching = query.trim().length > 0;
@@ -46,25 +46,25 @@ export default function SearchTab() {
     if (scope !== 'places' && people.length) {
       result.push({
         key: 'people',
-        title: searching ? 'Kişiler' : 'Tanıyor olabileceğin kişiler',
+        title: searching ? t('common.people') : t('search.peopleYouMayKnow'),
         data: scope === 'all' && !searching ? people.slice(0, 3) : people,
       });
     }
     if (scope !== 'people' && places.length) {
-      result.push({ key: 'places', title: searching ? 'Mekânlar' : 'Keşfet', data: places });
+      result.push({ key: 'places', title: searching ? t('common.places') : t('search.discover'), data: places });
     }
     return result;
-  }, [scope, searching, following, userSearch.data, suggested.data, placeSearch.data]);
+  }, [scope, searching, following, userSearch.data, suggested.data, placeSearch.data, t]);
 
   return (
     <>
       <Stack.Screen
         options={{
           headerSearchBarOptions: {
-            placeholder: 'Mekân, semt veya kişi ara',
+            placeholder: t('search.placeholder'),
             autoCapitalize: 'none',
             hideWhenScrolling: false,
-            cancelButtonText: 'Vazgeç',
+            cancelButtonText: t('common.cancel'),
             onChangeText: (e) => setQuery(e.nativeEvent.text),
             onCancelButtonPress: () => setQuery(''),
           },
@@ -80,18 +80,18 @@ export default function SearchTab() {
         ListHeaderComponent={
           <View style={styles.scopes}>
             {SCOPES.map((s) => {
-              const active = s.key === scope;
+              const active = s === scope;
               return (
                 <PressableScale
-                  key={s.key}
+                  key={s}
                   haptic={false}
                   onPress={() => {
                     haptics.select();
-                    setScope(s.key);
+                    setScope(s);
                   }}
                   style={[styles.chip, active && styles.chipActive]}>
                   <Text variant="subhead" color={active ? colors.onPrimary : colors.primary} style={styles.chipText}>
-                    {s.label}
+                    {scopeLabel(s)}
                   </Text>
                 </PressableScale>
               );
@@ -106,16 +106,16 @@ export default function SearchTab() {
         ItemSeparatorComponent={() => <Divider inset={spacing.lg + 52 + spacing.md} />}
         ListEmptyComponent={
           loading ? (
-            <ActivityIndicator color={colors.primary} style={styles.empty} />
+            scope === 'people' ? <UserRowsSkeleton /> : <PlaceRowsSkeleton />
           ) : (
             <View style={styles.empty}>
               <SymbolView name="magnifyingglass" tintColor={colors.textTertiary} size={40} />
               <Text variant="subhead" color={colors.textSecondary} align="center">
-                {searching ? `“${query.trim()}” için sonuç bulunamadı.` : 'Burada henüz keşfedilecek bir şey yok.'}
+                {searching ? t('search.noResults', { query: query.trim() }) : t('search.nothingYet')}
               </Text>
               {scope !== 'people' && (
                 <Button
-                  title="Yeni mekân ekle"
+                  title={t('common.addPlace')}
                   icon="plus"
                   variant="secondary"
                   onPress={() => router.push({ pathname: '/mekan-ekle', params: { ad: query.trim() } })}
@@ -140,7 +140,7 @@ export default function SearchTab() {
                   <PressableScale
                     hitSlop={hitSlop}
                     onPress={() => actions.toggleSaved(place.id)}
-                    accessibilityLabel={saved ? 'Listemden çıkar' : 'Listeme kaydet'}>
+                    accessibilityLabel={saved ? t('common.removeFromList') : t('common.saveToList')}>
                     <SymbolView
                       name={saved ? 'bookmark.fill' : 'bookmark'}
                       tintColor={colors.primary}

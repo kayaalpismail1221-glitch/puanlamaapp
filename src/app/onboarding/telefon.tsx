@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { BigInput, OnboardingStep } from '@/components/onboarding-step';
 import { Button } from '@/components/ui';
@@ -7,9 +8,10 @@ import { haptics } from '@/lib/haptics';
 import { formatPhone, isValidPhone, phoneDigits } from '@/lib/validation';
 import { useAppStore } from '@/store/app-store';
 
-/** 1. Telefon numarası */
+/** 1. Telefon numarası (isteğe bağlı; rehberden arkadaş bulma için) */
 export default function PhoneStep() {
   const { draft, actions } = useAppStore();
+  const { t } = useTranslation();
   const [digits, setDigits] = useState(draft.phone ?? '');
   const [touched, setTouched] = useState(false);
   const valid = isValidPhone(digits);
@@ -24,16 +26,29 @@ export default function PhoneStep() {
     router.push('/onboarding/eposta');
   };
 
+  const skip = () => {
+    actions.updateDraft({ phone: undefined });
+    router.push('/onboarding/eposta');
+  };
+
   return (
     <OnboardingStep
-      title="Telefon numaran ne?"
-      subtitle="Arkadaşların seni rehberinden bulabilsin. Numaran profilinde görünmez."
-      footer={<Button title="Devam" onPress={next} disabled={digits.length < 10} />}>
+      title={t('onboarding.phoneTitle')}
+      subtitle={t('onboarding.phoneSubtitle')}
+      footer={
+        <>
+          <Button title={t('onboarding.next')} onPress={next} disabled={digits.length < 10} />
+          <Button title={t('onboarding.skip')} variant="ghost" onPress={skip} />
+        </>
+      }>
       <BigInput
         prefix="🇹🇷 +90"
         valid={valid}
         value={formatPhone(digits)}
-        onChangeText={(t) => setDigits(phoneDigits(t))}
+        onChangeText={(text) => {
+          setDigits(phoneDigits(text));
+          if (touched) setTouched(false);
+        }}
         placeholder="5XX XXX XX XX"
         keyboardType="phone-pad"
         textContentType="telephoneNumber"
@@ -41,7 +56,7 @@ export default function PhoneStep() {
         autoFocus
         maxLength={13}
         onSubmitEditing={next}
-        error={touched && !valid ? 'Geçerli bir cep telefonu gir (5 ile başlamalı).' : undefined}
+        error={touched && !valid ? t('onboarding.phoneInvalid') : undefined}
       />
     </OnboardingStep>
   );

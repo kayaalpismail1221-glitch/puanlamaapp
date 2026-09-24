@@ -39,7 +39,6 @@ export function toPlace(row: PlaceViewRow): Place {
     neighborhood: row.neighborhood,
     district: row.district,
     city: row.city,
-    priceLevel: Math.min(4, Math.max(1, row.price_level)) as Place['priceLevel'],
     latitude: row.latitude,
     longitude: row.longitude,
     photoUrl: mediaUrl('post-photos', row.photo),
@@ -85,9 +84,7 @@ export function toPost(row: PostViewRow): Post {
     commentCount: row.comment_count,
     likedByMe: row.liked_by_me,
     savedByMe: row.saved_by_me,
-    pricePerPerson: row.price_per_person ?? undefined,
     meal: row.meal ?? undefined,
-    dishes: row.dishes.length ? row.dishes : undefined,
     highlights: row.highlights.length ? row.highlights : undefined,
   };
 }

@@ -1,18 +1,21 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import { SymbolView, type SFSymbol } from 'expo-symbols';
-import type { ReactNode } from 'react';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
+import { useTranslation } from 'react-i18next';
 import { Linking, ScrollView, StyleSheet, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 
-import { Avatar, Button, Divider, ErrorView, LoadingView, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
-import { colors, radius, spacing } from '@/constants/theme';
+import { PlaceDetailSkeleton, PostGridSkeleton } from '@/components/skeleton';
+import { Avatar, Button, Divider, ErrorView, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
+import { cuisineLabel } from '@/constants/cuisines';
+import { colors, hitSlop, radius, spacing } from '@/constants/theme';
 import { PostGrid } from '@/components/post-grid';
 import { usePlace, useUser } from '@/data/entities';
 import { usePlaceDetails, usePlacePosts } from '@/hooks/queries';
-import { formatScore, priceLabel } from '@/lib/format';
+import { formatScore } from '@/lib/format';
 import { linkSource } from '@/lib/links';
-import { priceBucketLabel } from '@/lib/post-meta';
 import { haptics } from '@/lib/haptics';
+import { highlightLabel } from '@/lib/post-meta';
+import { sharePlace } from '@/lib/share';
 import { useAppStore } from '@/store/app-store';
 
 export default function PlaceDetailScreen() {
@@ -21,14 +24,15 @@ export default function PlaceDetailScreen() {
   const details = usePlaceDetails(id);
   const placePosts = usePlacePosts(id);
   const { scoreOf, scored, isSaved, saved: savedPlaces, actions } = useAppStore();
+  const { t } = useTranslation();
   const place = cached ?? details.data?.place;
 
   if (!place) {
     if (details.isError) return <ErrorView onRetry={() => details.refetch()} style={styles.container} />;
-    if (cached === undefined && details.isPending) return <LoadingView style={styles.container} />;
+    if (cached === undefined && details.isPending) return <PlaceDetailSkeleton />;
     return (
       <View style={[styles.container, styles.center]}>
-        <Text>Mekân bulunamadı.</Text>
+        <Text>{t('place.notFound')}</Text>
       </View>
     );
   }
@@ -40,7 +44,7 @@ export default function PlaceDetailScreen() {
   const source = savedEntry?.link ? linkSource(savedEntry.link) : null;
   const posts = placePosts.data ?? [];
   const summary = details.data?.summary;
-  const hasSummary = !!summary && (!!summary.price || summary.highlights.length > 0 || summary.dishes.length > 0);
+  const hasSummary = !!summary && summary.highlights.length > 0;
   // Takip edilenlerin bu mekâna verdiği puanlar
   const friendScores = details.data?.friends ?? [];
   const friendAverage = friendScores.length
@@ -50,6 +54,19 @@ export default function PlaceDetailScreen() {
 
   return (
     <ScrollView style={styles.container} contentInsetAdjustmentBehavior="never">
+      <Stack.Screen
+        options={{
+          headerRight: () => (
+            <PressableScale
+              onPress={() => sharePlace(place, details.data?.rating)}
+              hitSlop={hitSlop}
+              style={styles.headerButton}
+              accessibilityLabel={t('share.sharePlace')}>
+              <SymbolView name="square.and.arrow.up" tintColor={colors.primary} size={18} weight="semibold" />
+            </PressableScale>
+          ),
+        }}
+      />
       <PlaceImage uri={place.photoUrl} style={styles.hero} />
 
       <View style={styles.body}>
@@ -59,7 +76,7 @@ export default function PlaceDetailScreen() {
               {place.name}
             </Text>
             <Text variant="subhead" color={colors.textSecondary}>
-              {place.cuisine} · {place.neighborhood}, {place.city} · {priceLabel(place.priceLevel)}
+              {cuisineLabel(place.cuisine)} · {place.neighborhood}, {place.city}
             </Text>
           </View>
           {myScore !== undefined && <ScoreBadge score={myScore} size="lg" />}
@@ -67,7 +84,7 @@ export default function PlaceDetailScreen() {
 
         {myEntry && (
           <Text variant="footnote" color={colors.textSecondary}>
-            Sıralamanda {myEntry.rank}. sırada
+            {t('place.yourRank', { rank: myEntry.rank })}
             {myEntry.note ? ` · “${myEntry.note}”` : ''}
           </Text>
         )}
@@ -79,7 +96,7 @@ export default function PlaceDetailScreen() {
               <PressableScale onPress={() => Linking.openURL(savedEntry.link!)} style={styles.sourceChip}>
                 <SymbolView name={source.icon} tintColor={colors.primary} size={14} />
                 <Text variant="footnote" color={colors.primary} style={{ fontWeight: '600' }}>
-                  {source.label} gönderisini aç
+                  {t('place.openSource', { source: source.label })}
                 </Text>
               </PressableScale>
             )}
@@ -88,14 +105,14 @@ export default function PlaceDetailScreen() {
 
         <View style={styles.actions}>
           <Button
-            title={myScore !== undefined ? 'Yeniden puanla' : 'Puanla'}
+            title={myScore !== undefined ? t('place.rerate') : t('place.rate')}
             icon="star"
             onPress={() => router.push({ pathname: '/degerlendir/[id]', params: { id: place.id } })}
             style={{ flex: 1 }}
           />
           {myScore === undefined && (
             <Button
-              title={saved ? 'Kaydedildi' : 'Kaydet'}
+              title={saved ? t('place.saved') : t('place.save')}
               icon={saved ? 'bookmark.fill' : 'bookmark'}
               variant="secondary"
               onPress={() => {
@@ -107,7 +124,7 @@ export default function PlaceDetailScreen() {
           )}
         </View>
         <Button
-          title="Gönderi paylaş"
+          title={t('common.sharePost')}
           icon="camera"
           variant="secondary"
           onPress={() => router.push({ pathname: '/gonderi-olustur', params: { placeId: place.id } })}
@@ -117,31 +134,14 @@ export default function PlaceDetailScreen() {
 
         {hasSummary && summary && (
           <>
-            <Text variant="headline">Puanla kullanıcılarına göre</Text>
+            <Text variant="headline">{t('place.byUsers')}</Text>
             <View style={styles.summary}>
-              {summary.price && (
-                <SummaryRow icon="creditcard" label="Kişi başı genelde">
-                  <Text variant="headline" color={colors.primary}>
-                    {priceBucketLabel(summary.price.key)}
-                  </Text>
-                  <Text variant="caption" color={colors.textSecondary}>
-                    {summary.priceVotes} kişiye göre
-                  </Text>
-                </SummaryRow>
-              )}
-              {summary.dishes.length > 0 && (
-                <SummaryRow icon="fork.knife" label="En çok yenilenler">
-                  <Text variant="subhead" style={{ fontWeight: '600' }}>
-                    {summary.dishes.map((d) => d.name).join(', ')}
-                  </Text>
-                </SummaryRow>
-              )}
               {summary.highlights.length > 0 && (
                 <View style={styles.summaryChips}>
                   {summary.highlights.map((h) => (
                     <View key={h.label} style={styles.summaryChip}>
                       <Text variant="footnote" color={colors.primary} style={{ fontWeight: '600' }}>
-                        {h.label}
+                        {highlightLabel(h.label)}
                       </Text>
                       <Text variant="caption" color={colors.textSecondary}>
                         {h.count}
@@ -156,16 +156,16 @@ export default function PlaceDetailScreen() {
         )}
 
         <View style={styles.sectionHeader}>
-          <Text variant="headline">Arkadaşların puanı</Text>
+          <Text variant="headline">{t('place.friendsScore')}</Text>
           {friendAverage !== undefined && (
             <Text variant="subhead" color={colors.textSecondary}>
-              Ortalama {formatScore(friendAverage)}
+              {t('place.average', { score: formatScore(friendAverage) })}
             </Text>
           )}
         </View>
         {friendScores.length === 0 ? (
           <Text variant="subhead" color={colors.textSecondary}>
-            {details.isPending ? ' ' : 'Takip ettiğin kimse burayı henüz puanlamadı.'}
+            {details.isPending ? ' ' : t('place.noFriendScores')}
           </Text>
         ) : (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.friendScores}>
@@ -177,8 +177,10 @@ export default function PlaceDetailScreen() {
 
         {details.data?.rating && (
           <Text variant="footnote" color={colors.textSecondary}>
-            Tüm Puanla kullanıcılarının ortalaması {formatScore(details.data.rating.average)} ·{' '}
-            {details.data.rating.count} kişi
+            {t('place.communityAverage', {
+              score: formatScore(details.data.rating.average),
+              count: details.data.rating.count,
+            })}
           </Text>
         )}
 
@@ -205,15 +207,20 @@ export default function PlaceDetailScreen() {
           </MapView>
         </View>
 
+        {/* ODbL: OpenStreetMap kaynaklı mekân bilgisinin atfı */}
+        <Text variant="caption" color={colors.textTertiary}>
+          {t('place.dataSource')}
+        </Text>
+
         <Text variant="headline">
-          Gönderiler{postCount > 0 ? ` (${postCount})` : ''}
+          {postCount > 0 ? t('place.postsCount', { count: postCount }) : t('place.posts')}
         </Text>
       </View>
 
       {placePosts.isPending ? (
-        <LoadingView />
+        <PostGridSkeleton count={6} />
       ) : (
-        <PostGrid posts={posts} emptyText="Bu mekân hakkında henüz gönderi yok. İlk paylaşan sen ol!" />
+        <PostGrid posts={posts} emptyText={t('place.noPosts')} />
       )}
       <View style={{ height: spacing.xxl }} />
     </ScrollView>
@@ -243,38 +250,18 @@ function FriendScore({ userId, score, postId }: { userId: string; score: number;
   );
 }
 
-function SummaryRow({ icon, label, children }: { icon: SFSymbol; label: string; children: ReactNode }) {
-  return (
-    <View style={styles.summaryRow}>
-      <View style={styles.summaryIcon}>
-        <SymbolView name={icon} tintColor={colors.primary} size={16} />
-      </View>
-      <View style={{ flex: 1, gap: 2 }}>
-        <Text variant="footnote" color={colors.textSecondary}>
-          {label}
-        </Text>
-        {children}
-      </View>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  summary: {
-    gap: spacing.md,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  summaryIcon: {
-    width: 36,
-    height: 36,
+  // Fotoğrafın üstünde okunaklı dursun diye cam benzeri beyaz daire
+  headerButton: {
+    width: 34,
+    height: 34,
     borderRadius: radius.full,
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  summary: {
+    gap: spacing.md,
   },
   summaryChips: {
     flexDirection: 'row',

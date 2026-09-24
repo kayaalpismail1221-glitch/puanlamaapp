@@ -1,11 +1,13 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Alert, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
 
 import { signUp } from '@/api/auth';
 import { showError, toUserMessage } from '@/api/errors';
+import { LegalConsent } from '@/components/legal-consent';
 import { BigInput, OnboardingStep } from '@/components/onboarding-step';
 import { Button, PressableScale, Text } from '@/components/ui';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
@@ -20,6 +22,7 @@ import { useAppStore } from '@/store/app-store';
  */
 export default function PasswordStep() {
   const { draft } = useAppStore();
+  const { t } = useTranslation();
   const [password, setPassword] = useState('');
   const [visible, setVisible] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -47,11 +50,11 @@ export default function PasswordStep() {
     } catch (error) {
       haptics.warning();
       if (/already registered/i.test((error as Error).message ?? '')) {
-        Alert.alert('Bu e-posta kayıtlı', toUserMessage(error), [
-          { text: 'Vazgeç', style: 'cancel' },
-          { text: 'Giriş yap', onPress: () => router.replace({ pathname: '/onboarding/giris', params: { email } }) },
+        Alert.alert(t('onboarding.emailRegistered'), toUserMessage(error), [
+          { text: t('common.cancel'), style: 'cancel' },
+          { text: t('onboarding.signIn'), onPress: () => router.replace({ pathname: '/onboarding/giris', params: { email } }) },
         ]);
-      } else showError(error, 'Hesap oluşturulamadı');
+      } else showError(error, t('failures.signUp'));
     } finally {
       setCreating(false);
     }
@@ -59,13 +62,19 @@ export default function PasswordStep() {
 
   return (
     <OnboardingStep
-      title="Bir şifre belirle"
-      subtitle="En az 8 karakter; harf ve rakam içersin."
-      footer={<Button title="Hesabı oluştur" onPress={create} disabled={!valid} loading={creating} />}>
+      title={t('onboarding.passwordTitle')}
+      subtitle={t('onboarding.passwordSubtitle')}
+      footer={
+        <>
+          <Button title={t('onboarding.createAccount')} onPress={create} disabled={!valid} loading={creating} />
+          {/* Kullanım koşulları (topluluk kuralları dahil) hesap oluşturulurken açıkça kabul edilir */}
+          <LegalConsent variant="signup" />
+        </>
+      }>
       <BigInput
         value={password}
         onChangeText={setPassword}
-        placeholder="Şifre"
+        placeholder={t('onboarding.password')}
         secureTextEntry={!visible}
         textContentType="newPassword"
         autoComplete="new-password"
@@ -78,7 +87,7 @@ export default function PasswordStep() {
           <PressableScale
             onPress={() => setVisible((v) => !v)}
             hitSlop={hitSlop}
-            accessibilityLabel={visible ? 'Şifreyi gizle' : 'Şifreyi göster'}>
+            accessibilityLabel={visible ? t('onboarding.hidePassword') : t('onboarding.showPassword')}>
             <SymbolView name={visible ? 'eye.slash' : 'eye'} tintColor={colors.textSecondary} size={22} />
           </PressableScale>
         }
@@ -125,7 +134,7 @@ function StrengthBar({ filled, color }: { filled: boolean; color: string }) {
   );
 }
 
-const barColor = (score: number) => (score <= 1 ? colors.danger : score === 2 ? colors.scoreMid : colors.primary);
+const barColor = (score: number) => (score <= 1 ? colors.danger : score === 2 ? colors.warning : colors.primary);
 
 const styles = StyleSheet.create({
   meter: {

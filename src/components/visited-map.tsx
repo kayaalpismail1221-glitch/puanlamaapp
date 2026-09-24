@@ -1,6 +1,7 @@
 import { Link } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Share, StyleSheet, View } from 'react-native';
 
 import { PressableScale, Text } from '@/components/ui';
@@ -23,6 +24,7 @@ const MIN_VIEW_WIDTH = 70;
  * Dokununca (iOS 18+'da yakınlaşarak) ayrıntılı haritaya açılır. Hiç yer yoksa gösterilmez.
  */
 export function VisitedMap({ userId, name }: { userId: string; name: string }) {
+  const { t } = useTranslation();
   const { items } = useVisitedPlaces(userId);
   const [width, setWidth] = useState(0);
   const dots = useMemo(() => cityDots(items), [items]);
@@ -35,8 +37,8 @@ export function VisitedMap({ userId, name }: { userId: string; name: string }) {
   const share = () =>
     Share.share({
       message: mine
-        ? `Puanla’da ${summary.cities} şehirde ${summary.places} mekân puanladım. Lezzet haritama göz at 🍽️`
-        : `${name} Puanla’da ${summary.cities} şehirde ${summary.places} mekân puanladı 🍽️`,
+        ? t('tasteMap.shareMine', { cities: summary.cities, places: summary.places })
+        : t('tasteMap.shareTheirs', { name, cities: summary.cities, places: summary.places }),
     });
 
   return (
@@ -44,13 +46,13 @@ export function VisitedMap({ userId, name }: { userId: string; name: string }) {
       <View style={styles.header}>
         <View style={styles.flex}>
           <Text variant="title3" color={colors.primary}>
-            {mine ? 'Lezzet haritam' : 'Lezzet haritası'}
+            {mine ? t('tasteMap.mine') : t('tasteMap.theirs')}
           </Text>
           <Text variant="subhead" color={colors.textSecondary}>
-            {summary.cities} şehir · {summary.places} mekân
+            {t('tasteMap.summary', { cities: summary.cities, places: summary.places })}
           </Text>
         </View>
-        <PressableScale onPress={share} hitSlop={hitSlop} accessibilityLabel="Lezzet haritasını paylaş">
+        <PressableScale onPress={share} hitSlop={hitSlop} accessibilityLabel={t('tasteMap.share')}>
           <SymbolView name="square.and.arrow.up" tintColor={colors.primary} size={20} />
         </PressableScale>
       </View>
@@ -62,7 +64,7 @@ export function VisitedMap({ userId, name }: { userId: string; name: string }) {
             style={styles.map}
             onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
             accessibilityRole="button"
-            accessibilityLabel="Lezzet haritasını büyüt">
+            accessibilityLabel={t('tasteMap.expand')}>
             {width > 0 && <WorldMap view={view} width={width} height={width / ASPECT} dots={dots} />}
           </PressableScale>
         </Link.AppleZoom>

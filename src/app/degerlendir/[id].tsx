@@ -1,20 +1,21 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { useMemo, useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { StyleSheet, TextInput, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown, FadeOut, ZoomIn } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, LoadingView, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
+import { cuisineLabel } from '@/constants/cuisines';
 import { colors, hitSlop, radius, spacing, typography } from '@/constants/theme';
 import { getPlace, usePlace } from '@/data/entities';
+import { useKeyboardFooterStyle } from '@/hooks/use-keyboard-footer';
 import { haptics } from '@/lib/haptics';
 import {
   answerComparison,
   comparisonPivot,
   expectedSteps,
   isComparisonDone,
-  SENTIMENT_LABELS,
   scoreAt,
   skipComparison,
   startComparison,
@@ -41,7 +42,8 @@ export default function RateScreen() {
   const { id, from, sonra } = useLocalSearchParams<{ id: string; from?: string; sonra?: string }>();
   const place = usePlace(id);
   const { rankings, onboarded, actions } = useAppStore();
-  const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
+  const footerStyle = useKeyboardFooterStyle();
 
   const [sentiment, setSentiment] = useState<Sentiment | null>(null);
   const [history, setHistory] = useState<Comparison[]>([]);
@@ -59,8 +61,8 @@ export default function RateScreen() {
   if (!place) {
     return (
       <View style={[styles.container, styles.center]}>
-        <Text>Mekân bulunamadı.</Text>
-        <Button title="Kapat" variant="ghost" onPress={() => router.back()} />
+        <Text>{t('rate.notFound')}</Text>
+        <Button title={t('rate.close')} variant="ghost" onPress={() => router.back()} />
       </View>
     );
   }
@@ -101,16 +103,14 @@ export default function RateScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { paddingTop: spacing.lg }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <View style={[styles.container, { paddingTop: spacing.lg }]}>
       {/* Üst bar */}
       <View style={styles.topBar}>
-        <PressableScale onPress={() => router.back()} hitSlop={hitSlop} style={styles.iconButton} accessibilityLabel="Kapat">
+        <PressableScale onPress={() => router.back()} hitSlop={hitSlop} style={styles.iconButton} accessibilityLabel={t('rate.close')}>
           <SymbolView name="xmark" tintColor={colors.primary} size={16} weight="semibold" />
         </PressableScale>
         {phase !== 'sentiment' && (
-          <PressableScale onPress={undo} hitSlop={hitSlop} style={styles.iconButton} accessibilityLabel="Geri al">
+          <PressableScale onPress={undo} hitSlop={hitSlop} style={styles.iconButton} accessibilityLabel={t('rate.undo')}>
             <SymbolView name="arrow.uturn.backward" tintColor={colors.primary} size={16} weight="semibold" />
           </PressableScale>
         )}
@@ -123,7 +123,7 @@ export default function RateScreen() {
             {place.name}
           </Text>
           <Text variant="footnote" color={colors.textSecondary}>
-            {place.cuisine} · {place.neighborhood}
+            {cuisineLabel(place.cuisine)} · {place.neighborhood}
           </Text>
         </View>
       </View>
@@ -132,7 +132,7 @@ export default function RateScreen() {
         {phase === 'sentiment' && (
           <Animated.View key="sentiment" entering={FadeIn} exiting={FadeOut} style={styles.section}>
             <Text variant="title2" color={colors.primary}>
-              Nasıldı?
+              {t('rate.howWasIt')}
             </Text>
             {(['liked', 'fine', 'disliked'] as Sentiment[]).map((s, i) => (
               <Animated.View key={s} entering={FadeInDown.delay(60 * i).springify()}>
@@ -140,7 +140,7 @@ export default function RateScreen() {
                   <View style={styles.sentimentIcon}>
                     <SymbolView name={SENTIMENT_ICONS[s]} tintColor={colors.primary} size={20} />
                   </View>
-                  <Text variant="headline">{SENTIMENT_LABELS[s]}</Text>
+                  <Text variant="headline">{t(`sentiments.${s}`)}</Text>
                 </PressableScale>
               </Animated.View>
             ))}
@@ -166,13 +166,17 @@ export default function RateScreen() {
             </Animated.View>
             <Text variant="subhead" color={colors.textSecondary} align="center">
               {candidates.length === 0
-                ? `“${SENTIMENT_LABELS[sentiment]}” listendeki ilk mekân.`
-                : `“${SENTIMENT_LABELS[sentiment]}” listende ${candidates.length + 1} mekân arasında ${comparison.low + 1}. sırada.`}
+                ? t('rate.firstInList', { list: t(`sentiments.${sentiment}`) })
+                : t('rate.position', {
+                    list: t(`sentiments.${sentiment}`),
+                    total: candidates.length + 1,
+                    rank: comparison.low + 1,
+                  })}
             </Text>
             <TextInput
               value={note}
               onChangeText={setNote}
-              placeholder="Kısa bir not ekle (isteğe bağlı)"
+              placeholder={t('rate.notePlaceholder')}
               placeholderTextColor={colors.textTertiary}
               multiline
               maxLength={200}
@@ -183,15 +187,15 @@ export default function RateScreen() {
       </View>
 
       {phase === 'result' && (
-        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
-          <Button title={sonra === 'gonderi' ? 'Kaydet ve devam et' : 'Kaydet'} onPress={() => save()} />
+        <Animated.View style={[styles.footer, footerStyle]}>
+          <Button title={sonra === 'gonderi' ? t('rate.saveAndContinue') : t('common.save')} onPress={() => save()} />
           {/* Onboarding sırasında gönderi ekranı henüz erişilebilir değil */}
           {onboarded && from !== 'gonderi' && (
-            <Button title="Kaydet ve gönderi paylaş" icon="camera" variant="ghost" onPress={() => save(true)} />
+            <Button title={t('rate.saveAndShare')} icon="camera" variant="ghost" onPress={() => save(true)} />
           )}
-        </View>
+        </Animated.View>
       )}
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -211,11 +215,12 @@ function CompareStep({
   onPick: (newIsBetter: boolean) => void;
   onSkip: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <Animated.View entering={FadeIn.duration(250)} exiting={FadeOut.duration(150)} style={styles.section}>
       <View style={styles.compareTitle}>
         <Text variant="title2" color={colors.primary}>
-          Hangisi daha iyiydi?
+          {t('rate.whichBetter')}
         </Text>
         <Text variant="footnote" color={colors.textSecondary}>
           {Math.min(step, total)}/{total}
@@ -225,12 +230,12 @@ function CompareStep({
         <CompareCard place={place} onPress={() => onPick(true)} />
         <View style={styles.vs}>
           <Text variant="caption" color={colors.textSecondary}>
-            veya
+            {t('rate.or')}
           </Text>
         </View>
         {other ? <CompareCard place={other} onPress={() => onPick(false)} /> : <View style={styles.compareCard} />}
       </View>
-      <Button title="Emin değilim" variant="ghost" onPress={onSkip} />
+      <Button title={t('rate.notSure')} variant="ghost" onPress={onSkip} />
     </Animated.View>
   );
 }

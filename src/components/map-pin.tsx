@@ -2,7 +2,7 @@ import { SymbolView } from 'expo-symbols';
 import { StyleSheet, View } from 'react-native';
 
 import { Text } from '@/components/ui';
-import { colors, radius, scoreColor, spacing } from '@/constants/theme';
+import { colors, onScoreColor, radius, scoreColor, spacing } from '@/constants/theme';
 import { formatScore } from '@/lib/format';
 
 /** Puana göre renklenen pin; puansızsa "gitmek istiyorum" pini */
@@ -21,7 +21,7 @@ export function MapPin({ score, active }: { score?: number; active?: boolean }) 
       {isWant ? (
         <SymbolView name="bookmark.fill" tintColor={color} size={12} />
       ) : (
-        <Text variant="caption" color={colors.onPrimary} style={styles.pinText}>
+        <Text variant="caption" color={onScoreColor(score)} style={styles.pinText}>
           {formatScore(score)}
         </Text>
       )}

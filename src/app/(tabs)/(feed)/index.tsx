@@ -1,11 +1,13 @@
 import { router, Stack } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, FlatList, Linking, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { PostCard } from '@/components/post-card';
 import { SegmentedControl } from '@/components/segmented-control';
 import type { FeedEntry } from '@/api/content';
+import { PostCardsSkeleton } from '@/components/skeleton';
 import { Avatar, Button, Divider, ErrorView, PressableScale, Text } from '@/components/ui';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
 import { useFollowingFeed, usePopularFeed } from '@/hooks/queries';
@@ -15,11 +17,6 @@ import { useAppStore } from '@/store/app-store';
 import type { FeedArea } from '@/types';
 
 type Tab = 'popular' | 'following';
-
-const TABS = [
-  { key: 'popular', label: 'Popüler' },
-  { key: 'following', label: 'Takip' },
-] as const;
 
 /** Konum izni yoksa feed boş kalmasın: en çok gönderinin olduğu şehir gösterilir */
 const FALLBACK_AREA: FeedArea = { type: 'area', city: 'İstanbul' };
@@ -34,7 +31,12 @@ const openAreaPicker = () => router.push('/konum-sec');
  */
 export default function FeedScreen() {
   const { profile, feedArea } = useAppStore();
+  const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>('popular');
+  const tabs = [
+    { key: 'popular', label: t('feed.popular') },
+    { key: 'following', label: t('feed.following') },
+  ] as const;
 
   // Konum yalnızca "Yakınımda" modunda istenir
   const location = useUserLocation(tab === 'popular' && feedArea.type === 'near');
@@ -69,7 +71,7 @@ export default function FeedScreen() {
       <Stack.Screen
         options={{
           headerRight: () => (
-            <PressableScale onPress={openComposer} hitSlop={hitSlop} accessibilityLabel="Gönderi paylaş">
+            <PressableScale onPress={openComposer} hitSlop={hitSlop} accessibilityLabel={t('common.sharePost')}>
               <SymbolView name="plus" tintColor={colors.primary} size={22} weight="semibold" />
             </PressableScale>
           ),
@@ -89,14 +91,14 @@ export default function FeedScreen() {
         ItemSeparatorComponent={() => <Divider />}
         ListHeaderComponent={
           <View>
-            <SegmentedControl options={TABS} value={tab} onChange={setTab} style={styles.segment} />
+            <SegmentedControl options={tabs} value={tab} onChange={setTab} style={styles.segment} />
 
             {tab === 'popular' && (
               <PressableScale
                 onPress={openAreaPicker}
                 scaleTo={0.98}
                 style={styles.areaButton}
-                accessibilityLabel="Konum seç">
+                accessibilityLabel={t('feed.chooseLocation')}>
                 <View style={styles.areaIcon}>
                   <SymbolView
                     name={feedArea.type === 'near' ? 'location.fill' : 'mappin.and.ellipse'}
@@ -113,18 +115,18 @@ export default function FeedScreen() {
                   </View>
                   <Text variant="caption" color={colors.textSecondary} numberOfLines={1}>
                     {locationPending
-                      ? 'Konumun alınıyor…'
+                      ? t('feed.locating')
                       : locationUnavailable
-                        ? `Konum kapalı · ${FALLBACK_AREA.type === 'area' ? FALLBACK_AREA.city : ''} gösteriliyor`
+                        ? t('feed.locationOff', { city: FALLBACK_AREA.type === 'area' ? FALLBACK_AREA.city : '' })
                         : firstPage?.fallbackCity
-                          ? `Yakınında gönderi yok · ${firstPage.fallbackCity} gösteriliyor`
+                          ? t('feed.fallbackCity', { city: firstPage.fallbackCity })
                           : firstPage?.radiusKm
-                            ? `${firstPage.radiusKm} km çevrendeki popüler gönderiler`
-                            : 'Bu bölgedeki popüler gönderiler'}
+                            ? t('feed.radius', { km: firstPage.radiusKm })
+                            : t('feed.areaPopular')}
                   </Text>
                 </View>
                 <Text variant="footnote" color={colors.primary} style={styles.bold}>
-                  Değiştir
+                  {t('common.change')}
                 </Text>
               </PressableScale>
             )}
@@ -138,7 +140,7 @@ export default function FeedScreen() {
                 <PressableScale onPress={openComposer} scaleTo={0.98} style={styles.composer}>
                   <Avatar uri={profile?.avatarUri} name={profile?.name ?? '?'} size={36} />
                   <Text variant="callout" color={colors.textSecondary} style={{ flex: 1 }}>
-                    Nerede yedin? Paylaş…
+                    {t('feed.composer')}
                   </Text>
                   <SymbolView name="camera" tintColor={colors.primary} size={20} />
                 </PressableScale>
@@ -149,23 +151,23 @@ export default function FeedScreen() {
         }
         ListEmptyComponent={
           locationPending || active.isPending ? (
-            <ActivityIndicator color={colors.primary} style={styles.more} />
+            <PostCardsSkeleton />
           ) : active.isError ? (
             <ErrorView onRetry={() => active.refetch()} />
           ) : tab === 'following' ? (
             <EmptyState
               icon="person.2"
-              title="Takip ettiğin kimse paylaşmadı"
-              text="Arkadaşlarını ve sevdiğin gastronomi hesaplarını takip et, gönderileri burada görünsün."
-              action="Arkadaş bul"
+              title={t('feed.followingEmptyTitle')}
+              text={t('feed.followingEmptyText')}
+              action={t('screens.findFriends')}
               onPress={() => router.push('/arkadas-bul')}
             />
           ) : (
             <EmptyState
               icon="fork.knife"
-              title="Bu bölgede henüz gönderi yok"
-              text="İlk paylaşan sen ol ya da başka bir şehir veya ilçe seç."
-              action="Başka bir yer seç"
+              title={t('feed.popularEmptyTitle')}
+              text={t('feed.popularEmptyText')}
+              action={t('feed.pickAnotherPlace')}
               onPress={openAreaPicker}
             />
           )
@@ -177,18 +179,19 @@ export default function FeedScreen() {
 
 /** Konum kapalıyken feed'in üstünde küçük öneri: yakındakileri görmek için konumu aç */
 function LocationBanner({ denied, onRetry }: { denied: boolean; onRetry: () => void }) {
+  const { t } = useTranslation();
   return (
     <PressableScale
       onPress={denied ? () => Linking.openSettings() : onRetry}
       scaleTo={0.98}
       style={styles.banner}
-      accessibilityLabel="Konumu aç">
+      accessibilityLabel={t('feed.turnOnLocation')}>
       <SymbolView name="location.fill" tintColor={colors.primary} size={16} />
       <Text variant="footnote" color={colors.text} style={{ flex: 1 }}>
-        Yakınındaki lezzetleri görmek için konumunu aç.
+        {t('feed.locationBanner')}
       </Text>
       <Text variant="footnote" color={colors.primary} style={styles.bold}>
-        {denied ? 'Ayarlar' : 'Aç'}
+        {denied ? t('common.settings') : t('common.open')}
       </Text>
     </PressableScale>
   );

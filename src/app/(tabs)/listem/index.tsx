@@ -1,11 +1,13 @@
 import { router, Stack } from 'expo-router';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActionSheetIOS, Alert, FlatList, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { SavedPlaceCard } from '@/components/saved-place-card';
 import { Button, Divider, PlaceImage, PressableScale, Text } from '@/components/ui';
+import { cuisineLabel } from '@/constants/cuisines';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
 import { getPlace, useEntitiesVersion, usePrefetchPlaces } from '@/data/entities';
 import { useFriendScores, useSavedPosts } from '@/hooks/queries';
@@ -18,11 +20,7 @@ import type { Place, SaveOrigin, SavedPlace } from '@/types';
 
 type Sort = 'recent' | 'friends' | 'az';
 
-const SORT_LABELS: Record<Sort, string> = {
-  recent: 'En yeni',
-  friends: 'Arkadaş puanı',
-  az: 'A–Z',
-};
+const SORTS: Sort[] = ['recent', 'friends', 'az'];
 
 type Row = { entry: SavedPlace; place: Place };
 
@@ -37,6 +35,9 @@ const addApp = () => router.push({ pathname: '/listeye-ekle', params: { kaynak: 
  */
 export default function SavedListScreen() {
   const { saved, isPostSaved } = useAppStore();
+  const { t, i18n } = useTranslation();
+  const sortLabel = (s: Sort) => t(`list.sort.${s}`);
+  const noLink = t('links.noLink');
   const savedPosts = useSavedPosts();
   const version = useEntitiesVersion();
   usePrefetchPlaces(saved.map((s) => s.placeId));
@@ -66,8 +67,8 @@ export default function SavedListScreen() {
   // Filtre seçenekleri o bölümdeki kayıtlardan çıkar
   const cuisines = useMemo(() => countBy(sectionRows, (r) => r.place.cuisine), [sectionRows]);
   const sources = useMemo(
-    () => countBy(socialRows, (r) => (r.entry.link ? linkSource(r.entry.link).label : 'Bağlantısız')),
-    [socialRows],
+    () => countBy(socialRows, (r) => (r.entry.link ? linkSource(r.entry.link).label : noLink)),
+    [socialRows, noLink],
   );
 
   const rows = useMemo(() => {
@@ -76,10 +77,10 @@ export default function SavedListScreen() {
         (!cuisine || r.place.cuisine === cuisine) &&
         (section !== 'social' ||
           !source ||
-          (r.entry.link ? linkSource(r.entry.link).label : 'Bağlantısız') === source),
+          (r.entry.link ? linkSource(r.entry.link).label : noLink) === source),
     );
     const sorted = [...filtered];
-    if (sort === 'az') sorted.sort((a, b) => a.place.name.localeCompare(b.place.name, 'tr'));
+    if (sort === 'az') sorted.sort((a, b) => a.place.name.localeCompare(b.place.name, i18n.language));
     if (sort === 'friends')
       sorted.sort((a, b) => (friendScoreOf(b.place.id)?.average ?? -1) - (friendScoreOf(a.place.id)?.average ?? -1));
     return sorted;
@@ -95,19 +96,19 @@ export default function SavedListScreen() {
   };
 
   const chooseSort = () => {
-    const keys = Object.keys(SORT_LABELS) as Sort[];
+    const keys = SORTS;
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          title: 'Sırala',
-          options: [...keys.map((k) => (k === sort ? `✓ ${SORT_LABELS[k]}` : SORT_LABELS[k])), 'Vazgeç'],
+          title: t('list.sort.title'),
+          options: [...keys.map((k) => (k === sort ? `✓ ${sortLabel(k)}` : sortLabel(k))), t('common.cancel')],
           cancelButtonIndex: keys.length,
           tintColor: colors.primary,
         },
         (i) => keys[i] && setSort(keys[i]),
       );
     } else {
-      Alert.alert('Sırala', undefined, keys.map((k) => ({ text: SORT_LABELS[k], onPress: () => setSort(k) })));
+      Alert.alert(t('list.sort.title'), undefined, keys.map((k) => ({ text: sortLabel(k), onPress: () => setSort(k) })));
     }
   };
 
@@ -115,7 +116,7 @@ export default function SavedListScreen() {
     if (Platform.OS !== 'ios') return addSocial();
     ActionSheetIOS.showActionSheetWithOptions(
       {
-        options: ['Sosyal medyadan ekle', 'Mekân ara ve kaydet', 'Vazgeç'],
+        options: [t('list.addFromSocial'), t('list.searchAndSave'), t('common.cancel')],
         cancelButtonIndex: 2,
         tintColor: colors.primary,
       },
@@ -136,12 +137,12 @@ export default function SavedListScreen() {
             <PressableScale
               onPress={() => router.navigate({ pathname: '/harita', params: { filtre: 'want' } })}
               hitSlop={hitSlop}
-              accessibilityLabel="Haritada gör">
+              accessibilityLabel={t('list.showOnMap')}>
               <SymbolView name="map" tintColor={colors.primary} size={22} />
             </PressableScale>
           ),
           headerRight: () => (
-            <PressableScale onPress={openAddMenu} hitSlop={hitSlop} accessibilityLabel="Listeme ekle">
+            <PressableScale onPress={openAddMenu} hitSlop={hitSlop} accessibilityLabel={t('screens.addToList')}>
               <SymbolView name="plus" tintColor={colors.primary} size={22} weight="semibold" />
             </PressableScale>
           ),
@@ -158,14 +159,14 @@ export default function SavedListScreen() {
             <View style={styles.sections}>
               <SectionButton
                 icon="camera"
-                label="Sosyal medyadan"
+                label={t('list.fromSocial')}
                 count={socialRows.length}
                 active={section === 'social'}
                 onPress={() => changeSection('social')}
               />
               <SectionButton
                 icon="bookmark"
-                label="Kaydettiklerim"
+                label={t('list.saved')}
                 count={appRows.length + posts.length}
                 active={section === 'app'}
                 onPress={() => changeSection('app')}
@@ -181,10 +182,10 @@ export default function SavedListScreen() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text variant="subhead" color={colors.primary} style={styles.bold}>
-                      Panoda bir bağlantı var
+                      {t('list.clipboardTitle')}
                     </Text>
                     <Text variant="footnote" color={colors.textSecondary}>
-                      Kopyaladığın gönderiyi listene ekle
+                      {t('list.clipboardText')}
                     </Text>
                   </View>
                   <SymbolView name="chevron.right" tintColor={colors.primary} size={14} weight="semibold" />
@@ -197,11 +198,11 @@ export default function SavedListScreen() {
               <View style={styles.postsBlock}>
                 <View style={styles.blockHeader}>
                   <Text variant="title3" color={colors.primary}>
-                    Gönderiler
+                    {t('common.posts')}
                   </Text>
                   <PressableScale onPress={() => router.push('/kaydedilen-gonderiler')} hitSlop={hitSlop} style={styles.seeAll}>
                     <Text variant="subhead" color={colors.primary} style={styles.bold}>
-                      Tümünü gör
+                      {t('common.seeAll')}
                     </Text>
                     <SymbolView name="chevron.right" tintColor={colors.primary} size={12} weight="semibold" />
                   </PressableScale>
@@ -232,7 +233,7 @@ export default function SavedListScreen() {
                 </ScrollView>
                 {sectionRows.length > 0 && (
                   <Text variant="title3" color={colors.primary} style={styles.placesTitle}>
-                    Mekânlar
+                    {t('common.places')}
                   </Text>
                 )}
               </View>
@@ -255,7 +256,7 @@ export default function SavedListScreen() {
                   {cuisines.map(([label, n]) => (
                     <FilterChip
                       key={`c-${label}`}
-                      label={`${label} ${n}`}
+                      label={`${cuisineLabel(label)} ${n}`}
                       active={cuisine === label}
                       onPress={() => setCuisine(cuisine === label ? null : label)}
                     />
@@ -263,12 +264,12 @@ export default function SavedListScreen() {
                 </ScrollView>
                 <View style={styles.sortRow}>
                   <Text variant="footnote" color={colors.textSecondary}>
-                    {rows.length} mekân
+                    {t('common.placeCount', { count: rows.length })}
                   </Text>
                   <PressableScale onPress={chooseSort} hitSlop={hitSlop} style={styles.sortButton}>
                     <SymbolView name="arrow.up.arrow.down" tintColor={colors.primary} size={13} />
                     <Text variant="footnote" color={colors.primary} style={styles.bold}>
-                      {SORT_LABELS[sort]}
+                      {sortLabel(sort)}
                     </Text>
                   </PressableScale>
                 </View>
@@ -280,10 +281,10 @@ export default function SavedListScreen() {
           filtersActive ? (
             <View style={styles.empty}>
               <Text variant="subhead" color={colors.textSecondary} align="center">
-                Bu filtreye uyan mekân yok.
+                {t('list.noFilterMatch')}
               </Text>
               <Button
-                title="Filtreyi temizle"
+                title={t('list.clearFilter')}
                 variant="secondary"
                 onPress={() => {
                   setCuisine(null);
@@ -303,7 +304,7 @@ export default function SavedListScreen() {
         ListFooterComponent={
           rows.length > 0 ? (
             <Text variant="caption" color={colors.textTertiary} align="center" style={styles.hint}>
-              İpucu: gittiğin mekânı sola kaydır → Gittim
+              {t('list.swipeHint')}
             </Text>
           ) : null
         }
@@ -364,15 +365,16 @@ function FilterChip({ label, active, onPress }: { label: string; active: boolean
 
 /** Sosyal medya bölümü boşken: 3 adımda nasıl kaydedilir */
 function SocialEmpty() {
+  const { t } = useTranslation();
   const steps: { icon: SFSymbol; text: string }[] = [
-    { icon: 'camera', text: 'Instagram’da ya da TikTok’ta bir mekân gör' },
-    { icon: 'link', text: 'Gönderide “Bağlantıyı kopyala” de' },
-    { icon: 'bookmark.fill', text: 'Buraya dön, bağlantı otomatik yakalansın' },
+    { icon: 'camera', text: t('list.socialStep1') },
+    { icon: 'link', text: t('list.socialStep2') },
+    { icon: 'bookmark.fill', text: t('list.socialStep3') },
   ];
   return (
     <View style={styles.empty}>
       <Text variant="title3" align="center">
-        Gördüğün mekânlar kaybolmasın
+        {t('list.socialEmptyTitle')}
       </Text>
       <View style={styles.steps}>
         {steps.map((s, i) => (
@@ -389,23 +391,24 @@ function SocialEmpty() {
           </View>
         ))}
       </View>
-      <Button title="Sosyal medyadan ekle" icon="plus" onPress={() => addSocial()} style={styles.emptyButton} />
+      <Button title={t('list.addFromSocial')} icon="plus" onPress={() => addSocial()} style={styles.emptyButton} />
     </View>
   );
 }
 
 /** Uygulama içi kayıtlar boşken */
 function AppEmpty() {
+  const { t } = useTranslation();
   return (
     <View style={styles.empty}>
       <SymbolView name="bookmark" tintColor={colors.textTertiary} size={40} />
       <Text variant="title3" align="center">
-        Henüz bir şey kaydetmedin
+        {t('list.appEmptyTitle')}
       </Text>
       <Text variant="subhead" color={colors.textSecondary} align="center">
-        Mekân sayfasında, aramada ya da feed’deki gönderilerde yer imine dokun, burada toplansın.
+        {t('list.appEmptyText')}
       </Text>
-      <Button title="Mekân ara" icon="magnifyingglass" onPress={() => router.navigate('/ara')} style={styles.emptyButton} />
+      <Button title={t('list.searchPlaces')} icon="magnifyingglass" onPress={() => router.navigate('/ara')} style={styles.emptyButton} />
     </View>
   );
 }

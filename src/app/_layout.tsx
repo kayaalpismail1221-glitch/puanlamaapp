@@ -3,12 +3,14 @@ import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 import { BackendSetup } from '@/components/backend-setup';
 import { ErrorView, LoadingView } from '@/components/ui';
 import { colors } from '@/constants/theme';
+import { useLanguageLoaded } from '@/i18n';
 import { queryClient } from '@/lib/query-client';
 import { isBackendConfigured } from '@/lib/supabase';
 import { AppStoreProvider, useAppStore } from '@/store/app-store';
@@ -29,9 +31,11 @@ const navigationTheme = {
 
 function RootNavigator() {
   const { status, prefsLoaded, ready, loadError, onboarded, actions } = useAppStore();
+  const { t } = useTranslation();
+  const languageLoaded = useLanguageLoaded();
 
-  // Oturum ve kullanıcı verisi belli olana kadar açılış ekranı kalır
-  const deciding = status === 'loading' || !prefsLoaded || (status === 'signedIn' && !ready);
+  // Oturum, kullanıcı verisi ve dil tercihi belli olana kadar açılış ekranı kalır
+  const deciding = status === 'loading' || !prefsLoaded || !languageLoaded || (status === 'signedIn' && !ready);
   const splashDone = !deciding || !!loadError;
 
   useEffect(() => {
@@ -60,25 +64,34 @@ function RootNavigator() {
       <Stack.Protected guard={!showOnboarding}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="mekan/[id]" options={{ title: '', headerTransparent: true }} />
-        <Stack.Screen name="mekan-puanla" options={{ presentation: 'modal', title: 'Mekân puanla' }} />
-        <Stack.Screen name="arkadas-bul" options={{ presentation: 'modal', title: 'Arkadaş bul' }} />
+        <Stack.Screen name="mekan-puanla" options={{ presentation: 'modal', title: t('screens.ratePlace') }} />
+        <Stack.Screen name="arkadas-bul" options={{ presentation: 'modal', title: t('screens.findFriends') }} />
         <Stack.Screen name="kullanici/[id]" options={{ title: '' }} />
-        <Stack.Screen name="listeye-ekle" options={{ presentation: 'modal', title: 'Listeme ekle' }} />
-        <Stack.Screen name="gonderi/[id]" options={{ title: 'Gönderi' }} />
-        <Stack.Screen name="kaydedilen-gonderiler" options={{ title: 'Kaydedilen gönderiler' }} />
-        <Stack.Screen name="konum-sec" options={{ presentation: 'modal', title: 'Konum seç' }} />
-        <Stack.Screen name="siralama" options={{ title: 'Liderlik tablosu' }} />
+        <Stack.Screen name="listeye-ekle" options={{ presentation: 'modal', title: t('screens.addToList') }} />
+        <Stack.Screen name="gonderi/[id]" options={{ title: t('screens.post') }} />
+        <Stack.Screen name="kaydedilen-gonderiler" options={{ title: t('screens.savedPosts') }} />
+        <Stack.Screen name="konum-sec" options={{ presentation: 'modal', title: t('screens.chooseLocation') }} />
+        <Stack.Screen name="siralama" options={{ title: t('screens.leaderboard') }} />
         <Stack.Screen name="baglantilar/[id]" options={{ title: '' }} />
-        <Stack.Screen name="gittiklerim/[id]" options={{ title: 'Gittiklerim' }} />
+        <Stack.Screen name="gittiklerim/[id]" options={{ title: t('screens.beenTo') }} />
         <Stack.Screen name="gittigi-yerler/[id]" options={{ title: '' }} />
-        <Stack.Screen name="profil-duzenle" options={{ presentation: 'modal', title: 'Profili düzenle' }} />
-        <Stack.Screen name="ayarlar" options={{ title: 'Ayarlar' }} />
-        <Stack.Screen name="okul-sec" options={{ presentation: 'modal', title: 'Okulun' }} />
+        <Stack.Screen name="profil-duzenle" options={{ presentation: 'modal', title: t('screens.editProfile') }} />
+        <Stack.Screen name="ayarlar" options={{ title: t('screens.settings') }} />
+        <Stack.Screen name="dil" options={{ title: t('screens.language') }} />
+        <Stack.Screen name="engellenenler" options={{ title: t('screens.blocked') }} />
+        <Stack.Screen name="oneriler" options={{ title: t('screens.recs') }} />
+        <Stack.Screen name="gonderi-duzenle" options={{ presentation: 'modal', title: t('screens.editPost') }} />
+        <Stack.Screen name="okul-sec" options={{ presentation: 'modal', title: t('screens.school') }} />
+        <Stack.Screen
+          name="profil-fotografi"
+          options={{ presentation: 'transparentModal', animation: 'fade', headerShown: false }}
+        />
       </Stack.Protected>
 
       {/* Puanlama, gönderi ve mekân ekleme hem onboarding'de hem uygulama içinde kullanılır */}
-      <Stack.Screen name="gonderi-olustur" options={{ presentation: 'modal', title: 'Gönderi paylaş' }} />
-      <Stack.Screen name="mekan-ekle" options={{ presentation: 'modal', title: 'Yeni mekân' }} />
+      <Stack.Screen name="gonderi-olustur" options={{ presentation: 'modal', title: t('screens.sharePost') }} />
+      <Stack.Screen name="mekan-ekle" options={{ presentation: 'modal', title: t('screens.newPlace') }} />
+      <Stack.Screen name="yasal/[belge]" options={{ presentation: 'modal', title: '' }} />
       <Stack.Screen
         name="degerlendir/[id]"
         options={{ presentation: 'modal', headerShown: false, gestureEnabled: false }}

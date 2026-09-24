@@ -1,5 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet } from 'react-native';
 
 import { sendLoginCode, updatePassword, verifyLoginCode } from '@/api/auth';
@@ -21,6 +22,7 @@ type Step = 'email' | 'code' | 'password';
  */
 export default function ResetPasswordScreen() {
   const params = useLocalSearchParams<{ email?: string }>();
+  const { t } = useTranslation();
   const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState(params.email ?? '');
   const [code, setCode] = useState('');
@@ -38,7 +40,7 @@ export default function ResetPasswordScreen() {
       setStep('password');
     } catch (error) {
       haptics.warning();
-      showError(error, 'Kod gönderilemedi');
+      showError(error, t('failures.codeSend'));
     } finally {
       setBusy(false);
     }
@@ -55,7 +57,7 @@ export default function ResetPasswordScreen() {
     } catch (error) {
       haptics.warning();
       setCode('');
-      showError(error, 'Şifre sıfırlanamadı');
+      showError(error, t('failures.passwordReset'));
     } finally {
       setBusy(false);
     }
@@ -64,13 +66,13 @@ export default function ResetPasswordScreen() {
   if (step === 'email') {
     return (
       <OnboardingStep
-        title="Şifreni sıfırla"
-        subtitle="E-posta adresine 6 haneli bir kod göndereceğiz."
-        footer={<Button title="Kod gönder" onPress={sendCode} disabled={!isValidEmail(email)} loading={busy} />}>
+        title={t('onboarding.resetTitle')}
+        subtitle={t('onboarding.resetSubtitle')}
+        footer={<Button title={t('onboarding.sendCode')} onPress={sendCode} disabled={!isValidEmail(email)} loading={busy} />}>
         <BigInput
           value={email}
           onChangeText={setEmail}
-          placeholder="ornek@mail.com"
+          placeholder={t('onboarding.emailPlaceholder')}
           keyboardType="email-address"
           textContentType="emailAddress"
           autoComplete="email"
@@ -87,15 +89,15 @@ export default function ResetPasswordScreen() {
   if (step === 'password') {
     return (
       <OnboardingStep
-        title="Yeni şifre"
-        subtitle="En az 8 karakter; harf ve rakam içersin."
+        title={t('onboarding.newPasswordTitle')}
+        subtitle={t('onboarding.passwordSubtitle')}
         footer={
-          <Button title="Devam" onPress={() => setStep('code')} disabled={!isAcceptablePassword(password)} />
+          <Button title={t('onboarding.next')} onPress={() => setStep('code')} disabled={!isAcceptablePassword(password)} />
         }>
         <BigInput
           value={password}
           onChangeText={setPassword}
-          placeholder="Yeni şifre"
+          placeholder={t('onboarding.newPassword')}
           secureTextEntry
           textContentType="newPassword"
           autoComplete="new-password"
@@ -105,7 +107,7 @@ export default function ResetPasswordScreen() {
           onSubmitEditing={() => isAcceptablePassword(password) && setStep('code')}
         />
         <Text variant="footnote" color={colors.textSecondary} style={styles.hint}>
-          {normalizedEmail} adresine kod gönderdik; bir sonraki adımda gireceksin.
+          {t('onboarding.codeSentHint', { email: normalizedEmail })}
         </Text>
       </OnboardingStep>
     );
@@ -113,13 +115,13 @@ export default function ResetPasswordScreen() {
 
   return (
     <OnboardingStep
-      title="Kodu gir"
-      subtitle={`${normalizedEmail} adresine gelen 6 haneli kodu yaz.`}
-      footer={<Button title="Şifreyi kaydet" onPress={() => finish()} disabled={code.length !== 6} loading={busy} />}>
+      title={t('onboarding.enterCode')}
+      subtitle={t('onboarding.enterCodeSubtitle', { email: normalizedEmail })}
+      footer={<Button title={t('onboarding.savePassword')} onPress={() => finish()} disabled={code.length !== 6} loading={busy} />}>
       <BigInput
         value={code}
-        onChangeText={(t) => {
-          const digits = t.replace(/\D/g, '').slice(0, 6);
+        onChangeText={(text) => {
+          const digits = text.replace(/\D/g, '').slice(0, 6);
           setCode(digits);
           if (digits.length === 6) finish(digits);
         }}

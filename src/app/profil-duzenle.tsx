@@ -2,6 +2,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { router, Stack } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import type { LocalImage } from '@/api/storage';
@@ -15,6 +16,7 @@ import { useAppStore } from '@/store/app-store';
 /** Profili düzenle: fotoğraf, ad, kullanıcı adı, okul */
 export default function EditProfileScreen() {
   const { profile, actions } = useAppStore();
+  const { t } = useTranslation();
   const [name, setName] = useState(profile?.name ?? '');
   const [username, setUsername] = useState(profile?.username ?? '');
   const [avatar, setAvatar] = useState<LocalImage>();
@@ -60,7 +62,7 @@ export default function EditProfileScreen() {
           headerLeft: () => (
             <PressableScale onPress={() => router.back()} hitSlop={hitSlop}>
               <Text variant="body" color={colors.primary}>
-                Vazgeç
+                {t('common.cancel')}
               </Text>
             </PressableScale>
           ),
@@ -70,41 +72,41 @@ export default function EditProfileScreen() {
             ) : (
               <PressableScale onPress={save} disabled={!valid} hitSlop={hitSlop}>
                 <Text variant="headline" color={valid ? colors.primary : colors.textTertiary}>
-                  Kaydet
+                  {t('common.save')}
                 </Text>
               </PressableScale>
             ),
         }}
       />
       <ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
-        <PressableScale onPress={pickPhoto} style={styles.avatar} accessibilityLabel="Profil fotoğrafını değiştir">
+        <PressableScale onPress={pickPhoto} style={styles.avatar} accessibilityLabel={t('editProfile.changePhotoLabel')}>
           <Avatar uri={avatarUri} name={name || '?'} size={104} />
           <Text variant="subhead" color={colors.primary} style={styles.bold}>
-            Fotoğrafı değiştir
+            {t('editProfile.changePhoto')}
           </Text>
         </PressableScale>
 
         <View style={styles.group}>
-          <Field label="Ad soyad">
+          <Field label={t('editProfile.fullName')}>
             <TextInput
               value={name}
               onChangeText={setName}
-              placeholder="Adın"
+              placeholder={t('editProfile.namePlaceholder')}
               placeholderTextColor={colors.textTertiary}
               textContentType="name"
               style={[typography.body, styles.input]}
             />
           </Field>
           <View style={styles.separator} />
-          <Field label="Kullanıcı adı">
+          <Field label={t('editProfile.username')}>
             <View style={styles.usernameRow}>
               <Text variant="body" color={colors.textSecondary}>
                 @
               </Text>
               <TextInput
                 value={username}
-                onChangeText={(t) => setUsername(toUsername(t))}
-                placeholder="kullaniciadi"
+                onChangeText={(text) => setUsername(toUsername(text))}
+                placeholder={t('editProfile.usernamePlaceholder')}
                 placeholderTextColor={colors.textTertiary}
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -115,10 +117,10 @@ export default function EditProfileScreen() {
           </Field>
           <View style={styles.separator} />
           <PressableScale onPress={() => router.push('/okul-sec')} scaleTo={0.99}>
-            <Field label="Okul">
+            <Field label={t('editProfile.school')}>
               <View style={styles.usernameRow}>
                 <Text variant="body" color={school ? colors.text : colors.textTertiary} style={styles.schoolValue} numberOfLines={1}>
-                  {school ? schoolLabel(school) : 'Okul ekle'}
+                  {school ? schoolLabel(school) : t('editProfile.addSchool')}
                 </Text>
                 <SymbolView name="chevron.right" tintColor={colors.textTertiary} size={13} weight="semibold" />
               </View>
@@ -126,7 +128,7 @@ export default function EditProfileScreen() {
           </PressableScale>
         </View>
         <Text variant="footnote" color={colors.textSecondary} style={styles.hint}>
-          Kullanıcı adı en az 3 karakter olmalı; harf, rakam, nokta ve alt çizgi kullanabilirsin.
+          {t('editProfile.usernameHint')}
         </Text>
       </ScrollView>
     </KeyboardAvoidingView>

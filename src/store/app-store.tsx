@@ -18,6 +18,7 @@ import * as meApi from '@/api/me';
 import type { LocalImage } from '@/api/storage';
 import { clearEntities, getPlace, upsertPlaces, upsertUsers } from '@/data/entities';
 import { setHapticsEnabled } from '@/lib/haptics';
+import i18n from '@/i18n';
 import { keys, queryClient } from '@/lib/query-client';
 import { emptyRankings, flattenRankings, insertEntry, removeFromRankings } from '@/lib/ranking';
 import { setCurrentUserId } from '@/lib/session';
@@ -406,7 +407,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         { type: 'savePlace', entry },
         { saved: stateRef.current.saved },
         () => meApi.savePlace(entry),
-        'Listene eklenemedi',
+        i18n.t('failures.listAdd'),
       );
 
     const unsavePlace = (placeId: string) =>
@@ -414,7 +415,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         { type: 'unsavePlace', placeId },
         { saved: stateRef.current.saved },
         () => meApi.unsavePlace(placeId),
-        'Listenden çıkarılamadı',
+        i18n.t('failures.listRemove'),
       );
 
     const effectiveLiked = (post: Post) => stateRef.current.likeOverrides[post.id] ?? post.likedByMe;
@@ -427,7 +428,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         () => queryClient.invalidateQueries({ queryKey: ['leaderboard'] }),
         (error) => {
           dispatch({ type: 'setLiked', postId: post.id, liked: previous });
-          showError(error, 'Beğeni kaydedilemedi');
+          showError(error, i18n.t('failures.like'));
         },
       );
     };
@@ -457,7 +458,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           return true;
         } catch (error) {
           dispatch({ type: 'restore', patch: { profile } });
-          showError(error, 'Profil güncellenemedi');
+          showError(error, i18n.t('failures.profileUpdate'));
           return false;
         }
       },
@@ -478,7 +479,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           upsertUsers([profileUser({ ...profile, ...patch })]);
           return true;
         } catch (error) {
-          showError(error, 'Fotoğraf güncellenemedi');
+          showError(error, i18n.t('failures.photoUpdate'));
           return false;
         }
       },
@@ -502,10 +503,11 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           { type: 'rank', sentiment, index, entry },
           { rankings, saved },
           () => meApi.rankPlace(placeId, sentiment, index, entry.note),
-          'Puan kaydedilemedi',
+          i18n.t('failures.rankSave'),
           () => {
             queryClient.invalidateQueries({ queryKey: keys.place(placeId) });
             queryClient.invalidateQueries({ queryKey: keys.userRankings(me()) });
+            queryClient.invalidateQueries({ queryKey: ['map-places'] });
           },
         );
         // Gönderi paylaşılırken puanın sunucuya yazılmış olması beklenir (bkz. waitForRank)
@@ -522,8 +524,11 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           { type: 'unrank', placeId },
           { rankings: stateRef.current.rankings },
           () => meApi.unrankPlace(placeId),
-          'Puan silinemedi',
-          () => queryClient.invalidateQueries({ queryKey: keys.place(placeId) }),
+          i18n.t('failures.rankDelete'),
+          () => {
+            queryClient.invalidateQueries({ queryKey: keys.place(placeId) });
+            queryClient.invalidateQueries({ queryKey: ['map-places'] });
+          },
         ),
 
       savePlace,
@@ -539,7 +544,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           { type: 'setFollowing', userId, following: next },
           { following: stateRef.current.following },
           () => (next ? meApi.follow(userId) : meApi.unfollow(me(), userId)),
-          next ? 'Takip edilemedi' : 'Takipten çıkılamadı',
+          next ? i18n.t('failures.follow') : i18n.t('failures.unfollow'),
           () => invalidateSocial(userId),
         );
       },
@@ -557,7 +562,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           () => queryClient.invalidateQueries({ queryKey: keys.savedPosts() }),
           (error) => {
             dispatch({ type: 'setPostSaved', postId: post.id, saved: previous });
-            showError(error, 'Gönderi kaydedilemedi');
+            showError(error, i18n.t('failures.postSave'));
           },
         );
       },

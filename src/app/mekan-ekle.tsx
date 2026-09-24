@@ -2,22 +2,21 @@ import * as Location from 'expo-location';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import MapView, { type Region } from 'react-native-maps';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated from 'react-native-reanimated';
 
 import { createPlace } from '@/api/content';
 import { showError } from '@/api/errors';
 import { Button, PressableScale, Text } from '@/components/ui';
-import { CUISINES } from '@/constants/cuisines';
+import { CUISINES, cuisineLabel } from '@/constants/cuisines';
 import { colors, radius, spacing, typography } from '@/constants/theme';
-import { priceLabel } from '@/lib/format';
+import { useKeyboardFooterStyle } from '@/hooks/use-keyboard-footer';
 import { DEFAULT_REGION, type Coords } from '@/lib/geo';
 import { haptics } from '@/lib/haptics';
 import { queryClient } from '@/lib/query-client';
-import type { Cuisine, Place } from '@/types';
-
-const PRICE_LEVELS: Place['priceLevel'][] = [1, 2, 3, 4];
+import type { Cuisine } from '@/types';
 
 /**
  * Veritabanında olmayan mekânı ekleme.
@@ -25,12 +24,12 @@ const PRICE_LEVELS: Place['priceLevel'][] = [1, 2, 3, 4];
  */
 export default function AddPlaceScreen() {
   const params = useLocalSearchParams<{ ad?: string }>();
-  const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
+  const footerStyle = useKeyboardFooterStyle();
   const mapRef = useRef<MapView>(null);
 
   const [name, setName] = useState(params.ad ?? '');
   const [cuisine, setCuisine] = useState<Cuisine>();
-  const [priceLevel, setPriceLevel] = useState<Place['priceLevel']>(2);
   const [coords, setCoords] = useState<Coords>();
   const [city, setCity] = useState('');
   const [district, setDistrict] = useState('');
@@ -76,7 +75,6 @@ export default function AddPlaceScreen() {
       await createPlace({
         name,
         cuisine,
-        priceLevel,
         city,
         district,
         neighborhood,
@@ -89,22 +87,19 @@ export default function AddPlaceScreen() {
       queryClient.invalidateQueries({ queryKey: ['areas'] });
       router.back();
     } catch (error) {
-      showError(error, 'Mekân eklenemedi');
+      showError(error, t('failures.placeAdd'));
       setSaving(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={64}>
+    <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
-        <Field label="Mekânın adı">
+        <Field label={t('newPlace.name')}>
           <TextInput
             value={name}
             onChangeText={setName}
-            placeholder="Ör. Kadıköy Balıkçısı"
+            placeholder={t('newPlace.namePlaceholder')}
             placeholderTextColor={colors.textTertiary}
             autoFocus={!params.ad}
             maxLength={120}
@@ -112,7 +107,7 @@ export default function AddPlaceScreen() {
           />
         </Field>
 
-        <Field label="Ne tür bir yer?">
+        <Field label={t('newPlace.kind')}>
           <View style={styles.chips}>
             {CUISINES.map((c) => {
               const active = c.name === cuisine;
@@ -127,7 +122,7 @@ export default function AddPlaceScreen() {
                   style={[styles.chip, active && styles.chipActive]}>
                   <SymbolView name={c.icon} tintColor={active ? colors.onPrimary : colors.primary} size={14} />
                   <Text variant="subhead" color={active ? colors.onPrimary : colors.text}>
-                    {c.name}
+                    {cuisineLabel(c.name)}
                   </Text>
                 </PressableScale>
               );
@@ -135,29 +130,7 @@ export default function AddPlaceScreen() {
           </View>
         </Field>
 
-        <Field label="Fiyat seviyesi">
-          <View style={styles.prices}>
-            {PRICE_LEVELS.map((level) => {
-              const active = level === priceLevel;
-              return (
-                <PressableScale
-                  key={level}
-                  haptic={false}
-                  onPress={() => {
-                    haptics.select();
-                    setPriceLevel(level);
-                  }}
-                  style={[styles.price, active && styles.chipActive]}>
-                  <Text variant="headline" color={active ? colors.onPrimary : colors.primary}>
-                    {priceLabel(level)}
-                  </Text>
-                </PressableScale>
-              );
-            })}
-          </View>
-        </Field>
-
-        <Field label="Konum" hint="Haritayı kaydırarak iğneyi mekânın üstüne getir">
+        <Field label={t('newPlace.location')} hint={t('newPlace.locationHint')}>
           <View style={styles.map}>
             <MapView
               ref={mapRef}
@@ -174,7 +147,7 @@ export default function AddPlaceScreen() {
             </View>
           </View>
           <Button
-            title="Bu konumun adresini doldur"
+            title={t('newPlace.fillAddress')}
             variant="ghost"
             size="sm"
             onPress={() => {
@@ -188,40 +161,40 @@ export default function AddPlaceScreen() {
         </Field>
 
         <View style={styles.row}>
-          <Field label="İl" style={styles.flex}>
+          <Field label={t('newPlace.city')} style={styles.flex}>
             <TextInput
               value={city}
               onChangeText={setCity}
-              placeholder="İstanbul"
+              placeholder={t('newPlace.cityPlaceholder')}
               placeholderTextColor={colors.textTertiary}
               style={[typography.body, styles.input]}
             />
           </Field>
-          <Field label="İlçe" style={styles.flex}>
+          <Field label={t('newPlace.district')} style={styles.flex}>
             <TextInput
               value={district}
               onChangeText={setDistrict}
-              placeholder="Kadıköy"
+              placeholder={t('newPlace.districtPlaceholder')}
               placeholderTextColor={colors.textTertiary}
               style={[typography.body, styles.input]}
             />
           </Field>
         </View>
-        <Field label="Semt" hint="İsteğe bağlı">
+        <Field label={t('newPlace.neighborhood')} hint={t('common.optional')}>
           <TextInput
             value={neighborhood}
             onChangeText={setNeighborhood}
-            placeholder="Moda"
+            placeholder={t('newPlace.neighborhoodPlaceholder')}
             placeholderTextColor={colors.textTertiary}
             style={[typography.body, styles.input]}
           />
         </Field>
       </ScrollView>
 
-      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
-        <Button title="Mekânı ekle" onPress={save} disabled={!valid} loading={saving} />
-      </View>
-    </KeyboardAvoidingView>
+      <Animated.View style={[styles.footer, footerStyle]}>
+        <Button title={t('newPlace.add')} onPress={save} disabled={!valid} loading={saving} />
+      </Animated.View>
+    </View>
   );
 }
 
@@ -289,18 +262,6 @@ const styles = StyleSheet.create({
   },
   chipActive: {
     backgroundColor: colors.primary,
-  },
-  prices: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  price: {
-    flex: 1,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.button,
-    backgroundColor: colors.surface,
   },
   map: {
     height: 200,

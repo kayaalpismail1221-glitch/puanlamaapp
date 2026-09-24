@@ -1,9 +1,11 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { FlatList, StyleSheet } from 'react-native';
 
 import { PlaceRow } from '@/components/place-row';
-import { Button, Divider, LoadingView, ScoreBadge, Text } from '@/components/ui';
+import { PlaceRowsSkeleton } from '@/components/skeleton';
+import { Button, Divider, ScoreBadge, Text } from '@/components/ui';
 import { colors, spacing } from '@/constants/theme';
 import { getPlace, useEntitiesVersion, usePrefetchPlaces, useUser } from '@/data/entities';
 import { useUserRankings } from '@/hooks/queries';
@@ -17,6 +19,7 @@ type Row = { place: Place; score: number };
 export default function BeenScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { scored } = useAppStore();
+  const { t } = useTranslation();
   const mine = isMe(id);
   const others = useUserRankings(mine ? undefined : id);
   const version = useEntitiesVersion();
@@ -42,7 +45,7 @@ export default function BeenScreen() {
     <>
       <Stack.Screen
         options={{
-          title: mine ? 'Gittiklerim' : `${user?.name.split(' ')[0] ?? ''} gittikleri`,
+          title: mine ? t('screens.beenTo') : t('beenTo.theirs', { name: user?.name.split(' ')[0] ?? '' }),
         }}
       />
       <FlatList
@@ -53,17 +56,17 @@ export default function BeenScreen() {
         ItemSeparatorComponent={() => <Divider inset={spacing.lg + 24 + 52 + spacing.md * 2} />}
         ListEmptyComponent={
           !mine && others.isPending ? (
-            <LoadingView />
+            <PlaceRowsSkeleton />
           ) : (
             <Text variant="subhead" color={colors.textSecondary} align="center" style={styles.empty}>
-              Henüz puanlanan bir mekân yok.
+              {t('beenTo.empty')}
             </Text>
           )
         }
         ListFooterComponent={
           mine ? (
             <Button
-              title="Mekân puanla"
+              title={t('beenTo.ratePlace')}
               icon="plus"
               variant="secondary"
               onPress={() => router.push('/mekan-puanla')}

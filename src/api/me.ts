@@ -20,15 +20,13 @@ export type MyData = {
 };
 
 export async function loadMyData(userId: string, email?: string): Promise<MyData> {
-  const [profileRes, privateRes, rankingRes, savedRes, followRes] = await Promise.all([
+  const [profileRes, rankingRes, savedRes, followRes] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', userId).single(),
-    supabase.from('profile_private').select('phone').eq('user_id', userId).maybeSingle(),
     supabase.from('ranking_view').select('*').eq('user_id', userId).order('position'),
     supabase.from('saved_place_view').select('*').eq('user_id', userId).order('saved_at', { ascending: false }),
     supabase.from('follows').select('followee_id').eq('follower_id', userId).order('created_at', { ascending: false }),
   ]);
 
-  if (privateRes.error) throw privateRes.error;
   const row = unwrap(profileRes);
   const rankingRows = unwrap(rankingRes);
   const savedRows = unwrap(savedRes);
@@ -46,7 +44,6 @@ export async function loadMyData(userId: string, email?: string): Promise<MyData
       username: row.username,
       avatarUri: mediaUrl('avatars', row.avatar_path),
       avatarPath: row.avatar_path ?? undefined,
-      phone: privateRes.data?.phone?.replace(/^\+90/, '') ?? undefined,
       email,
       schoolId: row.school_id ?? undefined,
       yearGoal: row.year_goal ?? undefined,
@@ -75,7 +72,7 @@ export async function updateMyProfile(userId: string, patch: ProfilePatch) {
 
 /** Yeni profil fotoğrafını yükler, profili günceller ve eskisini siler */
 export async function updateAvatar(userId: string, image: LocalImage, previousPath?: string) {
-  const prepared = await prepareImage(image, 512, 0.85);
+  const prepared = await prepareImage(image, 1024, 0.85);
   const path = `${userId}/${Date.now()}.jpg`;
   await uploadImage('avatars', path, prepared.uri);
   unwrap(await supabase.from('profiles').update({ avatar_path: path }).eq('id', userId));

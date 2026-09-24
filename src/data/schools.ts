@@ -223,8 +223,8 @@ export const SCHOOLS: School[] = [
 
 export const schoolById = (id?: string) => (id ? SCHOOLS.find((s) => s.id === id) : undefined);
 
-/** Kısa görünen ad: kısaltma varsa o, yoksa "Üniversitesi" eki atılmış ad */
-export const schoolLabel = (school: School) => school.short ?? school.name.replace(/ Üniversitesi$/, '');
+/** Görünen ad: yaygın kısaltma varsa o, yoksa tam ad ("Kocaeli" tek başına şehir gibi okunuyor) */
+export const schoolLabel = (school: School) => school.short ?? school.name;
 
 /** Ad, kısaltma veya şehre göre Türkçe duyarlı arama */
 export function searchSchools(query: string): School[] {

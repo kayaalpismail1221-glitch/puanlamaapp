@@ -10,7 +10,18 @@ export type Cuisine =
   | 'Pideci'
   | 'Kafe'
   | 'Burgerci'
-  | 'Tatlıcı';
+  | 'Tatlıcı'
+  | 'Restoran'
+  | 'Dönerci'
+  | 'Köfteci'
+  | 'Çiğ köfteci'
+  | 'Pizzacı'
+  | 'Uzak Doğu'
+  | 'Dünya mutfağı'
+  | 'Büfe & fast food'
+  | 'Pastane & fırın'
+  | 'Dondurmacı'
+  | 'Bar';
 
 export type Place = {
   id: string;
@@ -21,7 +32,6 @@ export type Place = {
   /** İlçe (ör. Kadıköy) */
   district: string;
   city: string;
-  priceLevel: 1 | 2 | 3 | 4;
   latitude: number;
   longitude: number;
   photoUrl?: string;
@@ -82,8 +92,7 @@ export type Profile = {
   avatarUri?: string;
   /** Depolamadaki avatar yolu (değiştirilince eskisi silinir) */
   avatarPath?: string;
-  /** Yalnızca kullanıcının kendisinin görebildiği iletişim bilgileri */
-  phone?: string;
+  /** Yalnızca kullanıcının kendisinin görebildiği iletişim bilgisi */
   email?: string;
   schoolId?: string;
   yearGoal?: number;
@@ -93,6 +102,7 @@ export type Profile = {
 
 /** Kayıt sırasında hesap açılmadan önce toplanan bilgiler (şifre hariç; şifre cihazda saklanmaz) */
 export type SignupDraft = {
+  /** İsteğe bağlı; 10 hane, 5 ile başlar (rehberden arkadaş bulma için) */
   phone?: string;
   email?: string;
   name?: string;
@@ -106,9 +116,6 @@ export type Comment = {
   text: string;
   createdAt: string;
 };
-
-/** Kişi başı hesap aralığı */
-export type PriceBucket = 'u250' | '250-500' | '500-1000' | '1000-2000' | 'o2000';
 
 export type Meal = 'kahvalti' | 'ogle' | 'aksam' | 'gece';
 
@@ -134,8 +141,6 @@ export type Post = {
   likedByMe: boolean;
   savedByMe: boolean;
   /** Yapılandırılmış bilgiler (hepsi isteğe bağlı) */
-  pricePerPerson?: PriceBucket;
-  dishes?: string[];
   highlights?: string[];
   meal?: Meal;
 };

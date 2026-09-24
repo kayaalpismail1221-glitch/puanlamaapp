@@ -1,27 +1,43 @@
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
-import { SymbolView, type SFSymbol } from 'expo-symbols';
-import { useState, type ReactNode } from 'react';
+import { SymbolView } from 'expo-symbols';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Alert, Linking, ScrollView, Share, StyleSheet, Switch, View } from 'react-native';
 
 import { showError } from '@/api/errors';
+import { SettingsGroup, SettingsRow, settingsStyles } from '@/components/settings-list';
 import { Avatar, PressableScale, Text } from '@/components/ui';
-import { colors, radius, spacing } from '@/constants/theme';
+import { SUPPORT_EMAIL } from '@/constants/app';
+import { colors, spacing } from '@/constants/theme';
 import { schoolById, schoolLabel } from '@/data/schools';
+import { useLanguagePreference } from '@/i18n';
 import { areaLabel } from '@/lib/feed';
 import { haptics } from '@/lib/haptics';
 import { useAppStore } from '@/store/app-store';
 
+const openLegal = (belge: 'kosullar' | 'gizlilik') => router.push({ pathname: '/yasal/[belge]', params: { belge } });
+
 /** Ayarlar: iOS gruplu liste düzeni */
 export default function SettingsScreen() {
   const { profile, email, feedArea, hapticsEnabled, actions } = useAppStore();
+  const { t } = useTranslation();
+  const languagePreference = useLanguagePreference();
   const school = schoolById(profile?.schoolId);
   const [deleting, setDeleting] = useState(false);
 
+  const languageValue =
+    languagePreference === 'system' ? t('language.system') : t(`language.names.${languagePreference}`);
+
+  const contact = () => {
+    const url = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(t('settings.mailSubject'))}`;
+    Linking.openURL(url).catch(() => Alert.alert(t('settings.contact'), t('settings.noMailApp', { email: SUPPORT_EMAIL })));
+  };
+
   const logout = () =>
-    Alert.alert('Çıkış yap', 'Bu cihazdan çıkış yapılacak. Verilerin hesabında kalır.', [
-      { text: 'Vazgeç', style: 'cancel' },
-      { text: 'Çıkış yap', style: 'destructive', onPress: () => actions.signOut() },
+    Alert.alert(t('settings.logout'), t('settings.logoutText'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('settings.logout'), style: 'destructive', onPress: () => actions.signOut() },
     ]);
 
   const deleteAccount = async () => {
@@ -30,60 +46,65 @@ export default function SettingsScreen() {
       await actions.deleteAccount();
     } catch (error) {
       setDeleting(false);
-      showError(error, 'Hesap silinemedi');
+      showError(error, t('failures.accountDelete'));
     }
   };
 
   // Geri alınamaz: iki kez onay
   const confirmDelete = () =>
-    Alert.alert(
-      'Hesabını sil',
-      'Profilin, puanların, Listem, gönderilerin, fotoğrafların ve yorumların kalıcı olarak silinir. Bu işlem geri alınamaz.',
-      [
-        { text: 'Vazgeç', style: 'cancel' },
-        {
-          text: 'Devam et',
-          style: 'destructive',
-          onPress: () =>
-            Alert.alert('Emin misin?', 'Hesabın ve tüm verilerin silinecek.', [
-              { text: 'Vazgeç', style: 'cancel' },
-              { text: 'Hesabımı sil', style: 'destructive', onPress: deleteAccount },
-            ]),
-        },
-      ],
-    );
+    Alert.alert(t('settings.deleteTitle'), t('settings.deleteText'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('settings.continue'),
+        style: 'destructive',
+        onPress: () =>
+          Alert.alert(t('settings.sure'), t('settings.sureText'), [
+            { text: t('common.cancel'), style: 'cancel' },
+            { text: t('settings.deleteMine'), style: 'destructive', onPress: deleteAccount },
+          ]),
+      },
+    ]);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} contentInsetAdjustmentBehavior="automatic">
+    <ScrollView
+      style={settingsStyles.screen}
+      contentContainerStyle={settingsStyles.content}
+      contentInsetAdjustmentBehavior="automatic">
       {/* Hesap kartı */}
-      <Group>
+      <SettingsGroup>
         <PressableScale onPress={() => router.push('/profil-duzenle')} scaleTo={0.99} style={styles.account}>
           <Avatar uri={profile?.avatarUri} name={profile?.name ?? '?'} size={56} />
           <View style={{ flex: 1 }}>
             <Text variant="headline">{profile?.name}</Text>
             <Text variant="subhead" color={colors.textSecondary}>
-              @{profile?.username} · Profili düzenle
+              @{profile?.username} · {t('settings.editProfile')}
             </Text>
           </View>
           <SymbolView name="chevron.right" tintColor={colors.textTertiary} size={14} weight="semibold" />
         </PressableScale>
-      </Group>
+      </SettingsGroup>
 
-      <Group title="Profil">
-        <Row
+      <SettingsGroup title={t('settings.profile')}>
+        <SettingsRow
           icon="graduationcap.fill"
-          label="Okul"
-          value={school ? schoolLabel(school) : 'Ekle'}
+          label={t('settings.school')}
+          value={school ? schoolLabel(school) : t('settings.add')}
           onPress={() => router.push('/okul-sec')}
           last
         />
-      </Group>
+      </SettingsGroup>
 
-      <Group title="Tercihler">
-        <Row icon="location.fill" label="Feed bölgesi" value={areaLabel(feedArea)} onPress={() => router.push('/konum-sec')} />
-        <Row
+      <SettingsGroup title={t('settings.preferences')}>
+        <SettingsRow icon="globe" label={t('settings.language')} value={languageValue} onPress={() => router.push('/dil')} />
+        <SettingsRow
+          icon="location.fill"
+          label={t('settings.feedArea')}
+          value={areaLabel(feedArea)}
+          onPress={() => router.push('/konum-sec')}
+        />
+        <SettingsRow
           icon="iphone.radiowaves.left.and.right"
-          label="Titreşim"
+          label={t('settings.haptics')}
           accessory={
             <Switch
               value={hapticsEnabled}
@@ -95,157 +116,81 @@ export default function SettingsScreen() {
             />
           }
         />
-        <Row icon="gear" label="Konum ve fotoğraf izinleri" onPress={() => Linking.openSettings()} last />
-      </Group>
+        <SettingsRow icon="gear" label={t('settings.permissions')} onPress={() => Linking.openSettings()} last />
+      </SettingsGroup>
 
-      <Group title="Topluluk">
-        <Row icon="person.badge.plus" label="Arkadaş bul" onPress={() => router.push('/arkadas-bul')} />
-        <Row icon="trophy" label="Liderlik tablosu" onPress={() => router.push('/siralama')} />
-        <Row
+      <SettingsGroup title={t('settings.community')}>
+        <SettingsRow icon="person.badge.plus" label={t('settings.findFriends')} onPress={() => router.push('/arkadas-bul')} />
+        <SettingsRow icon="trophy" label={t('settings.leaderboard')} onPress={() => router.push('/siralama')} />
+        <SettingsRow
           icon="square.and.arrow.up"
-          label="Puanla’yı arkadaşlarına öner"
-          onPress={() => Share.share({ message: 'Gittiğim her yeri Puanla’da puanlıyorum, sen de gel! 🍽️' })}
+          label={t('settings.invite')}
+          onPress={() => Share.share({ message: t('settings.inviteMessage') })}
           last
         />
-      </Group>
+      </SettingsGroup>
 
-      <Group title="Hesap">
-        {email && <Row icon="envelope" label="E-posta" value={email} />}
-        <Row icon="info.circle" label="Sürüm" value={Constants.expoConfig?.version ?? '1.0.0'} last />
-      </Group>
+      <SettingsGroup title={t('settings.privacySafety')}>
+        <SettingsRow icon="hand.raised.fill" label={t('settings.blocked')} onPress={() => router.push('/engellenenler')} />
+        <SettingsRow icon="checkmark.shield.fill" label={t('settings.guidelines')} onPress={() => openLegal('kosullar')} last />
+      </SettingsGroup>
 
-      <Group>
-        <PressableScale onPress={logout} scaleTo={0.99} style={styles.logout}>
+
+      <SettingsGroup title={t('settings.support')}>
+        <SettingsRow icon="envelope.fill" label={t('settings.contact')} value={SUPPORT_EMAIL} onPress={contact} />
+        <SettingsRow icon="doc.text.fill" label={t('settings.terms')} onPress={() => openLegal('kosullar')} />
+        <SettingsRow icon="lock.fill" label={t('settings.privacy')} onPress={() => openLegal('gizlilik')} />
+        {/* ODbL lisansı gereği mekân verisinin kaynağı belirtilir */}
+        <SettingsRow
+          icon="map"
+          label={t('settings.placeData')}
+          value="© OpenStreetMap"
+          onPress={() => Linking.openURL('https://www.openstreetmap.org/copyright')}
+          last
+        />
+      </SettingsGroup>
+
+      <SettingsGroup title={t('settings.account')}>
+        {email && <SettingsRow icon="at" label={t('settings.email')} value={email} />}
+        <SettingsRow
+          icon="info.circle"
+          label={t('settings.version')}
+          value={Constants.expoConfig?.version ?? '1.0.0'}
+          last
+        />
+      </SettingsGroup>
+
+      <SettingsGroup>
+        <PressableScale onPress={logout} scaleTo={0.99} style={styles.action}>
           <Text variant="body" color={colors.danger}>
-            Çıkış yap
+            {t('settings.logout')}
           </Text>
         </PressableScale>
-      </Group>
+      </SettingsGroup>
 
-      <Group>
-        <PressableScale onPress={confirmDelete} disabled={deleting} scaleTo={0.99} style={styles.logout}>
+      <SettingsGroup>
+        <PressableScale onPress={confirmDelete} disabled={deleting} scaleTo={0.99} style={styles.action}>
           {deleting ? (
             <ActivityIndicator color={colors.danger} />
           ) : (
             <Text variant="body" color={colors.danger}>
-              Hesabı sil
+              {t('settings.deleteAccount')}
             </Text>
           )}
         </PressableScale>
-      </Group>
+      </SettingsGroup>
     </ScrollView>
   );
 }
 
-function Group({ title, children }: { title?: string; children: ReactNode }) {
-  return (
-    <View style={styles.group}>
-      {title && (
-        <Text variant="footnote" color={colors.textSecondary} style={styles.groupTitle}>
-          {title.toLocaleUpperCase('tr')}
-        </Text>
-      )}
-      <View style={styles.groupBody}>{children}</View>
-    </View>
-  );
-}
-
-function Row({
-  icon,
-  label,
-  value,
-  accessory,
-  onPress,
-  last,
-}: {
-  icon: SFSymbol;
-  label: string;
-  value?: string;
-  accessory?: ReactNode;
-  onPress?: () => void;
-  last?: boolean;
-}) {
-  return (
-    <PressableScale onPress={onPress} disabled={!onPress} scaleTo={0.99} haptic={!!onPress} style={styles.row}>
-      <View style={styles.rowIcon}>
-        <SymbolView name={icon} tintColor={colors.onPrimary} size={15} />
-      </View>
-      <View style={[styles.rowBody, !last && styles.rowDivider]}>
-        <Text variant="body" style={{ flex: 1 }} numberOfLines={1}>
-          {label}
-        </Text>
-        {value && (
-          <Text variant="body" color={colors.textSecondary} numberOfLines={1} style={styles.value}>
-            {value}
-          </Text>
-        )}
-        {accessory}
-        {onPress && !accessory && (
-          <SymbolView name="chevron.right" tintColor={colors.textTertiary} size={13} weight="semibold" />
-        )}
-      </View>
-    </PressableScale>
-  );
-}
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.surface,
-  },
-  content: {
-    padding: spacing.lg,
-    gap: spacing.xl,
-    paddingBottom: spacing.xxl,
-  },
-  group: {
-    gap: spacing.sm,
-  },
-  groupTitle: {
-    paddingHorizontal: spacing.lg,
-  },
-  groupBody: {
-    borderRadius: radius.card,
-    backgroundColor: colors.background,
-    overflow: 'hidden',
-  },
   account: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
     padding: spacing.lg,
   },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingLeft: spacing.lg,
-    backgroundColor: colors.background,
-  },
-  rowIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: radius.button - 4,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rowBody: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    minHeight: 48,
-    paddingRight: spacing.lg,
-  },
-  rowDivider: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  value: {
-    maxWidth: 160,
-  },
-  logout: {
+  action: {
     alignItems: 'center',
     paddingVertical: spacing.md + 2,
   },

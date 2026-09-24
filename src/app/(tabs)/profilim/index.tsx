@@ -1,7 +1,8 @@
 import { router, Stack } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
-import { Alert, RefreshControl, ScrollView, Share, StyleSheet, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { Alert, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 
 import { VisitedMap } from '@/components/visited-map';
 import { PostGrid } from '@/components/post-grid';
@@ -16,20 +17,23 @@ import {
   TopThree,
 } from '@/components/profile-parts';
 import { ProfileStats } from '@/components/profile-stats';
-import { Button, Divider, LoadingView, PressableScale, Text } from '@/components/ui';
+import { PostGridSkeleton } from '@/components/skeleton';
+import { Button, Divider, PressableScale, Text } from '@/components/ui';
 import { colors, hitSlop, spacing } from '@/constants/theme';
 import { getPlace, useEntitiesVersion } from '@/data/entities';
 import { useUserPosts, useUserRank } from '@/hooks/queries';
 import { queryClient } from '@/lib/query-client';
 import { computeBadges, tasteProfile, type ScoredPlace } from '@/lib/insights';
+import { shareProfile as shareProfileLink } from '@/lib/share';
 import { placesThisYear, weeklyStreak } from '@/lib/stats';
 import { useAppStore } from '@/store/app-store';
 
-/** Kişisel öneriler bu kadar puanlamadan sonra açılır */
+/** Kişisel öneriler bu kadar puanlamadan sonra açılır (zevkin anlaşılsın diye) */
 const RECS_UNLOCK = 10;
 
 export default function ProfileScreen() {
-  const { profile, userId, rankings, scored, saved, actions } = useAppStore();
+  const { profile, userId, rankings, scored, actions } = useAppStore();
+  const { t } = useTranslation();
   const me = userId ?? '';
   const postsQuery = useUserPosts(me);
   const myRank = useUserRank(me).data;
@@ -66,10 +70,7 @@ export default function ProfileScreen() {
   );
   const recsLocked = scored.length < RECS_UNLOCK;
 
-  const shareProfile = () =>
-    Share.share({
-      message: `Puanla’da beni takip et: @${profile?.username} 🍽️ Gittiğim her yeri puanlıyorum.`,
-    });
+  const shareProfile = () => profile && shareProfileLink(profile);
 
   return (
     <>
@@ -78,10 +79,10 @@ export default function ProfileScreen() {
           title: '',
           headerRight: () => (
             <View style={styles.headerActions}>
-              <PressableScale onPress={shareProfile} hitSlop={hitSlop} accessibilityLabel="Profili paylaş">
+              <PressableScale onPress={shareProfile} hitSlop={hitSlop} accessibilityLabel={t('me.shareProfile')}>
                 <SymbolView name="square.and.arrow.up" tintColor={colors.primary} size={21} />
               </PressableScale>
-              <PressableScale onPress={() => router.push('/ayarlar')} hitSlop={hitSlop} accessibilityLabel="Ayarlar">
+              <PressableScale onPress={() => router.push('/ayarlar')} hitSlop={hitSlop} accessibilityLabel={t('common.settings')}>
                 <SymbolView name="gearshape" tintColor={colors.primary} size={22} />
               </PressableScale>
             </View>
@@ -105,13 +106,13 @@ export default function ProfileScreen() {
 
         <View style={styles.buttons}>
           <Button
-            title="Profili düzenle"
+            title={t('me.editProfile')}
             variant="outline"
             size="sm"
             onPress={() => router.push('/profil-duzenle')}
             style={styles.flex}
           />
-          <Button title="Paylaş" variant="outline" size="sm" onPress={shareProfile} style={styles.flex} />
+          <Button title={t('common.share')} variant="outline" size="sm" onPress={shareProfile} style={styles.flex} />
           <Button
             title=""
             icon="person.badge.plus"
@@ -119,6 +120,7 @@ export default function ProfileScreen() {
             size="sm"
             onPress={() => router.push('/arkadas-bul')}
             style={styles.iconButton}
+            accessibilityLabel={t('me.findFriends')}
           />
         </View>
 
@@ -126,44 +128,39 @@ export default function ProfileScreen() {
           <Divider />
           <MenuRow
             icon="checkmark.circle"
-            title="Gittiklerim"
+            title={t('me.beenTo')}
             count={scored.length}
             onPress={() => router.push({ pathname: '/gittiklerim/[id]', params: { id: me } })}
           />
           <Divider inset={spacing.lg + 26 + spacing.lg} />
-          <MenuRow icon="bookmark" title="Listem" count={saved.length} onPress={() => router.navigate('/listem')} />
-          <Divider inset={spacing.lg + 26 + spacing.lg} />
           <MenuRow
             icon="sparkles"
-            title="Sana özel öneriler"
-            subtitle={recsLocked ? `${scored.length}/${RECS_UNLOCK} mekân puanlayınca açılır` : undefined}
+            title={t('me.recs')}
+            subtitle={recsLocked ? t('me.recsLockedHint', { done: scored.length, total: RECS_UNLOCK }) : undefined}
             locked={recsLocked}
             onPress={() =>
-              Alert.alert(
-                'Sana özel öneriler',
-                recsLocked
-                  ? `${RECS_UNLOCK - scored.length} mekân daha puanla, zevkine göre öneriler açılsın.`
-                  : 'Kişisel öneriler çok yakında burada!',
-              )
+              recsLocked
+                ? Alert.alert(t('me.recs'), t('me.recsLockedText', { count: RECS_UNLOCK - scored.length }))
+                : router.push('/oneriler')
             }
           />
           <Divider />
         </View>
 
-        <TopThree items={myPlaces} title="Top 3’üm" />
+        <TopThree items={myPlaces} title={t('me.topThree')} />
 
         <View style={styles.cards}>
           <StatCard
             icon="trophy"
-            title="Sıralama"
+            title={t('me.ranking')}
             value={myRank ? `#${myRank}` : undefined}
             locked={!myRank}
             onPress={() => router.push('/siralama')}
           />
-          <StatCard icon="flame" title="Seri" value={`${streak} hafta`} />
+          <StatCard icon="flame" title={t('me.streak')} value={t('me.weeks', { count: streak })} />
         </View>
 
-        <TasteCard slices={taste} title="Damak zevkin" />
+        <TasteCard slices={taste} title={t('me.taste')} />
 
         <BadgeStrip badges={badges} />
 
@@ -178,18 +175,18 @@ export default function ProfileScreen() {
         <VisitedMap userId={me} name={profile?.name ?? ''} />
 
         <View style={styles.postsHeader}>
-          <Text variant="title3">Gönderilerim</Text>
+          <Text variant="title3">{t('me.myPosts')}</Text>
           <PressableScale onPress={() => router.push('/gonderi-olustur')} hitSlop={hitSlop} style={styles.newPost}>
             <SymbolView name="plus" tintColor={colors.primary} size={14} weight="bold" />
             <Text variant="subhead" color={colors.primary} style={styles.bold}>
-              Yeni
+              {t('me.newPost')}
             </Text>
           </PressableScale>
         </View>
         {postsQuery.isPending ? (
-          <LoadingView />
+          <PostGridSkeleton />
         ) : (
-          <PostGrid posts={myPosts} emptyText="Henüz gönderi paylaşmadın. Gittiğin bir mekânı paylaş!" />
+          <PostGrid posts={myPosts} emptyText={t('me.noPosts')} />
         )}
         <View style={{ height: spacing.xxl }} />
       </ScrollView>

@@ -1,13 +1,15 @@
 import { router } from 'expo-router';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActionSheetIOS, Alert, Linking, Platform, StyleSheet, View } from 'react-native';
 import ReanimatedSwipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 
 import type { FriendScore } from '@/api/content';
 import { PlaceImage, PressableScale, Text } from '@/components/ui';
-import { colors, hitSlop, radius, spacing } from '@/constants/theme';
-import { formatScore, priceLabel, timeAgo } from '@/lib/format';
+import { cuisineLabel } from '@/constants/cuisines';
+import { colors, hitSlop, onScoreColor, radius, scoreColor, spacing } from '@/constants/theme';
+import { formatScore, timeAgo } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
 import { linkSource } from '@/lib/links';
 import { useAppStore } from '@/store/app-store';
@@ -21,6 +23,7 @@ const ACTION_WIDTH = 80;
  */
 export function SavedPlaceCard({ entry, place, friends }: { entry: SavedPlace; place: Place; friends?: FriendScore }) {
   const { actions } = useAppStore();
+  const { t } = useTranslation();
   const swipeRef = useRef<SwipeableMethods>(null);
   const source = entry.link ? linkSource(entry.link) : null;
 
@@ -30,7 +33,7 @@ export function SavedPlaceCard({ entry, place, friends }: { entry: SavedPlace; p
     router.push({ pathname: '/degerlendir/[id]', params: { id: place.id } });
   };
   const openLink = () => {
-    if (entry.link) Linking.openURL(entry.link).catch(() => Alert.alert('Bağlantı açılamadı'));
+    if (entry.link) Linking.openURL(entry.link).catch(() => Alert.alert(t('failures.linkOpen')));
   };
   const edit = () =>
     router.push({ pathname: '/listeye-ekle', params: { placeId: place.id, kaynak: entry.origin } });
@@ -42,16 +45,16 @@ export function SavedPlaceCard({ entry, place, friends }: { entry: SavedPlace; p
   const showActions = () => {
     haptics.tap();
     const actions: { label: string; run: () => void; destructive?: boolean }[] = [
-      { label: 'Gittim, puanla', run: rate },
-      ...(source ? [{ label: `${source.label} gönderisini aç`, run: openLink }] : []),
-      { label: entry.origin === 'social' ? 'Bağlantıyı / notu düzenle' : 'Not ekle / düzenle', run: edit },
-      { label: 'Listemden çıkar', run: remove, destructive: true },
+      { label: t('saved.beenRate'), run: rate },
+      ...(source ? [{ label: t('place.openSource', { source: source.label }), run: openLink }] : []),
+      { label: entry.origin === 'social' ? t('saved.editLinkNote') : t('saved.editNote'), run: edit },
+      { label: t('common.removeFromList'), run: remove, destructive: true },
     ];
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
           title: place.name,
-          options: [...actions.map((a) => a.label), 'Vazgeç'],
+          options: [...actions.map((a) => a.label), t('common.cancel')],
           destructiveButtonIndex: actions.findIndex((a) => a.destructive),
           cancelButtonIndex: actions.length,
           tintColor: colors.primary,
@@ -61,7 +64,7 @@ export function SavedPlaceCard({ entry, place, friends }: { entry: SavedPlace; p
     } else {
       Alert.alert(place.name, undefined, [
         ...actions.map((a) => ({ text: a.label, onPress: a.run, style: a.destructive ? ('destructive' as const) : undefined })),
-        { text: 'Vazgeç', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
       ]);
     }
   };
@@ -75,8 +78,8 @@ export function SavedPlaceCard({ entry, place, friends }: { entry: SavedPlace; p
       onSwipeableWillOpen={() => haptics.select()}
       renderRightActions={() => (
         <View style={styles.actions}>
-          <SwipeAction icon="checkmark.circle.fill" label="Gittim" color={colors.primary} onPress={rate} />
-          <SwipeAction icon="trash.fill" label="Sil" color={colors.danger} onPress={remove} />
+          <SwipeAction icon="checkmark.circle.fill" label={t('saved.been')} color={colors.primary} onPress={rate} />
+          <SwipeAction icon="trash.fill" label={t('common.delete')} color={colors.danger} onPress={remove} />
         </View>
       )}>
       <PressableScale scaleTo={0.98} haptic={false} onPress={openPlace} onLongPress={showActions} style={styles.card}>
@@ -87,13 +90,13 @@ export function SavedPlaceCard({ entry, place, friends }: { entry: SavedPlace; p
             <Text variant="headline" numberOfLines={1} style={{ flex: 1 }}>
               {place.name}
             </Text>
-            <PressableScale onPress={showActions} haptic={false} hitSlop={hitSlop} accessibilityLabel="Seçenekler">
+            <PressableScale onPress={showActions} haptic={false} hitSlop={hitSlop} accessibilityLabel={t('moderation.options')}>
               <SymbolView name="ellipsis" tintColor={colors.textSecondary} size={16} />
             </PressableScale>
           </View>
 
           <Text variant="footnote" color={colors.textSecondary} numberOfLines={1}>
-            {place.cuisine} · {place.neighborhood} · {priceLabel(place.priceLevel)}
+            {cuisineLabel(place.cuisine)} · {place.neighborhood}
           </Text>
 
           {entry.note && (
@@ -113,9 +116,9 @@ export function SavedPlaceCard({ entry, place, friends }: { entry: SavedPlace; p
               </PressableScale>
             )}
             {friends && (
-              <View style={[styles.chip, styles.friendChip]}>
-                <SymbolView name="person.2.fill" tintColor={colors.onPrimary} size={11} />
-                <Text variant="caption" color={colors.onPrimary} style={{ fontVariant: ['tabular-nums'] }}>
+              <View style={[styles.chip, { backgroundColor: scoreColor(friends.average) }]}>
+                <SymbolView name="person.2.fill" tintColor={onScoreColor(friends.average)} size={11} />
+                <Text variant="caption" color={onScoreColor(friends.average)} style={{ fontVariant: ['tabular-nums'] }}>
                   {formatScore(friends.average)}
                 </Text>
               </View>
@@ -193,9 +196,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     borderRadius: radius.full,
     backgroundColor: colors.surface,
-  },
-  friendChip: {
-    backgroundColor: colors.primary,
   },
   actions: {
     flexDirection: 'row',

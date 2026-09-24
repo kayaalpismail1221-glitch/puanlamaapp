@@ -75,14 +75,24 @@ async function signUp(meta = {}, email = `${randomUUID()}@test.dev`) {
 }
 
 describe('kayıt', () => {
-  test('profil ve gizli iletişim bilgisi oluşur', async () => {
-    const id = await signUp({ name: 'Ayşe Yılmaz', username: 'ayseyilmaz', phone: '5321234567' });
+  test('profil oluşur, telefon numarası yalnızca sahibine görünür', async () => {
+    const id = await signUp({ name: 'Ayşe Yılmaz', username: 'ayseyilmaz', phone: '0532 123 45 67' });
     const profile = await one(id, 'select * from profiles where id = $1', [id]);
     assert.equal(profile.name, 'Ayşe Yılmaz');
     assert.equal(profile.username, 'ayseyilmaz');
     assert.equal(profile.onboarded_at, null);
     const priv = await one(id, 'select phone from profile_private where user_id = $1', [id]);
     assert.equal(priv.phone, '+905321234567');
+    assert.equal(profile.is_admin, false);
+    const other = await signUp({ name: 'Başka Biri' });
+    assert.equal(await one(other, 'select phone from profile_private where user_id = $1', [id]), undefined);
+  });
+
+  test('telefon isteğe bağlı; geçersiz numara saklanmaz', async () => {
+    const none = await signUp({ name: 'Telefonsuz' });
+    const bad = await signUp({ name: 'Sabit Hat', phone: '2161234567' });
+    assert.equal((await one(none, 'select phone from profile_private where user_id = $1', [none])).phone, null);
+    assert.equal((await one(bad, 'select phone from profile_private where user_id = $1', [bad])).phone, null);
   });
 
   test('alınmış kullanıcı adına sayı eklenir, Türkçe karakterler sadeleşir', async () => {
@@ -110,12 +120,28 @@ describe('kayıt', () => {
   });
 });
 
+describe('toplu mekân içe aktarımı', () => {
+  test('OSM kaynaklı mekân eklenir, aynı external_id tekrar eklenemez', async () => {
+    const insert = `insert into places (name, cuisine, neighborhood, district, city, latitude, longitude, source, external_id)
+      values ('Test Pizzacı', 'Pizzacı', 'Caferağa', 'Kadıköy', 'İstanbul', 40.99, 29.03, 'osm', 'node/1')`;
+    await db.exec(insert);
+    await rejects(db.exec(insert), /duplicate key/);
+    // Üyeler kendi ekledikleri mekâna 'osm' kaynağını yazamaz (sütun yetkisi yok)
+    const me = await signUp({ name: 'OSM Test', phone: '5551112299' });
+    await rejects(
+      as(me, `insert into places (name, cuisine, district, city, latitude, longitude, source) values ('X Yer', 'Kafe', 'Kadıköy', 'İstanbul', 40.99, 29.03, 'osm')`),
+      /42501/,
+    );
+    await db.exec(`delete from places where source = 'osm'`);
+  });
+});
+
 describe('erişim kuralları', () => {
   test('giriş yapmamış kullanıcı içerik göremez', async () => {
     await rejects(rows(null, 'select * from profiles'), /42501/);
     await rejects(rows(null, 'select * from post_view'), /42501/);
     await rejects(rows(null, `select feed_following()`), /42501/);
-    assert.equal((await rows(null, 'select * from cuisines')).length, 12);
+    assert.equal((await rows(null, 'select * from cuisines')).length, 23);
   });
 
   test('başkasının iletişim bilgisi ve Listem’i görünmez', async () => {
@@ -350,6 +376,113 @@ describe('takip ve engelleme', () => {
   });
 });
 
+describe('moderasyon', () => {
+  test('engellenenler listelenir ve engel kaldırılabilir', async () => {
+    const me = await signUp({ name: 'Engel Listesi' });
+    await as(me, `insert into blocks (blocked_id) values ($1)`, [USER(3)]);
+    const list = await rows(me, 'select id, username from blocked_users()');
+    assert.deepEqual(list.map((u) => u.id), [USER(3)]);
+    // Başkasının engel listesi görünmez
+    assert.equal((await rows(USER(1), 'select * from blocked_users()')).length, 0);
+    await as(me, `delete from blocks where blocked_id = $1`, [USER(3)]);
+    assert.equal((await rows(me, 'select * from blocked_users()')).length, 0);
+    assert.equal((await rows(me, 'select * from profile_view where id = $1', [USER(3)])).length, 1);
+    await rejects(rows(null, 'select * from blocked_users()'), /42501/);
+  });
+
+  test('uygunsuz ifadeler reddedilir, masum kelimeler geçer', async () => {
+    const me = await signUp({ name: 'Yorumcu' });
+    const post = POST(1);
+    const comment = (body) => as(me, `insert into comments (post_id, body) values ($1, $2)`, [post, body]);
+    for (const bad of ['amk bu ne', 'Tam bir OROSPU çocuğu', 'what the fuck', 'siktir git', 'Şerefsizler']) {
+      await rejects(comment(bad), /Uygunsuz ifade/);
+    }
+    for (const ok of ['Şikâyet ettim ama götürdüler', 'Sikke gibi pide', 'Amasya elması', 'Dick’s burger', 'Pastası çok iyi', 'I got the kebab', 'Nice pic!']) {
+      await comment(ok);
+    }
+    await rejects(as(me, `update profiles set name = 'Salak Adam' where id = $1`, [me]), /Uygunsuz ifade/);
+    await rejects(
+      as(me, `insert into places (name, cuisine, district, city, latitude, longitude) values ('Orospu Kebap', 'Kebapçı', 'Kadıköy', 'İstanbul', 40.99, 29.03)`),
+      /Uygunsuz ifade/,
+    );
+    // Hata ipucu uygulamanın çevirisi için sabit
+    try {
+      await comment('amk');
+    } catch (error) {
+      assert.equal(error.hint, 'objectionable');
+    }
+  });
+});
+
+describe('öneriler', () => {
+  test('gitmediğin, beğenilen mekânlar; arkadaş puanı öne çıkar', async () => {
+    const me = await signUp({ name: 'Öneri Arayan' });
+    await as(me, `insert into follows (followee_id) values ($1)`, [USER(1)]);
+    await as(me, `select rank_place($1, 'liked', 0)`, [PLACE(1)]);
+    const recs = await rows(me, 'select * from recommended_places(40.99, 29.03, 50)');
+    assert.ok(recs.length > 0);
+    assert.ok(!recs.some((r) => r.id === PLACE(1)), 'puanladığın mekân önerilmez');
+    assert.ok(recs.every((r) => (r.friend_average ?? r.community_average) >= 6.7));
+    assert.ok(recs.every((r) => r.distance_km !== null));
+    const friendRated = await rows(me, 'select place_id from rankings where user_id = $1 and score >= 6.7', [USER(1)]);
+    const withFriend = recs.filter((r) => r.friend_count > 0);
+    assert.ok(withFriend.every((r) => friendRated.some((f) => f.place_id === r.id)));
+    // Konumsuz da çalışır; engellenen kişinin puanı sayılmaz
+    assert.ok((await rows(me, 'select * from recommended_places()')).length > 0);
+    await rejects(rows(null, 'select * from recommended_places()'), /42501/);
+  });
+});
+
+describe('yönetici moderasyonu', () => {
+  test('yalnızca yönetici şikâyetleri görür; kapatma, kaldırma ve yasaklama', async () => {
+    const admin = await signUp({ name: 'Yönetici' });
+    await db.exec(`update profiles set is_admin = true where id = '${admin}'`);
+    const reporter = await signUp({ name: 'Şikâyetçi' });
+    const offender = await signUp({ name: 'Kural Dışı' });
+
+    // Kullanıcı is_admin'i kendisi açamaz
+    await rejects(as(reporter, `update profiles set is_admin = true where id = $1`, [reporter]), /42501/);
+    await rejects(rows(reporter, 'select * from admin_reports()'), /42501/);
+
+    // Gönderi şikâyeti → kapat
+    await as(reporter, `insert into reports (post_id, reason) values ($1, 'spam')`, [POST(2)]);
+    await as(admin, `insert into reports (post_id, reason) values ($1, 'offensive')`, [POST(2)]);
+    let queue = await rows(admin, 'select * from admin_reports()');
+    const postReport = queue.find((r) => r.target_id === POST(2));
+    assert.equal(postReport.target_type, 'post');
+    assert.equal(postReport.report_count, 2);
+    assert.equal(postReport.author_id, USER(2));
+    assert.ok(postReport.place_name);
+    await as(admin, `select admin_resolve_report($1, 'dismiss')`, [postReport.id]);
+    queue = await rows(admin, 'select * from admin_reports()');
+    assert.ok(!queue.some((r) => r.target_id === POST(2)));
+    assert.equal((await rows(admin, 'select id from posts where id = $1', [POST(2)])).length, 1);
+
+    // Yorum şikâyeti → kaldır
+    const comment = (await one(offender, `insert into comments (post_id, body) values ($1, 'Berbat bir yer') returning id`, [POST(3)])).id;
+    await as(reporter, `insert into reports (comment_id, reason) values ($1, 'offensive')`, [comment]);
+    const commentReport = (await rows(admin, 'select * from admin_reports()')).find((r) => r.target_id === comment);
+    assert.equal(commentReport.preview, 'Berbat bir yer');
+    await as(admin, `select admin_resolve_report($1, 'remove')`, [commentReport.id]);
+    assert.equal((await rows(admin, 'select id from comments where id = $1', [comment])).length, 0);
+
+    // Kullanıcı şikâyeti → yasakla
+    await as(reporter, `insert into reports (user_id, reason) values ($1, 'fake')`, [offender]);
+    const userReport = (await rows(admin, 'select * from admin_reports()')).find((r) => r.target_id === offender);
+    await rejects(as(reporter, `select admin_resolve_report($1, 'ban')`, [userReport.id]), /42501/);
+    await as(admin, `select admin_resolve_report($1, 'ban')`, [userReport.id]);
+    const banned = (await db.query(`select banned_until from auth.users where id = $1`, [offender])).rows[0];
+    assert.ok(banned.banned_until);
+    assert.ok(!(await rows(admin, 'select * from admin_reports()')).some((r) => r.author_id === offender));
+
+    // Yönetici kendini yasaklayamaz, geçersiz işlem reddedilir
+    await as(reporter, `insert into reports (user_id, reason) values ($1, 'other')`, [admin]);
+    const selfReport = (await rows(admin, 'select * from admin_reports()')).find((r) => r.target_id === admin);
+    await rejects(as(admin, `select admin_resolve_report($1, 'ban')`, [selfReport.id]), /yasaklayamazsın/);
+    await rejects(as(admin, `select admin_resolve_report($1, 'delete')`, [selfReport.id]), /Geçersiz/);
+  });
+});
+
 describe('feed ve arama', () => {
   test('yakınımda: yarıçap genişler ve uzaklık döner', async () => {
     const me = await signUp({ name: 'Gezgin' });
@@ -411,6 +544,22 @@ describe('feed ve arama', () => {
     const scores = await rows(me, 'select * from friend_scores($1)', [[PLACE(7), PLACE(1)]]);
     assert.equal(scores.find((s) => s.place_id === PLACE(7)).count, 2);
     assert.equal((await one(me, 'select place_details($1) as d', [randomUUID()])).d, null);
+  });
+
+  test('harita: görünen bölgedeki puanlanmış mekânlar ve topluluk ortalaması', async () => {
+    const me = await signUp({ name: 'Haritacı' });
+    // İstanbul kutusu: Ankara/İzmir mekânları gelmez, puanlanmamış mekân gelmez
+    const pins = await rows(me, 'select * from map_places(40.8, 28.5, 41.3, 29.4)');
+    assert.ok(pins.length > 0);
+    assert.ok(pins.every((p) => p.city === 'İstanbul' && p.rating_count > 0));
+    const moda = pins.find((p) => p.id === PLACE(1));
+    const expected = await one(me, 'select avg(score)::float8 as a, count(*)::int as c from rankings where place_id = $1', [PLACE(1)]);
+    assert.equal(moda.rating_count, expected.c);
+    assert.equal(moda.average, expected.a);
+    // En çok puanlanan önce, sınır uygulanır
+    assert.ok(pins[0].rating_count >= pins.at(-1).rating_count);
+    assert.equal((await rows(me, 'select * from map_places(40.8, 28.5, 41.3, 29.4, 1)')).length, 1);
+    await rejects(rows(null, 'select * from map_places(40.8, 28.5, 41.3, 29.4)'), /42501/);
   });
 
   test('takip önerileri aynı okulu öne alır', async () => {

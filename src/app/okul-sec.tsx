@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { FlatList, StyleSheet, View } from 'react-native';
 
 import { Button, Divider, PressableScale, SearchField, Text } from '@/components/ui';
@@ -12,6 +13,7 @@ import { useAppStore } from '@/store/app-store';
 /** Profile okul (üniversite) ekle / değiştir */
 export default function PickSchoolScreen() {
   const { profile, actions } = useAppStore();
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const current = schoolById(profile?.schoolId);
 
@@ -31,9 +33,9 @@ export default function PickSchoolScreen() {
     <View style={styles.container}>
       <View style={styles.search}>
         <Text variant="subhead" color={colors.textSecondary}>
-          Okulunu eklersen okuluna özel liderlik tablosunda yer alırsın.
+          {t('school.intro')}
         </Text>
-        <SearchField value={query} onChangeText={setQuery} placeholder="Üniversite, kısaltma ya da şehir (ör. ODTÜ)" autoFocus />
+        <SearchField value={query} onChangeText={setQuery} placeholder={t('school.placeholder')} autoFocus />
       </View>
       <FlatList
         data={results}
@@ -43,12 +45,12 @@ export default function PickSchoolScreen() {
         ItemSeparatorComponent={() => <Divider inset={spacing.lg + 40 + spacing.md} />}
         ListEmptyComponent={
           <Text variant="subhead" color={colors.textSecondary} align="center" style={styles.empty}>
-            “{query}” ile eşleşen okul bulunamadı.
+            {t('school.noMatch', { query })}
           </Text>
         }
         ListFooterComponent={
           current ? (
-            <Button title="Okulu profilimden kaldır" variant="ghost" onPress={() => select(undefined)} style={styles.remove} />
+            <Button title={t('school.remove')} variant="ghost" onPress={() => select(undefined)} style={styles.remove} />
           ) : null
         }
         renderItem={({ item }) => {
@@ -63,7 +65,7 @@ export default function PickSchoolScreen() {
                   {item.name}
                 </Text>
                 <Text variant="footnote" color={colors.textSecondary}>
-                  {[item.short, item.city, item.type === 'state' ? 'Devlet' : 'Vakıf'].filter(Boolean).join(' · ')}
+                  {[item.short, item.city, item.type === 'state' ? t('school.state') : t('school.foundation')].filter(Boolean).join(' · ')}
                 </Text>
               </View>
               {active && <SymbolView name="checkmark" tintColor={colors.primary} size={16} weight="bold" />}

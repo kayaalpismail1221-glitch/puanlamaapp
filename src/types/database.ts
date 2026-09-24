@@ -20,6 +20,7 @@ export type ProfileRow = {
   school_id: string | null;
   year_goal: number | null;
   onboarded_at: string | null;
+  is_admin: boolean;
   follower_count: number;
   following_count: number;
   post_count: number;
@@ -348,12 +349,51 @@ export type Database = {
         Returns: Json;
       };
       place_details: { Args: { p_place_id: string }; Returns: Json };
+      map_places: {
+        Args: { p_south: number; p_west: number; p_north: number; p_east: number; p_limit?: number };
+        Returns: (PlaceViewRow & { average: number; rating_count: number })[];
+      };
       search_places: {
         Args: { p_query?: string; p_latitude?: number; p_longitude?: number; p_limit?: number };
         Returns: PlaceViewRow[];
       };
       search_users: { Args: { p_query: string; p_limit?: number }; Returns: ProfileViewRow[] };
       suggested_users: { Args: { p_limit?: number }; Returns: ProfileViewRow[] };
+      recommended_places: {
+        Args: { p_latitude?: number; p_longitude?: number; p_limit?: number };
+        Returns: (PlaceViewRow & {
+          friend_average: number | null;
+          friend_count: number;
+          community_average: number;
+          community_count: number;
+          distance_km: number | null;
+        })[];
+      };
+      admin_reports: {
+        Args: Record<string, never>;
+        Returns: {
+          id: string;
+          reason: 'spam' | 'offensive' | 'fake' | 'other';
+          details: string | null;
+          created_at: string;
+          reporter_username: string | null;
+          target_type: 'post' | 'comment' | 'user';
+          target_id: string;
+          post_id: string | null;
+          author_id: string | null;
+          author_name: string | null;
+          author_username: string | null;
+          preview: string | null;
+          photo: string | null;
+          place_name: string | null;
+          report_count: number;
+        }[];
+      };
+      admin_resolve_report: { Args: { p_report_id: string; p_action: 'dismiss' | 'remove' | 'ban' }; Returns: undefined };
+      blocked_users: {
+        Args: Record<string, never>;
+        Returns: { id: string; name: string; username: string; avatar_path: string | null; blocked_at: string }[];
+      };
       followers_of: {
         Args: { p_user_id: string; p_offset?: number; p_limit?: number };
         Returns: ProfileViewRow[];

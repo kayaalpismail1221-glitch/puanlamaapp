@@ -1,8 +1,9 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Marker, type Region } from 'react-native-maps';
 import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -10,29 +11,40 @@ import { GlassSurface } from '@/components/glass-surface';
 import { MapPin } from '@/components/map-pin';
 import { SegmentedControl } from '@/components/segmented-control';
 import { PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
+import { cuisineLabel } from '@/constants/cuisines';
 import { colors, radius, spacing } from '@/constants/theme';
 import { getPlace, useEntitiesVersion, usePrefetchPlaces } from '@/data/entities';
+import { useMapPlaces } from '@/hooks/queries';
 import { DEFAULT_REGION } from '@/lib/geo';
 import { haptics } from '@/lib/haptics';
 import { useAppStore } from '@/store/app-store';
 import type { Place } from '@/types';
 
-type Filter = 'all' | 'been' | 'want';
+type Filter = 'puanla' | 'been' | 'want';
 
-const FILTERS: { key: Filter; label: string }[] = [
-  { key: 'all', label: 'Tümü' },
-  { key: 'been', label: 'Gittiklerim' },
-  { key: 'want', label: 'Listem' },
-];
 
-type Pin = { place: Place; score?: number };
+/** `count`: topluluk pini ise kaç kişinin puanladığı (score = ortalama) */
+type Pin = { place: Place; score?: number; count?: number };
+
+const toBounds = (r: Region) => ({
+  south: r.latitude - r.latitudeDelta / 2,
+  north: r.latitude + r.latitudeDelta / 2,
+  west: r.longitude - r.longitudeDelta / 2,
+  east: r.longitude + r.longitudeDelta / 2,
+});
 
 export default function MapScreen() {
   const insets = useSafeAreaInsets();
   const { scored, saved } = useAppStore();
+  const { t } = useTranslation();
+  const filters: { key: Filter; label: string }[] = [
+    { key: 'puanla', label: t('map.community') },
+    { key: 'been', label: t('map.been') },
+    { key: 'want', label: t('map.want') },
+  ];
   // Listem'deki harita butonu `filtre=want` ile açar
   const { filtre } = useLocalSearchParams<{ filtre?: Filter }>();
-  const [filter, setFilter] = useState<Filter>(filtre ?? 'all');
+  const [filter, setFilter] = useState<Filter>(filtre ?? 'puanla');
   // Parametre değişince filtreyi güncelle (render sırasında, efekt olmadan)
   const [lastParam, setLastParam] = useState(filtre);
   if (filtre !== lastParam) {
@@ -40,10 +52,16 @@ export default function MapScreen() {
     if (filtre) setFilter(filtre);
   }
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [region, setRegion] = useState<Region>(DEFAULT_REGION);
   const version = useEntitiesVersion();
   usePrefetchPlaces([...scored, ...saved].map((e) => e.placeId));
+  // Topluluk katmanı yalnızca o sekmedeyken, görünen bölge için istenir
+  const community = useMapPlaces(filter === 'puanla' ? toBounds(region) : null);
 
   const pins = useMemo<Pin[]>(() => {
+    if (filter === 'puanla') {
+      return (community.data ?? []).map((r) => ({ place: r.place, score: r.average, count: r.count }));
+    }
     const been = scored.flatMap((e) => {
       const place = getPlace(e.placeId);
       return place ? [{ place, score: e.score }] : [];
@@ -52,11 +70,9 @@ export default function MapScreen() {
       const place = getPlace(s.placeId);
       return place ? [{ place }] : [];
     });
-    if (filter === 'been') return been;
-    if (filter === 'want') return want;
-    return [...been, ...want];
+    return filter === 'been' ? been : want;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scored, saved, filter, version]);
+  }, [scored, saved, filter, version, community.data]);
 
   const selected = pins.find((p) => p.place.id === selectedId);
 
@@ -66,6 +82,7 @@ export default function MapScreen() {
         style={StyleSheet.absoluteFill}
         initialRegion={DEFAULT_REGION}
         showsPointsOfInterests={false}
+        onRegionChangeComplete={setRegion}
         onPress={() => setSelectedId(null)}>
         {pins.map(({ place, score }) => (
           <Marker
@@ -85,7 +102,7 @@ export default function MapScreen() {
       <View style={[styles.filterWrap, { top: insets.top + spacing.sm }]} pointerEvents="box-none">
         <GlassSurface style={styles.filterBar}>
           <SegmentedControl
-            options={FILTERS}
+            options={filters}
             value={filter}
             onChange={(f) => {
               setFilter(f);
@@ -96,13 +113,11 @@ export default function MapScreen() {
         </GlassSurface>
       </View>
 
-      {pins.length === 0 && (
+      {pins.length === 0 && !(filter === 'puanla' && community.isPending) && (
         <View style={styles.emptyWrap} pointerEvents="none">
           <GlassSurface style={styles.emptyCard}>
             <Text variant="subhead" color={colors.textSecondary} align="center">
-              {filter === 'want'
-                ? 'Listene kaydettiğin mekânlar burada görünecek.'
-                : 'Puanladığın mekânlar haritada görünecek.'}
+              {filter === 'want' ? t('map.emptyWant') : filter === 'been' ? t('map.emptyBeen') : t('map.emptyCommunity')}
             </Text>
           </GlassSurface>
         </View>
@@ -122,8 +137,13 @@ export default function MapScreen() {
                 {selected.place.name}
               </Text>
               <Text variant="footnote" color={colors.textSecondary} numberOfLines={1}>
-                {selected.place.cuisine} · {selected.place.neighborhood}
+                {cuisineLabel(selected.place.cuisine)} · {selected.place.neighborhood}
               </Text>
+              {selected.count !== undefined && (
+                <Text variant="caption" color={colors.textSecondary}>
+                  {t('map.average', { count: selected.count })}
+                </Text>
+              )}
             </View>
             {selected.score !== undefined ? (
               <ScoreBadge score={selected.score} />

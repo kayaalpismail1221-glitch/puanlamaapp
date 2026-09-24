@@ -1,12 +1,14 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { OnboardingStep } from '@/components/onboarding-step';
 import { PlaceSearchList } from '@/components/place-picker';
 import { Button, PlaceImage, ScoreBadge, SearchField, Text } from '@/components/ui';
+import { cuisineLabel } from '@/constants/cuisines';
 import { colors, radius, spacing } from '@/constants/theme';
 import { usePlace } from '@/data/entities';
 import { useUserPosts } from '@/hooks/queries';
@@ -18,6 +20,7 @@ const rate = (id: string) => router.push({ pathname: '/degerlendir/[id]', params
 /** 5. En son gidilen restoranı puanla */
 export default function FirstRatingStep() {
   const { scored, scoreOf, userId } = useAppStore();
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const myPosts = useUserPosts(userId);
 
@@ -27,9 +30,15 @@ export default function FirstRatingStep() {
 
   return (
     <OnboardingStep
-      title="En son nerede yedin?"
-      subtitle="Gittiğin son restoranı bul ve puanla. Sıralaman buradan başlıyor."
-      footer={<Button title="Devam" disabled={!firstPlace} onPress={() => router.push('/onboarding/takip')} />}>
+      title={t('onboarding.firstRateTitle')}
+      subtitle={t('onboarding.firstRateSubtitle')}
+      footer={
+        firstPlace ? (
+          <Button title={t('onboarding.next')} onPress={() => router.push('/onboarding/takip')} />
+        ) : (
+          <Button title={t('onboarding.skip')} variant="ghost" onPress={() => router.push('/onboarding/takip')} />
+        )
+      }>
       {firstPlace && first ? (
         <>
           <Animated.View entering={FadeInDown.springify()} style={styles.rated}>
@@ -38,25 +47,25 @@ export default function FirstRatingStep() {
               <View style={styles.ratedLabel}>
                 <SymbolView name="checkmark.circle.fill" tintColor={colors.primary} size={14} />
                 <Text variant="caption" color={colors.primary} style={styles.bold}>
-                  {posted ? 'İlk gönderin paylaşıldı' : 'İlk puanın kaydedildi'}
+                  {posted ? t('onboarding.firstPostShared') : t('onboarding.firstRateSaved')}
                 </Text>
               </View>
               <Text variant="headline" numberOfLines={1}>
                 {firstPlace.name}
               </Text>
               <Text variant="footnote" color={colors.textSecondary}>
-                {firstPlace.cuisine} · {firstPlace.neighborhood}
+                {cuisineLabel(firstPlace.cuisine)} · {firstPlace.neighborhood}
               </Text>
             </View>
             <ScoreBadge score={first.score} />
           </Animated.View>
           <Text variant="subhead" color={colors.textSecondary} style={styles.note}>
-            Harika! Bundan sonra gittiğin her yeri puanladıkça Puanla onları senin için sıralayacak.
+            {t('onboarding.firstRateNote')}
           </Text>
           {!posted && (
             <View style={styles.postLink}>
               <Button
-                title="Gönderi olarak paylaş"
+                title={t('onboarding.shareAsPost')}
                 variant="secondary"
                 onPress={() =>
                   router.push({ pathname: '/gonderi-olustur', params: { placeId: firstPlace.id, akis: 'onboarding' } })
@@ -68,7 +77,7 @@ export default function FirstRatingStep() {
       ) : (
         <>
           <View style={styles.search}>
-            <SearchField value={query} onChangeText={setQuery} placeholder="Restoran, semt veya mutfak ara" />
+            <SearchField value={query} onChangeText={setQuery} placeholder={t('onboarding.firstRateSearch')} />
           </View>
           <PlaceSearchList
             query={query}

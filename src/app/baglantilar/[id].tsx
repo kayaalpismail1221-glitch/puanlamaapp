@@ -1,9 +1,11 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { FlatList, StyleSheet } from 'react-native';
 
 import { SegmentTabs } from '@/components/segment-tabs';
-import { Divider, ErrorView, LoadingView, Text } from '@/components/ui';
+import { UserRowsSkeleton } from '@/components/skeleton';
+import { Divider, ErrorView, Text } from '@/components/ui';
 import { UserRow } from '@/components/user-row';
 import { colors, spacing } from '@/constants/theme';
 import { useUser } from '@/data/entities';
@@ -16,6 +18,7 @@ type Tab = 'takipci' | 'takip';
 export default function ConnectionsScreen() {
   const { id, tur } = useLocalSearchParams<{ id: string; tur?: Tab }>();
   const [tab, setTab] = useState<Tab>(tur ?? 'takipci');
+  const { t } = useTranslation();
 
   const user = useUser(id);
   const profile = useUserProfile(id);
@@ -25,11 +28,11 @@ export default function ConnectionsScreen() {
   const tabs = [
     {
       key: 'takipci',
-      label: `Takipçi ${profile.data?.followerCount ?? ''}`.trim(),
+      label: `${t('connections.followers')} ${profile.data?.followerCount ?? ''}`.trim(),
     },
     {
       key: 'takip',
-      label: `Takip ${profile.data?.followingCount ?? ''}`.trim(),
+      label: `${t('connections.following')} ${profile.data?.followingCount ?? ''}`.trim(),
     },
   ] as const;
 
@@ -37,7 +40,7 @@ export default function ConnectionsScreen() {
     <>
       <Stack.Screen
         options={{
-          title: user ? (isMe(id) ? 'Bağlantıların' : user.name) : '',
+          title: user ? (isMe(id) ? t('connections.mine') : user.name) : '',
         }}
       />
       <FlatList
@@ -49,12 +52,12 @@ export default function ConnectionsScreen() {
         ItemSeparatorComponent={() => <Divider inset={spacing.lg + 44 + spacing.md} />}
         ListEmptyComponent={
           list.isPending ? (
-            <LoadingView />
+            <UserRowsSkeleton />
           ) : list.isError ? (
             <ErrorView onRetry={() => list.refetch()} />
           ) : (
             <Text variant="subhead" color={colors.textSecondary} align="center" style={styles.empty}>
-              {tab === 'takipci' ? 'Henüz takipçi yok.' : 'Henüz kimseyi takip etmiyor.'}
+              {tab === 'takipci' ? t('connections.noFollowers') : t('connections.noFollowing')}
             </Text>
           )
         }

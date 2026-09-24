@@ -1,3 +1,5 @@
+import { currentLanguage } from '@/i18n';
+
 export type Coords = { latitude: number; longitude: number };
 
 /** İki nokta arası kuş uçuşu mesafe (km) */
@@ -13,8 +15,9 @@ export function distanceKm(a: Coords, b: Coords): number {
 }
 
 export function formatDistance(km: number): string {
+  const decimal = currentLanguage() === 'tr' ? ',' : '.';
   if (km < 1) return `${Math.max(100, Math.round((km * 1000) / 100) * 100)} m`;
-  return `${km < 10 ? km.toFixed(1).replace('.', ',') : Math.round(km)} km`;
+  return `${km < 10 ? km.toFixed(1).replace('.', decimal) : Math.round(km)} km`;
 }
 
 /** Varsayılan harita merkezi: Beşiktaş–Bebek hattı */

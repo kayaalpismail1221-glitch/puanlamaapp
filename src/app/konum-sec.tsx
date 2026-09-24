@@ -1,10 +1,12 @@
 import { router, Stack } from 'expo-router';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { FlatList, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
-import { Divider, ErrorView, LoadingView, PressableScale, SearchField, Text } from '@/components/ui';
+import { TextRowsSkeleton } from '@/components/skeleton';
+import { Divider, ErrorView, PressableScale, SearchField, Text } from '@/components/ui';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
 import { useAreas } from '@/hooks/queries';
 import { haptics } from '@/lib/haptics';
@@ -14,6 +16,7 @@ import type { FeedArea } from '@/types';
 /** Feed bölgesi seç: Yakınımda, bir şehir ya da şehrin bir ilçesi */
 export default function PickAreaScreen() {
   const { feedArea, actions } = useAppStore();
+  const { t } = useTranslation();
   const areas = useAreas();
   const [city, setCity] = useState<string | null>(null);
   const [query, setQuery] = useState('');
@@ -49,10 +52,10 @@ export default function PickAreaScreen() {
                 }}
                 hitSlop={hitSlop}
                 style={styles.back}
-                accessibilityLabel="Şehirler">
+                accessibilityLabel={t('area.cities')}>
                 <SymbolView name="chevron.left" tintColor={colors.primary} size={17} weight="semibold" />
                 <Text variant="body" color={colors.primary}>
-                  Şehirler
+                  {t('area.cities')}
                 </Text>
               </PressableScale>
             ),
@@ -66,12 +69,12 @@ export default function PickAreaScreen() {
           ListHeaderComponent={
             <Animated.View entering={FadeIn}>
               <View style={styles.search}>
-                <SearchField value={query} onChangeText={setQuery} placeholder="İlçe ara" />
+                <SearchField value={query} onChangeText={setQuery} placeholder={t('area.searchDistrict')} />
               </View>
               <AreaRow
                 icon="building.2"
-                title={`Tüm ${selectedCity.name}`}
-                subtitle={`${selectedCity.postCount} gönderi`}
+                title={t('area.allOf', { city: selectedCity.name })}
+                subtitle={t('area.posts', { count: selectedCity.postCount })}
                 active={isActive({ type: 'area', city: selectedCity.name })}
                 onPress={() => select({ type: 'area', city: selectedCity.name })}
               />
@@ -82,7 +85,7 @@ export default function PickAreaScreen() {
             <AreaRow
               icon="mappin.and.ellipse"
               title={item.name}
-              subtitle={`${item.postCount} gönderi · ${item.placeCount} mekân`}
+              subtitle={t('area.districtRow', { posts: item.postCount, places: item.placeCount })}
               active={isActive({ type: 'area', city: selectedCity.name, district: item.name })}
               onPress={() => select({ type: 'area', city: selectedCity.name, district: item.name })}
             />
@@ -101,7 +104,7 @@ export default function PickAreaScreen() {
 
   return (
     <View style={styles.container}>
-      <Stack.Screen options={{ title: 'Konum seç', headerLeft: undefined }} />
+      <Stack.Screen options={{ title: t('screens.chooseLocation'), headerLeft: undefined }} />
       <FlatList
         data={cities}
         keyExtractor={(c) => c.name}
@@ -110,33 +113,33 @@ export default function PickAreaScreen() {
         ListHeaderComponent={
           <>
             <View style={styles.search}>
-              <SearchField value={query} onChangeText={setQuery} placeholder="Şehir veya ilçe ara" />
+              <SearchField value={query} onChangeText={setQuery} placeholder={t('area.searchCityOrDistrict')} />
             </View>
             {!q && (
               <>
                 <AreaRow
                   icon="location.fill"
-                  title="Yakınımda"
-                  subtitle="Bulunduğun yerin çevresindeki popüler gönderiler"
+                  title={t('feed.near')}
+                  subtitle={t('area.nearSubtitle')}
                   active={isActive({ type: 'near' })}
                   onPress={() => select({ type: 'near' })}
                   highlight
                 />
                 <Text variant="footnote" color={colors.textSecondary} style={styles.sectionLabel}>
-                  ŞEHİRLER
+                  {t('area.citiesHeader')}
                 </Text>
               </>
             )}
           </>
         }
         ListEmptyComponent={
-          areas.isPending ? <LoadingView /> : areas.isError ? <ErrorView onRetry={() => areas.refetch()} /> : null
+          areas.isPending ? <TextRowsSkeleton /> : areas.isError ? <ErrorView onRetry={() => areas.refetch()} /> : null
         }
         renderItem={({ item }) => (
           <AreaRow
             icon="building.2"
             title={item.name}
-            subtitle={`${item.districts.length} ilçe · ${item.postCount} gönderi`}
+            subtitle={t('area.cityRow', { districts: item.districts.length, posts: item.postCount })}
             active={feedArea.type === 'area' && feedArea.city === item.name}
             chevron
             onPress={() => {

@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { BigInput, OnboardingStep } from '@/components/onboarding-step';
 import { Button } from '@/components/ui';
@@ -10,6 +11,7 @@ import { useAppStore } from '@/store/app-store';
 /** 2. E-posta */
 export default function EmailStep() {
   const { draft, actions } = useAppStore();
+  const { t } = useTranslation();
   const [email, setEmail] = useState(draft.email ?? '');
   const [touched, setTouched] = useState(false);
   const valid = isValidEmail(email);
@@ -26,16 +28,16 @@ export default function EmailStep() {
 
   return (
     <OnboardingStep
-      title="E-posta adresin?"
-      subtitle="Hesabını kurtarmak ve önemli bildirimler için kullanacağız."
-      footer={<Button title="Devam" onPress={next} disabled={!email.trim()} />}>
+      title={t('onboarding.emailTitle')}
+      subtitle={t('onboarding.emailSubtitle')}
+      footer={<Button title={t('onboarding.next')} onPress={next} disabled={!email.trim()} />}>
       <BigInput
         value={email}
-        onChangeText={(t) => {
-          setEmail(t);
+        onChangeText={(text) => {
+          setEmail(text);
           if (touched) setTouched(false);
         }}
-        placeholder="ornek@mail.com"
+        placeholder={t('onboarding.emailPlaceholder')}
         keyboardType="email-address"
         textContentType="emailAddress"
         autoComplete="email"
@@ -45,7 +47,7 @@ export default function EmailStep() {
         onSubmitEditing={next}
         style={{ fontSize: 24 }}
         valid={valid}
-        error={touched && !valid ? 'Bu e-posta adresi geçerli görünmüyor.' : undefined}
+        error={touched && !valid ? t('onboarding.emailInvalid') : undefined}
       />
     </OnboardingStep>
   );

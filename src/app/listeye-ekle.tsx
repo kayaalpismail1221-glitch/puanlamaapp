@@ -1,14 +1,16 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PlacePicker } from '@/components/place-picker';
 import { Button, PlaceImage, PressableScale, Text } from '@/components/ui';
+import { cuisineLabel } from '@/constants/cuisines';
 import { colors, radius, spacing, typography } from '@/constants/theme';
 import { usePlace } from '@/data/entities';
+import { useKeyboardFooterStyle } from '@/hooks/use-keyboard-footer';
 import { readClipboardLink, useClipboardHasUrl } from '@/lib/clipboard';
 import { haptics } from '@/lib/haptics';
 import { linkSource, normalizeUrl } from '@/lib/links';
@@ -29,7 +31,8 @@ type Params = {
 export default function AddToListScreen() {
   const params = useLocalSearchParams<Params>();
   const { saved, actions } = useAppStore();
-  const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
+  const footerStyle = useKeyboardFooterStyle();
 
   const [placeId, setPlaceId] = useState(params.placeId);
   const existing = saved.find((s) => s.placeId === placeId);
@@ -58,7 +61,7 @@ export default function AddToListScreen() {
     });
   }, [autoPaste]);
 
-  const title = isSocial ? 'Sosyal medyadan kaydet' : 'Mekân kaydet';
+  const title = isSocial ? t('addToList.fromSocialTitle') : t('addToList.savePlaceTitle');
   const place = usePlace(placeId);
 
   // 1. adım: mekân seç
@@ -70,12 +73,12 @@ export default function AddToListScreen() {
           <View style={styles.pickedLink}>
             <SymbolView name={linkSource(link).icon} tintColor={colors.primary} size={16} />
             <Text variant="footnote" color={colors.primary} numberOfLines={1} style={{ flex: 1 }}>
-              {linkSource(link).label} bağlantısı eklendi
+              {t('addToList.linkAdded', { source: linkSource(link).label })}
             </Text>
           </View>
         ) : null}
         <PlacePicker
-          title={isSocial ? 'Gönderide hangi mekân vardı?' : 'Hangi mekânı kaydetmek istiyorsun?'}
+          title={isSocial ? t('addToList.whichPlaceSocial') : t('addToList.whichPlace')}
           onSelect={(item) => {
             const prev = saved.find((s) => s.placeId === item.id);
             setLink((l) => l || prev?.link || '');
@@ -105,10 +108,7 @@ export default function AddToListScreen() {
 
   // 2. adım: bağlantı ve not
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={64}>
+    <View style={styles.container}>
       <Stack.Screen options={{ title }} />
       <ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
         <Animated.View entering={FadeIn}>
@@ -117,19 +117,19 @@ export default function AddToListScreen() {
             disabled={!!params.placeId}
             scaleTo={0.98}
             style={styles.placeCard}
-            accessibilityLabel="Mekânı değiştir">
+            accessibilityLabel={t('addToList.changePlace')}>
             <PlaceImage uri={place.photoUrl} style={styles.placeImage} />
             <View style={{ flex: 1, gap: 2 }}>
               <Text variant="headline" numberOfLines={1}>
                 {place.name}
               </Text>
               <Text variant="footnote" color={colors.textSecondary}>
-                {place.cuisine} · {place.neighborhood}
+                {cuisineLabel(place.cuisine)} · {place.neighborhood}
               </Text>
             </View>
             {!params.placeId && (
               <Text variant="subhead" color={colors.primary} style={styles.bold}>
-                Değiştir
+                {t('common.change')}
               </Text>
             )}
           </PressableScale>
@@ -138,13 +138,13 @@ export default function AddToListScreen() {
         {isSocial && (
           <View style={styles.field}>
             <Text variant="footnote" color={colors.textSecondary}>
-              Gönderi bağlantısı
+              {t('addToList.postLink')}
             </Text>
             {clipboardHasUrl && !link && (
               <PressableScale onPress={pasteLink} style={styles.pasteBanner}>
                 <SymbolView name="doc.on.clipboard" tintColor={colors.primary} size={18} />
                 <Text variant="subhead" color={colors.primary} style={styles.bold}>
-                  Panodaki bağlantıyı yapıştır
+                  {t('addToList.pasteFromClipboard')}
                 </Text>
               </PressableScale>
             )}
@@ -153,7 +153,7 @@ export default function AddToListScreen() {
               <TextInput
                 value={link}
                 onChangeText={setLink}
-                placeholder="instagram.com/p/…"
+                placeholder={t('addToList.linkPlaceholder')}
                 placeholderTextColor={colors.textTertiary}
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -162,31 +162,31 @@ export default function AddToListScreen() {
                 style={[typography.body, styles.linkInput]}
               />
               {link ? (
-                <PressableScale onPress={() => setLink('')} accessibilityLabel="Bağlantıyı temizle">
+                <PressableScale onPress={() => setLink('')} accessibilityLabel={t('addToList.clearLink')}>
                   <SymbolView name="xmark.circle.fill" tintColor={colors.textTertiary} size={18} />
                 </PressableScale>
               ) : (
                 <PressableScale onPress={pasteLink} style={styles.pasteButton}>
                   <Text variant="footnote" color={colors.primary} style={styles.bold}>
-                    Yapıştır
+                    {t('addToList.paste')}
                   </Text>
                 </PressableScale>
               )}
             </View>
             <Text variant="caption" color={colors.textSecondary}>
-              {source ? `Kaynak: ${source.label}` : 'İsteğe bağlı. Instagram’da “Bağlantıyı kopyala” de, buraya yapıştır.'}
+              {source ? t('addToList.source', { source: source.label }) : t('addToList.linkHint')}
             </Text>
           </View>
         )}
 
         <View style={styles.field}>
           <Text variant="footnote" color={colors.textSecondary}>
-            Not
+            {t('addToList.note')}
           </Text>
           <TextInput
             value={note}
             onChangeText={setNote}
-            placeholder={isSocial ? 'Ör. Mantısı övülüyordu, hafta sonu dene' : 'Ör. Doğum günü için güzel olabilir'}
+            placeholder={isSocial ? t('addToList.notePlaceholderSocial') : t('addToList.notePlaceholder')}
             placeholderTextColor={colors.textTertiary}
             multiline
             maxLength={200}
@@ -195,10 +195,10 @@ export default function AddToListScreen() {
         </View>
       </ScrollView>
 
-      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
-        <Button title={existing ? 'Güncelle' : 'Listeme kaydet'} icon="bookmark.fill" onPress={save} />
-      </View>
-    </KeyboardAvoidingView>
+      <Animated.View style={[styles.footer, footerStyle]}>
+        <Button title={existing ? t('addToList.update') : t('common.saveToList')} icon="bookmark.fill" onPress={save} />
+      </Animated.View>
+    </View>
   );
 }
 

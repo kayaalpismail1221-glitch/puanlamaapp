@@ -14,11 +14,6 @@ export const SENTIMENT_RANGES: Record<Sentiment, { min: number; max: number }> =
 
 export const SENTIMENT_ORDER: Sentiment[] = ['liked', 'fine', 'disliked'];
 
-export const SENTIMENT_LABELS: Record<Sentiment, string> = {
-  liked: 'Beğendim',
-  fine: 'İdare eder',
-  disliked: 'Beğenmedim',
-};
 
 export const emptyRankings = (): Rankings => ({ liked: [], fine: [], disliked: [] });
 

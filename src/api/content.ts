@@ -1,14 +1,14 @@
 import * as Crypto from 'expo-crypto';
 
 import { unwrap } from '@/api/errors';
-import { toComment, toUserProfile } from '@/api/mappers';
+import { mediaUrl, toComment, toUserProfile } from '@/api/mappers';
 import { prepareImage, removeFiles, uploadImage, type LocalImage } from '@/api/storage';
 import { ingestPlaces, ingestPosts, ingestUsers, upsertUsers } from '@/data/entities';
 import type { Coords } from '@/lib/geo';
 import type { LeaderboardEntry, LeaderboardPeriod, LeaderboardScope } from '@/lib/leaderboard';
 import { supabase } from '@/lib/supabase';
 import type { AreaViewRow, PlaceDetailsJson, PopularFeedJson, ProfileViewRow } from '@/types/database';
-import type { Comment, FeedArea, Meal, Place, Post, PriceBucket, UserProfile } from '@/types';
+import type { Comment, FeedArea, Meal, Place, Post, UserProfile } from '@/types';
 
 /**
  * Paylaşılan içerik: feed, gönderiler, yorumlar, mekânlar, kişiler ve liderlik tablosu.
@@ -66,9 +66,7 @@ export type NewPost = {
   placeId: string;
   photos: LocalImage[];
   caption?: string;
-  pricePerPerson?: PriceBucket;
   meal?: Meal;
-  dishes: string[];
   highlights: string[];
   taggedUserIds: string[];
 };
@@ -105,9 +103,10 @@ export async function createPost(userId: string, input: NewPost, onProgress?: (p
         p_id: id,
         p_place_id: input.placeId,
         p_caption: input.caption ?? null,
-        p_price: input.pricePerPerson ?? null,
+        // Fiyat ve yenilenler artık sorulmuyor; sütunlar eski gönderiler için duruyor
+        p_price: null,
         p_meal: input.meal ?? null,
-        p_dishes: input.dishes,
+        p_dishes: [],
         p_highlights: input.highlights,
         p_tagged: input.taggedUserIds,
         p_photos: photos,
@@ -121,6 +120,24 @@ export async function createPost(userId: string, input: NewPost, onProgress?: (p
     removeFiles('post-photos', uploaded).catch(() => {});
     throw error;
   }
+}
+
+export type PostPatch = { caption?: string; meal?: Meal; highlights: string[] };
+
+/** Gönderinin metin bilgilerini düzenler (fotoğraflar ve puan değişmez); güncel gönderiyi döner */
+export async function updatePost(post: Post, patch: PostPatch): Promise<Post> {
+  unwrap(
+    await supabase
+      .from('posts')
+      .update({ caption: patch.caption ?? null, meal: patch.meal ?? null, highlights: patch.highlights })
+      .eq('id', post.id),
+  );
+  return {
+    ...post,
+    caption: patch.caption,
+    meal: patch.meal,
+    highlights: patch.highlights.length ? patch.highlights : undefined,
+  };
 }
 
 export async function deletePost(userId: string, post: Post) {
@@ -185,7 +202,36 @@ export async function block(userId: string) {
   if (error && error.code !== '23505') throw error;
 }
 
+export type BlockedUser = { id: string; name: string; username: string; avatarUrl?: string };
+
+/** Engellediğin kişiler (Ayarlar > Engellenenler) */
+export async function fetchBlockedUsers(): Promise<BlockedUser[]> {
+  const rows = unwrap(await supabase.rpc('blocked_users'));
+  return rows.map((r) => ({ id: r.id, name: r.name, username: r.username, avatarUrl: mediaUrl('avatars', r.avatar_path) }));
+}
+
+export async function unblock(userId: string) {
+  unwrap(await supabase.from('blocks').delete().eq('blocked_id', userId));
+}
+
 /* ---------- Mekânlar ---------- */
+
+export type MapBounds = { south: number; west: number; north: number; east: number };
+export type RatedPlace = { place: Place; average: number; count: number };
+
+/** Haritada görünen bölgede Puanla kullanıcılarının puanladığı mekânlar ve topluluk ortalaması */
+export async function fetchMapPlaces(bounds: MapBounds): Promise<RatedPlace[]> {
+  const rows = unwrap(
+    await supabase.rpc('map_places', {
+      p_south: bounds.south,
+      p_west: bounds.west,
+      p_north: bounds.north,
+      p_east: bounds.east,
+    }),
+  );
+  const places = ingestPlaces(rows);
+  return rows.map((r, i) => ({ place: places[i]!, average: r.average, count: r.rating_count }));
+}
 
 export async function searchPlaces(query: string, coords: Coords | null): Promise<Place[]> {
   const rows = unwrap(
@@ -199,7 +245,7 @@ export async function searchPlaces(query: string, coords: Coords | null): Promis
   return ingestPlaces(rows);
 }
 
-export type NewPlace = Pick<Place, 'name' | 'cuisine' | 'neighborhood' | 'district' | 'city' | 'priceLevel' | 'latitude' | 'longitude'>;
+export type NewPlace = Pick<Place, 'name' | 'cuisine' | 'neighborhood' | 'district' | 'city' | 'latitude' | 'longitude'>;
 
 /** Veritabanında olmayan bir mekânı ekler (günlük sınır veritabanında) */
 export async function createPlace(input: NewPlace): Promise<Place> {
@@ -212,7 +258,6 @@ export async function createPlace(input: NewPlace): Promise<Place> {
         neighborhood: input.neighborhood.trim(),
         district: input.district.trim(),
         city: input.city.trim(),
-        price_level: input.priceLevel,
         latitude: input.latitude,
         longitude: input.longitude,
       })
@@ -228,10 +273,7 @@ export type PlaceDetails = {
   rating?: { average: number; count: number };
   postCount: number;
   summary: {
-    price?: { key: PriceBucket; count: number };
-    priceVotes: number;
     highlights: { label: string; count: number }[];
-    dishes: { name: string; count: number }[];
   };
   /** Takip edilenlerin puanları, yüksekten düşüğe */
   friends: { userId: string; score: number; postId?: string }[];
@@ -247,13 +289,39 @@ export async function fetchPlaceDetails(placeId: string): Promise<PlaceDetails |
     rating: details.rating.count ? { average: details.rating.average ?? 0, count: details.rating.count } : undefined,
     postCount: details.post_count,
     summary: {
-      price: details.summary.price ?? undefined,
-      priceVotes: details.summary.price_votes,
       highlights: details.summary.highlights,
-      dishes: details.summary.dishes,
     },
     friends: details.friends.map((f) => ({ userId: f.user.id, score: f.score, postId: f.post_id ?? undefined })),
   };
+}
+
+export type Recommendation = {
+  place: Place;
+  friendAverage?: number;
+  friendCount: number;
+  communityAverage: number;
+  communityCount: number;
+  distanceKm?: number;
+};
+
+/** Sana özel öneriler: arkadaşlarının ve topluluğun beğendiği, henüz gitmediğin mekânlar */
+export async function fetchRecommendations(coords: Coords | null): Promise<Recommendation[]> {
+  const rows = unwrap(
+    await supabase.rpc('recommended_places', {
+      p_latitude: coords?.latitude,
+      p_longitude: coords?.longitude,
+      p_limit: 40,
+    }),
+  );
+  const places = ingestPlaces(rows);
+  return rows.map((r, i) => ({
+    place: places[i]!,
+    friendAverage: r.friend_average ?? undefined,
+    friendCount: r.friend_count,
+    communityAverage: r.community_average,
+    communityCount: r.community_count,
+    distanceKm: r.distance_km ?? undefined,
+  }));
 }
 
 export type FriendScore = { average: number; count: number };

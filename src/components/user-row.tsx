@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
 import { Avatar, PressableScale, Text } from '@/components/ui';
@@ -30,6 +31,7 @@ export function UserRow({ user, subtitle }: { user: User; subtitle?: string }) {
 
 export function FollowButton({ userId, large }: { userId: string; large?: boolean }) {
   const { isFollowing: follows, actions } = useAppStore();
+  const { t } = useTranslation();
   const isFollowing = follows(userId);
   return (
     <PressableScale
@@ -40,7 +42,7 @@ export function FollowButton({ userId, large }: { userId: string; large?: boolea
         variant={large ? 'headline' : 'subhead'}
         color={isFollowing ? colors.primary : colors.onPrimary}
         style={styles.followText}>
-        {isFollowing ? 'Takiptesin' : 'Takip et'}
+        {isFollowing ? t('follow.following') : t('follow.follow')}
       </Text>
     </PressableScale>
   );

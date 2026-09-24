@@ -1,9 +1,11 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { FlatList, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { OnboardingStep } from '@/components/onboarding-step';
-import { Avatar, Button, Divider, ErrorView, LoadingView, PressableScale, Text } from '@/components/ui';
+import { UserRowsSkeleton } from '@/components/skeleton';
+import { Avatar, Button, Divider, ErrorView, PressableScale, Text } from '@/components/ui';
 import { FollowButton } from '@/components/user-row';
 import { colors, spacing } from '@/constants/theme';
 import { useSuggestedUsers } from '@/hooks/queries';
@@ -15,6 +17,7 @@ const TARGET = 5;
 /** 6. En az 5 kişiyi takip et ve başla */
 export default function FollowStep() {
   const { following, isFollowing, actions } = useAppStore();
+  const { t } = useTranslation();
   const suggested = useSuggestedUsers(40);
   const [starting, setStarting] = useState(false);
   // Öneriler bu ekranda sabit kalsın; takip edilen kişi listeden kaybolmasın
@@ -38,15 +41,18 @@ export default function FollowStep() {
 
   return (
     <OnboardingStep
-      title={`${TARGET} kişiyi takip et`}
-      subtitle="Feed’in dolu başlasın. Takip ettiklerinin puanları önerilerini şekillendirir."
+      title={t('onboarding.followTitle', { count: TARGET })}
+      subtitle={t('onboarding.followSubtitle')}
       footer={
-        <Button
-          title={ready ? 'Başla' : `Başla (${count}/${required})`}
-          onPress={start}
-          disabled={!ready}
-          loading={starting}
-        />
+        <>
+          <Button
+            title={ready ? t('onboarding.start') : t('onboarding.startProgress', { count, required })}
+            onPress={start}
+            disabled={!ready}
+            loading={starting}
+          />
+          {!ready && !starting && <Button title={t('onboarding.skip')} variant="ghost" onPress={start} />}
+        </>
       }>
       <FlatList
         data={suggestions}
@@ -55,13 +61,13 @@ export default function FollowStep() {
         ListHeaderComponent={
           <View style={styles.header}>
             <Text variant="footnote" color={colors.textSecondary} style={styles.bold}>
-              ÖNERİLEN HESAPLAR
+              {t('onboarding.suggested')}
             </Text>
             {!ready && suggestions.length > 0 && (
               <Animated.View entering={FadeIn}>
                 <PressableScale onPress={followAll} haptic={false}>
                   <Text variant="subhead" color={colors.primary} style={styles.bold}>
-                    Hepsini takip et
+                    {t('onboarding.followAll')}
                   </Text>
                 </PressableScale>
               </Animated.View>
@@ -70,12 +76,12 @@ export default function FollowStep() {
         }
         ListEmptyComponent={
           suggested.isPending ? (
-            <LoadingView />
+            <UserRowsSkeleton />
           ) : suggested.isError ? (
             <ErrorView onRetry={() => suggested.refetch()} />
           ) : (
             <Text variant="subhead" color={colors.textSecondary} align="center" style={styles.empty}>
-              Henüz önerebileceğimiz kimse yok. Arkadaşlarını davet et, sonra buradan bulursun.
+              {t('onboarding.noSuggestions')}
             </Text>
           )
         }
@@ -87,7 +93,7 @@ export default function FollowStep() {
                 {item.name}
               </Text>
               <Text variant="footnote" color={colors.textSecondary} numberOfLines={1}>
-                @{item.username} · {item.postCount} değerlendirme
+                {t('friends.reviews', { username: item.username, count: item.postCount })}
               </Text>
             </View>
             <FollowButton userId={item.id} />

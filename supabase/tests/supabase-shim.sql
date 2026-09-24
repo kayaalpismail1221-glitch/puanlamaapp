@@ -40,7 +40,8 @@ create table auth.users (
   confirmation_token text,
   recovery_token text,
   email_change text,
-  email_change_token_new text
+  email_change_token_new text,
+  banned_until timestamptz
 );
 
 create table storage.buckets (

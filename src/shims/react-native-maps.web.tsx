@@ -3,15 +3,17 @@
  * iOS'ta gerçek Apple Haritalar kullanılır; bu dosya iOS paketine girmez (bkz. metro.config.js).
  */
 import { forwardRef, useImperativeHandle, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
 type MapProps = { style?: StyleProp<ViewStyle>; children?: ReactNode };
 
 const MapView = forwardRef(function MapView({ style }: MapProps, ref) {
+  const { t } = useTranslation();
   useImperativeHandle(ref, () => ({ animateToRegion: () => {}, fitToCoordinates: () => {} }));
   return (
     <View style={[styles.map, style]}>
-      <Text style={styles.text}>Harita (yalnızca iOS)</Text>
+      <Text style={styles.text}>{t('map.mapPlaceholder')}</Text>
     </View>
   );
 });

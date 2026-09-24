@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
 import { PlaceImage, PressableScale, Text } from '@/components/ui';
+import { cuisineLabel } from '@/constants/cuisines';
 import { colors, radius, spacing } from '@/constants/theme';
-import { priceLabel } from '@/lib/format';
 import type { Place } from '@/types';
 
 type Props = {
@@ -16,6 +17,7 @@ type Props = {
 };
 
 export function PlaceRow({ place, onPress, rank, trailing }: Props) {
+  useTranslation(); // dil değişince mutfak adı güncellensin
   return (
     <PressableScale onPress={onPress} scaleTo={0.98} style={styles.row}>
       {rank !== undefined && (
@@ -29,7 +31,7 @@ export function PlaceRow({ place, onPress, rank, trailing }: Props) {
           {place.name}
         </Text>
         <Text variant="footnote" color={colors.textSecondary} numberOfLines={1}>
-          {place.cuisine} · {place.neighborhood} · {priceLabel(place.priceLevel)}
+          {cuisineLabel(place.cuisine)} · {place.neighborhood}
         </Text>
       </View>
       {trailing}

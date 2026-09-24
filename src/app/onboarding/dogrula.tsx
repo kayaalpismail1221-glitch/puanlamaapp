@@ -1,5 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
 import { resendSignupCode, verifySignupCode } from '@/api/auth';
@@ -17,6 +18,7 @@ const CODE_LENGTH = 6;
  */
 export default function VerifyEmailStep() {
   const { email } = useLocalSearchParams<{ email: string }>();
+  const { t } = useTranslation();
   const [code, setCode] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [resent, setResent] = useState(false);
@@ -30,7 +32,7 @@ export default function VerifyEmailStep() {
     } catch (error) {
       haptics.warning();
       setCode('');
-      showError(error, 'Doğrulanamadı');
+      showError(error, t('failures.verify'));
     } finally {
       setVerifying(false);
     }
@@ -42,21 +44,21 @@ export default function VerifyEmailStep() {
       setResent(true);
       haptics.success();
     } catch (error) {
-      showError(error, 'Kod gönderilemedi');
+      showError(error, t('failures.codeSend'));
     }
   };
 
   return (
     <OnboardingStep
-      title="E-postanı doğrula"
-      subtitle={`${email} adresine 6 haneli bir kod gönderdik.`}
+      title={t('onboarding.verifyTitle')}
+      subtitle={t('onboarding.verifySubtitle', { email })}
       footer={
-        <Button title="Doğrula" onPress={() => verify()} disabled={code.length !== CODE_LENGTH} loading={verifying} />
+        <Button title={t('onboarding.verify')} onPress={() => verify()} disabled={code.length !== CODE_LENGTH} loading={verifying} />
       }>
       <BigInput
         value={code}
-        onChangeText={(t) => {
-          const digits = t.replace(/\D/g, '').slice(0, CODE_LENGTH);
+        onChangeText={(text) => {
+          const digits = text.replace(/\D/g, '').slice(0, CODE_LENGTH);
           setCode(digits);
           if (digits.length === CODE_LENGTH) verify(digits);
         }}
@@ -72,12 +74,12 @@ export default function VerifyEmailStep() {
       <View style={styles.resend}>
         {resent ? (
           <Text variant="footnote" color={colors.textSecondary}>
-            Yeni kod gönderildi. Gereksiz klasörünü de kontrol et.
+            {t('onboarding.codeResent')}
           </Text>
         ) : (
           <PressableScale onPress={resend} haptic={false}>
             <Text variant="footnote" color={colors.primary} style={styles.bold}>
-              Kod gelmedi mi? Yeniden gönder
+              {t('onboarding.resend')}
             </Text>
           </PressableScale>
         )}

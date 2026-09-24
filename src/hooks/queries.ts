@@ -2,7 +2,7 @@ import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
 import * as api from '@/api/content';
-import { adjustCommentCount, removePost } from '@/data/entities';
+import { adjustCommentCount, removePost, upsertPosts } from '@/data/entities';
 import type { Coords } from '@/lib/geo';
 import { useUserLocation } from '@/lib/location';
 import type { LeaderboardPeriod, LeaderboardScope } from '@/lib/leaderboard';
@@ -121,6 +121,17 @@ export function useDeletePost() {
   });
 }
 
+/** Gönderinin açıklama, öğün ve öne çıkanlarını düzenler; önbellekteki gönderi anında güncellenir */
+export function useUpdatePost() {
+  return useMutation({
+    mutationFn: ({ post, patch }: { post: Post; patch: api.PostPatch }) => api.updatePost(post, patch),
+    onSuccess: (updated) => {
+      upsertPosts([updated]);
+      invalidatePostLists(updated);
+    },
+  });
+}
+
 export function useAddComment(postId: string) {
   return useMutation({
     mutationFn: (text: string) => api.addComment(postId, text),
@@ -151,6 +162,38 @@ export function usePlaceDetails(placeId: string | undefined) {
     queryKey: keys.place(placeId ?? ''),
     queryFn: () => api.fetchPlaceDetails(placeId!),
     enabled: !!placeId,
+  });
+}
+
+/** Sana özel öneriler (konum varsa yakındakiler öne çıkar; ~1 km hassasiyet) */
+export function useRecommendations(enabled: boolean) {
+  const location = useUserLocation(enabled);
+  const rounded = location.coords && {
+    latitude: +location.coords.latitude.toFixed(2),
+    longitude: +location.coords.longitude.toFixed(2),
+  };
+  // Konum izni bekleniyorsa kısa süre bekle; izin yoksa konumsuz öner
+  const settled = !!location.coords || ['denied', 'undetermined', 'error'].includes(location.status);
+  return useQuery({
+    queryKey: keys.recommendations(rounded),
+    queryFn: () => api.fetchRecommendations(rounded),
+    enabled: enabled && settled,
+  });
+}
+
+/** Harita "Puanla" katmanı; küçük kaydırmalarda yeniden istek atmasın diye sınırlar yuvarlanır */
+export function useMapPlaces(bounds: api.MapBounds | null) {
+  const rounded = bounds && {
+    south: Math.floor(bounds.south * 100) / 100,
+    west: Math.floor(bounds.west * 100) / 100,
+    north: Math.ceil(bounds.north * 100) / 100,
+    east: Math.ceil(bounds.east * 100) / 100,
+  };
+  return useQuery({
+    queryKey: keys.mapPlaces(rounded),
+    queryFn: () => api.fetchMapPlaces(rounded!),
+    enabled: !!rounded,
+    placeholderData: (previous) => previous,
   });
 }
 

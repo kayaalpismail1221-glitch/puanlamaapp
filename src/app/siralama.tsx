@@ -1,10 +1,12 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { FlatList, StyleSheet, View } from 'react-native';
 
 import { SegmentedControl } from '@/components/segmented-control';
-import { Avatar, Button, Divider, ErrorView, LoadingView, PressableScale, Text } from '@/components/ui';
+import { UserRowsSkeleton } from '@/components/skeleton';
+import { Avatar, Button, Divider, ErrorView, PressableScale, Text } from '@/components/ui';
 import { colors, radius, spacing } from '@/constants/theme';
 import { schoolById, schoolLabel } from '@/data/schools';
 import { useUser } from '@/data/entities';
@@ -14,10 +16,7 @@ import type { LeaderboardEntry, LeaderboardPeriod, LeaderboardScope } from '@/li
 import { openUserProfile } from '@/lib/navigation';
 import { useAppStore } from '@/store/app-store';
 
-const PERIODS: { key: LeaderboardPeriod; label: string }[] = [
-  { key: 'all', label: 'Tüm zamanlar' },
-  { key: 'month', label: 'Bu ay' },
-];
+const PERIODS: LeaderboardPeriod[] = ['all', 'month'];
 
 /** Liderlik tablosu: en çok değerlendirme paylaşanlar */
 export default function LeaderboardScreen() {
@@ -27,6 +26,7 @@ export default function LeaderboardScreen() {
     okul?: string;
   }>();
   const { profile, userId } = useAppStore();
+  const { t } = useTranslation();
   const me = userId ?? '';
   const school = schoolById(okul ?? profile?.schoolId);
   const [scope, setScope] = useState<LeaderboardScope>(okul ? 'school' : 'all');
@@ -35,9 +35,9 @@ export default function LeaderboardScreen() {
   const entries = board.data ?? [];
 
   const scopes: { key: LeaderboardScope; label: string }[] = [
-    { key: 'all', label: 'Genel' },
-    { key: 'friends', label: 'Arkadaşlar' },
-    ...(school ? [{ key: 'school' as const, label: schoolLabel(school) }] : []),
+    { key: 'all', label: t('leaderboard.overall') },
+    { key: 'friends', label: t('leaderboard.friends') },
+    ...(school ? [{ key: 'school' as const, label: school.short ?? t('leaderboard.mySchool') }] : []),
   ];
 
   const highlight = vurgula ?? me;
@@ -47,7 +47,7 @@ export default function LeaderboardScreen() {
     <>
       <Stack.Screen
         options={{
-          title: scope === 'school' && school ? `${schoolLabel(school)} sıralaması` : 'Liderlik tablosu',
+          title: scope === 'school' && school ? t('leaderboard.schoolTitle', { school: schoolLabel(school) }) : t('screens.leaderboard'),
         }}
       />
       <FlatList
@@ -61,18 +61,18 @@ export default function LeaderboardScreen() {
             <SegmentedControl options={scopes} value={scope} onChange={setScope} style={styles.segment} />
             <View style={styles.periods}>
               {PERIODS.map((p) => {
-                const active = p.key === period;
+                const active = p === period;
                 return (
                   <PressableScale
-                    key={p.key}
+                    key={p}
                     haptic={false}
                     onPress={() => {
                       haptics.select();
-                      setPeriod(p.key);
+                      setPeriod(p);
                     }}
                     style={[styles.chip, active && styles.chipActive]}>
                     <Text variant="footnote" color={active ? colors.onPrimary : colors.text} style={styles.bold}>
-                      {p.label}
+                      {p === 'all' ? t('leaderboard.allTime') : t('leaderboard.thisMonth')}
                     </Text>
                   </PressableScale>
                 );
@@ -83,18 +83,18 @@ export default function LeaderboardScreen() {
             ) : scope === 'school' && school ? (
               <View style={styles.notMember}>
                 <Text variant="subhead" color={colors.textSecondary} style={{ flex: 1 }}>
-                  {school.name} tablosunda değilsin. Okulun burası mı?
+                  {t('leaderboard.notMember', { school: school.name })}
                 </Text>
-                <Button title="Okulumu ekle" size="sm" onPress={() => router.push('/okul-sec')} />
+                <Button title={t('leaderboard.addMySchool')} size="sm" onPress={() => router.push('/okul-sec')} />
               </View>
             ) : null}
             <Text variant="caption" color={colors.textSecondary} style={styles.explain}>
-              Sıralama paylaşılan değerlendirme sayısına göre yapılır. Eşitlikte daha çok beğeni alan öne geçer.
+              {t('leaderboard.explain')}
             </Text>
           </View>
         }
         ListEmptyComponent={
-          board.isPending ? <LoadingView /> : board.isError ? <ErrorView onRetry={() => board.refetch()} /> : null
+          board.isPending ? <UserRowsSkeleton rank action={false} count={8} /> : board.isError ? <ErrorView onRetry={() => board.refetch()} /> : null
         }
         renderItem={({ item }) => (
           <LeaderboardRow entry={item} highlighted={item.userId === highlight} isMe={item.userId === me} />
@@ -113,6 +113,7 @@ function LeaderboardRow({
   highlighted: boolean;
   isMe: boolean;
 }) {
+  const { t } = useTranslation();
   const user = useUser(item.userId);
   if (!user) return null;
   return (
@@ -124,10 +125,10 @@ function LeaderboardRow({
       <Avatar uri={user.avatarUrl} name={user.name} size={44} />
       <View style={{ flex: 1, gap: 2 }}>
         <Text variant="headline" numberOfLines={1}>
-          {isMe ? `${user.name} (sen)` : user.name}
+          {isMe ? t('leaderboard.you', { name: user.name }) : user.name}
         </Text>
         <Text variant="footnote" color={colors.textSecondary} numberOfLines={1}>
-          {item.likes} beğeni
+          {t('leaderboard.likes', { count: item.likes })}
         </Text>
       </View>
       <View style={styles.count}>
@@ -135,7 +136,7 @@ function LeaderboardRow({
           {item.reviews}
         </Text>
         <Text variant="caption" color={colors.textSecondary}>
-          değerlendirme
+          {t('leaderboard.reviews', { count: item.reviews })}
         </Text>
       </View>
     </PressableScale>
@@ -143,6 +144,7 @@ function LeaderboardRow({
 }
 
 function MyRankCard({ mine, entries }: { mine: LeaderboardEntry; entries: LeaderboardEntry[] }) {
+  const { t } = useTranslation();
   const above = [...entries].reverse().find((e) => e.rank < mine.rank);
   const needed = above ? above.reviews - mine.reviews + (mine.likes > above.likes ? 0 : 1) : 0;
 
@@ -153,18 +155,18 @@ function MyRankCard({ mine, entries }: { mine: LeaderboardEntry; entries: Leader
       </View>
       <View style={{ flex: 1, gap: 2 }}>
         <Text variant="headline" color={colors.primary}>
-          {mine.reviews === 0 ? 'Henüz sıralamada değilsin' : `Sıran: #${mine.rank}`}
+          {mine.reviews === 0 ? t('leaderboard.notRanked') : t('leaderboard.yourRank', { rank: mine.rank })}
         </Text>
         <Text variant="footnote" color={colors.textSecondary}>
           {mine.reviews === 0
-            ? 'İlk değerlendirmeni paylaş, tabloya gir.'
+            ? t('leaderboard.firstReview')
             : above
-              ? `${Math.max(needed, 1)} değerlendirme daha paylaşırsan #${above.rank} olursun.`
-              : 'Zirvedesin! 🏆'}
+              ? t('leaderboard.toClimb', { count: Math.max(needed, 1), rank: above.rank })
+              : t('leaderboard.top')}
         </Text>
       </View>
       {mine.reviews === 0 || above ? (
-        <Button title="Paylaş" onPress={() => router.push('/gonderi-olustur')} style={styles.myButton} />
+        <Button title={t('common.share')} onPress={() => router.push('/gonderi-olustur')} style={styles.myButton} />
       ) : null}
     </View>
   );

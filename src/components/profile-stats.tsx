@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
 import { PressableScale, Text } from '@/components/ui';
@@ -15,6 +16,7 @@ import { useAppStore } from '@/store/app-store';
  */
 export function ProfileStats({ userId }: { userId: string }) {
   const { following } = useAppStore();
+  const { t } = useTranslation();
   const profile = useUserProfile(userId);
   const rank = useUserRank(userId).data;
   // Kendi takip sayın anında güncellensin (sunucu sayacını beklemeden)
@@ -25,13 +27,13 @@ export function ProfileStats({ userId }: { userId: string }) {
 
   return (
     <View style={styles.row}>
-      <Stat label="Takipçi" onPress={() => openConnections('takipci')}>
+      <Stat label={t('follow.followers')} onPress={() => openConnections('takipci')}>
         <Value>{profile.data?.followerCount ?? '–'}</Value>
       </Stat>
-      <Stat label="Takip" onPress={() => openConnections('takip')}>
+      <Stat label={t('follow.followingCount')} onPress={() => openConnections('takip')}>
         <Value>{followingCount ?? '–'}</Value>
       </Stat>
-      <Stat label="Sıralama" onPress={() => router.push({ pathname: '/siralama', params: { vurgula: userId } })}>
+      <Stat label={t('follow.rank')} onPress={() => router.push({ pathname: '/siralama', params: { vurgula: userId } })}>
         {rank ? (
           <Value>#{rank}</Value>
         ) : (

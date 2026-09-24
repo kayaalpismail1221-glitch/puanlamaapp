@@ -14,9 +14,10 @@ import {
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 
-import { colors, radius, scoreColor, spacing, typography, type TypographyVariant } from '@/constants/theme';
+import { colors, radius, scoreColor, scoreInk, spacing, typography, type TypographyVariant } from '@/constants/theme';
 import { formatScore, initials } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
 
@@ -92,9 +93,21 @@ type ButtonProps = {
   disabled?: boolean;
   loading?: boolean;
   style?: StyleProp<ViewStyle>;
+  /** Yalnızca ikon içeren butonlarda ekran okuyucu için zorunlu tutun */
+  accessibilityLabel?: string;
 };
 
-export function Button({ title, onPress, variant = 'primary', size = 'md', icon, disabled, loading, style }: ButtonProps) {
+export function Button({
+  title,
+  onPress,
+  variant = 'primary',
+  size = 'md',
+  icon,
+  disabled,
+  loading,
+  style,
+  accessibilityLabel,
+}: ButtonProps) {
   const fg = variant === 'primary' ? colors.onPrimary : colors.primary;
   const inactive = !!disabled && !loading;
   // Aktif/pasif geçişi ani değil, yumuşak
@@ -104,6 +117,7 @@ export function Button({ title, onPress, variant = 'primary', size = 'md', icon,
       onPress={onPress}
       disabled={disabled || loading}
       accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? (title || undefined)}
       accessibilityState={{ disabled: !!disabled, busy: !!loading }}
       style={[
         styles.button,
@@ -131,6 +145,7 @@ export function Button({ title, onPress, variant = 'primary', size = 'md', icon,
 /* ---------- Puan rozeti ---------- */
 
 export function ScoreBadge({ score, size = 'md' }: { score: number; size?: 'sm' | 'md' | 'lg' }) {
+  useTranslation(); // dil değişince ondalık ayracı güncellensin
   const dim = size === 'sm' ? 32 : size === 'md' ? 40 : 64;
   const color = scoreColor(score);
   return (
@@ -142,7 +157,7 @@ export function ScoreBadge({ score, size = 'md' }: { score: number; size?: 'sm' 
       ]}>
       <Text
         variant={size === 'lg' ? 'title2' : size === 'md' ? 'subhead' : 'footnote'}
-        color={color}
+        color={scoreInk(score)}
         style={{ fontWeight: '700', fontVariant: ['tabular-nums'] }}>
         {formatScore(score)}
       </Text>
@@ -252,7 +267,7 @@ export function LoadingView({ style }: { style?: StyleProp<ViewStyle> }) {
 
 /** Yükleme hatası: kısa açıklama ve "Tekrar dene" */
 export function ErrorView({
-  message = 'Yüklenemedi. Bağlantını kontrol edip tekrar dene.',
+  message,
   onRetry,
   style,
 }: {
@@ -260,13 +275,14 @@ export function ErrorView({
   onRetry?: () => void;
   style?: StyleProp<ViewStyle>;
 }) {
+  const { t } = useTranslation();
   return (
     <View style={[styles.state, style]}>
       <SymbolView name="wifi.exclamationmark" tintColor={colors.textTertiary} size={36} />
       <Text variant="subhead" color={colors.textSecondary} align="center">
-        {message}
+        {message ?? t('common.loadFailed')}
       </Text>
-      {onRetry && <Button title="Tekrar dene" variant="secondary" size="sm" onPress={onRetry} />}
+      {onRetry && <Button title={t('common.retry')} variant="secondary" size="sm" onPress={onRetry} />}
     </View>
   );
 }

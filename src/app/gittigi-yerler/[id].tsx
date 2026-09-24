@@ -1,14 +1,17 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { PlaceRow } from '@/components/place-row';
 import { PostGrid } from '@/components/post-grid';
 import { SegmentedControl } from '@/components/segmented-control';
-import { Divider, LoadingView, PressableScale, ScoreBadge, Text } from '@/components/ui';
+import { MapListSkeleton } from '@/components/skeleton';
+import { Divider, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { WorldMap } from '@/components/world-map';
+import { cuisineLabel } from '@/constants/cuisines';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
 import { useUser } from '@/data/entities';
 import { useVisitedPlaces } from '@/hooks/use-visited-places';
@@ -28,13 +31,8 @@ import { fitView } from '@/lib/world-projection';
 const ASPECT = 1.3;
 const MIN_VIEW_WIDTH = 70;
 
-const KINDS: { key: BreakdownKind; label: string }[] = [
-  { key: 'cuisine', label: 'Mutfaklar' },
-  { key: 'city', label: 'Şehirler' },
-  { key: 'district', label: 'İlçeler' },
-];
-
-const KIND_NOUN: Record<BreakdownKind, string> = { cuisine: 'mutfak', city: 'şehir', district: 'ilçe' };
+/** Mutfak satırlarında veritabanındaki Türkçe ad etkin dile çevrilir */
+const rowLabel = (kind: BreakdownKind, label: string) => (kind === 'cuisine' ? cuisineLabel(label) : label);
 
 type Selection = { kind: BreakdownKind; key: string };
 
@@ -44,7 +42,13 @@ type Selection = { kind: BreakdownKind; key: string };
  */
 export default function VisitedPlacesScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { t } = useTranslation();
   const { width: screenWidth } = useWindowDimensions();
+  const kinds: { key: BreakdownKind; label: string }[] = [
+    { key: 'cuisine', label: t('foodMap.cuisines') },
+    { key: 'city', label: t('foodMap.cities') },
+    { key: 'district', label: t('foodMap.districts') },
+  ];
   const user = useUser(id);
   const mine = isMe(id);
   const { items, loading } = useVisitedPlaces(id);
@@ -71,16 +75,16 @@ export default function VisitedPlacesScreen() {
     setSelection(next);
   };
 
-  const title = mine ? 'Lezzet haritam' : user ? `${user.name.split(' ')[0]} · lezzet haritası` : '';
+  const title = mine ? t('tasteMap.mine') : user ? t('foodMap.titleTheirs', { name: user.name.split(' ')[0] }) : '';
 
-  if (loading && !items.length) return <LoadingView style={styles.container} />;
+  if (loading && !items.length) return <MapListSkeleton mapHeight={mapWidth / ASPECT} />;
 
   return (
     <ScrollView style={styles.container} contentInsetAdjustmentBehavior="automatic">
       <Stack.Screen options={{ title }} />
 
       <Text variant="subhead" color={colors.textSecondary} style={styles.summary}>
-        {summary.cities} şehir · {summary.places} mekân · {summary.posts} gönderi
+        {t('foodMap.summary', { cities: summary.cities, places: summary.places, posts: summary.posts })}
       </Text>
 
       <View style={[styles.map, { width: mapWidth, height: mapWidth / ASPECT }]}>
@@ -100,14 +104,14 @@ export default function VisitedPlacesScreen() {
         <Animated.View key={`${selection.kind}:${selection.key}`} entering={FadeIn.duration(200)}>
           <View style={styles.selectionHeader}>
             <View style={styles.flex}>
-              <Text variant="title3">{selectedRow.label}</Text>
+              <Text variant="title3">{rowLabel(selection.kind, selectedRow.label)}</Text>
               <Text variant="footnote" color={colors.textSecondary}>
                 {selectedRow.sublabel ? `${selectedRow.sublabel} · ` : ''}
-                {selectedRow.count} mekân · {selectedPosts.length} gönderi
+                {t('foodMap.selection', { places: selectedRow.count, posts: selectedPosts.length })}
               </Text>
             </View>
             {selectedRow.average !== undefined && <ScoreBadge score={selectedRow.average} />}
-            <PressableScale onPress={() => select(null)} hitSlop={hitSlop} style={styles.close} accessibilityLabel="Kapat">
+            <PressableScale onPress={() => select(null)} hitSlop={hitSlop} style={styles.close} accessibilityLabel={t('rate.close')}>
               <SymbolView name="xmark" tintColor={colors.primary} size={13} weight="bold" />
             </PressableScale>
           </View>
@@ -115,7 +119,7 @@ export default function VisitedPlacesScreen() {
           {placesWithoutPosts.length > 0 && (
             <>
               <Text variant="footnote" color={colors.textSecondary} style={styles.subheading}>
-                {selectedPosts.length ? 'GÖNDERİ PAYLAŞMADAN PUANLADIKLARI' : 'PUANLADIKLARI'}
+                {selectedPosts.length ? t('foodMap.ratedWithoutPost') : t('foodMap.rated')}
               </Text>
               {placesWithoutPosts.map((item) => (
                 <PlaceRow
@@ -130,10 +134,10 @@ export default function VisitedPlacesScreen() {
         </Animated.View>
       ) : (
         <>
-          <SegmentedControl options={KINDS} value={kind} onChange={setKind} style={styles.segment} />
+          <SegmentedControl options={kinds} value={kind} onChange={setKind} style={styles.segment} />
           <View style={styles.listHeader}>
             <Text variant="headline" color={colors.textSecondary}>
-              {rows.length} {KIND_NOUN[kind]}
+              {t(`foodMap.count.${kind}`, { count: rows.length })}
             </Text>
             <PressableScale
               onPress={() => {
@@ -141,17 +145,17 @@ export default function VisitedPlacesScreen() {
                 setSort(sort === 'count' ? 'score' : 'count');
               }}
               style={styles.sort}
-              accessibilityLabel="Sıralamayı değiştir">
+              accessibilityLabel={t('foodMap.changeSort')}>
               <SymbolView name="arrow.up.arrow.down" tintColor={colors.primary} size={13} weight="semibold" />
               <Text variant="footnote" color={colors.primary} style={styles.bold}>
-                {sort === 'count' ? 'Sayıya göre' : 'Puana göre'}
+                {sort === 'count' ? t('foodMap.byCount') : t('foodMap.byScore')}
               </Text>
             </PressableScale>
           </View>
           {rows.map((row, i) => (
             <View key={row.key}>
               {i > 0 && <Divider inset={spacing.lg} />}
-              <BreakdownItem row={row} onPress={() => select({ kind, key: row.key })} />
+              <BreakdownItem row={row} label={rowLabel(kind, row.label)} onPress={() => select({ kind, key: row.key })} />
             </View>
           ))}
         </>
@@ -161,14 +165,15 @@ export default function VisitedPlacesScreen() {
   );
 }
 
-function BreakdownItem({ row, onPress }: { row: BreakdownRow; onPress: () => void }) {
+function BreakdownItem({ row, label, onPress }: { row: BreakdownRow; label: string; onPress: () => void }) {
+  const { t } = useTranslation();
   return (
     <PressableScale onPress={onPress} scaleTo={0.98} haptic={false} style={styles.row}>
       <View style={styles.flex}>
-        <Text variant="headline">{row.label}</Text>
+        <Text variant="headline">{label}</Text>
         <Text variant="subhead" color={colors.textSecondary}>
           {row.sublabel ? `${row.sublabel} · ` : ''}
-          {row.count} mekân
+          {t('common.placeCount', { count: row.count })}
         </Text>
       </View>
       {row.average !== undefined && <ScoreBadge score={row.average} size="sm" />}

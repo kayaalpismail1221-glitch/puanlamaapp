@@ -1,6 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ScrollView,
   StyleSheet,
@@ -13,17 +14,14 @@ import MapView, { Marker } from 'react-native-maps';
 import Animated, { FadeIn, FadeInDown, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { LegalConsent } from '@/components/legal-consent';
 import { Button, PressableScale, Text } from '@/components/ui';
-import { colors, fonts, radius, scoreColor, spacing } from '@/constants/theme';
+import { colors, fonts, onScoreColor, radius, scoreColor, spacing } from '@/constants/theme';
 import { formatScore } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
 import { useAppStore } from '@/store/app-store';
 
-const SLIDES = [
-  { title: 'Hatırla', text: 'Gittiğin her mekânı puanla, kendi sıralı listeni oluştur.' },
-  { title: 'Güven', text: 'Tanımadığın yorumculara değil, arkadaşlarının puanına güven.' },
-  { title: 'Keşfet', text: 'Yakınındaki en sevilen lezzetleri ve gizli kalmış yerleri bul.' },
-];
+const SLIDES = ['remember', 'trust', 'discover'] as const;
 
 /** Dekoratif pinler: İstanbul'un iki yakasına yayılmış, sabit (tohumlu) rastgele dağılım */
 const PINS = (() => {
@@ -58,6 +56,7 @@ function WelcomeScreen() {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const [page, setPage] = useState(0);
+  const { t } = useTranslation();
 
   // Slaytlar yalnızca kullanıcı kaydırınca değişir
   const onScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -105,10 +104,10 @@ function WelcomeScreen() {
           onMomentumScrollEnd={onScrollEnd}
           style={styles.pager}>
           {SLIDES.map((s) => (
-            <View key={s.title} style={[styles.slide, { width }]}>
-              <Text style={styles.slideTitle}>{s.title}</Text>
+            <View key={s} style={[styles.slide, { width }]}>
+              <Text style={styles.slideTitle}>{t(`onboarding.slides.${s}Title`)}</Text>
               <Text variant="title3" color={colors.primary} align="center" style={styles.slideText}>
-                {s.text}
+                {t(`onboarding.slides.${s}Text`)}
               </Text>
             </View>
           ))}
@@ -116,27 +115,23 @@ function WelcomeScreen() {
 
         <View style={styles.dots}>
           {SLIDES.map((s, i) => (
-            <Dot key={s.title} active={i === page} />
+            <Dot key={s} active={i === page} />
           ))}
         </View>
 
         <Animated.View entering={FadeIn.delay(400)} style={styles.actions}>
-          <Button title="Başla" onPress={() => router.push('/onboarding/telefon')} style={styles.cta} />
+          <Button title={t('onboarding.start')} onPress={() => router.push('/onboarding/telefon')} style={styles.cta} />
           <PressableScale
             onPress={() => router.push('/onboarding/giris')}
             style={styles.login}>
             <Text variant="callout" color={colors.textSecondary}>
-              Zaten hesabın var mı?{' '}
+              {t('onboarding.haveAccount')}
               <Text variant="callout" color={colors.primary} style={styles.bold}>
-                Giriş yap
+                {t('onboarding.signIn')}
               </Text>
             </Text>
           </PressableScale>
-          <Text variant="caption" color={colors.textSecondary} align="center" style={styles.legal}>
-            Devam ederek <Text variant="caption" color={colors.primary} style={styles.bold}>Kullanım Koşulları</Text>’nı
-            kabul etmiş ve <Text variant="caption" color={colors.primary} style={styles.bold}>Gizlilik Politikası</Text>’nı
-            okumuş olursun.
-          </Text>
+          <LegalConsent variant="welcome" style={styles.legal} />
         </Animated.View>
       </View>
     </View>
@@ -149,7 +144,7 @@ function ScorePin({ score }: { score: number }) {
   return (
     <View style={styles.pinWrap}>
       <View style={[styles.pin, { backgroundColor: color }]}>
-        <Text variant="caption" color={colors.onPrimary} style={styles.pinText}>
+        <Text variant="caption" color={onScoreColor(score)} style={styles.pinText}>
           {formatScore(score)}
         </Text>
       </View>

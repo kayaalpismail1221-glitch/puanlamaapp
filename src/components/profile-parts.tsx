@@ -1,9 +1,11 @@
 import { router } from 'expo-router';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
+import { useTranslation } from 'react-i18next';
 import { Alert, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { LinearTransition } from 'react-native-reanimated';
 
 import { Avatar, PlaceImage, PressableScale, Text } from '@/components/ui';
+import { cuisineLabel } from '@/constants/cuisines';
 import { colors, radius, spacing } from '@/constants/theme';
 import { schoolById, schoolLabel } from '@/data/schools';
 import { useLeaderboard } from '@/hooks/queries';
@@ -26,9 +28,14 @@ export function ProfileIdentity({
   joinedAt?: string;
   onAvatarPress?: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <View style={styles.identity}>
-      <PressableScale onPress={onAvatarPress} disabled={!onAvatarPress} haptic={false}>
+      <PressableScale
+        onPress={onAvatarPress}
+        disabled={!onAvatarPress}
+        haptic={false}
+        accessibilityRole={onAvatarPress ? 'button' : undefined}>
         <Avatar uri={avatarUri} name={name} size={96} />
       </PressableScale>
       <Text variant="title2" color={colors.primary} style={styles.name}>
@@ -36,7 +43,7 @@ export function ProfileIdentity({
       </Text>
       <Text variant="subhead" color={colors.textSecondary}>
         @{username}
-        {joinedAt ? ` · Üyelik: ${monthYear(joinedAt)}` : ''}
+        {joinedAt ? t('profile.memberSince', { date: monthYear(joinedAt) }) : ''}
       </Text>
     </View>
   );
@@ -49,6 +56,7 @@ export function ProfileIdentity({
  * Kendi profilinde okul yoksa "+ Okul ekle" bağlantısı gösterilir.
  */
 export function SchoolChip({ userId, schoolId, editable }: { userId: string; schoolId?: string; editable?: boolean }) {
+  const { t } = useTranslation();
   const school = schoolById(schoolId);
   const board = useLeaderboard('school', 'all', schoolId);
   const entry = board.data?.find((e) => e.userId === userId);
@@ -59,7 +67,7 @@ export function SchoolChip({ userId, schoolId, editable }: { userId: string; sch
       <PressableScale onPress={() => router.push('/okul-sec')} style={styles.addSchool}>
         <SymbolView name="plus" tintColor={colors.primary} size={12} weight="bold" />
         <Text variant="subhead" color={colors.primary} style={styles.bold}>
-          Okul ekle
+          {t('profile.addSchool')}
         </Text>
       </PressableScale>
     );
@@ -69,14 +77,14 @@ export function SchoolChip({ userId, schoolId, editable }: { userId: string; sch
     <PressableScale
       onPress={() => router.push({ pathname: '/siralama', params: { okul: school.id, vurgula: userId } })}
       style={styles.school}
-      accessibilityLabel={`${school.name} liderlik tablosu`}>
+      accessibilityLabel={t('profile.schoolLeaderboard', { school: school.name })}>
       <SymbolView name="graduationcap.fill" tintColor={colors.primary} size={14} />
       <Text variant="subhead" style={styles.bold} numberOfLines={1}>
         {schoolLabel(school)}
       </Text>
       {entry && entry.reviews > 0 && (
         <Text variant="subhead" color={colors.textSecondary}>
-          · Okulunda #{entry.rank}
+          {t('profile.rankAtSchool', { rank: entry.rank })}
         </Text>
       )}
       <SymbolView name="chevron.right" tintColor={colors.textTertiary} size={11} weight="semibold" />
@@ -175,6 +183,7 @@ export function GoalCard({
   done: number;
   onChange: (goal: number | undefined) => void;
 }) {
+  const { t } = useTranslation();
   const year = new Date().getFullYear();
   const progress = goal ? Math.min(done / goal, 1) : 0;
 
@@ -187,7 +196,7 @@ export function GoalCard({
       }
     };
     if (Platform.OS === 'ios') {
-      Alert.prompt(`${year} hedefin`, 'Bu yıl kaç yeni mekân denemek istiyorsun?', apply, 'plain-text', '', 'number-pad');
+      Alert.prompt(t('profile.goalTitle', { year }), t('profile.goalQuestion'), apply, 'plain-text', '', 'number-pad');
     } else apply('30');
   };
 
@@ -196,9 +205,9 @@ export function GoalCard({
       <View style={styles.goalCard}>
         <View style={styles.goalHeader}>
           <View style={{ flex: 1, gap: spacing.xs }}>
-            <Text variant="headline">{year} hedefini belirle</Text>
+            <Text variant="headline">{t('profile.goalSet', { year })}</Text>
             <Text variant="subhead" color={colors.textSecondary}>
-              Bu yıl kaç yeni mekân denemek istiyorsun?
+              {t('profile.goalQuestion')}
             </Text>
           </View>
           <SymbolView name="trophy.fill" tintColor={colors.primary} size={36} />
@@ -220,7 +229,7 @@ export function GoalCard({
           ))}
           <PressableScale onPress={custom} style={styles.goalChip}>
             <Text variant="subhead" style={styles.bold}>
-              Özel
+              {t('profile.goalCustom')}
             </Text>
           </PressableScale>
         </View>
@@ -232,18 +241,18 @@ export function GoalCard({
     <PressableScale
       scaleTo={0.99}
       onPress={() =>
-        Alert.alert(`${year} hedefin`, `${goal} mekân`, [
-          { text: 'Hedefi değiştir', onPress: custom },
-          { text: 'Hedefi kaldır', style: 'destructive', onPress: () => onChange(undefined) },
-          { text: 'Vazgeç', style: 'cancel' },
+        Alert.alert(t('profile.goalTitle', { year }), t('common.placeCount', { count: goal }), [
+          { text: t('profile.goalChange'), onPress: custom },
+          { text: t('profile.goalRemove'), style: 'destructive', onPress: () => onChange(undefined) },
+          { text: t('common.cancel'), style: 'cancel' },
         ])
       }
       style={styles.goalCard}>
       <View style={styles.goalHeader}>
         <View style={{ flex: 1, gap: spacing.xs }}>
-          <Text variant="headline">{year} hedefin</Text>
+          <Text variant="headline">{t('profile.goalTitle', { year })}</Text>
           <Text variant="subhead" color={colors.textSecondary}>
-            {done >= goal ? 'Hedefine ulaştın! 🎉' : `${goal - done} mekân kaldı`}
+            {done >= goal ? t('profile.goalReached') : t('profile.goalRemaining', { count: goal - done })}
           </Text>
         </View>
         <Text variant="title2" color={colors.primary} style={styles.goalValue}>
@@ -260,6 +269,7 @@ export function GoalCard({
 /* ---------- Top 3 vitrini ---------- */
 
 export function TopThree({ items, title }: { items: ScoredPlace[]; title: string }) {
+  useTranslation();
   if (!items.length) return null;
   return (
     <View style={styles.section}>
@@ -298,6 +308,7 @@ export function TopThree({ items, title }: { items: ScoredPlace[]; title: string
 /* ---------- Damak zevki ---------- */
 
 export function TasteCard({ slices, title }: { slices: TasteSlice[]; title: string }) {
+  const { t } = useTranslation();
   if (!slices.length) return null;
   return (
     <View style={styles.section}>
@@ -309,10 +320,10 @@ export function TasteCard({ slices, title }: { slices: TasteSlice[]; title: stri
           <View key={s.cuisine} style={styles.tasteRow}>
             <View style={styles.tasteLabel}>
               <Text variant="subhead" style={styles.bold} numberOfLines={1}>
-                {s.cuisine}
+                {cuisineLabel(s.cuisine)}
               </Text>
               <Text variant="caption" color={colors.textSecondary}>
-                {s.count} mekân · ort. {formatScore(s.average)}
+                {t('profile.tasteRow', { count: s.count, average: formatScore(s.average) })}
               </Text>
             </View>
             <View style={styles.tasteTrack}>
@@ -322,7 +333,7 @@ export function TasteCard({ slices, title }: { slices: TasteSlice[]; title: stri
               />
             </View>
             <Text variant="footnote" color={colors.primary} style={styles.tastePct}>
-              %{Math.round(s.share * 100)}
+              {t('profile.percent', { value: Math.round(s.share * 100) })}
             </Text>
           </View>
         ))}
@@ -334,11 +345,12 @@ export function TasteCard({ slices, title }: { slices: TasteSlice[]; title: stri
 /* ---------- Rozetler ---------- */
 
 export function BadgeStrip({ badges }: { badges: Badge[] }) {
+  const { t } = useTranslation();
   const earned = badges.filter((b) => b.earned).length;
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
-        <Text variant="title3">Rozetler</Text>
+        <Text variant="title3">{t('profile.badges')}</Text>
         <Text variant="subhead" color={colors.textSecondary}>
           {earned}/{badges.length}
         </Text>
@@ -350,8 +362,14 @@ export function BadgeStrip({ badges }: { badges: Badge[] }) {
             scaleTo={0.95}
             onPress={() =>
               Alert.alert(
-                b.title,
-                b.earned ? `${b.description}. Kazandın! 🎉` : `${b.description}.\nİlerleme: ${b.progress}/${b.target}`,
+                t(`badges.${b.id}.title`),
+                b.earned
+                  ? t('profile.badgeEarned', { description: t(`badges.${b.id}.description`) })
+                  : t('profile.badgeProgress', {
+                      description: t(`badges.${b.id}.description`),
+                      progress: b.progress,
+                      target: b.target,
+                    }),
               )
             }
             style={[styles.badge, !b.earned && styles.badgeLocked]}>
@@ -359,7 +377,7 @@ export function BadgeStrip({ badges }: { badges: Badge[] }) {
               <SymbolView name={b.icon} tintColor={b.earned ? colors.onPrimary : colors.textTertiary} size={22} />
             </View>
             <Text variant="caption" align="center" numberOfLines={2} style={styles.badgeTitle}>
-              {b.title}
+              {t(`badges.${b.id}.title`)}
             </Text>
             {!b.earned && (
               <View style={styles.badgeTrack}>

@@ -1,9 +1,11 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useState, type ReactNode } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { FlatList, StyleSheet, View } from 'react-native';
 
 import { PlaceRow } from '@/components/place-row';
+import { PlaceRowsSkeleton } from '@/components/skeleton';
 import { Button, Divider, ErrorView, SearchField, Text } from '@/components/ui';
 import { colors, spacing } from '@/constants/theme';
 import { useNearbyPlaceSearch } from '@/hooks/queries';
@@ -26,6 +28,7 @@ const openAddPlace = (name: string) => router.push({ pathname: '/mekan-ekle', pa
  * Aranan yer yoksa kullanıcı yeni mekân ekleyebilir.
  */
 export function PlaceSearchList({ query, onSelect, trailing, exclude, header }: ListProps) {
+  const { t } = useTranslation();
   const search = useNearbyPlaceSearch(query);
   const results = (search.data ?? []).filter((p) => !exclude?.(p));
   const q = query.trim();
@@ -40,22 +43,22 @@ export function PlaceSearchList({ query, onSelect, trailing, exclude, header }: 
       ItemSeparatorComponent={() => <Divider inset={spacing.lg + 52 + spacing.md} />}
       ListEmptyComponent={
         search.isPending ? (
-          <ActivityIndicator color={colors.primary} style={styles.loading} />
+          <PlaceRowsSkeleton />
         ) : search.isError ? (
           <ErrorView onRetry={() => search.refetch()} />
         ) : (
           <View style={styles.empty}>
             <Text variant="subhead" color={colors.textSecondary} align="center">
-              {q ? `“${q}” bulunamadı.` : 'Yakında henüz kayıtlı mekân yok.'}
+              {q ? t('picker.notFound', { query: q }) : t('picker.noneNearby')}
             </Text>
-            <Button title="Yeni mekân ekle" icon="plus" variant="secondary" onPress={() => openAddPlace(q)} />
+            <Button title={t('common.addPlace')} icon="plus" variant="secondary" onPress={() => openAddPlace(q)} />
           </View>
         )
       }
       ListFooterComponent={
         results.length > 0 && q ? (
           <Button
-            title="Aradığın yer yok mu? Ekle"
+            title={t('picker.notListed')}
             variant="ghost"
             onPress={() => openAddPlace(q)}
             style={styles.footer}
@@ -77,6 +80,7 @@ export function PlaceSearchList({ query, onSelect, trailing, exclude, header }: 
 
 /** Arama kutusuyla birlikte tam ekran mekân seçici */
 export function PlacePicker({ title, onSelect }: { title: string; onSelect: (place: Place) => void }) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
   return (
     <View style={styles.container}>
@@ -84,7 +88,7 @@ export function PlacePicker({ title, onSelect }: { title: string; onSelect: (pla
         <Text variant="subhead" color={colors.textSecondary}>
           {title}
         </Text>
-        <SearchField value={query} onChangeText={setQuery} placeholder="Mekân, semt veya mutfak ara" autoFocus />
+        <SearchField value={query} onChangeText={setQuery} placeholder={t('picker.searchPlaceholder')} autoFocus />
       </View>
       <PlaceSearchList query={query} onSelect={onSelect} />
     </View>
@@ -100,9 +104,6 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     paddingBottom: spacing.sm,
     gap: spacing.sm,
-  },
-  loading: {
-    padding: spacing.xxl,
   },
   empty: {
     padding: spacing.xl,
