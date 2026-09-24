@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import {
   Alert,
   ScrollView,
@@ -25,8 +25,6 @@ const SLIDES = [
   { title: 'Keşfet', text: 'Yakınındaki en sevilen lezzetleri ve gizli kalmış yerleri bul.' },
 ];
 
-const AUTO_ADVANCE_MS = 4500;
-
 /** Dekoratif pinler: İstanbul'un iki yakasına yayılmış, sabit (tohumlu) rastgele dağılım */
 const PINS = (() => {
   let seed = 7;
@@ -46,51 +44,18 @@ const PINS = (() => {
   });
 })();
 
-const CAMERA_A = { latitude: 41.022, longitude: 29.012 };
-const CAMERA_B = { latitude: 41.036, longitude: 29.024 };
+const CAMERA = { latitude: 41.028, longitude: 29.018 };
 
-/** Karşılama: canlı harita arka planı + kaydırılabilir tanıtım */
+/** Karşılama: harita arka planı + kaydırılabilir tanıtım */
 export default function WelcomeScreen() {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const [page, setPage] = useState(0);
-  const pager = useRef<ScrollView>(null);
-  const map = useRef<MapView>(null);
-  const dragging = useRef(false);
-  const pageRef = useRef(0);
 
-  // Harita yavaşça süzülsün
-  useEffect(() => {
-    let flip = false;
-    const move = () => {
-      flip = !flip;
-      map.current?.animateCamera({ center: flip ? CAMERA_B : CAMERA_A }, { duration: 9000 });
-    };
-    const first = setTimeout(move, 600);
-    const loop = setInterval(move, 9000);
-    return () => {
-      clearTimeout(first);
-      clearInterval(loop);
-    };
-  }, []);
-
-  // Slaytlar kendiliğinden ilerlesin (kullanıcı kaydırırken beklesin)
-  useEffect(() => {
-    const t = setInterval(() => {
-      if (dragging.current) return;
-      const next = (pageRef.current + 1) % SLIDES.length;
-      pager.current?.scrollTo({ x: next * width, animated: true });
-      pageRef.current = next;
-      setPage(next);
-    }, AUTO_ADVANCE_MS);
-    return () => clearInterval(t);
-  }, [width]);
-
+  // Slaytlar yalnızca kullanıcı kaydırınca değişir
   const onScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    dragging.current = false;
     const next = Math.round(e.nativeEvent.contentOffset.x / width);
-    if (next !== pageRef.current) haptics.select();
-    pageRef.current = next;
+    if (next !== page) haptics.select();
     setPage(next);
   };
 
@@ -99,9 +64,8 @@ export default function WelcomeScreen() {
       {/* Arka plan haritası */}
       <View style={[styles.mapWrap, { height: height * 0.64 }]} pointerEvents="none">
         <MapView
-          ref={map}
           style={StyleSheet.absoluteFill}
-          initialCamera={{ center: CAMERA_A, pitch: 0, heading: 0, altitude: 14000, zoom: 12.5 }}
+          initialCamera={{ center: CAMERA, pitch: 0, heading: 0, altitude: 14000, zoom: 12.5 }}
           scrollEnabled={false}
           zoomEnabled={false}
           rotateEnabled={false}
@@ -128,11 +92,9 @@ export default function WelcomeScreen() {
         </Animated.Text>
 
         <ScrollView
-          ref={pager}
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
-          onScrollBeginDrag={() => (dragging.current = true)}
           onMomentumScrollEnd={onScrollEnd}
           style={styles.pager}>
           {SLIDES.map((s) => (
