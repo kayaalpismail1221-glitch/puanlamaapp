@@ -7,12 +7,12 @@ import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { GlassSurface } from '@/components/glass-surface';
+import { MapPin } from '@/components/map-pin';
 import { SegmentedControl } from '@/components/segmented-control';
 import { PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
-import { colors, radius, scoreColor, spacing } from '@/constants/theme';
+import { colors, radius, spacing } from '@/constants/theme';
 import { getPlace, useEntitiesVersion, usePrefetchPlaces } from '@/data/entities';
 import { DEFAULT_REGION } from '@/lib/geo';
-import { formatScore } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
 import { useAppStore } from '@/store/app-store';
 import type { Place } from '@/types';
@@ -138,30 +138,6 @@ export default function MapScreen() {
   );
 }
 
-/** Puana göre renklenen pin; puansızsa "gitmek istiyorum" pini */
-function MapPin({ score, active }: { score?: number; active: boolean }) {
-  const isWant = score === undefined;
-  const color = isWant ? colors.primary : scoreColor(score);
-  return (
-    <View
-      style={[
-        styles.pin,
-        isWant
-          ? { backgroundColor: colors.background, borderColor: color }
-          : { backgroundColor: color, borderColor: colors.background },
-        active && styles.pinActive,
-      ]}>
-      {isWant ? (
-        <SymbolView name="bookmark.fill" tintColor={color} size={12} />
-      ) : (
-        <Text variant="caption" color={colors.onPrimary} style={styles.pinText}>
-          {formatScore(score)}
-        </Text>
-      )}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -188,26 +164,6 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     borderRadius: radius.card,
     overflow: 'hidden',
-  },
-  pin: {
-    minWidth: 36,
-    height: 28,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.full,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.primary,
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-  },
-  pinActive: {
-    transform: [{ scale: 1.2 }],
-  },
-  pinText: {
-    fontWeight: '700',
-    fontVariant: ['tabular-nums'],
   },
   cardWrap: {
     position: 'absolute',
