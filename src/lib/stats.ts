@@ -1,4 +1,4 @@
-import type { Post, RankedEntry } from '@/types';
+import type { RankedEntry } from '@/types';
 
 /** Haftanın başlangıcı (Pazartesi 00:00) */
 function weekStart(date: Date): number {
@@ -30,12 +30,4 @@ export function weeklyStreak(dates: string[]): number {
 export function placesThisYear(entries: RankedEntry[]): number {
   const year = new Date().getFullYear();
   return entries.filter((e) => new Date(e.ratedAt).getFullYear() === year).length;
-}
-
-/** Başka bir kullanıcının gittiği mekânlar: mekân başına en yeni gönderideki puan, yüksekten düşüğe */
-export function rankedFromPosts(posts: Post[], userId: string): Post[] {
-  return posts
-    .filter((p) => p.userId === userId && p.score !== undefined)
-    .filter((p, i, list) => list.findIndex((q) => q.placeId === p.placeId) === i)
-    .sort((a, b) => b.score! - a.score!);
 }

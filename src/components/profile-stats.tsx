@@ -5,7 +5,8 @@ import { StyleSheet, View } from 'react-native';
 
 import { PressableScale, Text } from '@/components/ui';
 import { colors, spacing } from '@/constants/theme';
-import { useLeaderboard } from '@/hooks/use-leaderboard';
+import { useUserProfile, useUserRank } from '@/hooks/queries';
+import { isMe } from '@/lib/session';
 import { useAppStore } from '@/store/app-store';
 
 /**
@@ -13,10 +14,11 @@ import { useAppStore } from '@/store/app-store';
  * Sıralama, paylaşılan değerlendirme sayısına göre genel liderlik tablosundaki yer.
  */
 export function ProfileStats({ userId }: { userId: string }) {
-  const { followersOf, followingOf } = useAppStore();
-  const leaderboard = useLeaderboard('all', 'all');
-  const me = leaderboard.find((e) => e.userId === userId);
-  const ranked = !!me && me.reviews > 0;
+  const { following } = useAppStore();
+  const profile = useUserProfile(userId);
+  const rank = useUserRank(userId).data;
+  // Kendi takip sayın anında güncellensin (sunucu sayacını beklemeden)
+  const followingCount = isMe(userId) ? following.length : profile.data?.followingCount;
 
   const openConnections = (tur: 'takipci' | 'takip') =>
     router.push({ pathname: '/baglantilar/[id]', params: { id: userId, tur } });
@@ -24,14 +26,14 @@ export function ProfileStats({ userId }: { userId: string }) {
   return (
     <View style={styles.row}>
       <Stat label="Takipçi" onPress={() => openConnections('takipci')}>
-        <Value>{followersOf(userId).length}</Value>
+        <Value>{profile.data?.followerCount ?? '–'}</Value>
       </Stat>
       <Stat label="Takip" onPress={() => openConnections('takip')}>
-        <Value>{followingOf(userId).length}</Value>
+        <Value>{followingCount ?? '–'}</Value>
       </Stat>
       <Stat label="Sıralama" onPress={() => router.push({ pathname: '/siralama', params: { vurgula: userId } })}>
-        {ranked ? (
-          <Value>#{me.rank}</Value>
+        {rank ? (
+          <Value>#{rank}</Value>
         ) : (
           // İlk değerlendirme paylaşılana kadar sıralama kilitli
           <SymbolView name="lock.fill" tintColor={colors.textSecondary} size={18} style={styles.lock} />

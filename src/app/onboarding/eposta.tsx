@@ -9,8 +9,8 @@ import { useAppStore } from '@/store/app-store';
 
 /** 2. E-posta */
 export default function EmailStep() {
-  const { profile, dispatch } = useAppStore();
-  const [email, setEmail] = useState(profile?.email ?? '');
+  const { draft, actions } = useAppStore();
+  const [email, setEmail] = useState(draft.email ?? '');
   const [touched, setTouched] = useState(false);
   const valid = isValidEmail(email);
 
@@ -20,7 +20,7 @@ export default function EmailStep() {
       haptics.warning();
       return;
     }
-    dispatch({ type: 'updateProfile', patch: { email: email.trim().toLocaleLowerCase('tr') } });
+    actions.updateDraft({ email: email.trim().toLowerCase() });
     router.push('/onboarding/ad');
   };
 

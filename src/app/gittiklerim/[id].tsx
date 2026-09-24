@@ -3,36 +3,48 @@ import { useMemo } from 'react';
 import { FlatList, StyleSheet } from 'react-native';
 
 import { PlaceRow } from '@/components/place-row';
-import { Button, Divider, ScoreBadge, Text } from '@/components/ui';
+import { Button, Divider, LoadingView, ScoreBadge, Text } from '@/components/ui';
 import { colors, spacing } from '@/constants/theme';
-import { placeById } from '@/data/mock';
-import { rankedFromPosts } from '@/lib/stats';
+import { getPlace, useEntitiesVersion, usePrefetchPlaces, useUser } from '@/data/entities';
+import { useUserRankings } from '@/hooks/queries';
+import { isMe } from '@/lib/session';
 import { useAppStore } from '@/store/app-store';
-import { ME, type Place } from '@/types';
+import type { Place } from '@/types';
 
 type Row = { place: Place; score: number };
 
 /** Bir kullanıcının gittiği mekânlar, puana göre sıralı */
 export default function BeenScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { scored, posts, getUser } = useAppStore();
-  const isMe = id === ME;
+  const { scored } = useAppStore();
+  const mine = isMe(id);
+  const others = useUserRankings(mine ? undefined : id);
+  const version = useEntitiesVersion();
 
-  const rows = useMemo<Row[]>(() => {
-    const source = isMe
-      ? scored.map((e) => ({ placeId: e.placeId, score: e.score }))
-      : rankedFromPosts(posts, id).map((p) => ({ placeId: p.placeId, score: p.score! }));
-    return source.flatMap((r) => {
-      const place = placeById(r.placeId);
-      return place ? [{ place, score: r.score }] : [];
-    });
-  }, [isMe, scored, posts, id]);
+  const source = useMemo(
+    () => (mine ? scored.map((e) => ({ placeId: e.placeId, score: e.score })) : (others.data ?? [])),
+    [mine, scored, others.data],
+  );
+  usePrefetchPlaces(source.map((r) => r.placeId));
+  const rows = useMemo<Row[]>(
+    () =>
+      source.flatMap((r) => {
+        const place = getPlace(r.placeId);
+        return place ? [{ place, score: r.score }] : [];
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [source, version],
+  );
 
-  const user = getUser(id);
+  const user = useUser(id);
 
   return (
     <>
-      <Stack.Screen options={{ title: isMe ? 'Gittiklerim' : `${user?.name.split(' ')[0] ?? ''} gittikleri` }} />
+      <Stack.Screen
+        options={{
+          title: mine ? 'Gittiklerim' : `${user?.name.split(' ')[0] ?? ''} gittikleri`,
+        }}
+      />
       <FlatList
         style={styles.container}
         data={rows}
@@ -40,12 +52,16 @@ export default function BeenScreen() {
         contentInsetAdjustmentBehavior="automatic"
         ItemSeparatorComponent={() => <Divider inset={spacing.lg + 24 + 52 + spacing.md * 2} />}
         ListEmptyComponent={
-          <Text variant="subhead" color={colors.textSecondary} align="center" style={styles.empty}>
-            Henüz puanlanan bir mekân yok.
-          </Text>
+          !mine && others.isPending ? (
+            <LoadingView />
+          ) : (
+            <Text variant="subhead" color={colors.textSecondary} align="center" style={styles.empty}>
+              Henüz puanlanan bir mekân yok.
+            </Text>
+          )
         }
         ListFooterComponent={
-          isMe ? (
+          mine ? (
             <Button
               title="Mekân puanla"
               icon="plus"
@@ -59,7 +75,12 @@ export default function BeenScreen() {
           <PlaceRow
             place={item.place}
             rank={index + 1}
-            onPress={() => router.push({ pathname: '/mekan/[id]', params: { id: item.place.id } })}
+            onPress={() =>
+              router.push({
+                pathname: '/mekan/[id]',
+                params: { id: item.place.id },
+              })
+            }
             trailing={<ScoreBadge score={item.score} size="sm" />}
           />
         )}

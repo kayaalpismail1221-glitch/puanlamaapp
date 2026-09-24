@@ -1,7 +1,7 @@
 import { router, Stack } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useMemo } from 'react';
-import { Alert, ScrollView, Share, StyleSheet, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Alert, RefreshControl, ScrollView, Share, StyleSheet, View } from 'react-native';
 
 import { PostGrid } from '@/components/post-grid';
 import {
@@ -15,40 +15,60 @@ import {
   TopThree,
 } from '@/components/profile-parts';
 import { ProfileStats } from '@/components/profile-stats';
-import { Button, Divider, PressableScale, Text } from '@/components/ui';
+import { Button, Divider, LoadingView, PressableScale, Text } from '@/components/ui';
 import { colors, hitSlop, spacing } from '@/constants/theme';
-import { placeById } from '@/data/mock';
-import { useLeaderboard } from '@/hooks/use-leaderboard';
+import { getPlace, useEntitiesVersion } from '@/data/entities';
+import { useUserPosts, useUserRank } from '@/hooks/queries';
+import { queryClient } from '@/lib/query-client';
 import { computeBadges, tasteProfile, type ScoredPlace } from '@/lib/insights';
 import { placesThisYear, weeklyStreak } from '@/lib/stats';
 import { useAppStore } from '@/store/app-store';
-import { ME } from '@/types';
 
 /** Kişisel öneriler bu kadar puanlamadan sonra açılır */
 const RECS_UNLOCK = 10;
 
 export default function ProfileScreen() {
-  const { profile, joinedAt, rankings, scored, saved, posts, yearGoal, dispatch } = useAppStore();
-  const leaderboard = useLeaderboard('all', 'all');
+  const { profile, userId, rankings, scored, saved, actions } = useAppStore();
+  const me = userId ?? '';
+  const postsQuery = useUserPosts(me);
+  const myRank = useUserRank(me).data;
+  const version = useEntitiesVersion();
+  const [refreshing, setRefreshing] = useState(false);
 
-  const myPosts = useMemo(() => posts.filter((p) => p.userId === ME), [posts]);
+  const myPosts = useMemo(() => postsQuery.data ?? [], [postsQuery.data]);
   const myPlaces = useMemo<ScoredPlace[]>(
-    () => scored.flatMap((e) => (placeById(e.placeId) ? [{ place: placeById(e.placeId)!, score: e.score }] : [])),
-    [scored],
+    () =>
+      scored.flatMap((e) => {
+        const place = getPlace(e.placeId);
+        return place ? [{ place, score: e.score }] : [];
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [scored, version],
   );
   const allEntries = useMemo(() => Object.values(rankings).flat(), [rankings]);
 
-  const myRank = leaderboard.find((e) => e.userId === ME);
+  const refresh = async () => {
+    setRefreshing(true);
+    await Promise.all([actions.refresh(), queryClient.invalidateQueries()]);
+    setRefreshing(false);
+  };
   const streak = weeklyStreak([...allEntries.map((e) => e.ratedAt), ...myPosts.map((p) => p.createdAt)]);
   const taste = useMemo(() => tasteProfile(myPlaces), [myPlaces]);
   const badges = useMemo(
-    () => computeBadges({ places: myPlaces, postCount: myPosts.length, streakWeeks: streak }),
+    () =>
+      computeBadges({
+        places: myPlaces,
+        postCount: myPosts.length,
+        streakWeeks: streak,
+      }),
     [myPlaces, myPosts.length, streak],
   );
   const recsLocked = scored.length < RECS_UNLOCK;
 
   const shareProfile = () =>
-    Share.share({ message: `Puanla’da beni takip et: @${profile?.username} 🍽️ Gittiğim her yeri puanlıyorum.` });
+    Share.share({
+      message: `Puanla’da beni takip et: @${profile?.username} 🍽️ Gittiğim her yeri puanlıyorum.`,
+    });
 
   return (
     <>
@@ -67,22 +87,38 @@ export default function ProfileScreen() {
           ),
         }}
       />
-      <ScrollView style={styles.container} contentInsetAdjustmentBehavior="automatic">
+      <ScrollView
+        style={styles.container}
+        contentInsetAdjustmentBehavior="automatic"
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary} />}>
         <ProfileIdentity
           name={profile?.name ?? '?'}
           username={profile?.username ?? ''}
           avatarUri={profile?.avatarUri}
-          joinedAt={joinedAt}
+          joinedAt={profile?.joinedAt}
           onAvatarPress={() => router.push('/profil-duzenle')}
         />
-        <SchoolChip userId={ME} schoolId={profile?.schoolId} editable />
+        <SchoolChip userId={me} schoolId={profile?.schoolId} editable />
 
-        <ProfileStats userId={ME} />
+        <ProfileStats userId={me} />
 
         <View style={styles.buttons}>
-          <Button title="Profili düzenle" variant="outline" size="sm" onPress={() => router.push('/profil-duzenle')} style={styles.flex} />
+          <Button
+            title="Profili düzenle"
+            variant="outline"
+            size="sm"
+            onPress={() => router.push('/profil-duzenle')}
+            style={styles.flex}
+          />
           <Button title="Paylaş" variant="outline" size="sm" onPress={shareProfile} style={styles.flex} />
-          <Button title="" icon="person.badge.plus" variant="outline" size="sm" onPress={() => router.push('/arkadas-bul')} style={styles.iconButton} />
+          <Button
+            title=""
+            icon="person.badge.plus"
+            variant="outline"
+            size="sm"
+            onPress={() => router.push('/arkadas-bul')}
+            style={styles.iconButton}
+          />
         </View>
 
         <View style={styles.menu}>
@@ -91,7 +127,7 @@ export default function ProfileScreen() {
             icon="checkmark.circle"
             title="Gittiklerim"
             count={scored.length}
-            onPress={() => router.push({ pathname: '/gittiklerim/[id]', params: { id: ME } })}
+            onPress={() => router.push({ pathname: '/gittiklerim/[id]', params: { id: me } })}
           />
           <Divider inset={spacing.lg + 26 + spacing.lg} />
           <MenuRow icon="bookmark" title="Listem" count={saved.length} onPress={() => router.navigate('/listem')} />
@@ -119,8 +155,8 @@ export default function ProfileScreen() {
           <StatCard
             icon="trophy"
             title="Sıralama"
-            value={myRank && myRank.reviews > 0 ? `#${myRank.rank}` : undefined}
-            locked={!myRank || myRank.reviews === 0}
+            value={myRank ? `#${myRank}` : undefined}
+            locked={!myRank}
             onPress={() => router.push('/siralama')}
           />
           <StatCard icon="flame" title="Seri" value={`${streak} hafta`} />
@@ -132,9 +168,9 @@ export default function ProfileScreen() {
 
         <View style={styles.goal}>
           <GoalCard
-            goal={yearGoal}
+            goal={profile?.yearGoal}
             done={placesThisYear(allEntries)}
-            onChange={(goal) => dispatch({ type: 'setYearGoal', goal })}
+            onChange={(goal) => actions.updateProfile({ yearGoal: goal })}
           />
         </View>
 
@@ -147,7 +183,11 @@ export default function ProfileScreen() {
             </Text>
           </PressableScale>
         </View>
-        <PostGrid posts={myPosts} emptyText="Henüz gönderi paylaşmadın. Gittiğin bir mekânı paylaş!" />
+        {postsQuery.isPending ? (
+          <LoadingView />
+        ) : (
+          <PostGrid posts={myPosts} emptyText="Henüz gönderi paylaşmadın. Gittiğin bir mekânı paylaş!" />
+        )}
         <View style={{ height: spacing.xxl }} />
       </ScrollView>
     </>

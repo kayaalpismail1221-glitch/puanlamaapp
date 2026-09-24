@@ -18,11 +18,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PlacePicker } from '@/components/place-picker';
 import { Avatar, Button, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { colors, hitSlop, radius, spacing, typography } from '@/constants/theme';
-import { placeById, USERS } from '@/data/mock';
+import { showError } from '@/api/errors';
+import type { LocalImage } from '@/api/storage';
+import { getUser, useEntitiesVersion, usePlace, usePrefetchUsers } from '@/data/entities';
+import { useCreatePost, usePlaceDetails } from '@/hooks/queries';
 import { haptics } from '@/lib/haptics';
-import { HIGHLIGHTS, MEALS, PRICE_BUCKETS, placeSummary } from '@/lib/post-meta';
+import { HIGHLIGHTS, MEALS, PRICE_BUCKETS } from '@/lib/post-meta';
 import { useAppStore } from '@/store/app-store';
-import { ME, type Meal, type PriceBucket } from '@/types';
+import type { Meal, PriceBucket, User } from '@/types';
 
 const MAX_PHOTOS = 5;
 const MAX_DISHES = 5;
@@ -40,12 +43,13 @@ type Params = {
  */
 export default function CreatePostScreen() {
   const params = useLocalSearchParams<Params>();
-  const { following, scoreOf, posts, dispatch } = useAppStore();
+  const { following, scoreOf } = useAppStore();
+  const createPost = useCreatePost();
   const insets = useSafeAreaInsets();
   const onboarding = params.akis === 'onboarding';
 
   const [placeId, setPlaceId] = useState(params.placeId);
-  const [photos, setPhotos] = useState<string[]>([]);
+  const [photos, setPhotos] = useState<LocalImage[]>([]);
   const [caption, setCaption] = useState('');
   const [price, setPrice] = useState<PriceBucket>();
   const [meal, setMeal] = useState<Meal>();
@@ -54,21 +58,26 @@ export default function CreatePostScreen() {
   const [highlights, setHighlights] = useState<string[]>([]);
   const [tagged, setTagged] = useState<string[]>([]);
 
-  // Takip edilenler başta; etiketlenecek arkadaş listesi
-  const friends = useMemo(
-    () => [...USERS].sort((a, b) => Number(following.includes(b.id)) - Number(following.includes(a.id))),
-    [following],
+  // Etiketlenebilecek arkadaşlar: takip edilenler
+  usePrefetchUsers(following);
+  const version = useEntitiesVersion();
+  const friends = useMemo<User[]>(
+    () => following.flatMap((id) => getUser(id) ?? []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [following, version],
   );
 
   // Bu mekân için başkalarının yazdığı yemekler öneri olarak
-  const dishSuggestions = useMemo(() => {
-    if (!placeId) return [];
-    return placeSummary(posts.filter((p) => p.placeId === placeId))
-      .dishes.map((d) => d.name)
-      .filter((d) => !dishes.some((x) => x.toLocaleLowerCase('tr') === d.toLocaleLowerCase('tr')));
-  }, [placeId, posts, dishes]);
+  const details = usePlaceDetails(placeId);
+  const dishSuggestions = useMemo(
+    () =>
+      (details.data?.summary.dishes ?? [])
+        .map((d) => d.name)
+        .filter((d) => !dishes.some((x) => x.toLocaleLowerCase('tr') === d.toLocaleLowerCase('tr'))),
+    [details.data, dishes],
+  );
 
-  const place = placeId ? placeById(placeId) : undefined;
+  const place = usePlace(placeId);
   if (!place) {
     return <PlacePicker title="Nerede yedin?" onSelect={(p) => setPlaceId(p.id)} />;
   }
@@ -82,7 +91,7 @@ export default function CreatePostScreen() {
       selectionLimit: MAX_PHOTOS - photos.length,
       quality: 0.8,
     });
-    if (!result.canceled) setPhotos((p) => [...p, ...result.assets.map((a) => a.uri)].slice(0, MAX_PHOTOS));
+    if (!result.canceled) setPhotos((p) => [...p, ...result.assets.map(toLocalImage)].slice(0, MAX_PHOTOS));
   };
 
   const addFromCamera = async () => {
@@ -91,14 +100,21 @@ export default function CreatePostScreen() {
       Alert.alert('Kamera izni gerekli', 'Ayarlar’dan kamera iznini açabilirsin.');
       return;
     }
-    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 });
-    if (!result.canceled) setPhotos((p) => [...p, result.assets[0]!.uri].slice(0, MAX_PHOTOS));
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+    });
+    if (!result.canceled) setPhotos((p) => [...p, toLocalImage(result.assets[0]!)].slice(0, MAX_PHOTOS));
   };
 
   const addPhoto = () => {
     if (Platform.OS !== 'ios') return addFromLibrary();
     ActionSheetIOS.showActionSheetWithOptions(
-      { options: ['Fotoğraf çek', 'Galeriden seç', 'Vazgeç'], cancelButtonIndex: 2, tintColor: colors.primary },
+      {
+        options: ['Fotoğraf çek', 'Galeriden seç', 'Vazgeç'],
+        cancelButtonIndex: 2,
+        tintColor: colors.primary,
+      },
       (i) => {
         if (i === 0) addFromCamera();
         if (i === 1) addFromLibrary();
@@ -119,27 +135,26 @@ export default function CreatePostScreen() {
     list.includes(item) ? list.filter((x) => x !== item) : list.length < max ? [...list, item] : list;
 
   const share = () => {
-    haptics.success();
     const pendingDish = dishInput.trim();
-    dispatch({
-      type: 'createPost',
-      post: {
-        id: `g-${Date.now()}`,
-        userId: ME,
+    createPost.mutate(
+      {
         placeId: place.id,
         photos,
         caption: caption.trim() || undefined,
         taggedUserIds: tagged,
-        score,
-        createdAt: new Date().toISOString(),
-        likeCount: 0,
         pricePerPerson: price,
         meal,
         dishes: pendingDish && dishes.length < MAX_DISHES ? [...dishes, pendingDish] : dishes,
         highlights,
       },
-    });
-    router.back();
+      {
+        onSuccess: () => {
+          haptics.success();
+          router.back();
+        },
+        onError: (error) => showError(error, 'Gönderi paylaşılamadı'),
+      },
+    );
   };
 
   return (
@@ -176,7 +191,12 @@ export default function CreatePostScreen() {
             <ScoreBadge score={score} />
           ) : (
             <PressableScale
-              onPress={() => router.push({ pathname: '/degerlendir/[id]', params: { id: place.id, from: 'gonderi' } })}
+              onPress={() =>
+                router.push({
+                  pathname: '/degerlendir/[id]',
+                  params: { id: place.id, from: 'gonderi' },
+                })
+              }
               style={styles.rateButton}>
               <Text variant="footnote" color={colors.onPrimary} style={styles.bold}>
                 Puanla
@@ -187,9 +207,13 @@ export default function CreatePostScreen() {
 
         <Section title="Fotoğraflar" hint={`İsteğe bağlı · ${photos.length}/${MAX_PHOTOS}`}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoRow}>
-            {photos.map((uri, i) => (
-              <Animated.View key={`${uri}-${i}`} entering={FadeIn} layout={LinearTransition} style={styles.photoTile}>
-                <PlaceImage uri={uri} style={StyleSheet.absoluteFill} />
+            {photos.map((photo, i) => (
+              <Animated.View
+                key={`${photo.uri}-${i}`}
+                entering={FadeIn}
+                layout={LinearTransition}
+                style={styles.photoTile}>
+                <PlaceImage uri={photo.uri} style={StyleSheet.absoluteFill} />
                 <PressableScale
                   onPress={() => setPhotos((p) => p.filter((_, j) => j !== i))}
                   hitSlop={hitSlop}
@@ -200,7 +224,10 @@ export default function CreatePostScreen() {
               </Animated.View>
             ))}
             {photos.length < MAX_PHOTOS && (
-              <PressableScale onPress={addPhoto} style={[styles.photoTile, styles.addPhoto]} accessibilityLabel="Fotoğraf ekle">
+              <PressableScale
+                onPress={addPhoto}
+                style={[styles.photoTile, styles.addPhoto]}
+                accessibilityLabel="Fotoğraf ekle">
                 <SymbolView name="camera" tintColor={colors.primary} size={24} />
                 <Text variant="caption" color={colors.primary}>
                   Ekle
@@ -225,7 +252,12 @@ export default function CreatePostScreen() {
         <Section title="Kişi başı ne tuttu?">
           <View style={styles.chips}>
             {PRICE_BUCKETS.map((b) => (
-              <Chip key={b.key} label={b.label} active={price === b.key} onPress={() => setPrice(price === b.key ? undefined : b.key)} />
+              <Chip
+                key={b.key}
+                label={b.label}
+                active={price === b.key}
+                onPress={() => setPrice(price === b.key ? undefined : b.key)}
+              />
             ))}
           </View>
         </Section>
@@ -258,7 +290,9 @@ export default function CreatePostScreen() {
             <View style={styles.chips}>
               {dishes.map((d) => (
                 <Animated.View key={d} entering={FadeIn} layout={LinearTransition}>
-                  <PressableScale onPress={() => setDishes((x) => x.filter((y) => y !== d))} style={[styles.chip, styles.chipActive, styles.dishChip]}>
+                  <PressableScale
+                    onPress={() => setDishes((x) => x.filter((y) => y !== d))}
+                    style={[styles.chip, styles.chipActive, styles.dishChip]}>
                     <Text variant="subhead" color={colors.onPrimary}>
                       {d}
                     </Text>
@@ -309,37 +343,57 @@ export default function CreatePostScreen() {
           </View>
         </Section>
 
-        <Section title="Kimlerle gittin?">
-          <View style={styles.chips}>
-            {friends.map((u) => {
-              const active = tagged.includes(u.id);
-              return (
-                <PressableScale
-                  key={u.id}
-                  haptic={false}
-                  onPress={() => {
-                    haptics.select();
-                    setTagged((t) => toggle(t, u.id));
-                  }}
-                  style={[styles.chip, styles.friendChip, active && styles.chipActive]}>
-                  <Avatar uri={u.avatarUrl} name={u.name} size={24} />
-                  <Text variant="subhead" color={active ? colors.onPrimary : colors.text}>
-                    {u.name.split(' ')[0]}
-                  </Text>
-                </PressableScale>
-              );
-            })}
-          </View>
-        </Section>
+        {friends.length > 0 && (
+          <Section title="Kimlerle gittin?">
+            <View style={styles.chips}>
+              {friends.map((u) => {
+                const active = tagged.includes(u.id);
+                return (
+                  <PressableScale
+                    key={u.id}
+                    haptic={false}
+                    onPress={() => {
+                      haptics.select();
+                      setTagged((t) => toggle(t, u.id));
+                    }}
+                    style={[styles.chip, styles.friendChip, active && styles.chipActive]}>
+                    <Avatar uri={u.avatarUrl} name={u.name} size={24} />
+                    <Text variant="subhead" color={active ? colors.onPrimary : colors.text}>
+                      {u.name.split(' ')[0]}
+                    </Text>
+                  </PressableScale>
+                );
+              })}
+            </View>
+          </Section>
+        )}
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
-        <Button title="Paylaş" onPress={share} disabled={score === undefined && !photos.length && !caption.trim()} />
-        {onboarding && <Button title="Şimdilik atla" variant="ghost" onPress={() => router.back()} />}
+        <Button
+          title={
+            createPost.isPending
+              ? photos.length
+                ? `Yükleniyor… %${Math.round(createPost.progress * 100)}`
+                : 'Paylaşılıyor…'
+              : 'Paylaş'
+          }
+          onPress={share}
+          disabled={(score === undefined && !photos.length && !caption.trim()) || createPost.isPending}
+        />
+        {onboarding && !createPost.isPending && (
+          <Button title="Şimdilik atla" variant="ghost" onPress={() => router.back()} />
+        )}
       </View>
     </KeyboardAvoidingView>
   );
 }
+
+const toLocalImage = (asset: ImagePicker.ImagePickerAsset): LocalImage => ({
+  uri: asset.uri,
+  width: asset.width,
+  height: asset.height,
+});
 
 function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
   return (

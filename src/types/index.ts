@@ -25,6 +25,8 @@ export type Place = {
   latitude: number;
   longitude: number;
   photoUrl?: string;
+  /** Listeler için küçük boy kapak fotoğrafı */
+  thumbUrl?: string;
 };
 
 /** Beli tarzı ilk izlenim */
@@ -62,18 +64,40 @@ export type User = {
   schoolId?: string;
 };
 
+/** Profil sayfası: kullanıcı + sayaçlar + mevcut kullanıcıyla ilişkisi */
+export type UserProfile = User & {
+  followerCount: number;
+  followingCount: number;
+  postCount: number;
+  isFollowing: boolean;
+  followsMe: boolean;
+  joinedAt: string;
+};
+
+/** Oturum açmış kullanıcının kendi profili */
 export type Profile = {
+  id: string;
   name: string;
   username: string;
   avatarUri?: string;
-  /** Kayıtta alınan iletişim bilgileri (şifre asla cihazda saklanmaz) */
+  /** Depolamadaki avatar yolu (değiştirilince eskisi silinir) */
+  avatarPath?: string;
+  /** Yalnızca kullanıcının kendisinin görebildiği iletişim bilgileri */
   phone?: string;
   email?: string;
   schoolId?: string;
+  yearGoal?: number;
+  joinedAt: string;
+  onboardedAt?: string;
 };
 
-/** Oturum açmış kullanıcının kimliği (Supabase gelene kadar sabit) */
-export const ME = 'me';
+/** Kayıt sırasında hesap açılmadan önce toplanan bilgiler (şifre hariç; şifre cihazda saklanmaz) */
+export type SignupDraft = {
+  phone?: string;
+  email?: string;
+  name?: string;
+  username?: string;
+};
 
 export type Comment = {
   id: string;
@@ -93,7 +117,10 @@ export type Post = {
   id: string;
   userId: string;
   placeId: string;
+  /** Tam boy fotoğraf adresleri */
   photos: string[];
+  /** Izgaralar için küçük boy kopyalar (photos ile aynı sırada) */
+  thumbs: string[];
   caption?: string;
   /** Gönderide etiketlenen arkadaşlar */
   taggedUserIds: string[];
@@ -102,6 +129,10 @@ export type Post = {
   createdAt: string;
   /** Başkalarından gelen beğeni sayısı (kullanıcının kendi beğenisi hariç) */
   likeCount: number;
+  commentCount: number;
+  /** Sunucuya göre mevcut kullanıcı beğenmiş / kaydetmiş mi */
+  likedByMe: boolean;
+  savedByMe: boolean;
   /** Yapılandırılmış bilgiler (hepsi isteğe bağlı) */
   pricePerPerson?: PriceBucket;
   dishes?: string[];

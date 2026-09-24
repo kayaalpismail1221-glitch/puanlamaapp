@@ -6,7 +6,7 @@ import Animated, { LinearTransition } from 'react-native-reanimated';
 import { Avatar, PlaceImage, PressableScale, Text } from '@/components/ui';
 import { colors, radius, spacing } from '@/constants/theme';
 import { schoolById, schoolLabel } from '@/data/schools';
-import { useLeaderboard } from '@/hooks/use-leaderboard';
+import { useLeaderboard } from '@/hooks/queries';
 import { formatScore, monthYear } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
 import type { Badge, ScoredPlace, TasteSlice } from '@/lib/insights';
@@ -51,7 +51,7 @@ export function ProfileIdentity({
 export function SchoolChip({ userId, schoolId, editable }: { userId: string; schoolId?: string; editable?: boolean }) {
   const school = schoolById(schoolId);
   const board = useLeaderboard('school', 'all', schoolId);
-  const entry = board.find((e) => e.userId === userId);
+  const entry = board.data?.find((e) => e.userId === userId);
 
   if (!school) {
     if (!editable) return null;

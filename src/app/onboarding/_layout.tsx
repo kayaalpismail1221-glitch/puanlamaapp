@@ -19,6 +19,9 @@ export default function OnboardingLayout() {
       <Stack.Screen name="eposta" />
       <Stack.Screen name="ad" />
       <Stack.Screen name="sifre" />
+      <Stack.Screen name="dogrula" />
+      <Stack.Screen name="giris" />
+      <Stack.Screen name="sifre-sifirla" />
       {/* Hesap oluşturulduktan sonra kayıt adımlarına geri dönülmesin */}
       <Stack.Screen name="ilk-puan" options={{ headerBackVisible: false, gestureEnabled: false }} />
       <Stack.Screen name="takip" />

@@ -239,7 +239,45 @@ export const Divider = ({ inset = 0 }: { inset?: number }) => (
   <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginLeft: inset }} />
 );
 
+/* ---------- Yükleniyor / hata durumları ---------- */
+
+/** Veri yüklenirken ortalanmış gösterge */
+export function LoadingView({ style }: { style?: StyleProp<ViewStyle> }) {
+  return (
+    <View style={[styles.state, style]}>
+      <ActivityIndicator color={colors.primary} />
+    </View>
+  );
+}
+
+/** Yükleme hatası: kısa açıklama ve "Tekrar dene" */
+export function ErrorView({
+  message = 'Yüklenemedi. Bağlantını kontrol edip tekrar dene.',
+  onRetry,
+  style,
+}: {
+  message?: string;
+  onRetry?: () => void;
+  style?: StyleProp<ViewStyle>;
+}) {
+  return (
+    <View style={[styles.state, style]}>
+      <SymbolView name="wifi.exclamationmark" tintColor={colors.textTertiary} size={36} />
+      <Text variant="subhead" color={colors.textSecondary} align="center">
+        {message}
+      </Text>
+      {onRetry && <Button title="Tekrar dene" variant="secondary" size="sm" onPress={onRetry} />}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  state: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+    padding: spacing.xxl,
+  },
   button: {
     height: 52,
     borderRadius: radius.button,

@@ -1,8 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
 import {
-  Alert,
   ScrollView,
   StyleSheet,
   useWindowDimensions,
@@ -18,6 +17,7 @@ import { Button, PressableScale, Text } from '@/components/ui';
 import { colors, fonts, radius, scoreColor, spacing } from '@/constants/theme';
 import { formatScore } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
+import { useAppStore } from '@/store/app-store';
 
 const SLIDES = [
   { title: 'Hatırla', text: 'Gittiğin her mekânı puanla, kendi sıralı listeni oluştur.' },
@@ -47,7 +47,14 @@ const PINS = (() => {
 const CAMERA = { latitude: 41.028, longitude: 29.018 };
 
 /** Karşılama: harita arka planı + kaydırılabilir tanıtım */
-export default function WelcomeScreen() {
+export default function WelcomeRoute() {
+  // Hesap açılmış ama kurulum yarım kalmışsa kaldığı yerden devam
+  const { status } = useAppStore();
+  if (status === 'signedIn') return <Redirect href="/onboarding/ilk-puan" />;
+  return <WelcomeScreen />;
+}
+
+function WelcomeScreen() {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const [page, setPage] = useState(0);
@@ -116,9 +123,7 @@ export default function WelcomeScreen() {
         <Animated.View entering={FadeIn.delay(400)} style={styles.actions}>
           <Button title="Başla" onPress={() => router.push('/onboarding/telefon')} style={styles.cta} />
           <PressableScale
-            onPress={() =>
-              Alert.alert('Giriş yap', 'Hesap sistemi (Supabase) bağlandığında buradan giriş yapabileceksin.')
-            }
+            onPress={() => router.push('/onboarding/giris')}
             style={styles.login}>
             <Text variant="callout" color={colors.textSecondary}>
               Zaten hesabın var mı?{' '}

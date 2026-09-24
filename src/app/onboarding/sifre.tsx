@@ -1,9 +1,11 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
 
+import { signUp } from '@/api/auth';
+import { showError, toUserMessage } from '@/api/errors';
 import { BigInput, OnboardingStep } from '@/components/onboarding-step';
 import { Button, PressableScale, Text } from '@/components/ui';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
@@ -12,11 +14,12 @@ import { isAcceptablePassword, passwordChecks, passwordStrength } from '@/lib/va
 import { useAppStore } from '@/store/app-store';
 
 /**
- * 4. Şifre. Güvenlik gereği şifre cihazda saklanmaz;
- * Supabase Auth bağlanınca doğrudan sunucuya gönderilecek.
+ * 4. Şifre ve hesabın açılması. Şifre cihazda saklanmaz; doğrudan Supabase Auth'a gider.
+ * E-posta doğrulaması açıksa koda, değilse doğrudan ilk puana geçilir
+ * (oturum açılınca kök düzen yönlendirir).
  */
 export default function PasswordStep() {
-  const { dispatch } = useAppStore();
+  const { draft } = useAppStore();
   const [password, setPassword] = useState('');
   const [visible, setVisible] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -25,19 +28,33 @@ export default function PasswordStep() {
   const checks = passwordChecks(password);
   const valid = isAcceptablePassword(password);
 
-  const create = () => {
-    if (!valid) {
+  const create = async () => {
+    if (!valid || creating) {
       haptics.warning();
       return;
     }
-    // TODO(Supabase): signUp({ phone, email, password }) burada çağrılacak; şimdilik kısa bir bekleme
+    const email = draft.email;
+    if (!email) {
+      router.replace('/onboarding/eposta');
+      return;
+    }
     setCreating(true);
-    setTimeout(() => {
+    try {
+      const { needsVerification } = await signUp({ ...draft, email }, password);
       haptics.success();
       setPassword('');
-      dispatch({ type: 'signIn' });
-      router.replace('/onboarding/ilk-puan');
-    }, 700);
+      if (needsVerification) router.push({ pathname: '/onboarding/dogrula', params: { email } });
+    } catch (error) {
+      haptics.warning();
+      if (/already registered/i.test((error as Error).message ?? '')) {
+        Alert.alert('Bu e-posta kayıtlı', toUserMessage(error), [
+          { text: 'Vazgeç', style: 'cancel' },
+          { text: 'Giriş yap', onPress: () => router.replace({ pathname: '/onboarding/giris', params: { email } }) },
+        ]);
+      } else showError(error, 'Hesap oluşturulamadı');
+    } finally {
+      setCreating(false);
+    }
   };
 
   return (

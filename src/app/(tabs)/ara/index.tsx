@@ -1,13 +1,13 @@
 import { router, Stack } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
-import { SectionList, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, SectionList, StyleSheet, View } from 'react-native';
 
 import { PlaceRow } from '@/components/place-row';
-import { Divider, PressableScale, ScoreBadge, Text } from '@/components/ui';
+import { Button, Divider, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { UserRow } from '@/components/user-row';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
-import { searchPlaces, searchUsers } from '@/data/mock';
+import { useNearbyPlaceSearch, useSearchUsers, useSuggestedUsers } from '@/hooks/queries';
 import { haptics } from '@/lib/haptics';
 import { useAppStore } from '@/store/app-store';
 import type { Place, User } from '@/types';
@@ -26,15 +26,22 @@ type Section =
 
 /** Hem mekân hem kişi araması */
 export default function SearchTab() {
-  const { following, scoreOf, isSaved, dispatch } = useAppStore();
+  const { following, scoreOf, isSaved, actions } = useAppStore();
   const [query, setQuery] = useState('');
   const [scope, setScope] = useState<Scope>('all');
   const searching = query.trim().length > 0;
 
+  // Arama boşken: takip etmediğin kişiler ve yakındaki mekânlar öneri olarak
+  const userSearch = useSearchUsers(query);
+  const suggested = useSuggestedUsers();
+  const placeSearch = useNearbyPlaceSearch(query);
+  const loading = placeSearch.isPending || (searching && userSearch.isPending);
+
   const sections = useMemo<Section[]>(() => {
-    // Arama boşken: takip etmediğin kişiler ve tüm mekânlar öneri olarak
-    const people = searching ? searchUsers(query) : searchUsers('').filter((u) => !following.includes(u.id));
-    const places = searchPlaces(query);
+    const people = searching
+      ? (userSearch.data ?? [])
+      : (suggested.data ?? []).filter((u) => !following.includes(u.id));
+    const places = placeSearch.data ?? [];
     const result: Section[] = [];
     if (scope !== 'places' && people.length) {
       result.push({
@@ -47,7 +54,7 @@ export default function SearchTab() {
       result.push({ key: 'places', title: searching ? 'Mekânlar' : 'Keşfet', data: places });
     }
     return result;
-  }, [query, scope, searching, following]);
+  }, [scope, searching, following, userSearch.data, suggested.data, placeSearch.data]);
 
   return (
     <>
@@ -98,12 +105,24 @@ export default function SearchTab() {
         )}
         ItemSeparatorComponent={() => <Divider inset={spacing.lg + 52 + spacing.md} />}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <SymbolView name="magnifyingglass" tintColor={colors.textTertiary} size={40} />
-            <Text variant="subhead" color={colors.textSecondary} align="center">
-              “{query}” için sonuç bulunamadı.
-            </Text>
-          </View>
+          loading ? (
+            <ActivityIndicator color={colors.primary} style={styles.empty} />
+          ) : (
+            <View style={styles.empty}>
+              <SymbolView name="magnifyingglass" tintColor={colors.textTertiary} size={40} />
+              <Text variant="subhead" color={colors.textSecondary} align="center">
+                {searching ? `“${query.trim()}” için sonuç bulunamadı.` : 'Burada henüz keşfedilecek bir şey yok.'}
+              </Text>
+              {scope !== 'people' && (
+                <Button
+                  title="Yeni mekân ekle"
+                  icon="plus"
+                  variant="secondary"
+                  onPress={() => router.push({ pathname: '/mekan-ekle', params: { ad: query.trim() } })}
+                />
+              )}
+            </View>
+          )
         }
         renderItem={({ item, section }) => {
           if (section.key === 'people') return <UserRow user={item as User} />;
@@ -120,7 +139,7 @@ export default function SearchTab() {
                 ) : (
                   <PressableScale
                     hitSlop={hitSlop}
-                    onPress={() => dispatch({ type: 'toggleSaved', placeId: place.id })}
+                    onPress={() => actions.toggleSaved(place.id)}
                     accessibilityLabel={saved ? 'Listemden çıkar' : 'Listeme kaydet'}>
                     <SymbolView
                       name={saved ? 'bookmark.fill' : 'bookmark'}

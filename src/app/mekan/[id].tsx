@@ -4,22 +4,28 @@ import type { ReactNode } from 'react';
 import { Linking, ScrollView, StyleSheet, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 
-import { Avatar, Button, Divider, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
+import { Avatar, Button, Divider, ErrorView, LoadingView, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { colors, radius, spacing } from '@/constants/theme';
 import { PostGrid } from '@/components/post-grid';
-import { placeById } from '@/data/mock';
+import { usePlace, useUser } from '@/data/entities';
+import { usePlaceDetails, usePlacePosts } from '@/hooks/queries';
 import { formatScore, priceLabel } from '@/lib/format';
 import { linkSource } from '@/lib/links';
-import { placeSummary, priceBucketLabel } from '@/lib/post-meta';
+import { priceBucketLabel } from '@/lib/post-meta';
 import { haptics } from '@/lib/haptics';
 import { useAppStore } from '@/store/app-store';
 
 export default function PlaceDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const place = placeById(id);
-  const { scoreOf, scored, isSaved, saved: savedPlaces, following, posts, getUser, dispatch } = useAppStore();
+  const cached = usePlace(id);
+  const details = usePlaceDetails(id);
+  const placePosts = usePlacePosts(id);
+  const { scoreOf, scored, isSaved, saved: savedPlaces, actions } = useAppStore();
+  const place = cached ?? details.data?.place;
 
   if (!place) {
+    if (details.isError) return <ErrorView onRetry={() => details.refetch()} style={styles.container} />;
+    if (cached === undefined && details.isPending) return <LoadingView style={styles.container} />;
     return (
       <View style={[styles.container, styles.center]}>
         <Text>Mekân bulunamadı.</Text>
@@ -32,16 +38,15 @@ export default function PlaceDetailScreen() {
   const saved = isSaved(place.id);
   const savedEntry = savedPlaces.find((s) => s.placeId === place.id);
   const source = savedEntry?.link ? linkSource(savedEntry.link) : null;
-  const placePosts = posts.filter((p) => p.placeId === place.id);
-  const summary = placeSummary(placePosts);
-  const hasSummary = !!summary.price || summary.highlights.length > 0 || summary.dishes.length > 0;
-  // Takip edilenlerin bu mekâna verdiği puanlar (kişi başına en yeni gönderi)
-  const friendScores = placePosts
-    .filter((p) => following.includes(p.userId) && p.score !== undefined)
-    .filter((p, i, list) => list.findIndex((q) => q.userId === p.userId) === i);
+  const posts = placePosts.data ?? [];
+  const summary = details.data?.summary;
+  const hasSummary = !!summary && (!!summary.price || summary.highlights.length > 0 || summary.dishes.length > 0);
+  // Takip edilenlerin bu mekâna verdiği puanlar
+  const friendScores = details.data?.friends ?? [];
   const friendAverage = friendScores.length
-    ? friendScores.reduce((sum, p) => sum + p.score!, 0) / friendScores.length
+    ? friendScores.reduce((sum, f) => sum + f.score, 0) / friendScores.length
     : undefined;
+  const postCount = details.data?.postCount ?? posts.length;
 
   return (
     <ScrollView style={styles.container} contentInsetAdjustmentBehavior="never">
@@ -95,7 +100,7 @@ export default function PlaceDetailScreen() {
               variant="secondary"
               onPress={() => {
                 haptics.success();
-                dispatch({ type: 'toggleSaved', placeId: place.id });
+                actions.toggleSaved(place.id);
               }}
               style={{ flex: 1 }}
             />
@@ -110,7 +115,7 @@ export default function PlaceDetailScreen() {
 
         <Divider />
 
-        {hasSummary && (
+        {hasSummary && summary && (
           <>
             <Text variant="headline">Puanla kullanıcılarına göre</Text>
             <View style={styles.summary}>
@@ -160,29 +165,21 @@ export default function PlaceDetailScreen() {
         </View>
         {friendScores.length === 0 ? (
           <Text variant="subhead" color={colors.textSecondary}>
-            Takip ettiğin kimse burayı henüz puanlamadı.
+            {details.isPending ? ' ' : 'Takip ettiğin kimse burayı henüz puanlamadı.'}
           </Text>
         ) : (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.friendScores}>
-            {friendScores.map((p) => {
-              const user = getUser(p.userId);
-              if (!user) return null;
-              return (
-                <PressableScale
-                  key={p.id}
-                  onPress={() => router.push({ pathname: '/gonderi/[id]', params: { id: p.id } })}
-                  style={styles.friendScore}>
-                  <Avatar uri={user.avatarUrl} name={user.name} size={48} />
-                  <View style={styles.friendBadge}>
-                    <ScoreBadge score={p.score!} size="sm" />
-                  </View>
-                  <Text variant="caption" numberOfLines={1}>
-                    {user.name.split(' ')[0]}
-                  </Text>
-                </PressableScale>
-              );
-            })}
+            {friendScores.map((f) => (
+              <FriendScore key={f.userId} userId={f.userId} score={f.score} postId={f.postId} />
+            ))}
           </ScrollView>
+        )}
+
+        {details.data?.rating && (
+          <Text variant="footnote" color={colors.textSecondary}>
+            Tüm Puanla kullanıcılarının ortalaması {formatScore(details.data.rating.average)} ·{' '}
+            {details.data.rating.count} kişi
+          </Text>
         )}
 
         <Divider />
@@ -209,13 +206,40 @@ export default function PlaceDetailScreen() {
         </View>
 
         <Text variant="headline">
-          Gönderiler{placePosts.length > 0 ? ` (${placePosts.length})` : ''}
+          Gönderiler{postCount > 0 ? ` (${postCount})` : ''}
         </Text>
       </View>
 
-      <PostGrid posts={placePosts} emptyText="Bu mekân hakkında henüz gönderi yok. İlk paylaşan sen ol!" />
+      {placePosts.isPending ? (
+        <LoadingView />
+      ) : (
+        <PostGrid posts={posts} emptyText="Bu mekân hakkında henüz gönderi yok. İlk paylaşan sen ol!" />
+      )}
       <View style={{ height: spacing.xxl }} />
     </ScrollView>
+  );
+}
+
+/** Arkadaşın puanı; gönderisi varsa ona, yoksa profiline gider */
+function FriendScore({ userId, score, postId }: { userId: string; score: number; postId?: string }) {
+  const user = useUser(userId);
+  if (!user) return null;
+  return (
+    <PressableScale
+      onPress={() =>
+        postId
+          ? router.push({ pathname: '/gonderi/[id]', params: { id: postId } })
+          : router.push({ pathname: '/kullanici/[id]', params: { id: userId } })
+      }
+      style={styles.friendScore}>
+      <Avatar uri={user.avatarUrl} name={user.name} size={48} />
+      <View style={styles.friendBadge}>
+        <ScoreBadge score={score} size="sm" />
+      </View>
+      <Text variant="caption" numberOfLines={1}>
+        {user.name.split(' ')[0]}
+      </Text>
+    </PressableScale>
   );
 }
 

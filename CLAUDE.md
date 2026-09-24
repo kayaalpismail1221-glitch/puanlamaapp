@@ -16,8 +16,19 @@ Uygulama dili Türkçe.
 - Navigasyon: Expo Router (dosya tabanlı), alt bar için native tabs
 - Harita: react-native-maps (iOS'ta Apple Haritalar)
 - Animasyon ve his: react-native-reanimated, expo-haptics, expo-blur
-- Backend: Supabase (auth, Postgres + PostGIS, storage). Apple ile Giriş desteklenmeli.
-- Mekân verisi: Google Places veya Foursquare API (ileride karar verilecek; önce mock veri)
+- Backend: Supabase (auth, Postgres + PostGIS, storage). Apple ile Giriş desteklenmeli. Kurulum: SUPABASE.md
+- Mekân verisi: kendi `places` tablomuz; kullanıcılar mekân ekleyebilir (`mekan-ekle`). Toplu içe aktarım
+  için Foursquare Open Places düşünülüyor (Google Places verisi lisans gereği kalıcı saklanamaz).
+
+## Backend mimarisi (kalıcı ilke)
+- Şema değişikliği her zaman yeni bir migration dosyasıyla (`supabase/migrations/`), eskileri düzenlenmez
+  (canlıya çıkmadan önceki ilk sürüm hariç). Her değişiklikten sonra `npm run test:db` geçmeli; yeni kurala test eklenir.
+- Güvenlik veritabanında: her tabloda RLS, türetilmiş alanlar (sayaçlar, puanlar) sütun yetkileriyle korunur.
+  Uygulamadaki kontroller yalnızca kullanıcı deneyimi içindir.
+- Karmaşık okumalar görünüm/fonksiyon (`post_view`, `feed_popular`, `place_details`…) ile tek istekte yapılır.
+- İstemci katmanları: `src/api/*` (Supabase çağrıları) → `data/entities` (ortak önbellek) ve `hooks/queries`
+  (TanStack Query) → ekranlar. Kullanıcının kendi verisi `store/app-store` içinde iyimser güncellenir.
+- Ekranlar Supabase'i doğrudan çağırmaz; `src/api` üzerinden gider. `src/types/database.ts` şemayla aynı tutulur.
 
 ## Tasarım sistemi
 - Arka plan: tamamen beyaz `#FFFFFF`. Yemek fotoğrafları öne çıksın diye ekranlar sade ve ferah kalmalı.
@@ -78,6 +89,5 @@ Uygulama dili Türkçe.
 - Paylaşılabilir "en iyi mekânlarım" kartı (Instagram hikâyesi için)
 
 ## Çalışma kuralları
-- Önce mock veriyle çalışan arayüz, sonra Supabase bağlantısı
 - Küçük adımlarla ilerle. Her adım sonunda `npx expo start` ile iPhone'da test edilebilir olsun
 - Kod açıklamaları ve kullanıcıya görünen metinler Türkçe

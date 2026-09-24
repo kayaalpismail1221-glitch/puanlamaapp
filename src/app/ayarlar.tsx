@@ -1,9 +1,10 @@
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
-import type { ReactNode } from 'react';
-import { Alert, Linking, ScrollView, Share, StyleSheet, Switch, View } from 'react-native';
+import { useState, type ReactNode } from 'react';
+import { ActivityIndicator, Alert, Linking, ScrollView, Share, StyleSheet, Switch, View } from 'react-native';
 
+import { showError } from '@/api/errors';
 import { Avatar, PressableScale, Text } from '@/components/ui';
 import { colors, radius, spacing } from '@/constants/theme';
 import { schoolById, schoolLabel } from '@/data/schools';
@@ -13,14 +14,44 @@ import { useAppStore } from '@/store/app-store';
 
 /** Ayarlar: iOS gruplu liste düzeni */
 export default function SettingsScreen() {
-  const { profile, feedArea, hapticsEnabled, dispatch } = useAppStore();
+  const { profile, email, feedArea, hapticsEnabled, actions } = useAppStore();
   const school = schoolById(profile?.schoolId);
+  const [deleting, setDeleting] = useState(false);
 
   const logout = () =>
-    Alert.alert('Çıkış yap', 'Tüm yerel veriler silinir ve karşılama ekranına dönersin.', [
+    Alert.alert('Çıkış yap', 'Bu cihazdan çıkış yapılacak. Verilerin hesabında kalır.', [
       { text: 'Vazgeç', style: 'cancel' },
-      { text: 'Çıkış yap', style: 'destructive', onPress: () => dispatch({ type: 'reset' }) },
+      { text: 'Çıkış yap', style: 'destructive', onPress: () => actions.signOut() },
     ]);
+
+  const deleteAccount = async () => {
+    setDeleting(true);
+    try {
+      await actions.deleteAccount();
+    } catch (error) {
+      setDeleting(false);
+      showError(error, 'Hesap silinemedi');
+    }
+  };
+
+  // Geri alınamaz: iki kez onay
+  const confirmDelete = () =>
+    Alert.alert(
+      'Hesabını sil',
+      'Profilin, puanların, Listem, gönderilerin, fotoğrafların ve yorumların kalıcı olarak silinir. Bu işlem geri alınamaz.',
+      [
+        { text: 'Vazgeç', style: 'cancel' },
+        {
+          text: 'Devam et',
+          style: 'destructive',
+          onPress: () =>
+            Alert.alert('Emin misin?', 'Hesabın ve tüm verilerin silinecek.', [
+              { text: 'Vazgeç', style: 'cancel' },
+              { text: 'Hesabımı sil', style: 'destructive', onPress: deleteAccount },
+            ]),
+        },
+      ],
+    );
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} contentInsetAdjustmentBehavior="automatic">
@@ -57,7 +88,7 @@ export default function SettingsScreen() {
             <Switch
               value={hapticsEnabled}
               onValueChange={(v) => {
-                dispatch({ type: 'setHapticsEnabled', enabled: v });
+                actions.setHapticsEnabled(v);
                 if (v) haptics.success();
               }}
               trackColor={{ true: colors.primary }}
@@ -78,7 +109,8 @@ export default function SettingsScreen() {
         />
       </Group>
 
-      <Group title="Hakkında">
+      <Group title="Hesap">
+        {email && <Row icon="envelope" label="E-posta" value={email} />}
         <Row icon="info.circle" label="Sürüm" value={Constants.expoConfig?.version ?? '1.0.0'} last />
       </Group>
 
@@ -87,6 +119,18 @@ export default function SettingsScreen() {
           <Text variant="body" color={colors.danger}>
             Çıkış yap
           </Text>
+        </PressableScale>
+      </Group>
+
+      <Group>
+        <PressableScale onPress={confirmDelete} disabled={deleting} scaleTo={0.99} style={styles.logout}>
+          {deleting ? (
+            <ActivityIndicator color={colors.danger} />
+          ) : (
+            <Text variant="body" color={colors.danger}>
+              Hesabı sil
+            </Text>
+          )}
         </PressableScale>
       </Group>
     </ScrollView>

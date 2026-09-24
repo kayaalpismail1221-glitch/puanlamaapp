@@ -7,7 +7,8 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { SavedPlaceCard } from '@/components/saved-place-card';
 import { Button, Divider, PlaceImage, PressableScale, Text } from '@/components/ui';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
-import { placeById } from '@/data/mock';
+import { getPlace, useEntitiesVersion, usePrefetchPlaces } from '@/data/entities';
+import { useFriendScores, useSavedPosts } from '@/hooks/queries';
 import { useClipboardHasUrl } from '@/lib/clipboard';
 import { formatScore } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
@@ -35,7 +36,12 @@ const addApp = () => router.push({ pathname: '/listeye-ekle', params: { kaynak: 
  * - Kaydettiklerim: uygulama içinde yer imiyle kaydettiğin mekânlar ve gönderiler
  */
 export default function SavedListScreen() {
-  const { saved, savedPosts, postById, friendScoreOf } = useAppStore();
+  const { saved, isPostSaved } = useAppStore();
+  const savedPosts = useSavedPosts();
+  const version = useEntitiesVersion();
+  usePrefetchPlaces(saved.map((s) => s.placeId));
+  const friendScores = useFriendScores(saved.map((s) => s.placeId)).data;
+  const friendScoreOf = (placeId: string) => friendScores?.[placeId];
   const [section, setSection] = useState<SaveOrigin>('social');
   const [cuisine, setCuisine] = useState<string | null>(null);
   const [source, setSource] = useState<string | null>(null);
@@ -43,13 +49,19 @@ export default function SavedListScreen() {
   const [clipboardHasUrl] = useClipboardHasUrl();
 
   const allRows = useMemo<Row[]>(
-    () => saved.flatMap((entry) => (placeById(entry.placeId) ? [{ entry, place: placeById(entry.placeId)! }] : [])),
-    [saved],
+    () =>
+      saved.flatMap((entry) => {
+        const place = getPlace(entry.placeId);
+        return place ? [{ entry, place }] : [];
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [saved, version],
   );
   const socialRows = allRows.filter((r) => r.entry.origin === 'social');
   const appRows = allRows.filter((r) => r.entry.origin === 'app');
   const sectionRows = section === 'social' ? socialRows : appRows;
-  const posts = savedPosts.flatMap((id) => postById(id) ?? []).reverse();
+  // Kaydetmesi yeni kaldırılan gönderi listeden hemen düşsün
+  const posts = (savedPosts.data ?? []).filter(isPostSaved);
 
   // Filtre seçenekleri o bölümdeki kayıtlardan çıkar
   const cuisines = useMemo(() => countBy(sectionRows, (r) => r.place.cuisine), [sectionRows]);
@@ -71,7 +83,8 @@ export default function SavedListScreen() {
     if (sort === 'friends')
       sorted.sort((a, b) => (friendScoreOf(b.place.id)?.average ?? -1) - (friendScoreOf(a.place.id)?.average ?? -1));
     return sorted;
-  }, [sectionRows, cuisine, source, section, sort, friendScoreOf]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sectionRows, cuisine, source, section, sort, friendScores]);
 
   const changeSection = (next: SaveOrigin) => {
     if (next === section) return;
@@ -195,14 +208,14 @@ export default function SavedListScreen() {
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.postStrip}>
                   {posts.slice(0, 10).map((p) => {
-                    const place = placeById(p.placeId);
+                    const place = getPlace(p.placeId);
                     return (
                       <PressableScale
                         key={p.id}
                         scaleTo={0.96}
                         onPress={() => router.push({ pathname: '/gonderi/[id]', params: { id: p.id } })}
                         style={styles.postTile}>
-                        <PlaceImage uri={p.photos[0] ?? place?.photoUrl} style={StyleSheet.absoluteFill} />
+                        <PlaceImage uri={p.thumbs[0] ?? place?.thumbUrl} style={StyleSheet.absoluteFill} />
                         <View style={styles.postShade}>
                           <Text variant="caption" color={colors.onPrimary} numberOfLines={1} style={styles.bold}>
                             {place?.name}
@@ -284,7 +297,9 @@ export default function SavedListScreen() {
             <AppEmpty />
           ) : null
         }
-        renderItem={({ item }) => <SavedPlaceCard entry={item.entry} place={item.place} />}
+        renderItem={({ item }) => (
+          <SavedPlaceCard entry={item.entry} place={item.place} friends={friendScoreOf(item.place.id)} />
+        )}
         ListFooterComponent={
           rows.length > 0 ? (
             <Text variant="caption" color={colors.textTertiary} align="center" style={styles.hint}>

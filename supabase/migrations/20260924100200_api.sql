@@ -142,16 +142,18 @@ select
   (select public.profile_json(u) from public.profiles u where u.id = c.user_id) as author
 from public.comments c;
 
-/** Konum seçici için şehir ve ilçeler, mekânların ortalama konumuyla */
+/** Konum seçici için şehir ve ilçeler: mekânların ortalama konumu, mekân ve gönderi sayısı */
 create view public.area_view with (security_invoker = true) as
 select
-  city,
-  district,
-  avg(latitude) as latitude,
-  avg(longitude) as longitude,
-  count(*)::int as place_count
-from public.places
-group by city, district;
+  pl.city,
+  pl.district,
+  avg(pl.latitude) as latitude,
+  avg(pl.longitude) as longitude,
+  count(*)::int as place_count,
+  coalesce(sum(pc.n), 0)::int as post_count
+from public.places pl
+left join lateral (select count(*) as n from public.posts p where p.place_id = pl.id) pc on true
+group by pl.city, pl.district;
 
 -- ---------------------------------------------------------------------------
 -- Sıralama
@@ -360,14 +362,10 @@ as $$
     / power(greatest(extract(epoch from now() - created_at) / 3600.0, 0) + 2, 1.3)
 $$;
 
-/**
- * Gönderi listeleri (en yeni başta, sayfalı):
- * bir kullanıcının, bir mekânın ya da kaydedilen gönderiler.
- */
+/** Bir kullanıcının ya da bir mekânın gönderileri, en yeni başta (created_at imleciyle sayfalı) */
 create or replace function public.list_posts(
   p_user_id uuid default null,
   p_place_id uuid default null,
-  p_saved boolean default false,
   p_before timestamptz default null,
   p_limit integer default 30
 )
@@ -381,10 +379,6 @@ as $$
     from public.posts p
     where (p_user_id is null or p.user_id = p_user_id)
       and (p_place_id is null or p.place_id = p_place_id)
-      and (
-        not p_saved
-        or exists (select 1 from public.post_saves s where s.post_id = p.id and s.user_id = auth.uid())
-      )
       and (p_before is null or p.created_at < p_before)
     order by p.created_at desc
     limit least(greatest(p_limit, 1), 100)
@@ -392,6 +386,27 @@ as $$
   select v.*
   from page
   join public.post_view v on v.id = page.id
+  order by page.created_at desc
+$$;
+
+/** Kaydedilen gönderiler, en son kaydedilen başta */
+create or replace function public.saved_posts(p_offset integer default 0, p_limit integer default 30)
+returns setof public.post_view
+language sql
+stable
+set search_path = ''
+as $$
+  with page as (
+    select s.post_id, s.created_at
+    from public.post_saves s
+    where s.user_id = auth.uid()
+    order by s.created_at desc
+    offset greatest(p_offset, 0)
+    limit least(greatest(p_limit, 1), 100)
+  )
+  select v.*
+  from page
+  join public.post_view v on v.id = page.post_id
   order by page.created_at desc
 $$;
 

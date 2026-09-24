@@ -1,6 +1,6 @@
 import type { SFSymbol } from 'expo-symbols';
 
-import type { Meal, Post, PriceBucket } from '@/types';
+import type { Meal, PriceBucket } from '@/types';
 
 /**
  * Gönderilerdeki yapılandırılmış bilgiler. Serbest metin yerine seçenekli olması,
@@ -37,29 +37,3 @@ export const HIGHLIGHTS = [
 
 export const priceBucketLabel = (key?: PriceBucket) => PRICE_BUCKETS.find((b) => b.key === key)?.label;
 export const mealLabel = (key?: Meal) => MEALS.find((m) => m.key === key)?.label;
-
-/** Bir mekânın gönderilerinden özet: en sık fiyat aralığı ve öne çıkan özellikler */
-export function placeSummary(posts: Post[]) {
-  const priceCounts = new Map<PriceBucket, number>();
-  const tagCounts = new Map<string, number>();
-  const dishCounts = new Map<string, number>();
-  for (const p of posts) {
-    if (p.pricePerPerson) priceCounts.set(p.pricePerPerson, (priceCounts.get(p.pricePerPerson) ?? 0) + 1);
-    for (const t of p.highlights ?? []) tagCounts.set(t, (tagCounts.get(t) ?? 0) + 1);
-    for (const d of p.dishes ?? []) {
-      const key = d.trim().toLocaleLowerCase('tr');
-      if (key) dishCounts.set(key, (dishCounts.get(key) ?? 0) + 1);
-    }
-  }
-  const top = <K,>(m: Map<K, number>, n: number) => [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, n);
-  const [price] = top(priceCounts, 1);
-  return {
-    price: price ? { key: price[0], count: price[1] } : undefined,
-    priceVotes: [...priceCounts.values()].reduce((a, b) => a + b, 0),
-    highlights: top(tagCounts, 4).map(([label, count]) => ({ label, count })),
-    dishes: top(dishCounts, 5).map(([name, count]) => ({
-      name: name.charAt(0).toLocaleUpperCase('tr') + name.slice(1),
-      count,
-    })),
-  };
-}

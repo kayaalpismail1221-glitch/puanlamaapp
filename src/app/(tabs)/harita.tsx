@@ -10,7 +10,8 @@ import { GlassSurface } from '@/components/glass-surface';
 import { SegmentedControl } from '@/components/segmented-control';
 import { PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { colors, radius, scoreColor, spacing } from '@/constants/theme';
-import { DEFAULT_REGION, placeById } from '@/data/mock';
+import { getPlace, useEntitiesVersion, usePrefetchPlaces } from '@/data/entities';
+import { DEFAULT_REGION } from '@/lib/geo';
 import { formatScore } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
 import { useAppStore } from '@/store/app-store';
@@ -39,19 +40,23 @@ export default function MapScreen() {
     if (filtre) setFilter(filtre);
   }
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const version = useEntitiesVersion();
+  usePrefetchPlaces([...scored, ...saved].map((e) => e.placeId));
 
   const pins = useMemo<Pin[]>(() => {
-    const been = scored
-      .map((e) => ({ place: placeById(e.placeId), score: e.score }))
-      .filter((p): p is { place: Place; score: number } => !!p.place);
-    const want = saved
-      .map((s) => placeById(s.placeId))
-      .filter((p): p is Place => !!p)
-      .map((place) => ({ place }));
+    const been = scored.flatMap((e) => {
+      const place = getPlace(e.placeId);
+      return place ? [{ place, score: e.score }] : [];
+    });
+    const want = saved.flatMap((s) => {
+      const place = getPlace(s.placeId);
+      return place ? [{ place }] : [];
+    });
     if (filter === 'been') return been;
     if (filter === 'want') return want;
     return [...been, ...want];
-  }, [scored, saved, filter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scored, saved, filter, version]);
 
   const selected = pins.find((p) => p.place.id === selectedId);
 

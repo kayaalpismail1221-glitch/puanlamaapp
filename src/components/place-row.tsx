@@ -23,7 +23,7 @@ export function PlaceRow({ place, onPress, rank, trailing }: Props) {
           {rank}
         </Text>
       )}
-      <PlaceImage uri={place.photoUrl} style={styles.thumb} />
+      <PlaceImage uri={place.thumbUrl ?? place.photoUrl} style={styles.thumb} />
       <View style={styles.info}>
         <Text variant="headline" numberOfLines={1}>
           {place.name}

@@ -30,7 +30,7 @@ export function PostGrid({ posts, emptyText }: { posts: Post[]; emptyText: strin
           onPress={() => router.push({ pathname: '/gonderi/[id]', params: { id: post.id } })}
           style={[styles.cell, { width: size, height: size * 1.25 }]}>
           {post.photos[0] ? (
-            <PlaceImage uri={post.photos[0]} style={StyleSheet.absoluteFill} />
+            <PlaceImage uri={post.thumbs[0] ?? post.photos[0]} style={StyleSheet.absoluteFill} />
           ) : (
             // Fotoğrafsız gönderi: yorumdan bir parça
             <View style={styles.textCell}>

@@ -6,14 +6,47 @@ import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring } 
 import { PhotoCarousel } from '@/components/photo-carousel';
 import { Avatar, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
-import { placeById } from '@/data/mock';
+import { block, report, type ReportReason } from '@/api/content';
+import { showError } from '@/api/errors';
+import { getUser, usePlace, usePost, useUser } from '@/data/entities';
+import { useDeletePost } from '@/hooks/queries';
 import { timeAgo } from '@/lib/format';
 import { formatDistance } from '@/lib/geo';
 import { haptics } from '@/lib/haptics';
 import { openUserProfile } from '@/lib/navigation';
 import { mealLabel, priceBucketLabel } from '@/lib/post-meta';
+import { queryClient } from '@/lib/query-client';
+import { isMe } from '@/lib/session';
 import { useAppStore } from '@/store/app-store';
-import { ME, type Post } from '@/types';
+import type { Post } from '@/types';
+
+const REPORT_REASONS: { key: ReportReason; label: string }[] = [
+  { key: 'spam', label: 'Spam ya da reklam' },
+  { key: 'offensive', label: 'Rahatsız edici içerik' },
+  { key: 'fake', label: 'Sahte ya da yanıltıcı' },
+  { key: 'other', label: 'Başka bir sebep' },
+];
+
+/** iOS'ta sistem menüsü, diğerlerinde uyarı penceresi */
+function showMenu(title: string | undefined, options: { label: string; destructive?: boolean; onPress: () => void }[]) {
+  if (Platform.OS === 'ios') {
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        title,
+        options: [...options.map((o) => o.label), 'Vazgeç'],
+        destructiveButtonIndex: options.flatMap((o, i) => (o.destructive ? [i] : [])),
+        cancelButtonIndex: options.length,
+        tintColor: colors.primary,
+      },
+      (i) => options[i]?.onPress(),
+    );
+  } else {
+    Alert.alert(title ?? '', undefined, [
+      ...options.map((o) => ({ text: o.label, onPress: o.onPress, style: o.destructive ? ('destructive' as const) : undefined })),
+      { text: 'Vazgeç', style: 'cancel' as const },
+    ]);
+  }
+}
 
 type Props = {
   post: Post;
@@ -23,19 +56,22 @@ type Props = {
   distanceKm?: number;
 };
 
-export function PostCard({ post, expanded, distanceKm }: Props) {
-  const { likedPosts, savedPosts, dispatch, getUser, commentsFor } = useAppStore();
+export function PostCard({ post: initial, expanded, distanceKm }: Props) {
+  const { isLiked, isPostSaved, likeCountOf, actions } = useAppStore();
+  const deletePost = useDeletePost();
   const heart = useSharedValue(1);
   const heartStyle = useAnimatedStyle(() => ({ transform: [{ scale: heart.get() }] }));
 
-  const user = getUser(post.userId);
-  const place = placeById(post.placeId);
+  // Önbellekteki en güncel hâli (ör. yeni yorum sayısı)
+  const post = usePost(initial.id) ?? initial;
+  const user = useUser(post.userId);
+  const place = usePlace(post.placeId);
   if (!user || !place) return null;
 
-  const liked = likedPosts.includes(post.id);
-  const saved = savedPosts.includes(post.id);
-  const commentCount = commentsFor(post.id).length;
-  const tagged = post.taggedUserIds.map(getUser).filter((u) => !!u);
+  const liked = isLiked(post);
+  const saved = isPostSaved(post);
+  const commentCount = post.commentCount;
+  const tagged = post.taggedUserIds.flatMap((id) => getUser(id) ?? []);
 
   const openPlace = () => router.push({ pathname: '/mekan/[id]', params: { id: place.id } });
   const openPost = () => router.push({ pathname: '/gonderi/[id]', params: { id: post.id } });
@@ -45,41 +81,82 @@ export function PostCard({ post, expanded, distanceKm }: Props) {
   const toggleLike = () => {
     haptics.tap();
     bounceHeart();
-    dispatch({ type: 'toggleLikePost', postId: post.id });
+    actions.toggleLike(post);
   };
 
   // Çift dokunuş yalnızca beğenir, beğeniyi geri almaz
   const likeFromPhoto = () => {
     haptics.tap();
     bounceHeart();
-    if (!liked) dispatch({ type: 'toggleLikePost', postId: post.id });
+    actions.like(post);
   };
 
   const toggleSave = () => {
     haptics.select();
-    dispatch({ type: 'toggleSavePost', postId: post.id });
+    actions.togglePostSaved(post);
   };
 
-  const showOwnerMenu = () => {
-    const remove = () =>
-      Alert.alert('Gönderiyi sil', 'Bu gönderi kalıcı olarak silinecek.', [
-        { text: 'Vazgeç', style: 'cancel' },
-        {
-          text: 'Sil',
-          style: 'destructive',
-          onPress: () => {
-            dispatch({ type: 'deletePost', postId: post.id });
-            if (expanded) router.back();
-          },
-        },
-      ]);
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        { options: ['Gönderiyi sil', 'Vazgeç'], destructiveButtonIndex: 0, cancelButtonIndex: 1 },
-        (i) => i === 0 && remove(),
-      );
-    } else remove();
-  };
+  const mine = isMe(post.userId);
+
+  const confirmDelete = () =>
+    Alert.alert('Gönderiyi sil', 'Bu gönderi ve fotoğrafları kalıcı olarak silinecek.', [
+      { text: 'Vazgeç', style: 'cancel' },
+      {
+        text: 'Sil',
+        style: 'destructive',
+        onPress: () =>
+          deletePost.mutate(post, {
+            onSuccess: () => {
+              haptics.success();
+              if (expanded) router.back();
+            },
+            onError: (error) => showError(error, 'Gönderi silinemedi'),
+          }),
+      },
+    ]);
+
+  const reportPost = () =>
+    showMenu(
+      'Neden şikâyet ediyorsun?',
+      REPORT_REASONS.map((r) => ({
+        label: r.label,
+        onPress: () =>
+          report({ postId: post.id }, r.key).then(
+            () => Alert.alert('Teşekkürler', 'Şikâyetini aldık; en kısa sürede inceleyeceğiz.'),
+            (error) => showError(error, 'Şikâyet gönderilemedi'),
+          ),
+      })),
+    );
+
+  const blockUser = () =>
+    Alert.alert(`${user.name} engellensin mi?`, 'Birbirinizin gönderilerini ve profilini göremezsiniz; takip de kalkar.', [
+      { text: 'Vazgeç', style: 'cancel' },
+      {
+        text: 'Engelle',
+        style: 'destructive',
+        onPress: () =>
+          block(user.id).then(
+            () => {
+              haptics.success();
+              queryClient.invalidateQueries();
+              actions.refresh();
+              if (expanded) router.back();
+            },
+            (error) => showError(error, 'Engellenemedi'),
+          ),
+      },
+    ]);
+
+  const showPostMenu = () =>
+    showMenu(
+      undefined,
+      mine
+        ? [{ label: 'Gönderiyi sil', destructive: true, onPress: confirmDelete }]
+        : [
+            { label: 'Şikâyet et', destructive: true, onPress: reportPost },
+            { label: `${user.name.split(' ')[0]} kişisini engelle`, destructive: true, onPress: blockUser },
+          ],
+    );
 
   return (
     <View style={styles.card}>
@@ -102,11 +179,9 @@ export function PostCard({ post, expanded, distanceKm }: Props) {
           </Text>
         </View>
         {post.score !== undefined && <ScoreBadge score={post.score} />}
-        {post.userId === ME && (
-          <PressableScale onPress={showOwnerMenu} hitSlop={hitSlop} accessibilityLabel="Seçenekler">
-            <SymbolView name="ellipsis" tintColor={colors.textSecondary} size={18} />
-          </PressableScale>
-        )}
+        <PressableScale onPress={showPostMenu} hitSlop={hitSlop} accessibilityLabel="Seçenekler">
+          <SymbolView name="ellipsis" tintColor={colors.textSecondary} size={18} />
+        </PressableScale>
       </View>
 
       {/* Birlikte gidilen arkadaşlar */}
@@ -132,7 +207,7 @@ export function PostCard({ post, expanded, distanceKm }: Props) {
       ) : (
         // Fotoğrafsız gönderi: mekân görseli ve büyük puanla sade bir kart
         <PressableScale onPress={openPlace} scaleTo={0.98} haptic={false} style={styles.tile}>
-          <PlaceImage uri={place.photoUrl} style={styles.tileImage} />
+          <PlaceImage uri={place.thumbUrl ?? place.photoUrl} style={styles.tileImage} />
           <View style={{ flex: 1, gap: 2 }}>
             <Text variant="headline" numberOfLines={1}>
               {place.name}
@@ -156,7 +231,7 @@ export function PostCard({ post, expanded, distanceKm }: Props) {
             />
           </Animated.View>
           <Text variant="subhead" style={styles.bold}>
-            {post.likeCount + (liked ? 1 : 0)}
+            {likeCountOf(post)}
           </Text>
         </PressableScale>
         <PressableScale onPress={openPost} hitSlop={hitSlop} style={styles.action} accessibilityLabel="Yorumlar">

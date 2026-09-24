@@ -1,26 +1,34 @@
 import { useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
-import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, FlatList, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PostCard } from '@/components/post-card';
-import { Avatar, Divider, PressableScale, Text } from '@/components/ui';
+import { showError } from '@/api/errors';
+import { Avatar, Divider, LoadingView, PressableScale, Text } from '@/components/ui';
 import { colors, hitSlop, radius, spacing, typography } from '@/constants/theme';
+import { usePost, useUser } from '@/data/entities';
+import { useAddComment, useComments, useDeleteComment } from '@/hooks/queries';
 import { timeAgo } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
 import { openUserProfile } from '@/lib/navigation';
+import { isMe } from '@/lib/session';
 import { useAppStore } from '@/store/app-store';
-import { ME } from '@/types';
+import type { Comment } from '@/types';
 
 /** Gönderi detayı: tam açıklama ve yorumlar */
 export default function PostDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { postById, commentsFor, getUser, profile, dispatch } = useAppStore();
+  const { profile } = useAppStore();
   const insets = useSafeAreaInsets();
   const [text, setText] = useState('');
+  const post = usePost(id);
+  const comments = useComments(id);
+  const addComment = useAddComment(id);
+  const deleteComment = useDeleteComment(id);
 
-  const post = postById(id);
+  if (post === undefined) return <LoadingView style={styles.center} />;
   if (!post) {
     return (
       <View style={styles.center}>
@@ -29,23 +37,27 @@ export default function PostDetailScreen() {
     );
   }
 
-  const comments = commentsFor(post.id);
-
   const send = () => {
     const body = text.trim();
-    if (!body) return;
+    if (!body || addComment.isPending) return;
     haptics.tap();
-    dispatch({
-      type: 'addComment',
-      comment: {
-        id: `c-${Date.now()}`,
-        postId: post.id,
-        userId: ME,
-        text: body,
-        createdAt: new Date().toISOString(),
-      },
+    addComment.mutate(body, {
+      onSuccess: () => setText(''),
+      onError: (error) => showError(error, 'Yorum gönderilemedi'),
     });
-    setText('');
+  };
+
+  // Kendi yorumunu ya da kendi gönderisindeki yorumları uzun basarak sil
+  const confirmDelete = (comment: Comment) => {
+    if (!isMe(comment.userId) && !isMe(post.userId)) return;
+    Alert.alert('Yorumu sil', 'Bu yorum kalıcı olarak silinecek.', [
+      { text: 'Vazgeç', style: 'cancel' },
+      {
+        text: 'Sil',
+        style: 'destructive',
+        onPress: () => deleteComment.mutate(comment.id, { onError: (error) => showError(error, 'Yorum silinemedi') }),
+      },
+    ]);
   };
 
   return (
@@ -54,7 +66,7 @@ export default function PostDetailScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={insets.top + 44}>
       <FlatList
-        data={comments}
+        data={comments.data ?? []}
         keyExtractor={(c) => c.id}
         keyboardDismissMode="interactive"
         contentInsetAdjustmentBehavior="automatic"
@@ -68,32 +80,15 @@ export default function PostDetailScreen() {
           </>
         }
         ListEmptyComponent={
-          <Text variant="subhead" color={colors.textSecondary} style={styles.empty}>
-            İlk yorumu sen yaz.
-          </Text>
+          comments.isPending ? (
+            <LoadingView />
+          ) : (
+            <Text variant="subhead" color={colors.textSecondary} style={styles.empty}>
+              İlk yorumu sen yaz.
+            </Text>
+          )
         }
-        renderItem={({ item }) => {
-          const author = getUser(item.userId);
-          if (!author) return null;
-          return (
-            <View style={styles.comment}>
-              <PressableScale onPress={() => openUserProfile(author.id)} haptic={false}>
-                <Avatar uri={author.avatarUrl} name={author.name} size={32} />
-              </PressableScale>
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text variant="subhead">
-                  <Text variant="subhead" style={styles.bold} onPress={() => openUserProfile(author.id)}>
-                    {author.username || author.name}
-                  </Text>{' '}
-                  {item.text}
-                </Text>
-                <Text variant="caption" color={colors.textSecondary}>
-                  {timeAgo(item.createdAt)}
-                </Text>
-              </View>
-            </View>
-          );
-        }}
+        renderItem={({ item }) => <CommentRow comment={item} onLongPress={() => confirmDelete(item)} />}
       />
 
       {/* Yorum yazma çubuğu */}
@@ -108,7 +103,11 @@ export default function PostDetailScreen() {
           maxLength={300}
           style={[typography.callout, styles.input]}
         />
-        <PressableScale onPress={send} disabled={!text.trim()} hitSlop={hitSlop} accessibilityLabel="Gönder">
+        <PressableScale
+          onPress={send}
+          disabled={!text.trim() || addComment.isPending}
+          hitSlop={hitSlop}
+          accessibilityLabel="Gönder">
           <SymbolView
             name="arrow.up.circle.fill"
             tintColor={text.trim() ? colors.primary : colors.textTertiary}
@@ -117,6 +116,29 @@ export default function PostDetailScreen() {
         </PressableScale>
       </View>
     </KeyboardAvoidingView>
+  );
+}
+
+function CommentRow({ comment, onLongPress }: { comment: Comment; onLongPress: () => void }) {
+  const author = useUser(comment.userId);
+  if (!author) return null;
+  return (
+    <PressableScale onLongPress={onLongPress} haptic={false} scaleTo={1} style={styles.comment}>
+      <PressableScale onPress={() => openUserProfile(author.id)} haptic={false}>
+        <Avatar uri={author.avatarUrl} name={author.name} size={32} />
+      </PressableScale>
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text variant="subhead">
+          <Text variant="subhead" style={styles.bold} onPress={() => openUserProfile(author.id)}>
+            {author.username || author.name}
+          </Text>{' '}
+          {comment.text}
+        </Text>
+        <Text variant="caption" color={colors.textSecondary}>
+          {timeAgo(comment.createdAt)}
+        </Text>
+      </View>
+    </PressableScale>
   );
 }
 

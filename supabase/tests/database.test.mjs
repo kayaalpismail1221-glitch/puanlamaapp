@@ -311,9 +311,11 @@ describe('gönderiler', () => {
 
   test('kaydedilen gönderiler listesi', async () => {
     const me = await signUp({ name: 'Arşivci' });
-    await as(me, `insert into post_saves (post_id) values ($1), ($2)`, [POST(2), POST(5)]);
-    const saved = await rows(me, `select id, saved_by_me from list_posts(p_saved => true)`);
-    assert.deepEqual(saved.map((p) => p.id).sort(), [POST(2), POST(5)]);
+    await as(me, `insert into post_saves (post_id, created_at) values ($1, now() - interval '1 hour')`, [POST(2)]);
+    await as(me, `insert into post_saves (post_id) values ($1)`, [POST(5)]);
+    const saved = await rows(me, `select id, saved_by_me from saved_posts()`);
+    // En son kaydedilen başta (gönderinin kendi tarihinden bağımsız)
+    assert.deepEqual(saved.map((p) => p.id), [POST(5), POST(2)]);
     assert.ok(saved.every((p) => p.saved_by_me));
   });
 });

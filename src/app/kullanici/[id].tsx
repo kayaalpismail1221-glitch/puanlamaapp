@@ -6,41 +6,47 @@ import { ScrollView, Share, StyleSheet, View } from 'react-native';
 import { PostGrid } from '@/components/post-grid';
 import { MenuRow, ProfileIdentity, SchoolChip, StatCard, TasteCard, TopThree } from '@/components/profile-parts';
 import { ProfileStats } from '@/components/profile-stats';
-import { Button, Divider, PressableScale, Text } from '@/components/ui';
+import { Button, Divider, ErrorView, LoadingView, PressableScale, Text } from '@/components/ui';
 import { FollowButton } from '@/components/user-row';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
-import { placeById } from '@/data/mock';
-import { useLeaderboard } from '@/hooks/use-leaderboard';
+import { getPlace, useEntitiesVersion } from '@/data/entities';
+import { useUserPosts, useUserProfile, useUserRank, useUserRankings } from '@/hooks/queries';
 import { tasteProfile, type ScoredPlace } from '@/lib/insights';
-import { rankedFromPosts, weeklyStreak } from '@/lib/stats';
-import { useAppStore } from '@/store/app-store';
-import { ME } from '@/types';
+import { weeklyStreak } from '@/lib/stats';
 
 /** Başka bir kullanıcının profili */
 export default function UserProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { posts, getUser, followingOf } = useAppStore();
-  const leaderboard = useLeaderboard('all', 'all');
-  const user = getUser(id);
+  const profile = useUserProfile(id);
+  const postsQuery = useUserPosts(id);
+  const rankings = useUserRankings(id);
+  const rank = useUserRank(id).data;
+  const version = useEntitiesVersion();
 
-  const userPosts = useMemo(() => posts.filter((p) => p.userId === id), [posts, id]);
-  const been = useMemo(() => rankedFromPosts(posts, id), [posts, id]);
+  const userPosts = useMemo(() => postsQuery.data ?? [], [postsQuery.data]);
   const beenPlaces = useMemo<ScoredPlace[]>(
-    () => been.flatMap((p) => (placeById(p.placeId) ? [{ place: placeById(p.placeId)!, score: p.score! }] : [])),
-    [been],
+    () =>
+      (rankings.data ?? []).flatMap((r) => {
+        const place = getPlace(r.placeId);
+        return place ? [{ place, score: r.score }] : [];
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rankings.data, version],
   );
   const taste = useMemo(() => tasteProfile(beenPlaces), [beenPlaces]);
-  const rank = leaderboard.find((e) => e.userId === id);
-  const streak = weeklyStreak(userPosts.map((p) => p.createdAt));
-  const followsYou = followingOf(id).includes(ME);
+  const streak = weeklyStreak([...userPosts.map((p) => p.createdAt), ...(rankings.data ?? []).map((r) => r.ratedAt)]);
 
+  const user = profile.data;
   if (!user) {
+    if (profile.isPending) return <LoadingView style={styles.container} />;
+    if (profile.isError) return <ErrorView onRetry={() => profile.refetch()} style={styles.container} />;
     return (
       <View style={[styles.container, styles.center]}>
         <Text>Kullanıcı bulunamadı.</Text>
       </View>
     );
   }
+  const followsYou = user.followsMe;
 
   const share = () => Share.share({ message: `Puanla’da @${user.username} hesabına göz at 🍽️` });
 
@@ -81,8 +87,13 @@ export default function UserProfileScreen() {
           <MenuRow
             icon="checkmark.circle"
             title="Gittikleri"
-            count={been.length}
-            onPress={() => router.push({ pathname: '/gittiklerim/[id]', params: { id: user.id } })}
+            count={rankings.data?.length ?? 0}
+            onPress={() =>
+              router.push({
+                pathname: '/gittiklerim/[id]',
+                params: { id: user.id },
+              })
+            }
           />
           <Divider />
         </View>
@@ -93,9 +104,14 @@ export default function UserProfileScreen() {
           <StatCard
             icon="trophy"
             title="Sıralama"
-            value={rank && rank.reviews > 0 ? `#${rank.rank}` : undefined}
-            locked={!rank || rank.reviews === 0}
-            onPress={() => router.push({ pathname: '/siralama', params: { vurgula: user.id } })}
+            value={rank ? `#${rank}` : undefined}
+            locked={!rank}
+            onPress={() =>
+              router.push({
+                pathname: '/siralama',
+                params: { vurgula: user.id },
+              })
+            }
           />
           <StatCard icon="flame" title="Seri" value={`${streak} hafta`} />
         </View>
@@ -105,7 +121,7 @@ export default function UserProfileScreen() {
         <Text variant="title3" style={styles.postsTitle}>
           Gönderileri
         </Text>
-        <PostGrid posts={userPosts} emptyText="Henüz gönderi paylaşmadı." />
+        {postsQuery.isPending ? <LoadingView /> : <PostGrid posts={userPosts} emptyText="Henüz gönderi paylaşmadı." />}
         <View style={{ height: spacing.xxl }} />
       </ScrollView>
     </>

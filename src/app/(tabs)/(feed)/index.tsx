@@ -1,17 +1,18 @@
 import { router, Stack } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Linking, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, FlatList, Linking, RefreshControl, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { PostCard } from '@/components/post-card';
 import { SegmentedControl } from '@/components/segmented-control';
-import { Avatar, Button, Divider, PressableScale, Text } from '@/components/ui';
+import type { FeedEntry } from '@/api/content';
+import { Avatar, Button, Divider, ErrorView, PressableScale, Text } from '@/components/ui';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
-import { areaLabel, popularFeed, type FeedEntry } from '@/lib/feed';
+import { useFollowingFeed, usePopularFeed } from '@/hooks/queries';
+import { areaLabel } from '@/lib/feed';
 import { useUserLocation } from '@/lib/location';
 import { useAppStore } from '@/store/app-store';
-import { ME } from '@/types';
 
 type Tab = 'popular' | 'following';
 
@@ -29,30 +30,32 @@ const openAreaPicker = () => router.push('/konum-sec');
  * - Takip: takip ettiklerinin ve kendi gönderilerin, en yeni başta
  */
 export default function FeedScreen() {
-  const { following, posts, profile, feedArea, likedPosts, commentsFor } = useAppStore();
+  const { profile, feedArea } = useAppStore();
   const [tab, setTab] = useState<Tab>('popular');
 
   // Konum yalnızca "Yakınımda" modunda istenir
   const location = useUserLocation(tab === 'popular' && feedArea.type === 'near');
+  const popular = usePopularFeed(feedArea, location.coords, tab === 'popular');
+  const followingFeed = useFollowingFeed(tab === 'following');
+  const active = tab === 'popular' ? popular : followingFeed;
 
-  const popular = useMemo(
+  const firstPage = popular.data?.pages[0];
+  const entries = useMemo<FeedEntry[]>(
     () =>
-      popularFeed(posts, feedArea, location.coords, (p) => ({
-        likes: p.likeCount + (likedPosts.includes(p.id) ? 1 : 0),
-        comments: commentsFor(p.id).length,
-      })),
-    [posts, feedArea, location.coords, likedPosts, commentsFor],
+      tab === 'popular'
+        ? (popular.data?.pages.flatMap((p) => p.entries) ?? [])
+        : (followingFeed.data?.pages.flat().map((post) => ({ post })) ?? []),
+    [tab, popular.data, followingFeed.data],
   );
-
-  const followingEntries = useMemo<FeedEntry[]>(
-    () => posts.filter((p) => p.userId === ME || following.includes(p.userId)).map((post) => ({ post })),
-    [posts, following],
-  );
-
-  const entries = tab === 'following' ? followingEntries : popular.status === 'ok' ? popular.entries : [];
 
   // Yakınımda modunda konum bekleniyor ya da izin yok
-  const locationBlocked = tab === 'popular' && popular.status === 'needs-location';
+  const locationBlocked = tab === 'popular' && feedArea.type === 'near' && !location.coords;
+  const [refreshing, setRefreshing] = useState(false);
+  const refresh = async () => {
+    setRefreshing(true);
+    await active.refetch();
+    setRefreshing(false);
+  };
 
   return (
     <>
@@ -69,6 +72,12 @@ export default function FeedScreen() {
         data={entries}
         keyExtractor={(e) => e.post.id}
         contentInsetAdjustmentBehavior="automatic"
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary} />}
+        onEndReached={() => active.hasNextPage && !active.isFetchingNextPage && active.fetchNextPage()}
+        onEndReachedThreshold={0.6}
+        ListFooterComponent={
+          active.isFetchingNextPage ? <ActivityIndicator color={colors.primary} style={styles.more} /> : null
+        }
         renderItem={({ item }) => <PostCard post={item.post} distanceKm={item.distanceKm} />}
         ItemSeparatorComponent={() => <Divider />}
         ListHeaderComponent={
@@ -92,13 +101,13 @@ export default function FeedScreen() {
                     <SymbolView name="chevron.down" tintColor={colors.primary} size={12} weight="bold" />
                   </View>
                   <Text variant="caption" color={colors.textSecondary} numberOfLines={1}>
-                    {popular.status === 'ok'
-                      ? popular.fallbackCity
-                        ? `Yakınında gönderi yok · ${popular.fallbackCity} gösteriliyor`
-                        : popular.radiusKm
-                          ? `${popular.radiusKm} km çevrendeki popüler gönderiler`
-                          : 'Bu bölgedeki popüler gönderiler'
-                      : 'Konumun alınıyor…'}
+                    {locationBlocked
+                      ? 'Konumun alınıyor…'
+                      : firstPage?.fallbackCity
+                        ? `Yakınında gönderi yok · ${firstPage.fallbackCity} gösteriliyor`
+                        : firstPage?.radiusKm
+                          ? `${firstPage.radiusKm} km çevrendeki popüler gönderiler`
+                          : 'Bu bölgedeki popüler gönderiler'}
                   </Text>
                 </View>
                 <Text variant="footnote" color={colors.primary} style={styles.bold}>
@@ -124,6 +133,10 @@ export default function FeedScreen() {
         ListEmptyComponent={
           locationBlocked ? (
             <LocationPrompt status={location.status} onRetry={location.retry} />
+          ) : active.isPending ? (
+            <ActivityIndicator color={colors.primary} style={styles.more} />
+          ) : active.isError ? (
+            <ErrorView onRetry={() => active.refetch()} />
           ) : tab === 'following' ? (
             <EmptyState
               icon="person.2"
@@ -212,6 +225,9 @@ function EmptyState({
 }
 
 const styles = StyleSheet.create({
+  more: {
+    padding: spacing.xl,
+  },
   segment: {
     paddingTop: spacing.xs,
   },

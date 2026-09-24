@@ -1,3 +1,4 @@
+import { QueryClientProvider } from '@tanstack/react-query';
 import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -5,7 +6,11 @@ import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 
+import { BackendSetup } from '@/components/backend-setup';
+import { ErrorView, LoadingView } from '@/components/ui';
 import { colors } from '@/constants/theme';
+import { queryClient } from '@/lib/query-client';
+import { isBackendConfigured } from '@/lib/supabase';
 import { AppStoreProvider, useAppStore } from '@/store/app-store';
 
 SplashScreen.preventAutoHideAsync();
@@ -23,13 +28,23 @@ const navigationTheme = {
 };
 
 function RootNavigator() {
-  const { hydrated, onboarded } = useAppStore();
+  const { status, prefsLoaded, ready, loadError, onboarded, actions } = useAppStore();
+
+  // Oturum ve kullanıcı verisi belli olana kadar açılış ekranı kalır
+  const deciding = status === 'loading' || !prefsLoaded || (status === 'signedIn' && !ready);
+  const splashDone = !deciding || !!loadError;
 
   useEffect(() => {
-    if (hydrated) SplashScreen.hideAsync();
-  }, [hydrated]);
+    if (splashDone) SplashScreen.hideAsync();
+  }, [splashDone]);
 
-  if (!hydrated) return null;
+  if (deciding) {
+    if (loadError) return <ErrorView onRetry={actions.refresh} style={{ flex: 1 }} />;
+    // Kayıt/giriş sonrası veri yüklenirken (açılış ekranı çoktan kapanmış olabilir)
+    return status === 'signedIn' ? <LoadingView style={{ flex: 1 }} /> : null;
+  }
+
+  const showOnboarding = status === 'signedOut' || !onboarded;
 
   return (
     <Stack
@@ -38,11 +53,11 @@ function RootNavigator() {
         headerBackButtonDisplayMode: 'minimal',
         contentStyle: { backgroundColor: colors.background },
       }}>
-      <Stack.Protected guard={!onboarded}>
+      <Stack.Protected guard={showOnboarding}>
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />
       </Stack.Protected>
 
-      <Stack.Protected guard={onboarded}>
+      <Stack.Protected guard={!showOnboarding}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="mekan/[id]" options={{ title: '', headerTransparent: true }} />
         <Stack.Screen name="mekan-puanla" options={{ presentation: 'modal', title: 'Mekân puanla' }} />
@@ -60,8 +75,9 @@ function RootNavigator() {
         <Stack.Screen name="okul-sec" options={{ presentation: 'modal', title: 'Okulun' }} />
       </Stack.Protected>
 
-      {/* Puanlama ve gönderi akışı hem onboarding'de hem uygulama içinde kullanılır */}
+      {/* Puanlama, gönderi ve mekân ekleme hem onboarding'de hem uygulama içinde kullanılır */}
       <Stack.Screen name="gonderi-olustur" options={{ presentation: 'modal', title: 'Gönderi paylaş' }} />
+      <Stack.Screen name="mekan-ekle" options={{ presentation: 'modal', title: 'Yeni mekân' }} />
       <Stack.Screen
         name="degerlendir/[id]"
         options={{ presentation: 'modal', headerShown: false, gestureEnabled: false }}
@@ -71,14 +87,22 @@ function RootNavigator() {
 }
 
 export default function RootLayout() {
+  useEffect(() => {
+    if (!isBackendConfigured) SplashScreen.hideAsync();
+  }, []);
+
+  if (!isBackendConfigured) return <BackendSetup />;
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <KeyboardProvider>
         <ThemeProvider value={navigationTheme}>
-          <AppStoreProvider>
-            <StatusBar style="dark" />
-            <RootNavigator />
-          </AppStoreProvider>
+          <QueryClientProvider client={queryClient}>
+            <AppStoreProvider>
+              <StatusBar style="dark" />
+              <RootNavigator />
+            </AppStoreProvider>
+          </QueryClientProvider>
         </ThemeProvider>
       </KeyboardProvider>
     </GestureHandlerRootView>

@@ -4,6 +4,7 @@ import { useRef } from 'react';
 import { ActionSheetIOS, Alert, Linking, Platform, StyleSheet, View } from 'react-native';
 import ReanimatedSwipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 
+import type { FriendScore } from '@/api/content';
 import { PlaceImage, PressableScale, Text } from '@/components/ui';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
 import { formatScore, priceLabel, timeAgo } from '@/lib/format';
@@ -14,12 +15,14 @@ import type { Place, SavedPlace } from '@/types';
 
 const ACTION_WIDTH = 80;
 
-/** Listem kartı: sola kaydır → Gittim / Sil. Uzun bas veya … → tüm seçenekler. */
-export function SavedPlaceCard({ entry, place }: { entry: SavedPlace; place: Place }) {
-  const { dispatch, friendScoreOf } = useAppStore();
+/**
+ * Listem kartı: sola kaydır → Gittim / Sil. Uzun bas veya … → tüm seçenekler.
+ * `friends`: takip edilenlerin bu mekâna verdiği ortalama puan (liste tek sorguda çeker).
+ */
+export function SavedPlaceCard({ entry, place, friends }: { entry: SavedPlace; place: Place; friends?: FriendScore }) {
+  const { actions } = useAppStore();
   const swipeRef = useRef<SwipeableMethods>(null);
   const source = entry.link ? linkSource(entry.link) : null;
-  const friends = friendScoreOf(place.id);
 
   const openPlace = () => router.push({ pathname: '/mekan/[id]', params: { id: place.id } });
   const rate = () => {
@@ -33,7 +36,7 @@ export function SavedPlaceCard({ entry, place }: { entry: SavedPlace; place: Pla
     router.push({ pathname: '/listeye-ekle', params: { placeId: place.id, kaynak: entry.origin } });
   const remove = () => {
     haptics.warning();
-    dispatch({ type: 'unsavePlace', placeId: place.id });
+    actions.unsavePlace(place.id);
   };
 
   const showActions = () => {
@@ -77,7 +80,7 @@ export function SavedPlaceCard({ entry, place }: { entry: SavedPlace; place: Pla
         </View>
       )}>
       <PressableScale scaleTo={0.98} haptic={false} onPress={openPlace} onLongPress={showActions} style={styles.card}>
-        <PlaceImage uri={place.photoUrl} style={styles.image} />
+        <PlaceImage uri={place.thumbUrl ?? place.photoUrl} style={styles.image} />
 
         <View style={styles.info}>
           <View style={styles.titleRow}>

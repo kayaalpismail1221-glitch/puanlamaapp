@@ -1,14 +1,15 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useMemo, useState } from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { OnboardingStep } from '@/components/onboarding-step';
-import { PlaceRow } from '@/components/place-row';
-import { Button, Divider, PlaceImage, ScoreBadge, SearchField, Text } from '@/components/ui';
+import { PlaceSearchList } from '@/components/place-picker';
+import { Button, PlaceImage, ScoreBadge, SearchField, Text } from '@/components/ui';
 import { colors, radius, spacing } from '@/constants/theme';
-import { placeById, searchPlaces } from '@/data/mock';
+import { usePlace } from '@/data/entities';
+import { useUserPosts } from '@/hooks/queries';
 import { useAppStore } from '@/store/app-store';
 
 // Puanlayınca doğrudan gönderi ekranı açılır (fotoğraf isteğe bağlı)
@@ -16,13 +17,13 @@ const rate = (id: string) => router.push({ pathname: '/degerlendir/[id]', params
 
 /** 5. En son gidilen restoranı puanla */
 export default function FirstRatingStep() {
-  const { scored, scoreOf, myPosts } = useAppStore();
+  const { scored, scoreOf, userId } = useAppStore();
   const [query, setQuery] = useState('');
+  const myPosts = useUserPosts(userId);
 
   const first = scored[0];
-  const firstPlace = first ? placeById(first.placeId) : undefined;
-  const posted = !!firstPlace && myPosts.some((p) => p.placeId === firstPlace.id);
-  const results = useMemo(() => searchPlaces(query).filter((p) => scoreOf(p.id) === undefined), [query, scoreOf]);
+  const firstPlace = usePlace(first?.placeId) ?? undefined;
+  const posted = !!firstPlace && !!myPosts.data?.some((p) => p.placeId === firstPlace.id);
 
   return (
     <OnboardingStep
@@ -69,19 +70,11 @@ export default function FirstRatingStep() {
           <View style={styles.search}>
             <SearchField value={query} onChangeText={setQuery} placeholder="Restoran, semt veya mutfak ara" />
           </View>
-          <FlatList
-            data={results}
-            keyExtractor={(p) => p.id}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="on-drag"
-            ItemSeparatorComponent={() => <Divider inset={spacing.lg + 52 + spacing.md} />}
-            renderItem={({ item }) => (
-              <PlaceRow
-                place={item}
-                onPress={() => rate(item.id)}
-                trailing={<SymbolView name="plus.circle" tintColor={colors.primary} size={26} />}
-              />
-            )}
+          <PlaceSearchList
+            query={query}
+            exclude={(p) => scoreOf(p.id) !== undefined}
+            onSelect={(p) => rate(p.id)}
+            trailing={() => <SymbolView name="plus.circle" tintColor={colors.primary} size={26} />}
           />
         </>
       )}

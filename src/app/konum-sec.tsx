@@ -4,40 +4,29 @@ import { useMemo, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
-import { Divider, PressableScale, SearchField, Text } from '@/components/ui';
+import { Divider, ErrorView, LoadingView, PressableScale, SearchField, Text } from '@/components/ui';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
-import { placeById } from '@/data/mock';
-import { CITIES } from '@/lib/geo';
+import { useAreas } from '@/hooks/queries';
 import { haptics } from '@/lib/haptics';
 import { useAppStore } from '@/store/app-store';
 import type { FeedArea } from '@/types';
 
 /** Feed bölgesi seç: Yakınımda, bir şehir ya da şehrin bir ilçesi */
 export default function PickAreaScreen() {
-  const { feedArea, posts, dispatch } = useAppStore();
+  const { feedArea, actions } = useAppStore();
+  const areas = useAreas();
   const [city, setCity] = useState<string | null>(null);
   const [query, setQuery] = useState('');
-
-  // Bölge başına gönderi sayısı
-  const counts = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const post of posts) {
-      const place = placeById(post.placeId);
-      if (!place) continue;
-      map.set(place.city, (map.get(place.city) ?? 0) + 1);
-      map.set(`${place.city}/${place.district}`, (map.get(`${place.city}/${place.district}`) ?? 0) + 1);
-    }
-    return map;
-  }, [posts]);
+  const allCities = useMemo(() => areas.data ?? [], [areas.data]);
 
   const select = (area: FeedArea) => {
     haptics.success();
-    dispatch({ type: 'setFeedArea', area });
+    actions.setFeedArea(area);
     router.back();
   };
 
   const q = query.trim().toLocaleLowerCase('tr');
-  const selectedCity = CITIES.find((c) => c.name === city);
+  const selectedCity = allCities.find((c) => c.name === city);
 
   const isActive = (area: FeedArea) =>
     area.type === feedArea.type &&
@@ -82,7 +71,7 @@ export default function PickAreaScreen() {
               <AreaRow
                 icon="building.2"
                 title={`Tüm ${selectedCity.name}`}
-                subtitle={`${counts.get(selectedCity.name) ?? 0} gönderi`}
+                subtitle={`${selectedCity.postCount} gönderi`}
                 active={isActive({ type: 'area', city: selectedCity.name })}
                 onPress={() => select({ type: 'area', city: selectedCity.name })}
               />
@@ -93,7 +82,7 @@ export default function PickAreaScreen() {
             <AreaRow
               icon="mappin.and.ellipse"
               title={item.name}
-              subtitle={`${counts.get(`${selectedCity.name}/${item.name}`) ?? 0} gönderi · ${item.placeCount} mekân`}
+              subtitle={`${item.postCount} gönderi · ${item.placeCount} mekân`}
               active={isActive({ type: 'area', city: selectedCity.name, district: item.name })}
               onPress={() => select({ type: 'area', city: selectedCity.name, district: item.name })}
             />
@@ -104,7 +93,7 @@ export default function PickAreaScreen() {
   }
 
   // Şehir listesi
-  const cities = CITIES.filter(
+  const cities = allCities.filter(
     (c) =>
       c.name.toLocaleLowerCase('tr').includes(q) ||
       c.districts.some((d) => d.name.toLocaleLowerCase('tr').includes(q)),
@@ -140,11 +129,14 @@ export default function PickAreaScreen() {
             )}
           </>
         }
+        ListEmptyComponent={
+          areas.isPending ? <LoadingView /> : areas.isError ? <ErrorView onRetry={() => areas.refetch()} /> : null
+        }
         renderItem={({ item }) => (
           <AreaRow
             icon="building.2"
             title={item.name}
-            subtitle={`${item.districts.length} ilçe · ${counts.get(item.name) ?? 0} gönderi`}
+            subtitle={`${item.districts.length} ilçe · ${item.postCount} gönderi`}
             active={feedArea.type === 'area' && feedArea.city === item.name}
             chevron
             onPress={() => {

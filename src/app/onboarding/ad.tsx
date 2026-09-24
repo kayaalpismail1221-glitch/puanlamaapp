@@ -1,18 +1,20 @@
 import { router } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { BigInput, OnboardingStep } from '@/components/onboarding-step';
 import { Button, Text } from '@/components/ui';
 import { colors, spacing } from '@/constants/theme';
+import { usernameAvailable } from '@/api/auth';
+import { useDebounced } from '@/hooks/queries';
 import { toUsername } from '@/lib/format';
 import { useAppStore } from '@/store/app-store';
 
 /** 3. Ad ve soyad (kullanıcı adı buradan türetilir, sonra ayarlardan değiştirilebilir) */
 export default function NameStep() {
-  const { profile, dispatch } = useAppStore();
-  const [first, ...rest] = (profile?.name ?? '').split(' ');
+  const { draft, actions } = useAppStore();
+  const [first, ...rest] = (draft.name ?? '').split(' ');
   const [firstName, setFirstName] = useState(first ?? '');
   const [lastName, setLastName] = useState(rest.join(' '));
   const lastRef = useRef<TextInput>(null);
@@ -20,10 +22,11 @@ export default function NameStep() {
   const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
   const username = toUsername(`${firstName}${lastName}`);
   const valid = firstName.trim().length >= 2 && lastName.trim().length >= 2;
+  const available = useUsernameAvailability(username);
 
   const next = () => {
     if (!valid) return;
-    dispatch({ type: 'updateProfile', patch: { name: fullName, username } });
+    actions.updateDraft({ name: fullName, username });
     router.push('/onboarding/sifre');
   };
 
@@ -61,12 +64,30 @@ export default function NameStep() {
           <Animated.View entering={FadeIn} style={styles.preview}>
             <Text variant="footnote" color={colors.textSecondary}>
               Kullanıcı adın: <Text variant="footnote" color={colors.primary} style={styles.bold}>@{username}</Text>
+              {available === false && ' alınmış; sonuna bir sayı eklenecek. Sonra Ayarlar’dan değiştirebilirsin.'}
             </Text>
           </Animated.View>
         )}
       </View>
     </OnboardingStep>
   );
+}
+
+/** Kullanıcı adının boşta olup olmadığı (bilinmiyorsa undefined) */
+function useUsernameAvailability(username: string) {
+  const debounced = useDebounced(username, 400);
+  const [result, setResult] = useState<{ name: string; ok: boolean }>();
+  useEffect(() => {
+    if (debounced.length < 3) return;
+    let active = true;
+    usernameAvailable(debounced)
+      .then((ok) => active && setResult({ name: debounced, ok }))
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [debounced]);
+  return result?.name === username ? result.ok : undefined;
 }
 
 const styles = StyleSheet.create({

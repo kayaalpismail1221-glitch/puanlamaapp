@@ -1,9 +1,9 @@
 import { router } from 'expo-router';
 
-import { ME } from '@/types';
+import { isMe } from '@/lib/session';
 
 /** Kullanıcının profiline git; kendi profilinse Profilim sekmesine geç */
 export function openUserProfile(userId: string) {
-  if (userId === ME) router.navigate('/profilim');
+  if (isMe(userId)) router.navigate('/profilim');
   else router.push({ pathname: '/kullanici/[id]', params: { id: userId } });
 }

@@ -5,9 +5,9 @@ import { KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'rea
 import Animated, { FadeIn, FadeInDown, FadeOut, ZoomIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Button, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
+import { Button, LoadingView, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { colors, hitSlop, radius, spacing, typography } from '@/constants/theme';
-import { placeById } from '@/data/mock';
+import { getPlace, usePlace } from '@/data/entities';
 import { haptics } from '@/lib/haptics';
 import {
   answerComparison,
@@ -39,8 +39,8 @@ export default function RateScreen() {
   // `from=gonderi`: gönderi ekranından açıldıysa oraya geri dönülür
   // `sonra=gonderi`: kaydedince doğrudan gönderi ekranına geçilir (onboarding)
   const { id, from, sonra } = useLocalSearchParams<{ id: string; from?: string; sonra?: string }>();
-  const place = placeById(id);
-  const { rankings, onboarded, dispatch } = useAppStore();
+  const place = usePlace(id);
+  const { rankings, onboarded, actions } = useAppStore();
   const insets = useSafeAreaInsets();
 
   const [sentiment, setSentiment] = useState<Sentiment | null>(null);
@@ -55,6 +55,7 @@ export default function RateScreen() {
     [rankings, sentiment, id],
   );
 
+  if (place === undefined) return <LoadingView style={styles.container} />;
   if (!place) {
     return (
       <View style={[styles.container, styles.center]}>
@@ -91,12 +92,7 @@ export default function RateScreen() {
   const save = (thenShare = false) => {
     if (!sentiment || !comparison) return;
     haptics.success();
-    dispatch({
-      type: 'rank',
-      sentiment,
-      index: comparison.low,
-      entry: { placeId: place.id, note: note.trim() || undefined, ratedAt: new Date().toISOString() },
-    });
+    actions.rank(place.id, sentiment, comparison.low, note);
     if (sonra === 'gonderi') {
       router.replace({ pathname: '/gonderi-olustur', params: { placeId: place.id, akis: 'onboarding' } });
     } else if (thenShare) {
@@ -155,7 +151,7 @@ export default function RateScreen() {
           <CompareStep
             key={`${comparison.low}-${comparison.high}`}
             place={place}
-            other={placeById(candidates[comparisonPivot(comparison)]!.placeId)!}
+            other={getPlace(candidates[comparisonPivot(comparison)]!.placeId)}
             step={history.length}
             total={expectedSteps(candidates.length)}
             onPick={(newIsBetter) => answer(answerComparison(comparison, newIsBetter))}
@@ -208,7 +204,8 @@ function CompareStep({
   onSkip,
 }: {
   place: Place;
-  other: Place;
+  /** Karşılaştırılan mekân önbellekte yoksa (çok nadir) "Emin değilim" gibi davranılır */
+  other: Place | undefined;
   step: number;
   total: number;
   onPick: (newIsBetter: boolean) => void;
@@ -231,7 +228,7 @@ function CompareStep({
             veya
           </Text>
         </View>
-        <CompareCard place={other} onPress={() => onPick(false)} />
+        {other ? <CompareCard place={other} onPress={() => onPick(false)} /> : <View style={styles.compareCard} />}
       </View>
       <Button title="Emin değilim" variant="ghost" onPress={onSkip} />
     </Animated.View>

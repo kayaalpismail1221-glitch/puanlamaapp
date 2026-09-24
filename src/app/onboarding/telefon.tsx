@@ -9,8 +9,8 @@ import { useAppStore } from '@/store/app-store';
 
 /** 1. Telefon numarası */
 export default function PhoneStep() {
-  const { profile, dispatch } = useAppStore();
-  const [digits, setDigits] = useState(profile?.phone ?? '');
+  const { draft, actions } = useAppStore();
+  const [digits, setDigits] = useState(draft.phone ?? '');
   const [touched, setTouched] = useState(false);
   const valid = isValidPhone(digits);
 
@@ -20,7 +20,7 @@ export default function PhoneStep() {
       haptics.warning();
       return;
     }
-    dispatch({ type: 'updateProfile', patch: { phone: digits } });
+    actions.updateDraft({ phone: digits });
     router.push('/onboarding/eposta');
   };
 
@@ -42,7 +42,6 @@ export default function PhoneStep() {
         maxLength={13}
         onSubmitEditing={next}
         error={touched && !valid ? 'Geçerli bir cep telefonu gir (5 ile başlamalı).' : undefined}
-        hint="Doğrulama kodu hesap sistemi bağlanınca gönderilecek."
       />
     </OnboardingStep>
   );

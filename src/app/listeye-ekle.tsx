@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PlacePicker } from '@/components/place-picker';
 import { Button, PlaceImage, PressableScale, Text } from '@/components/ui';
 import { colors, radius, spacing, typography } from '@/constants/theme';
-import { placeById } from '@/data/mock';
+import { usePlace } from '@/data/entities';
 import { readClipboardLink, useClipboardHasUrl } from '@/lib/clipboard';
 import { haptics } from '@/lib/haptics';
 import { linkSource, normalizeUrl } from '@/lib/links';
@@ -28,7 +28,7 @@ type Params = {
  */
 export default function AddToListScreen() {
   const params = useLocalSearchParams<Params>();
-  const { saved, dispatch } = useAppStore();
+  const { saved, actions } = useAppStore();
   const insets = useSafeAreaInsets();
 
   const [placeId, setPlaceId] = useState(params.placeId);
@@ -59,7 +59,7 @@ export default function AddToListScreen() {
   }, [autoPaste]);
 
   const title = isSocial ? 'Sosyal medyadan kaydet' : 'Mekân kaydet';
-  const place = placeId ? placeById(placeId) : undefined;
+  const place = usePlace(placeId);
 
   // 1. adım: mekân seç
   if (!place) {
@@ -90,16 +90,13 @@ export default function AddToListScreen() {
   const save = () => {
     haptics.success();
     const cleanLink = normalizeUrl(link) || undefined;
-    dispatch({
-      type: 'savePlace',
-      entry: {
-        placeId: place.id,
-        // Bağlantı eklendiyse kayıt sosyal medya bölümüne gider
-        origin: isSocial || cleanLink ? 'social' : 'app',
-        link: cleanLink,
-        note: note.trim() || undefined,
-        savedAt: existing?.savedAt ?? new Date().toISOString(),
-      },
+    actions.savePlace({
+      placeId: place.id,
+      // Bağlantı eklendiyse kayıt sosyal medya bölümüne gider
+      origin: isSocial || cleanLink ? 'social' : 'app',
+      link: cleanLink,
+      note: note.trim() || undefined,
+      savedAt: existing?.savedAt ?? new Date().toISOString(),
     });
     router.back();
   };

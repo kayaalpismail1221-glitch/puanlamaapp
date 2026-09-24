@@ -2,8 +2,9 @@ import * as ImagePicker from 'expo-image-picker';
 import { router, Stack } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
+import type { LocalImage } from '@/api/storage';
 import { Avatar, PressableScale, Text } from '@/components/ui';
 import { colors, hitSlop, radius, spacing, typography } from '@/constants/theme';
 import { schoolById, schoolLabel } from '@/data/schools';
@@ -13,10 +14,12 @@ import { useAppStore } from '@/store/app-store';
 
 /** Profili düzenle: fotoğraf, ad, kullanıcı adı, okul */
 export default function EditProfileScreen() {
-  const { profile, dispatch } = useAppStore();
+  const { profile, actions } = useAppStore();
   const [name, setName] = useState(profile?.name ?? '');
   const [username, setUsername] = useState(profile?.username ?? '');
-  const [avatarUri, setAvatarUri] = useState(profile?.avatarUri);
+  const [avatar, setAvatar] = useState<LocalImage>();
+  const [saving, setSaving] = useState(false);
+  const avatarUri = avatar?.uri ?? profile?.avatarUri;
   const school = schoolById(profile?.schoolId);
 
   const valid = name.trim().length >= 2 && username.length >= 3;
@@ -28,14 +31,26 @@ export default function EditProfileScreen() {
       aspect: [1, 1],
       quality: 0.7,
     });
-    if (!result.canceled) setAvatarUri(result.assets[0]?.uri);
+    const asset = result.canceled ? undefined : result.assets[0];
+    if (asset) setAvatar({ uri: asset.uri, width: asset.width, height: asset.height });
   };
 
-  const save = () => {
-    if (!valid) return;
-    haptics.success();
-    dispatch({ type: 'updateProfile', patch: { name: name.trim(), username, avatarUri } });
-    router.back();
+  const save = async () => {
+    if (!valid || saving || !profile) return;
+    setSaving(true);
+    const patch = {
+      ...(name.trim() !== profile.name && { name: name.trim() }),
+      ...(username !== profile.username && { username }),
+    };
+    // Hata olursa kullanıcıya gösterilir ve ekran açık kalır
+    const ok =
+      (Object.keys(patch).length === 0 || (await actions.updateProfile(patch))) &&
+      (!avatar || (await actions.updateAvatar(avatar)));
+    setSaving(false);
+    if (ok) {
+      haptics.success();
+      router.back();
+    }
   };
 
   return (
@@ -49,13 +64,16 @@ export default function EditProfileScreen() {
               </Text>
             </PressableScale>
           ),
-          headerRight: () => (
-            <PressableScale onPress={save} disabled={!valid} hitSlop={hitSlop}>
-              <Text variant="headline" color={valid ? colors.primary : colors.textTertiary}>
-                Kaydet
-              </Text>
-            </PressableScale>
-          ),
+          headerRight: () =>
+            saving ? (
+              <ActivityIndicator color={colors.primary} />
+            ) : (
+              <PressableScale onPress={save} disabled={!valid} hitSlop={hitSlop}>
+                <Text variant="headline" color={valid ? colors.primary : colors.textTertiary}>
+                  Kaydet
+                </Text>
+              </PressableScale>
+            ),
         }}
       />
       <ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">

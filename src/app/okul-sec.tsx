@@ -11,7 +11,7 @@ import { useAppStore } from '@/store/app-store';
 
 /** Profile okul (üniversite) ekle / değiştir */
 export default function PickSchoolScreen() {
-  const { profile, dispatch } = useAppStore();
+  const { profile, actions } = useAppStore();
   const [query, setQuery] = useState('');
   const current = schoolById(profile?.schoolId);
 
@@ -23,7 +23,7 @@ export default function PickSchoolScreen() {
 
   const select = (school?: School) => {
     haptics.success();
-    dispatch({ type: 'updateProfile', patch: { schoolId: school?.id } });
+    actions.updateProfile({ schoolId: school?.id });
     router.back();
   };
 

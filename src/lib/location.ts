@@ -7,9 +7,10 @@ export type LocationStatus = 'loading' | 'granted' | 'denied' | 'undetermined' |
 
 /**
  * Kullanıcının konumu. `enabled` false iken izin istemez.
- * İzin daha önce sorulmadıysa ilk kullanımda sorar.
+ * İzin daha önce sorulmadıysa `ask` true ise ilk kullanımda sorar; false ise yalnızca izin verilmişse konumu alır
+ * (ör. arama sonuçlarını yakınlığa göre sıralamak için, kullanıcıyı rahatsız etmeden).
  */
-export function useUserLocation(enabled: boolean) {
+export function useUserLocation(enabled: boolean, ask = true) {
   const [status, setStatus] = useState<LocationStatus>('loading');
   const [coords, setCoords] = useState<Coords | null>(null);
 
@@ -37,12 +38,12 @@ export function useUserLocation(enabled: boolean) {
     let active = true;
     // Efekt içinde doğrudan setState yerine asenkron yükleme
     Promise.resolve().then(() => {
-      if (active) load(true);
+      if (active) load(ask);
     });
     return () => {
       active = false;
     };
-  }, [enabled, load]);
+  }, [enabled, ask, load]);
 
   return { status, coords, retry: () => load(true) };
 }

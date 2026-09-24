@@ -3,8 +3,9 @@ import { StyleSheet, View } from 'react-native';
 import { Avatar, PressableScale, Text } from '@/components/ui';
 import { colors, radius, spacing } from '@/constants/theme';
 import { openUserProfile } from '@/lib/navigation';
+import { isMe } from '@/lib/session';
 import { useAppStore } from '@/store/app-store';
-import { ME, type User } from '@/types';
+import type { User } from '@/types';
 
 /** Kişi satırı: dokununca profili açılır, sağda takip butonu */
 export function UserRow({ user, subtitle }: { user: User; subtitle?: string }) {
@@ -22,17 +23,17 @@ export function UserRow({ user, subtitle }: { user: User; subtitle?: string }) {
           {subtitle ?? `@${user.username}`}
         </Text>
       </View>
-      {user.id !== ME && <FollowButton userId={user.id} />}
+      {!isMe(user.id) && <FollowButton userId={user.id} />}
     </PressableScale>
   );
 }
 
 export function FollowButton({ userId, large }: { userId: string; large?: boolean }) {
-  const { following, dispatch } = useAppStore();
-  const isFollowing = following.includes(userId);
+  const { isFollowing: follows, actions } = useAppStore();
+  const isFollowing = follows(userId);
   return (
     <PressableScale
-      onPress={() => dispatch({ type: 'toggleFollow', userId })}
+      onPress={() => actions.toggleFollow(userId)}
       style={[styles.follow, large && styles.followLarge, isFollowing && styles.following]}
       accessibilityRole="button">
       <Text
