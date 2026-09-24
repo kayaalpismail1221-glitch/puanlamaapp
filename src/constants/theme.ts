@@ -12,11 +12,7 @@ export const colors = {
 
   // Marka
   primary: '#0F1E3D',
-  /** Lacivert degradenin açık ucu (kahraman kartlar) */
-  primaryLight: '#22396B',
   onPrimary: '#FFFFFF',
-  onPrimaryMuted: 'rgba(255, 255, 255, 0.72)',
-  onPrimaryFaint: 'rgba(255, 255, 255, 0.08)',
 
   // Metin
   text: '#111827',
@@ -27,7 +23,6 @@ export const colors = {
   danger: '#DC2626',
   like: '#E11D48',
   overlay: 'rgba(15, 30, 61, 0.45)',
-  shadow: '#000000',
 
   // Puan renkleri (harita pinleri ve rozet vurguları)
   scoreHigh: '#0F1E3D',
@@ -45,7 +40,6 @@ export const spacing = {
 } as const;
 
 export const radius = {
-  hero: 32,
   card: 16,
   button: 12,
   full: 999,

@@ -27,7 +27,6 @@ export default function EmailStep() {
   return (
     <OnboardingStep
       step={2}
-      icon="envelope.fill"
       title="E-posta adresin?"
       subtitle="Hesabını kurtarmak ve önemli bildirimler için kullanacağız."
       footer={<Button title="Devam" onPress={next} disabled={!email.trim()} />}>

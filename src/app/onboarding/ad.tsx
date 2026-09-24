@@ -30,7 +30,6 @@ export default function NameStep() {
   return (
     <OnboardingStep
       step={3}
-      icon="person.fill"
       title="Adın ne?"
       subtitle="Arkadaşların seni bu isimle görecek."
       footer={<Button title="Devam" onPress={next} disabled={!valid} />}>

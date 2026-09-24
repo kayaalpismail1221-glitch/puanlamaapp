@@ -1,4 +1,3 @@
-import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { forwardRef, useState, type ReactNode } from 'react';
 import {
   KeyboardAvoidingView,
@@ -19,8 +18,6 @@ export const ONBOARDING_STEPS = 6;
 
 type Props = {
   step: number;
-  /** Adımın simgesi (lacivert kutu içinde) */
-  icon?: SFSymbol;
   title: string;
   subtitle?: string;
   children: ReactNode;
@@ -28,7 +25,7 @@ type Props = {
 };
 
 /** Onboarding adımları için ortak iskelet: ince ilerleme çubuğu, serif başlık, içerik, alt buton */
-export function OnboardingStep({ step, icon, title, subtitle, children, footer }: Props) {
+export function OnboardingStep({ step, title, subtitle, children, footer }: Props) {
   const insets = useSafeAreaInsets();
   return (
     <KeyboardAvoidingView
@@ -41,16 +38,9 @@ export function OnboardingStep({ step, icon, title, subtitle, children, footer }
         />
       </View>
       <Animated.View entering={FadeInDown.duration(400)} style={styles.header}>
-        <View style={styles.topRow}>
-          {icon && (
-            <View style={styles.icon}>
-              <SymbolView name={icon} tintColor={colors.onPrimary} size={20} />
-            </View>
-          )}
-          <Text variant="footnote" color={colors.textSecondary} style={styles.stepLabel}>
-            {step}/{ONBOARDING_STEPS}
-          </Text>
-        </View>
+        <Text variant="footnote" color={colors.textSecondary} style={styles.stepLabel}>
+          {step}/{ONBOARDING_STEPS}
+        </Text>
         <Text style={styles.title}>{title}</Text>
         {subtitle && (
           <Text variant="callout" color={colors.textSecondary}>
@@ -145,20 +135,6 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xl,
     paddingBottom: spacing.xl,
     gap: spacing.sm,
-  },
-  topRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.sm,
-  },
-  icon: {
-    width: 48,
-    height: 48,
-    borderRadius: radius.card,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   stepLabel: {
     fontWeight: '600',
