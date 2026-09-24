@@ -7,40 +7,27 @@ import {
   View,
   type TextInputProps,
 } from 'react-native';
-import Animated, { FadeIn, FadeInDown, LinearTransition } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Text } from '@/components/ui';
-import { colors, fonts, radius, spacing } from '@/constants/theme';
-
-/** Kayıt akışındaki adım sayısı: telefon, e-posta, ad, şifre, ilk puan, takip */
-export const ONBOARDING_STEPS = 6;
+import { colors, fonts, spacing } from '@/constants/theme';
 
 type Props = {
-  step: number;
   title: string;
   subtitle?: string;
   children: ReactNode;
   footer?: ReactNode;
 };
 
-/** Onboarding adımları için ortak iskelet: ince ilerleme çubuğu, serif başlık, içerik, alt buton */
-export function OnboardingStep({ step, title, subtitle, children, footer }: Props) {
+/** Onboarding adımları için ortak iskelet: serif başlık, içerik, alt buton */
+export function OnboardingStep({ title, subtitle, children, footer }: Props) {
   const insets = useSafeAreaInsets();
   return (
     <KeyboardAvoidingView
       style={[styles.container, { paddingTop: insets.top + 52 }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={styles.track}>
-        <Animated.View
-          layout={LinearTransition.springify()}
-          style={[styles.fill, { width: `${(step / ONBOARDING_STEPS) * 100}%` }]}
-        />
-      </View>
       <Animated.View entering={FadeInDown.duration(400)} style={styles.header}>
-        <Text variant="footnote" color={colors.textSecondary} style={styles.stepLabel}>
-          {step}/{ONBOARDING_STEPS}
-        </Text>
         <Text style={styles.title}>{title}</Text>
         {subtitle && (
           <Text variant="callout" color={colors.textSecondary}>
@@ -118,27 +105,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  track: {
-    height: 3,
-    marginHorizontal: spacing.xl,
-    borderRadius: radius.full,
-    backgroundColor: colors.surface,
-    overflow: 'hidden',
-  },
-  fill: {
-    height: '100%',
-    borderRadius: radius.full,
-    backgroundColor: colors.primary,
-  },
   header: {
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.xl,
     paddingBottom: spacing.xl,
     gap: spacing.sm,
-  },
-  stepLabel: {
-    fontWeight: '600',
-    fontVariant: ['tabular-nums'],
   },
   title: {
     fontFamily: fonts.serif,

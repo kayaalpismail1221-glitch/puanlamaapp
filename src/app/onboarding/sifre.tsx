@@ -38,7 +38,6 @@ export default function PasswordStep() {
 
   return (
     <OnboardingStep
-      step={4}
       title="Bir şifre belirle"
       subtitle="En az 8 karakter; harf ve rakam içersin."
       footer={<Button title="Hesabı oluştur" onPress={create} disabled={!valid} />}>

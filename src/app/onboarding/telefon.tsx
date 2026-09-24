@@ -26,7 +26,6 @@ export default function PhoneStep() {
 
   return (
     <OnboardingStep
-      step={1}
       title="Telefon numaran ne?"
       subtitle="Arkadaşların seni rehberinden bulabilsin. Numaran profilinde görünmez."
       footer={<Button title="Devam" onPress={next} disabled={digits.length < 10} />}>

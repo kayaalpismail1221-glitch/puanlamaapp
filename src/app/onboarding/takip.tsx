@@ -37,7 +37,6 @@ export default function FollowStep() {
 
   return (
     <OnboardingStep
-      step={6}
       title={`${REQUIRED} kişiyi takip et`}
       subtitle="Feed’in dolu başlasın. Takip ettiklerinin puanları önerilerini şekillendirir."
       footer={<Button title={ready ? 'Başla' : `Başla (${count}/${REQUIRED})`} onPress={start} disabled={!ready} />}>

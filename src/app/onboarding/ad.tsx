@@ -29,7 +29,6 @@ export default function NameStep() {
 
   return (
     <OnboardingStep
-      step={3}
       title="Adın ne?"
       subtitle="Arkadaşların seni bu isimle görecek."
       footer={<Button title="Devam" onPress={next} disabled={!valid} />}>

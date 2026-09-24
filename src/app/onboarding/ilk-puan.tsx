@@ -26,7 +26,6 @@ export default function FirstRatingStep() {
 
   return (
     <OnboardingStep
-      step={5}
       title="En son nerede yedin?"
       subtitle="Gittiğin son restoranı bul ve puanla. Sıralaman buradan başlıyor."
       footer={<Button title="Devam" disabled={!firstPlace} onPress={() => router.push('/onboarding/takip')} />}>
