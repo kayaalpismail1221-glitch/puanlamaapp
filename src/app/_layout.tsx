@@ -57,6 +57,7 @@ function RootNavigator() {
         <Stack.Screen name="gittiklerim/[id]" options={{ title: 'Gittiklerim' }} />
         <Stack.Screen name="profil-duzenle" options={{ presentation: 'modal', title: 'Profili düzenle' }} />
         <Stack.Screen name="ayarlar" options={{ title: 'Ayarlar' }} />
+        <Stack.Screen name="okul-sec" options={{ presentation: 'modal', title: 'Okulun' }} />
       </Stack.Protected>
 
       {/* Puanlama ve gönderi akışı hem onboarding'de hem uygulama içinde kullanılır */}

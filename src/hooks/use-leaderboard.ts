@@ -5,14 +5,23 @@ import { buildLeaderboard, type LeaderboardPeriod } from '@/lib/leaderboard';
 import { useAppStore } from '@/store/app-store';
 import { ME } from '@/types';
 
-export type LeaderboardScope = 'all' | 'friends';
+export type LeaderboardScope = 'all' | 'friends' | 'school';
 
-/** Genel ya da arkadaşlar arası liderlik tablosu */
-export function useLeaderboard(scope: LeaderboardScope, period: LeaderboardPeriod) {
-  const { posts, likedPosts, following } = useAppStore();
+/**
+ * Liderlik tablosu: genel, arkadaşlar arası ya da bir okula özel.
+ * `schoolId` yalnızca 'school' kapsamında kullanılır.
+ */
+export function useLeaderboard(scope: LeaderboardScope, period: LeaderboardPeriod, schoolId?: string) {
+  const { posts, likedPosts, following, profile } = useAppStore();
 
   return useMemo(() => {
-    const userIds = scope === 'all' ? [...USERS.map((u) => u.id), ME] : [ME, ...following];
+    const everyone = [...USERS.map((u) => ({ id: u.id, schoolId: u.schoolId })), { id: ME, schoolId: profile?.schoolId }];
+    const userIds =
+      scope === 'all'
+        ? everyone.map((u) => u.id)
+        : scope === 'friends'
+          ? [ME, ...following]
+          : everyone.filter((u) => schoolId && u.schoolId === schoolId).map((u) => u.id);
     return buildLeaderboard(posts, userIds, period, (p) => p.likeCount + (likedPosts.includes(p.id) ? 1 : 0));
-  }, [posts, likedPosts, following, scope, period]);
+  }, [posts, likedPosts, following, profile?.schoolId, scope, period, schoolId]);
 }

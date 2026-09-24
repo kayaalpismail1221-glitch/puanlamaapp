@@ -54,12 +54,12 @@ export const PLACES: Place[] = [
 ];
 
 export const USERS: User[] = [
-  { id: 'u1', name: 'Zeynep Aksoy', username: 'zeynepyer', avatarUrl: 'https://i.pravatar.cc/200?img=47' },
-  { id: 'u2', name: 'Emre Kaya', username: 'emrekaya', avatarUrl: 'https://i.pravatar.cc/200?img=12' },
-  { id: 'u3', name: 'Deniz Yıldız', username: 'denizyildiz', avatarUrl: 'https://i.pravatar.cc/200?img=32' },
-  { id: 'u4', name: 'Can Öztürk', username: 'canozturk', avatarUrl: 'https://i.pravatar.cc/200?img=15' },
-  { id: 'u5', name: 'Elif Demir', username: 'elifdemir', avatarUrl: 'https://i.pravatar.cc/200?img=45' },
-  { id: 'u6', name: 'Mert Şahin', username: 'mertsahin', avatarUrl: 'https://i.pravatar.cc/200?img=53' },
+  { id: 'u1', name: 'Zeynep Aksoy', username: 'zeynepyer', avatarUrl: 'https://i.pravatar.cc/200?img=47', schoolId: 'bogazici' },
+  { id: 'u2', name: 'Emre Kaya', username: 'emrekaya', avatarUrl: 'https://i.pravatar.cc/200?img=12', schoolId: 'istanbul-teknik' },
+  { id: 'u3', name: 'Deniz Yıldız', username: 'denizyildiz', avatarUrl: 'https://i.pravatar.cc/200?img=32', schoolId: 'bogazici' },
+  { id: 'u4', name: 'Can Öztürk', username: 'canozturk', avatarUrl: 'https://i.pravatar.cc/200?img=15', schoolId: 'orta-dogu-teknik' },
+  { id: 'u5', name: 'Elif Demir', username: 'elifdemir', avatarUrl: 'https://i.pravatar.cc/200?img=45', schoolId: 'bogazici' },
+  { id: 'u6', name: 'Mert Şahin', username: 'mertsahin', avatarUrl: 'https://i.pravatar.cc/200?img=53', schoolId: 'istanbul-teknik' },
 ];
 
 /** Örnek kullanıcıların kimi takip ettiği (bazıları seni de takip ediyor) */

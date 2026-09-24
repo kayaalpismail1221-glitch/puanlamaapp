@@ -9,6 +9,7 @@ import {
   GoalCard,
   MenuRow,
   ProfileIdentity,
+  SchoolChip,
   StatCard,
   TasteCard,
   TopThree,
@@ -74,6 +75,7 @@ export default function ProfileScreen() {
           joinedAt={joinedAt}
           onAvatarPress={() => router.push('/profil-duzenle')}
         />
+        <SchoolChip userId={ME} schoolId={profile?.schoolId} editable />
 
         <ProfileStats userId={ME} />
 

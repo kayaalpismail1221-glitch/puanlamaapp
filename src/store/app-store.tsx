@@ -255,6 +255,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
             name: state.profile?.name ?? 'Sen',
             username: state.profile?.username ?? '',
             avatarUrl: state.profile?.avatarUri,
+            schoolId: state.profile?.schoolId,
           }
         : userById(userId),
     [state.profile],

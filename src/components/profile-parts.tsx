@@ -5,6 +5,8 @@ import Animated, { LinearTransition } from 'react-native-reanimated';
 
 import { Avatar, PlaceImage, PressableScale, Text } from '@/components/ui';
 import { colors, radius, spacing } from '@/constants/theme';
+import { schoolById, schoolLabel } from '@/data/schools';
+import { useLeaderboard } from '@/hooks/use-leaderboard';
 import { formatScore, monthYear } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
 import type { Badge, ScoredPlace, TasteSlice } from '@/lib/insights';
@@ -37,6 +39,48 @@ export function ProfileIdentity({
         {joinedAt ? ` · Üyelik: ${monthYear(joinedAt)}` : ''}
       </Text>
     </View>
+  );
+}
+
+/* ---------- Okul rozeti ---------- */
+
+/**
+ * Profildeki okul: "🎓 Boğaziçi · Okulunda #2". Dokununca okulun liderlik tablosu açılır.
+ * Kendi profilinde okul yoksa "+ Okul ekle" bağlantısı gösterilir.
+ */
+export function SchoolChip({ userId, schoolId, editable }: { userId: string; schoolId?: string; editable?: boolean }) {
+  const school = schoolById(schoolId);
+  const board = useLeaderboard('school', 'all', schoolId);
+  const entry = board.find((e) => e.userId === userId);
+
+  if (!school) {
+    if (!editable) return null;
+    return (
+      <PressableScale onPress={() => router.push('/okul-sec')} style={styles.addSchool}>
+        <SymbolView name="plus" tintColor={colors.primary} size={12} weight="bold" />
+        <Text variant="subhead" color={colors.primary} style={styles.bold}>
+          Okul ekle
+        </Text>
+      </PressableScale>
+    );
+  }
+
+  return (
+    <PressableScale
+      onPress={() => router.push({ pathname: '/siralama', params: { okul: school.id, vurgula: userId } })}
+      style={styles.school}
+      accessibilityLabel={`${school.name} liderlik tablosu`}>
+      <SymbolView name="graduationcap.fill" tintColor={colors.primary} size={14} />
+      <Text variant="subhead" style={styles.bold} numberOfLines={1}>
+        {schoolLabel(school)}
+      </Text>
+      {entry && entry.reviews > 0 && (
+        <Text variant="subhead" color={colors.textSecondary}>
+          · Okulunda #{entry.rank}
+        </Text>
+      )}
+      <SymbolView name="chevron.right" tintColor={colors.textTertiary} size={11} weight="semibold" />
+    </PressableScale>
   );
 }
 
@@ -332,6 +376,26 @@ export function BadgeStrip({ badges }: { badges: Badge[] }) {
 const styles = StyleSheet.create({
   section: {
     paddingTop: spacing.xl,
+  },
+  school: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    gap: spacing.xs + 2,
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.md,
+    height: 32,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface,
+    maxWidth: '90%',
+  },
+  addSchool: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+    paddingVertical: spacing.xs,
   },
   sectionTitle: {
     paddingHorizontal: spacing.lg,

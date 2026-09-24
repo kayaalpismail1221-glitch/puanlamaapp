@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import { ScrollView, Share, StyleSheet, View } from 'react-native';
 
 import { PostGrid } from '@/components/post-grid';
-import { MenuRow, ProfileIdentity, StatCard, TasteCard, TopThree } from '@/components/profile-parts';
+import { MenuRow, ProfileIdentity, SchoolChip, StatCard, TasteCard, TopThree } from '@/components/profile-parts';
 import { ProfileStats } from '@/components/profile-stats';
 import { Button, Divider, PressableScale, Text } from '@/components/ui';
 import { FollowButton } from '@/components/user-row';
@@ -58,6 +58,7 @@ export default function UserProfileScreen() {
       />
       <ScrollView style={styles.container} contentInsetAdjustmentBehavior="automatic">
         <ProfileIdentity name={user.name} username={user.username} avatarUri={user.avatarUrl} />
+        <SchoolChip userId={user.id} schoolId={user.schoolId} />
         {followsYou && (
           <View style={styles.followsYou}>
             <Text variant="caption" color={colors.textSecondary}>

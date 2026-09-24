@@ -6,6 +6,7 @@ import { Alert, Linking, ScrollView, Share, StyleSheet, Switch, View } from 'rea
 
 import { Avatar, PressableScale, Text } from '@/components/ui';
 import { colors, radius, spacing } from '@/constants/theme';
+import { schoolById, schoolLabel } from '@/data/schools';
 import { areaLabel } from '@/lib/feed';
 import { haptics } from '@/lib/haptics';
 import { useAppStore } from '@/store/app-store';
@@ -13,6 +14,7 @@ import { useAppStore } from '@/store/app-store';
 /** Ayarlar: iOS gruplu liste düzeni */
 export default function SettingsScreen() {
   const { profile, feedArea, hapticsEnabled, dispatch } = useAppStore();
+  const school = schoolById(profile?.schoolId);
 
   const logout = () =>
     Alert.alert('Çıkış yap', 'Tüm yerel veriler silinir ve karşılama ekranına dönersin.', [
@@ -34,6 +36,16 @@ export default function SettingsScreen() {
           </View>
           <SymbolView name="chevron.right" tintColor={colors.textTertiary} size={14} weight="semibold" />
         </PressableScale>
+      </Group>
+
+      <Group title="Profil">
+        <Row
+          icon="graduationcap.fill"
+          label="Okul"
+          value={school ? schoolLabel(school) : 'Ekle'}
+          onPress={() => router.push('/okul-sec')}
+          last
+        />
       </Group>
 
       <Group title="Tercihler">

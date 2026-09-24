@@ -58,6 +58,8 @@ export type User = {
   name: string;
   username: string;
   avatarUrl?: string;
+  /** Okul (üniversite) kimliği, bkz. data/schools */
+  schoolId?: string;
 };
 
 export type Profile = {
@@ -67,6 +69,7 @@ export type Profile = {
   /** Kayıtta alınan iletişim bilgileri (şifre asla cihazda saklanmaz) */
   phone?: string;
   email?: string;
+  schoolId?: string;
 };
 
 /** Oturum açmış kullanıcının kimliği (Supabase gelene kadar sabit) */

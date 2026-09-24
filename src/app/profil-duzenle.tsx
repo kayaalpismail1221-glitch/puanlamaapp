@@ -6,16 +6,18 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View
 
 import { Avatar, PressableScale, Text } from '@/components/ui';
 import { colors, hitSlop, radius, spacing, typography } from '@/constants/theme';
+import { schoolById, schoolLabel } from '@/data/schools';
 import { toUsername } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
 import { useAppStore } from '@/store/app-store';
 
-/** Profili düzenle: fotoğraf, ad, kullanıcı adı */
+/** Profili düzenle: fotoğraf, ad, kullanıcı adı, okul */
 export default function EditProfileScreen() {
   const { profile, dispatch } = useAppStore();
   const [name, setName] = useState(profile?.name ?? '');
   const [username, setUsername] = useState(profile?.username ?? '');
   const [avatarUri, setAvatarUri] = useState(profile?.avatarUri);
+  const school = schoolById(profile?.schoolId);
 
   const valid = name.trim().length >= 2 && username.length >= 3;
 
@@ -32,7 +34,7 @@ export default function EditProfileScreen() {
   const save = () => {
     if (!valid) return;
     haptics.success();
-    dispatch({ type: 'setProfile', profile: { name: name.trim(), username, avatarUri } });
+    dispatch({ type: 'updateProfile', patch: { name: name.trim(), username, avatarUri } });
     router.back();
   };
 
@@ -93,6 +95,17 @@ export default function EditProfileScreen() {
               {username.length >= 3 && <SymbolView name="checkmark.circle.fill" tintColor={colors.primary} size={18} />}
             </View>
           </Field>
+          <View style={styles.separator} />
+          <PressableScale onPress={() => router.push('/okul-sec')} scaleTo={0.99}>
+            <Field label="Okul">
+              <View style={styles.usernameRow}>
+                <Text variant="body" color={school ? colors.text : colors.textTertiary} style={styles.schoolValue} numberOfLines={1}>
+                  {school ? schoolLabel(school) : 'Okul ekle'}
+                </Text>
+                <SymbolView name="chevron.right" tintColor={colors.textTertiary} size={13} weight="semibold" />
+              </View>
+            </Field>
+          </PressableScale>
         </View>
         <Text variant="footnote" color={colors.textSecondary} style={styles.hint}>
           Kullanıcı adı en az 3 karakter olmalı; harf, rakam, nokta ve alt çizgi kullanabilirsin.
@@ -157,6 +170,10 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     color: colors.text,
+    paddingVertical: spacing.md,
+  },
+  schoolValue: {
+    flex: 1,
     paddingVertical: spacing.md,
   },
   hint: {

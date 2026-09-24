@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
@@ -6,17 +6,13 @@ import { FlatList, StyleSheet, View } from 'react-native';
 import { SegmentedControl } from '@/components/segmented-control';
 import { Avatar, Button, Divider, PressableScale, Text } from '@/components/ui';
 import { colors, radius, spacing } from '@/constants/theme';
+import { schoolById, schoolLabel } from '@/data/schools';
 import { useLeaderboard, type LeaderboardScope } from '@/hooks/use-leaderboard';
 import { haptics } from '@/lib/haptics';
 import type { LeaderboardEntry, LeaderboardPeriod } from '@/lib/leaderboard';
 import { openUserProfile } from '@/lib/navigation';
 import { useAppStore } from '@/store/app-store';
 import { ME } from '@/types';
-
-const SCOPES = [
-  { key: 'all', label: 'Genel' },
-  { key: 'friends', label: 'Arkadaşlar' },
-] as const;
 
 const PERIODS: { key: LeaderboardPeriod; label: string }[] = [
   { key: 'all', label: 'Tüm zamanlar' },
@@ -25,85 +21,106 @@ const PERIODS: { key: LeaderboardPeriod; label: string }[] = [
 
 /** Liderlik tablosu: en çok değerlendirme paylaşanlar */
 export default function LeaderboardScreen() {
-  const { vurgula } = useLocalSearchParams<{ vurgula?: string }>();
-  const { getUser } = useAppStore();
-  const [scope, setScope] = useState<LeaderboardScope>('all');
+  // `okul`: belirli bir okulun tablosu (profildeki okul rozetinden gelinir)
+  const { vurgula, okul } = useLocalSearchParams<{ vurgula?: string; okul?: string }>();
+  const { getUser, profile } = useAppStore();
+  const school = schoolById(okul ?? profile?.schoolId);
+  const [scope, setScope] = useState<LeaderboardScope>(okul ? 'school' : 'all');
   const [period, setPeriod] = useState<LeaderboardPeriod>('all');
-  const entries = useLeaderboard(scope, period);
+  const entries = useLeaderboard(scope, period, school?.id);
+
+  const scopes: { key: LeaderboardScope; label: string }[] = [
+    { key: 'all', label: 'Genel' },
+    { key: 'friends', label: 'Arkadaşlar' },
+    ...(school ? [{ key: 'school' as const, label: schoolLabel(school) }] : []),
+  ];
 
   const highlight = vurgula ?? ME;
   const mine = entries.find((e) => e.userId === ME);
 
   return (
-    <FlatList
-      style={styles.container}
-      data={entries}
-      keyExtractor={(e) => e.userId}
-      contentInsetAdjustmentBehavior="automatic"
-      ItemSeparatorComponent={() => <Divider inset={spacing.lg + 32 + 44 + spacing.md * 2} />}
-      ListHeaderComponent={
-        <View>
-          <SegmentedControl options={SCOPES} value={scope} onChange={setScope} style={styles.segment} />
-          <View style={styles.periods}>
-            {PERIODS.map((p) => {
-              const active = p.key === period;
-              return (
-                <PressableScale
-                  key={p.key}
-                  haptic={false}
-                  onPress={() => {
-                    haptics.select();
-                    setPeriod(p.key);
-                  }}
-                  style={[styles.chip, active && styles.chipActive]}>
-                  <Text variant="footnote" color={active ? colors.onPrimary : colors.text} style={styles.bold}>
-                    {p.label}
-                  </Text>
-                </PressableScale>
-              );
-            })}
+    <>
+      <Stack.Screen
+        options={{ title: scope === 'school' && school ? `${schoolLabel(school)} sıralaması` : 'Liderlik tablosu' }}
+      />
+      <FlatList
+        style={styles.container}
+        data={entries}
+        keyExtractor={(e) => e.userId}
+        contentInsetAdjustmentBehavior="automatic"
+        ItemSeparatorComponent={() => <Divider inset={spacing.lg + 32 + 44 + spacing.md * 2} />}
+        ListHeaderComponent={
+          <View>
+            <SegmentedControl options={scopes} value={scope} onChange={setScope} style={styles.segment} />
+            <View style={styles.periods}>
+              {PERIODS.map((p) => {
+                const active = p.key === period;
+                return (
+                  <PressableScale
+                    key={p.key}
+                    haptic={false}
+                    onPress={() => {
+                      haptics.select();
+                      setPeriod(p.key);
+                    }}
+                    style={[styles.chip, active && styles.chipActive]}>
+                    <Text variant="footnote" color={active ? colors.onPrimary : colors.text} style={styles.bold}>
+                      {p.label}
+                    </Text>
+                  </PressableScale>
+                );
+              })}
+            </View>
+            {mine ? (
+              <MyRankCard mine={mine} entries={entries} />
+            ) : scope === 'school' && school ? (
+              <View style={styles.notMember}>
+                <Text variant="subhead" color={colors.textSecondary} style={{ flex: 1 }}>
+                  {school.name} tablosunda değilsin. Okulun burası mı?
+                </Text>
+                <Button title="Okulumu ekle" size="sm" onPress={() => router.push('/okul-sec')} />
+              </View>
+            ) : null}
+            <Text variant="caption" color={colors.textSecondary} style={styles.explain}>
+              Sıralama paylaşılan değerlendirme sayısına göre yapılır. Eşitlikte daha çok beğeni alan öne geçer.
+            </Text>
           </View>
-          {mine && <MyRankCard mine={mine} entries={entries} />}
-          <Text variant="caption" color={colors.textSecondary} style={styles.explain}>
-            Sıralama paylaşılan değerlendirme sayısına göre yapılır. Eşitlikte daha çok beğeni alan öne geçer.
-          </Text>
-        </View>
-      }
-      renderItem={({ item }) => {
-        const user = getUser(item.userId);
-        if (!user) return null;
-        const isHighlighted = item.userId === highlight;
-        return (
-          <PressableScale
-            scaleTo={0.98}
-            onPress={() => openUserProfile(item.userId)}
-            style={[styles.row, isHighlighted && styles.rowHighlight]}>
-            <RankBadge rank={item.rank} muted={item.reviews === 0} />
-            <Avatar uri={user.avatarUrl} name={user.name} size={44} />
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text variant="headline" numberOfLines={1}>
-                {item.userId === ME ? `${user.name} (sen)` : user.name}
-              </Text>
-              <Text variant="footnote" color={colors.textSecondary} numberOfLines={1}>
-                {item.likes} beğeni
-              </Text>
-            </View>
-            <View style={styles.count}>
-              <Text variant="title3" color={colors.primary} style={styles.countValue}>
-                {item.reviews}
-              </Text>
-              <Text variant="caption" color={colors.textSecondary}>
-                değerlendirme
-              </Text>
-            </View>
-          </PressableScale>
-        );
-      }}
-    />
+        }
+        renderItem={({ item }) => {
+          const user = getUser(item.userId);
+          if (!user) return null;
+          const isHighlighted = item.userId === highlight;
+          return (
+            <PressableScale
+              scaleTo={0.98}
+              onPress={() => openUserProfile(item.userId)}
+              style={[styles.row, isHighlighted && styles.rowHighlight]}>
+              <RankBadge rank={item.rank} muted={item.reviews === 0} />
+              <Avatar uri={user.avatarUrl} name={user.name} size={44} />
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text variant="headline" numberOfLines={1}>
+                  {item.userId === ME ? `${user.name} (sen)` : user.name}
+                </Text>
+                <Text variant="footnote" color={colors.textSecondary} numberOfLines={1}>
+                  {item.likes} beğeni
+                </Text>
+              </View>
+              <View style={styles.count}>
+                <Text variant="title3" color={colors.primary} style={styles.countValue}>
+                  {item.reviews}
+                </Text>
+                <Text variant="caption" color={colors.textSecondary}>
+                  değerlendirme
+                </Text>
+              </View>
+            </PressableScale>
+          );
+        }}
+      />
+    </>
   );
 }
 
-/** Kullanıcının kendi sırası ve bir üste çıkmak için gereken değerlendirme */
 function MyRankCard({ mine, entries }: { mine: LeaderboardEntry; entries: LeaderboardEntry[] }) {
   const above = [...entries].reverse().find((e) => e.rank < mine.rank);
   const needed = above ? above.reviews - mine.reviews + (mine.likes > above.likes ? 0 : 1) : 0;
@@ -147,6 +164,16 @@ function RankBadge({ rank, muted }: { rank: number; muted: boolean }) {
 }
 
 const styles = StyleSheet.create({
+  notMember: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    margin: spacing.lg,
+    marginBottom: spacing.sm,
+    padding: spacing.lg,
+    borderRadius: radius.card,
+    backgroundColor: colors.surface,
+  },
   segment: {
     paddingTop: spacing.sm,
   },
