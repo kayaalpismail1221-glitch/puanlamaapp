@@ -45,7 +45,7 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
   (harita topluluk katmanı), `20260927100000_moderation` (uygunsuz ifade filtresi + `blocked_users`).
   `20260928100000_recs_moderation_admin` (telefon o an kapatılmıştı, `is_admin` + şikâyet kuyruğu RPC'leri,
   `recommended_places`), `20260929100000_phone_optional`, `20260930100000_notifications` (bildirimler, 2026-09-25 canlıda doğrulandı).
-  **Henüz canlıya uygulanmadı:** `20261002100000_table_loop` (telefon doğrulama, rehber eşleştirme, davetler). Eski demo silindi; canlıda 12.146 OSM
+  `20261002100000_table_loop` (telefon doğrulama, rehber eşleştirme, davetler; 2026-09-25 canlıya uygulandı). Eski demo silindi; canlıda 12.146 OSM
   mekânı ve gerçek mekânlar üzerine yeni demo var (`npm run demo:seed`: 7 `@demo.puanla.app` hesabı, 25 gönderi).
 - Auth: e-posta/şifre açık, **Confirm email kapalı**. SMTP yok (Supabase SMTP'siz şablon düzenletmiyor ve
   varsayılan e-posta kod değil bağlantı gönderiyor). Bu yüzden `src/constants/features.ts` →
@@ -103,8 +103,8 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
    e-posta doğrulama/şifre sıfırlama; yasal sayfalar HTML.
 2. **Birinci taraf ölçüm:** `events` tablosu, paylaşımlarda davet kodu/`sharer_id`, telefonla davet eşleştirme,
    uzak özellik bayrakları (A/B için). Gizlilik metnini güncelle.
-3. **Masa döngüsü canlıya:** migration'ı uygula, SMS sağlayıcısını bağla (`PHONE_VERIFICATION_ENABLED`), 1.0.1 build'i al,
-   `APP_STORE_URL`'i doldur. Sonra: davet web sayfası (`/d/<davet>`), ayrı karşılaştırma ekranı.
+3. **Masa döngüsü canlıya:** 1.0.1 build'i al, `APP_STORE_URL`'i doldur. Sonra: davet web sayfası (`/d/<davet>`),
+   ayrı karşılaştırma ekranı. SMS doğrulaması ertelendi (aşağıdaki not).
 4. Bildirimler: ölü jeton temizliği (Expo yanıtı `DeviceNotRegistered`).
 5. Hikâye kartlarına link/CTA; paylaşılabilir listeler; damak uyumu %; grup oylaması; şehir içi "lezzet rotası" kartı.
 6. App Store çıkışı (`docs/app-store.md`), web yönetim paneli (şikâyet kuyruğu; RPC'ler hazır),
@@ -271,6 +271,12 @@ Tutunma tarafı: bildirimler ve rehber eşleştirme olmadan ağın ürettiği de
   "Sen 7,9 · İsmail 8,7") → `takip`'te davet eden en üstte + "Rehberinden bul" kartı (`components/contact-friends.tsx`,
   Arkadaş bul'da da). Rehber sunucuda yalnızca SHA-256 özeti (`contact_hashes`, `match_contacts(p_save)`), günde 30
   eşleştirme; Ayarlar → "Rehberden bulunabilirim" (`discoverable`). Telefon hâlâ isteğe bağlı (kullanıcı kararı 2026-09-25).
+  **SMS ertelendi (kullanıcı kararı 2026-09-25):** SMS sağlayıcısı (Twilio vb., SMS başına ücretli) şimdilik entegre
+  edilmeyecek; `PHONE_VERIFICATION_ENABLED = false` kalır, SMS kurulumu önerme. Bu yüzden telefon doğrulaması,
+  "Rehberinden bul" ve `friend_joined` bildirimleri kapalı/çalışmaz (eşleşme doğrulanmış numara ister); gönderide
+  rehberden etiketleme ve WhatsApp/SMS daveti çalışır, davetler özetiyle birikir ve SMS açıldığı gün eşleşir.
+  Açmak gerekirse: Supabase Phone sağlayıcısı (ya da ucuz yerli sağlayıcı için Auth Hooks → Send SMS) → bayrak `true`
+  → `npm run update` (build gerekmez).
 - **Yol tarifi** (`yol-tarifi/[id]`, mekân sayfasındaki haritaya dokununca): yerel Expo modülü `modules/puanla-directions`
   (Swift, Apple MKDirections; anahtar/ücret yok, EAS build'de derlenir, Expo Go ve web'de yok → `inAppDirections` false,
   kuş uçuşu + Apple Haritalar yedeği). Yürüyerek/arabayla rota çizgisi, süre, mesafe, varış, adımlar; Başlat: konum takibi,
