@@ -83,6 +83,12 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
   Mutfaklar/Şehirler/İlçeler satırına dokununca o yerdeki gönderiler. Kart gönderilerin üstünde.
 
 ## Geliştirme notları
+- **Anında güncelleme (EAS Update):** `expo-updates`, kanal `production` (eas.json), `runtimeVersion: appVersion`.
+  Yalnızca JS/asset değişikliği → build yok: `npm run update -- --message "…"` (EAS'taki production ortam
+  değişkenleriyle yayınlanır); telefonlar arka planda indirir, bir sonraki açılışta uygular.
+  **Yeni yerel paket / config eklentisi / app.json yerel ayarı değişirse**: `app.json` → `version` artırılır
+  (1.0.0 → 1.0.1) ve yeni build alınır; aksi hâlde güncelleme eski ikiliye gider ve çöker. Fingerprint politikası
+  kullanılmaz: Windows'taki satır sonları yüzünden yerel parmak izi EAS build'inkiyle tutmayabilir.
 - Web'de hızlı akış testi: `npx expo start --web --port 8090` (8081 kullanıcının Expo Go sunucusu olabilir, dokunma).
   Web için: `metro.config.js` react-native-maps'i `src/shims/react-native-maps.web.tsx` yer tutucusuyla değiştirir;
   SwiftUI bileşeni `segmented-control.ios.tsx`'e ayrıldı; `app.json` web çıktısı `single`.

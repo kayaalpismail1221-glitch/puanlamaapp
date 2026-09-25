@@ -38,6 +38,7 @@
     "expo-status-bar": "~57.0.1",
     "expo-symbols": "~57.0.3",
     "expo-system-ui": "~57.0.4",
+    "expo-updates": "~57.0.23",
     "expo-web-browser": "~57.0.3",
     "i18next": "^26.4.2",
     "react": "19.2.3",
@@ -81,7 +82,8 @@
     "places:upload": "node --env-file=.env.local scripts/osm/upload.mjs",
     "demo:seed": "node --env-file=.env.local --experimental-strip-types --no-warnings scripts/demo/seed-istanbul.mjs",
     "legal:build": "node --env-file=.env.local --experimental-strip-types --no-warnings scripts/legal/build.mjs",
-    "icons:generate": "python scripts/generate-icons.py"
+    "icons:generate": "python scripts/generate-icons.py",
+    "update": "eas update --channel production --environment production"
   },
   "private": true
 }
