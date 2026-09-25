@@ -62,7 +62,20 @@ export type PlaceViewRow = {
   photo: string | null;
 };
 
-export type NotificationType = 'like' | 'comment' | 'tag' | 'follow' | 'friend_rated';
+export type NotificationType = 'like' | 'comment' | 'tag' | 'follow' | 'friend_rated' | 'friend_joined';
+
+/** match_contacts(): rehberdeki numaralardan uygulamada olanlar */
+export type ContactMatchRow = { phone: string; user: PublicProfileJson; following: boolean };
+
+/** my_invites(): beni davet edenler ve davet ettikleri mekân */
+export type InviteRow = {
+  inviter: PublicProfileJson;
+  place: PlaceViewRow;
+  inviter_score: number | null;
+  my_score: number | null;
+  following: boolean;
+  invited_at: string;
+};
 
 /** my_notifications(): bildirim merkezi satırı */
 export type NotificationRow = {
@@ -208,9 +221,17 @@ export type Database = {
         Partial<Pick<ProfileRow, 'name' | 'username' | 'avatar_path' | 'school_id' | 'year_goal' | 'onboarded_at'>>
       >;
       profile_private: Table<
-        { user_id: string; phone: string | null; push_muted: NotificationType[]; updated_at: string },
-        { user_id: string; phone?: string | null },
-        { phone?: string | null; push_muted?: NotificationType[] }
+        {
+          user_id: string;
+          phone: string | null;
+          push_muted: NotificationType[];
+          discoverable: boolean;
+          phone_verified_at: string | null;
+          verified_phone_hash: string | null;
+          updated_at: string;
+        },
+        { user_id: string; phone?: string | null; discoverable?: boolean },
+        { phone?: string | null; push_muted?: NotificationType[]; discoverable?: boolean }
       >;
       places: Table<
         PlaceRow,
@@ -436,6 +457,12 @@ export type Database = {
       mark_notifications_read: { Args: Record<string, never>; Returns: undefined };
       register_push_token: { Args: { p_token: string; p_locale?: string }; Returns: undefined };
       unregister_push_token: { Args: { p_token: string }; Returns: undefined };
+      match_contacts: { Args: { p_phones: string[]; p_save?: boolean }; Returns: ContactMatchRow[] };
+      create_invites: {
+        Args: { p_place_id: string; p_phones: string[]; p_post_id?: string | null };
+        Returns: undefined;
+      };
+      my_invites: { Args: Record<string, never>; Returns: InviteRow[] };
     };
     Enums: {
       sentiment: Sentiment;

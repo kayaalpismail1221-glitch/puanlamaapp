@@ -771,6 +771,138 @@ describe('bildirimler', () => {
   });
 });
 
+describe('rehber ve masa döngüsü', () => {
+  const inbox = (userId) => rows(userId, 'select * from my_notifications()');
+  /** Supabase Auth'un SMS kodunu doğrulaması (kendi rolüyle, oturumsuz) */
+  const verifyPhone = (id, phone) =>
+    db.query('update auth.users set phone = $2, phone_confirmed_at = now() where id = $1', [id, phone]);
+  const priv = async (id) =>
+    (await db.query('select phone, phone_verified_at, verified_phone_hash from profile_private where user_id = $1', [id]))
+      .rows[0];
+  const match = (id, phones, save = false) => rows(id, 'select * from match_contacts($1, $2)', [phones, save]);
+
+  test('yalnızca doğrulanmış numara eşleşir; numara tek hesapta; elle değişince doğrulama düşer', async () => {
+    const me = await signUp({ name: 'Rehber Sahibi' });
+    // Doğrulanmamış numara (kayıtta yazılan) eşleşmez: başkası adına görünülemez
+    const claimer = await signUp({ name: 'Numara Yazan', phone: '0532 000 00 01' });
+    assert.equal((await match(me, ['05320000001'])).length, 0);
+
+    const owner = await signUp({ name: 'Numaranın Sahibi' });
+    await verifyPhone(owner, '905320000001');
+    assert.equal((await priv(owner)).phone, '+905320000001');
+    const [hit] = await match(me, ['+90 532 000 00 01', 'bozuk', '02161234567']);
+    assert.equal(hit.phone, '+905320000001');
+    assert.equal(hit.user.id, owner);
+    assert.equal(hit.following, false);
+
+    // Aynı numarayı SMS'le doğrulayan yeni hesap numarayı devralır
+    await verifyPhone(claimer, '905320000001');
+    assert.equal((await priv(owner)).verified_phone_hash, null);
+    assert.equal((await match(me, ['05320000001']))[0].user.id, claimer);
+
+    // Elle değiştirilen numara doğrulanmamış sayılır; doğrulama alanları istemciden yazılamaz
+    await as(claimer, `update profile_private set phone = '+905320000002' where user_id = $1`, [claimer]);
+    assert.equal((await priv(claimer)).phone_verified_at, null);
+    assert.equal((await match(me, ['05320000001', '05320000002'])).length, 0);
+    await rejects(as(claimer, `update profile_private set phone_verified_at = now() where user_id = $1`, [claimer]), /42501/);
+  });
+
+  test('bulunabilirlik kapalı ya da engelli kişi eşleşmez; tablolar doğrudan okunamaz; sınırlar', async () => {
+    const me = await signUp({ name: 'Arayan' });
+    const hidden = await signUp({ name: 'Gizli' });
+    const blocked = await signUp({ name: 'Engelli' });
+    await verifyPhone(hidden, '905320000011');
+    await verifyPhone(blocked, '905320000012');
+    await as(hidden, `update profile_private set discoverable = false where user_id = $1`, [hidden]);
+    await as(me, `insert into blocks (blocked_id) values ($1)`, [blocked]);
+    assert.equal((await match(me, ['05320000011', '05320000012'])).length, 0);
+
+    await match(me, ['05320000011'], true);
+    for (const table of ['contact_hashes', 'invites', 'contact_matches']) {
+      await rejects(as(me, `select * from ${table}`), /42501/);
+    }
+    await rejects(match(me, Array.from({ length: 3001 }, (_, i) => `0532${String(i).padStart(7, '0')}`)), /3000/);
+    await rejects(as(null, `select * from match_contacts('{}')`), /42501/);
+
+    // Numara taramasına karşı günlük sınır
+    const spammer = await signUp({ name: 'Tarayıcı' });
+    await db.transaction(async (tx) => {
+      await tx.query(`select set_config('request.jwt.claims', $1, true)`, [JSON.stringify({ sub: spammer })]);
+      await tx.exec('set local role authenticated');
+      for (let i = 0; i < 30; i++) await tx.query(`select * from match_contacts('{}')`);
+      await rejects(tx.query(`select * from match_contacts('{}')`), /rehber eşleştirme/);
+    });
+  });
+
+  test('rehberindeki kişi katılınca bildirim; yalnızca kaydedilen rehber için', async () => {
+    const me = await signUp({ name: 'Eski Kullanıcı' });
+    const peek = await signUp({ name: 'Kaydetmeden Bakan' });
+    await match(me, ['0532 000 00 21', '0532 000 00 22'], true);
+    await match(peek, ['05320000021']);
+    // Rehber yeniden eşleştirilince çıkarılan numara unutulur
+    await match(me, ['05320000021'], true);
+
+    const friend = await signUp({ name: 'Yeni Katılan' });
+    await verifyPhone(friend, '905320000021');
+    const other = await signUp({ name: 'Rehberden Çıkarılan' });
+    await verifyPhone(other, '905320000022');
+
+    const list = await inbox(me);
+    assert.deepEqual(list.map((n) => [n.type, n.actor.id]), [['friend_joined', friend]]);
+    assert.equal(list[0].place_id, null);
+    assert.equal((await inbox(peek)).length, 0);
+    const text = await db.query(
+      `select notification_text(n, 'tr') as t, notification_path(n) as p from notifications n where user_id = $1`,
+      [me],
+    );
+    assert.deepEqual(text.rows[0], { t: "Rehberindeki Yeni Katılan Puanla'ya katıldı", p: `kullanici/${friend}` });
+
+    // Numarayı yeniden doğrulamak ikinci bildirim üretmez
+    await db.query('update auth.users set phone_confirmed_at = now() + interval \'1 minute\' where id = $1', [friend]);
+    assert.equal((await inbox(me)).length, 1);
+  });
+
+  test('davet: katılınca davet edene bildirim, davet bağlamı, aynı mekânı puanlayınca karşılaştırma', async () => {
+    const host = await signUp({ name: 'Masa Sahibi' });
+    await as(host, `select rank_place($1, 'liked', 0)`, [PLACE(18)]);
+    const postId = randomUUID();
+    await as(host, `select create_post($1, $2, null, null, null, '{}', '{}', '{}', '[]')`, [postId, PLACE(18)]);
+    await as(host, 'select create_invites($1, $2, $3)', [PLACE(18), ['0532 000 00 31', 'bozuk'], postId]);
+    // Aynı kişi aynı mekân için tekrar davet edilince çoğalmaz; başkasının gönderisine bağlanamaz
+    await as(host, 'select create_invites($1, $2)', [PLACE(18), ['05320000031']]);
+    const stranger = await signUp({ name: 'Başkası' });
+    await rejects(as(stranger, 'select create_invites($1, $2, $3)', [PLACE(18), ['05320000032'], postId]), /42501/);
+    await rejects(as(host, 'select create_invites($1, $2)', [PLACE(18), Array(11).fill('05320000033')]), /10/);
+    assert.equal(
+      (await db.query('select count(*)::int as c from invites where inviter_id = $1', [host])).rows[0].c,
+      1,
+    );
+
+    const guest = await signUp({ name: 'Davetli' });
+    await verifyPhone(guest, '905320000031');
+    const [joined] = await inbox(host);
+    assert.equal(joined.type, 'friend_joined');
+    assert.equal(joined.actor.id, guest);
+    assert.equal(joined.place_id, PLACE(18));
+
+    const [invite] = await rows(guest, 'select * from my_invites()');
+    assert.equal(invite.inviter.id, host);
+    assert.equal(invite.place.id, PLACE(18));
+    assert.equal(Number(invite.inviter_score), 10);
+    assert.equal(invite.my_score, null);
+    assert.equal(invite.following, false);
+    assert.equal((await rows(stranger, 'select * from my_invites()')).length, 0);
+
+    // Davetli aynı mekânı puanlayınca, takip etmese bile davet eden karşılaştırmayı görür
+    await as(guest, `select rank_place($1, 'fine', 0)`, [PLACE(18)]);
+    const rated = (await inbox(host)).find((n) => n.type === 'friend_rated');
+    assert.equal(rated.actor.id, guest);
+    assert.equal(Number(rated.score), 6.6);
+    assert.equal(Number(rated.my_score), 10);
+    assert.equal(Number((await rows(guest, 'select * from my_invites()'))[0].my_score), 6.6);
+  });
+});
+
 describe('hesap', () => {
   test('hesap silinince tüm verisi silinir ve sayaçlar düzelir', async () => {
     const me = await signUp({ name: 'Ayrılan' });

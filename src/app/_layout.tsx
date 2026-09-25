@@ -103,6 +103,7 @@ function RootNavigator() {
         <Stack.Screen name="yol-tarifi/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="bildirimler" options={{ title: t('screens.notifications') }} />
         <Stack.Screen name="bildirim-ayarlari" options={{ title: t('screens.notificationSettings') }} />
+        <Stack.Screen name="telefon-dogrula" options={{ presentation: 'modal', headerTransparent: true, title: '' }} />
         <Stack.Screen name="hikaye" options={{ presentation: 'modal', title: t('screens.story') }} />
         <Stack.Screen name="okul-sec" options={{ presentation: 'modal', title: t('screens.school') }} />
         <Stack.Screen
@@ -114,6 +115,7 @@ function RootNavigator() {
       {/* Puanlama, gönderi ve mekân ekleme hem onboarding'de hem uygulama içinde kullanılır */}
       <Stack.Screen name="gonderi-olustur" options={{ presentation: 'modal', title: t('screens.sharePost') }} />
       <Stack.Screen name="mekan-ekle" options={{ presentation: 'modal', title: t('screens.newPlace') }} />
+      <Stack.Screen name="davet-et" options={{ presentation: 'modal', title: t('screens.invite') }} />
       <Stack.Screen name="yasal/[belge]" options={{ presentation: 'modal', title: '' }} />
       <Stack.Screen
         name="degerlendir/[id]"

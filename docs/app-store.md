@@ -16,7 +16,8 @@ yapılanlar, senin yapman gerekenler ve App Store Connect'e yapıştırılacak h
 | 2.3.8 Uygulama ikonu | Expo varsayılanı yerine Puanla ikonu ve açılış görseli. |
 | 5.1.1 Hesap silme | **Ayarlar → Hesabı sil** (iki onay, tüm veriler silinir). |
 | 5.1.1 Gereksiz veri | Telefon numarası isteğe bağlı ("Şimdilik geç"), amacı ekranda yazıyor: rehberden arkadaş bulma. Rehber eşleştirme gelene kadar zorunlu yapılmamalı. |
-| 5.1.1 İzin açıklamaları | Konum, kamera, fotoğraf açıklamaları Türkçe + İngilizce. |
+| 5.1.1 İzin açıklamaları | Konum, kamera, fotoğraf, rehber açıklamaları Türkçe + İngilizce. |
+| 5.1.2 Rehber verisi | Rehber yalnızca kullanıcı isteyince okunur; numaralar sunucuda özet (hash) olarak saklanır, isimler cihazdan çıkmaz, davet mesajını kullanıcı kendi WhatsApp/Mesajlar'ından gönderir (uygulama kimseye kendiliğinden mesaj atmaz). Gizlilik politikasında anlatılıyor; Ayarlar'da "Rehberden bulunabilirim" kapatılabilir. |
 | 5.1.2 Gizlilik bildirimi | `app.json` → `ios.privacyManifests` (izleme yok, toplanan veri türleri, API gerekçeleri). |
 | Şifreleme beyanı | `ITSAppUsesNonExemptEncryption: false`, her yüklemede soru sorulmaz. |
 | Gizlilik politikası | Uygulama içinde + herkese açık link (aşağıda). |
@@ -109,6 +110,7 @@ yapılanlar, senin yapman gerekenler ve App Store Connect'e yapıştırılacak h
 - **Verileri izleme (tracking) için kullanıyor musunuz?** Hayır.
 - **Toplanan veriler.** Hepsi *kullanıcıya bağlı*, amaç *App Functionality*, izleme *hayır*:
   - Contact Info → Name, Email Address, Phone Number
+  - Contacts → Contacts (rehberdeki numaraların özeti; arkadaş bulma ve davet eşleştirme)
   - User Content → Photos or Videos, Other User Content (puan, yorum, gönderi)
   - Identifiers → User ID
 - **Konum:** toplanmıyor. Yakındaki gönderiler için anlık sorguda kullanılıyor, saklanmıyor.

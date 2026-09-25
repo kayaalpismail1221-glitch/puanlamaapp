@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Alert, Linking, ScrollView, Share, StyleSheet, Switch, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Switch, View } from 'react-native';
 
 import { showError } from '@/api/errors';
 import { SettingsGroup, SettingsRow, settingsStyles } from '@/components/settings-list';
@@ -14,6 +14,8 @@ import { schoolById, schoolLabel } from '@/data/schools';
 import { useLanguagePreference } from '@/i18n';
 import { areaLabel } from '@/lib/feed';
 import { haptics } from '@/lib/haptics';
+import { PHONE_VERIFICATION_ENABLED } from '@/constants/features';
+import { shareInvite } from '@/lib/share';
 import { useAppStore } from '@/store/app-store';
 
 const openLegal = (belge: 'kosullar' | 'gizlilik') => router.push({ pathname: '/yasal/[belge]', params: { belge } });
@@ -126,10 +128,27 @@ export default function SettingsScreen() {
         <SettingsRow
           icon="square.and.arrow.up"
           label={t('settings.invite')}
-          onPress={() => Share.share({ message: t('settings.inviteMessage') })}
+          onPress={shareInvite}
           last
         />
       </SettingsGroup>
+
+      {PHONE_VERIFICATION_ENABLED && (
+        <SettingsGroup footer={t('settings.discoverableFooter')}>
+          <SettingsRow
+            icon="person.crop.circle.badge.checkmark"
+            label={t('settings.discoverable')}
+            accessory={
+              <Switch
+                value={profile?.discoverable !== false}
+                onValueChange={actions.setDiscoverable}
+                trackColor={{ true: colors.primary }}
+              />
+            }
+            last
+          />
+        </SettingsGroup>
+      )}
 
       <SettingsGroup title={t('settings.privacySafety')}>
         <SettingsRow icon="hand.raised.fill" label={t('settings.blocked')} onPress={() => router.push('/engellenenler')} />

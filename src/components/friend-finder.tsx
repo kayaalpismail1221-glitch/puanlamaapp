@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, StyleSheet, View } from 'react-native';
 
+import { ContactFriends } from '@/components/contact-friends';
 import { UserRowsSkeleton } from '@/components/skeleton';
 import { Divider, ErrorView, SearchField, Text } from '@/components/ui';
 import { UserRow } from '@/components/user-row';
@@ -30,6 +31,7 @@ export function FriendFinder({ header }: { header?: React.ReactElement }) {
       ListHeaderComponent={
         <View style={styles.header}>
           {header}
+          {!searching && <ContactFriends />}
           <SearchField value={query} onChangeText={setQuery} placeholder={t('friends.searchPlaceholder')} />
           {!searching && !!suggested.data?.length && (
             <Text variant="footnote" color={colors.textSecondary} style={styles.bold}>

@@ -153,11 +153,13 @@ const privacyTr: LegalText = {
     {
       heading: '1. Topladığımız veriler',
       paragraphs: [
-        '• Hesap bilgileri: e-posta adresi, ad-soyad, kullanıcı adı ve şifre (şifren yalnızca şifrelenmiş olarak saklanır). İsteğe bağlı olarak cep telefonu numarası (yalnızca arkadaşlarının seni rehberinden bulabilmesi için; profilinde görünmez, kimseyle paylaşılmaz). Apple ile giriş yaparsan Apple’ın paylaştığı ad ve e-posta.',
+        '• Hesap bilgileri: e-posta adresi, ad-soyad, kullanıcı adı ve şifre (şifren yalnızca şifrelenmiş olarak saklanır). İsteğe bağlı olarak cep telefonu numarası (yalnızca arkadaşlarının seni rehberinden bulabilmesi için; numarana gönderdiğimiz tek seferlik SMS koduyla doğrulanır, profilinde görünmez, kimseyle paylaşılmaz). “Rehberden bulunabilirim” ayarını kapatırsan kimse seni numaranla bulamaz. Apple ile giriş yaparsan Apple’ın paylaştığı ad ve e-posta.',
         '• Profil: profil fotoğrafı, okul (isteğe bağlı) ve yıllık hedef.',
         '• Paylaştıkların: puanlar ve sıralamalar, gönderiler, fotoğraflar, yorumlar, beğeniler, kaydettiklerin, Listem’e eklediğin bağlantı ve notlar, takip ilişkileri, şikâyet ve engellemeler.',
         '• Konum: “Yakınımda” feed’i ve harita için cihazının konumu yalnızca izin verirsen ve uygulama açıkken kullanılır. Konumun yakındaki gönderileri bulmak için anlık sorguda kullanılır; sunucularımızda saklanmaz.',
         '• Fotoğraflar ve kamera: yalnızca paylaşmak için seçtiğin ya da çektiğin fotoğraflar yüklenir; fotoğraf arşivinin geri kalanına erişmeyiz.',
+        '• Rehber: yalnızca izin verirsen ve “Rehberini tara” ya da gönderide “Rehberden” dediğinde okunur. Rehberindeki cep numaraları, Puanla’da olan arkadaşlarını bulmak için sunucumuza gönderilir ve yalnızca geri döndürülemez özet (hash) olarak saklanır; isimler ve diğer rehber bilgileri cihazından çıkmaz. Bu özetler, rehberindeki biri sonradan katıldığında sana haber vermek için kullanılır ve hesabını silince silinir.',
+        '• Davetler: gönderide rehberden eklediğin, Puanla’da olmayan kişinin numarası özet olarak saklanır; o kişi katılıp numarasını doğrularsa davetinle eşleşir ve sana haber verilir. Davet mesajını sen kendi WhatsApp ya da Mesajlar uygulamandan gönderirsin; biz kimseye mesaj göndermeyiz.',
       ],
     },
     {
@@ -176,7 +178,7 @@ const privacyTr: LegalText = {
     {
       heading: '4. Hizmet sağlayıcılar ve yurt dışı aktarım',
       paragraphs: [
-        'Verilerin, altyapı sağlayıcımız Supabase’in Avrupa Birliği (Frankfurt, Almanya) bölgesindeki sunucularında saklanır. Bu nedenle verilerin KVKK’nın 9. maddesi kapsamında yurt dışına aktarılır. Apple ile giriş kullanırsan kimlik doğrulama Apple tarafından yapılır. Yasal zorunluluklar dışında verilerini başka kimseyle paylaşmayız.',
+        'Verilerin, altyapı sağlayıcımız Supabase’in Avrupa Birliği (Frankfurt, Almanya) bölgesindeki sunucularında saklanır. Bu nedenle verilerin KVKK’nın 9. maddesi kapsamında yurt dışına aktarılır. Apple ile giriş kullanırsan kimlik doğrulama Apple tarafından yapılır. Telefon doğrulama kodu, SMS hizmet sağlayıcımız aracılığıyla numarana gönderilir. Yasal zorunluluklar dışında verilerini başka kimseyle paylaşmayız.',
       ],
     },
     {
@@ -217,11 +219,13 @@ const privacyEn: LegalText = {
     {
       heading: '1. Data we collect',
       paragraphs: [
-        '• Account: email address, full name, username and password (stored only in hashed form). Optionally, your mobile number (only so friends can find you from their contacts; never shown on your profile or shared). If you sign in with Apple, the name and email Apple shares with us.',
+        '• Account: email address, full name, username and password (stored only in hashed form). Optionally, your mobile number (only so friends can find you from their contacts; verified with a one-time SMS code, never shown on your profile or shared). If you turn off “Findable from contacts”, no one can find you by your number. If you sign in with Apple, the name and email Apple shares with us.',
         '• Profile: profile photo, school (optional) and yearly goal.',
         '• What you share: ratings and rankings, posts, photos, comments, likes, saves, links and notes in My List, follows, reports and blocks.',
         '• Location: used only if you allow it and only while the app is open, for the “Near me” feed and the map. Your location is used in a live query to find nearby posts and is not stored on our servers.',
         '• Photos and camera: only the photos you choose or take to share are uploaded; we don’t access the rest of your library.',
+        '• Contacts: read only if you allow it and only when you tap “Scan contacts” or “Contacts” in a post. Mobile numbers in your contacts are sent to our server to find friends already on Puanla and are stored only as irreversible hashes; names and other contact details never leave your device. The hashes are used to let you know when a contact joins later and are deleted when you delete your account.',
+        '• Invites: when you add someone from your contacts to a post who isn’t on Puanla, their number is stored as a hash; if they join and verify their number, they’re matched to your invite and we let you know. You send the invite message yourself from your own WhatsApp or Messages app; we never message anyone.',
       ],
     },
     {
@@ -240,7 +244,7 @@ const privacyEn: LegalText = {
     {
       heading: '4. Service providers and international transfers',
       paragraphs: [
-        'Your data is stored with our infrastructure provider Supabase in its European Union region (Frankfurt, Germany), which means it is transferred outside Türkiye under Article 9 of the KVKK. If you use Sign in with Apple, authentication is handled by Apple. We don’t share your data with anyone else except where required by law.',
+        'Your data is stored with our infrastructure provider Supabase in its European Union region (Frankfurt, Germany), which means it is transferred outside Türkiye under Article 9 of the KVKK. If you use Sign in with Apple, authentication is handled by Apple. Phone verification codes are sent to your number through our SMS provider. We don’t share your data with anyone else except where required by law.',
       ],
     },
     {

@@ -3,12 +3,14 @@ import { useTranslation } from 'react-i18next';
 import { FlatList, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
+import { ContactFriends } from '@/components/contact-friends';
 import { OnboardingStep } from '@/components/onboarding-step';
 import { UserRowsSkeleton } from '@/components/skeleton';
 import { Avatar, Button, Divider, ErrorView, PressableScale, Text } from '@/components/ui';
 import { FollowButton } from '@/components/user-row';
 import { colors, spacing } from '@/constants/theme';
 import { useSuggestedUsers } from '@/hooks/queries';
+import { useMyInvites } from '@/hooks/use-contact-friends';
 import { haptics } from '@/lib/haptics';
 import { useAppStore } from '@/store/app-store';
 
@@ -20,8 +22,12 @@ export default function FollowStep() {
   const { t } = useTranslation();
   const suggested = useSuggestedUsers(40);
   const [starting, setStarting] = useState(false);
-  // Öneriler bu ekranda sabit kalsın; takip edilen kişi listeden kaybolmasın
-  const suggestions = suggested.data ?? [];
+  const invites = useMyInvites();
+  // Davet edenler en üstte (davet bağlamı), sonra öneriler. Liste bu ekranda sabit kalsın;
+  // takip edilen kişi listeden kaybolmasın
+  const inviterIds = new Set((invites.data ?? []).map((i) => i.inviter.id));
+  const inviters = [...new Map((invites.data ?? []).map((i) => [i.inviter.id, i.inviter])).values()];
+  const suggestions = [...inviters, ...(suggested.data ?? []).filter((u) => !inviterIds.has(u.id))];
   // Uygulamanın ilk günlerinde yeterince kullanıcı olmayabilir
   const required = Math.min(TARGET, suggestions.length);
   const count = suggestions.filter((u) => isFollowing(u.id)).length;
@@ -59,20 +65,25 @@ export default function FollowStep() {
         keyExtractor={(u) => u.id}
         ItemSeparatorComponent={() => <Divider inset={spacing.xl + 48 + spacing.md} />}
         ListHeaderComponent={
-          <View style={styles.header}>
-            <Text variant="footnote" color={colors.textSecondary} style={styles.bold}>
-              {t('onboarding.suggested')}
-            </Text>
-            {!ready && suggestions.length > 0 && (
-              <Animated.View entering={FadeIn}>
-                <PressableScale onPress={followAll} haptic={false}>
-                  <Text variant="subhead" color={colors.primary} style={styles.bold}>
-                    {t('onboarding.followAll')}
-                  </Text>
-                </PressableScale>
-              </Animated.View>
-            )}
-          </View>
+          <>
+            <View style={styles.contacts}>
+              <ContactFriends />
+            </View>
+            <View style={styles.header}>
+              <Text variant="footnote" color={colors.textSecondary} style={styles.bold}>
+                {t('onboarding.suggested')}
+              </Text>
+              {!ready && suggestions.length > 0 && (
+                <Animated.View entering={FadeIn}>
+                  <PressableScale onPress={followAll} haptic={false}>
+                    <Text variant="subhead" color={colors.primary} style={styles.bold}>
+                      {t('onboarding.followAll')}
+                    </Text>
+                  </PressableScale>
+                </Animated.View>
+              )}
+            </View>
+          </>
         }
         ListEmptyComponent={
           suggested.isPending ? (
@@ -93,7 +104,9 @@ export default function FollowStep() {
                 {item.name}
               </Text>
               <Text variant="footnote" color={colors.textSecondary} numberOfLines={1}>
-                {t('friends.reviews', { username: item.username, count: item.postCount })}
+                {inviterIds.has(item.id)
+                  ? t('onboarding.invitedTitle', { name: item.name.split(' ')[0] })
+                  : t('friends.reviews', { username: item.username, count: 'postCount' in item ? item.postCount : 0 })}
               </Text>
             </View>
             <FollowButton userId={item.id} />
@@ -105,6 +118,10 @@ export default function FollowStep() {
 }
 
 const styles = StyleSheet.create({
+  contacts: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

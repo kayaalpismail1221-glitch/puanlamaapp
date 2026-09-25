@@ -7,11 +7,14 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { OnboardingStep } from '@/components/onboarding-step';
 import { PlaceSearchList } from '@/components/place-picker';
-import { Button, PlaceImage, ScoreBadge, SearchField, Text } from '@/components/ui';
+import type { Invite } from '@/api/contacts';
+import { Avatar, Button, PlaceImage, ScoreBadge, SearchField, Text } from '@/components/ui';
 import { cuisineLabel } from '@/constants/cuisines';
 import { colors, radius, spacing } from '@/constants/theme';
 import { usePlace } from '@/data/entities';
 import { useUserPosts } from '@/hooks/queries';
+import { useMyInvites } from '@/hooks/use-contact-friends';
+import { formatScore } from '@/lib/format';
 import { useAppStore } from '@/store/app-store';
 
 // Puanlayınca doğrudan gönderi ekranı açılır (fotoğraf isteğe bağlı)
@@ -23,6 +26,8 @@ export default function FirstRatingStep() {
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const myPosts = useUserPosts(userId);
+  // Davetle gelen: onboarding davet edenin mekânıyla başlar ("Sen kaç verirdin?")
+  const invite = useMyInvites().data?.[0];
 
   const first = scored[0];
   const firstPlace = usePlace(first?.placeId) ?? undefined;
@@ -39,6 +44,7 @@ export default function FirstRatingStep() {
           <Button title={t('onboarding.skip')} variant="ghost" onPress={() => router.push('/onboarding/takip')} />
         )
       }>
+      {invite && <InviteCard invite={invite} myScore={scoreOf(invite.place.id)} />}
       {firstPlace && first ? (
         <>
           <Animated.View entering={FadeInDown.springify()} style={styles.rated}>
@@ -91,7 +97,39 @@ export default function FirstRatingStep() {
   );
 }
 
+/** Davet eden, mekân ve (puanlayınca) iki puanın karşılaştırması */
+function InviteCard({ invite, myScore }: { invite: Invite; myScore?: number }) {
+  const { t } = useTranslation();
+  const first = invite.inviter.name.split(' ')[0] ?? invite.inviter.name;
+  const theirs = invite.inviterScore;
+  return (
+    <Animated.View entering={FadeInDown.springify()} style={[styles.rated, styles.invite]}>
+      <Avatar uri={invite.inviter.avatarUrl} name={invite.inviter.name} size={48} />
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text variant="caption" color={colors.primary} style={styles.bold}>
+          {t('onboarding.invitedTitle', { name: first })}
+        </Text>
+        <Text variant="subhead" numberOfLines={3}>
+          {myScore !== undefined && theirs !== undefined
+            ? t('onboarding.compare', { mine: formatScore(myScore), name: first, theirs: formatScore(theirs) })
+            : theirs !== undefined
+              ? t('onboarding.invitedText', { name: first, place: invite.place.name, score: formatScore(theirs) })
+              : t('onboarding.invitedTextNoScore', { name: first, place: invite.place.name })}
+        </Text>
+      </View>
+      {myScore === undefined ? (
+        <Button title={t('onboarding.rateInvite')} size="sm" onPress={() => rate(invite.place.id)} />
+      ) : (
+        <ScoreBadge score={myScore} />
+      )}
+    </Animated.View>
+  );
+}
+
 const styles = StyleSheet.create({
+  invite: {
+    marginBottom: spacing.lg,
+  },
   search: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.sm,

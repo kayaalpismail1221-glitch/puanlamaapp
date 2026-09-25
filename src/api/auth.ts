@@ -39,6 +39,19 @@ export async function resendSignupCode(email: string) {
   unwrap(await supabase.auth.resend({ type: 'signup', email }));
 }
 
+/**
+ * Telefon doğrulaması: Supabase Auth numaraya SMS kodu gönderir (Supabase → Auth → Phone sağlayıcısı gerekir).
+ * Kod doğrulanınca veritabanı numarayı onaylı sayar ve rehber eşleştirmesi açılır (`on_auth_user_phone`).
+ * `phone`: "+905XXXXXXXXX"
+ */
+export async function sendPhoneCode(phone: string) {
+  unwrap(await supabase.auth.updateUser({ phone }));
+}
+
+export async function verifyPhoneCode(phone: string, code: string) {
+  unwrap(await supabase.auth.verifyOtp({ phone, token: code, type: 'phone_change' }));
+}
+
 export async function signIn(email: string, password: string) {
   unwrap(await supabase.auth.signInWithPassword({ email, password }));
 }

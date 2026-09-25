@@ -31,6 +31,7 @@ create table auth.users (
   role text,
   email text unique,
   phone text,
+  phone_confirmed_at timestamptz,
   encrypted_password text,
   email_confirmed_at timestamptz,
   raw_app_meta_data jsonb,

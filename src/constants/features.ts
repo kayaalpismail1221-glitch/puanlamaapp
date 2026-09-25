@@ -16,3 +16,11 @@ export const EMAIL_CODES_ENABLED = false;
  * App Store incelemesinde "çalışmayan özellik" (Kural 2.1) sayılır. Ayarlayınca `true` yap.
  */
 export const APPLE_SIGN_IN_ENABLED = false;
+
+/**
+ * Telefonu SMS koduyla doğrulama ve rehberden arkadaş bulma. Supabase → Authentication → Sign In / Providers →
+ * Phone sağlayıcısı (SMS servisi: Twilio vb.) ayarlanana kadar kapalı; ayarlanmadan açılırsa kod hiç gelmez
+ * (Kural 2.1). Kapalıyken gönderide rehberden davet yine çalışır: davet edilen, numarasını doğruladığı gün eşleşir.
+ * Kurulum: SUPABASE.md → "Telefon doğrulaması (SMS)".
+ */
+export const PHONE_VERIFICATION_ENABLED = false;
