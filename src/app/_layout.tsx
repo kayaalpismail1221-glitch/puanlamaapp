@@ -18,7 +18,7 @@ import { useLanguageLoaded } from '@/i18n';
 import { usePushNotifications } from '@/lib/notifications';
 import { queryClient } from '@/lib/query-client';
 import { isBackendConfigured } from '@/lib/supabase';
-import { AppStoreProvider, useAppStore } from '@/store/app-store';
+import { AppStoreProvider, useAppActions, useAppSelector } from '@/store/app-store';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -39,7 +39,13 @@ const navigationTheme = {
 };
 
 function RootNavigator() {
-  const { status, prefsLoaded, ready, loadError, onboarded, actions } = useAppStore();
+  // Kök gezgin yalnızca açılış/oturum durumunu dinler; beğeni, takip gibi değişiklikler tüm Stack'i yeniden çizmesin
+  const status = useAppSelector((s) => s.status);
+  const prefsLoaded = useAppSelector((s) => s.prefsLoaded);
+  const ready = useAppSelector((s) => s.ready);
+  const loadError = useAppSelector((s) => s.loadError);
+  const onboarded = useAppSelector((s) => !!s.profile?.onboardedAt);
+  const actions = useAppActions();
   const { t } = useTranslation();
   const languageLoaded = useLanguageLoaded();
 

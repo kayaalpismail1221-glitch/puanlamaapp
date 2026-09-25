@@ -4,11 +4,11 @@ import { useEffect, useState } from 'react';
 import * as api from '@/api/content';
 import * as notificationsApi from '@/api/notifications';
 import { adjustCommentCount, removePost, upsertPosts } from '@/data/entities';
-import type { Coords } from '@/lib/geo';
+import { roundCoords, type Coords } from '@/lib/geo';
 import { useUserLocation } from '@/lib/location';
 import type { LeaderboardPeriod, LeaderboardScope } from '@/lib/leaderboard';
 import { keys, queryClient } from '@/lib/query-client';
-import { useAppStore } from '@/store/app-store';
+import { useAppActions, useAppSelector } from '@/store/app-store';
 import type { Comment, FeedArea, Post } from '@/types';
 
 /**
@@ -41,7 +41,7 @@ async function restartFeed(queryKey: QueryKey, refetch: () => Promise<unknown>) 
 
 export function usePopularFeed(area: FeedArea, coords: Coords | null, enabled: boolean) {
   // Konum küçük oynamalarda feed'i baştan yüklemesin (~1 km hassasiyet)
-  const rounded = coords && { latitude: +coords.latitude.toFixed(2), longitude: +coords.longitude.toFixed(2) };
+  const rounded = roundCoords(coords);
   const queryKey = keys.feedPopular(area, rounded);
   const query = useInfiniteQuery({
     queryKey,
@@ -110,7 +110,8 @@ function invalidatePostLists(post: Pick<Post, 'userId' | 'placeId'>) {
 }
 
 export function useCreatePost() {
-  const { userId, actions } = useAppStore();
+  const userId = useAppSelector((s) => s.userId);
+  const actions = useAppActions();
   const [progress, setProgress] = useState(0);
   const mutation = useMutation({
     mutationFn: async (input: api.NewPost) => {
@@ -125,7 +126,8 @@ export function useCreatePost() {
 }
 
 export function useDeletePost() {
-  const { userId } = useAppStore();
+  // Her feed kartında çağrılır: yalnızca kimliği dinler, beğeniler kartları yeniden çizdirmesin
+  const userId = useAppSelector((s) => s.userId);
   return useMutation({
     mutationFn: (post: Post) => api.deletePost(userId!, post),
     onSuccess: (_, post) => {
@@ -183,10 +185,7 @@ export function usePlaceDetails(placeId: string | undefined) {
 /** Sana özel öneriler (konum varsa yakındakiler öne çıkar; ~1 km hassasiyet) */
 export function useRecommendations(enabled: boolean) {
   const location = useUserLocation(enabled);
-  const rounded = location.coords && {
-    latitude: +location.coords.latitude.toFixed(2),
-    longitude: +location.coords.longitude.toFixed(2),
-  };
+  const rounded = roundCoords(location.coords);
   // Konum izni bekleniyorsa kısa süre bekle; izin yoksa konumsuz öner
   const settled = !!location.coords || ['denied', 'undetermined', 'error'].includes(location.status);
   return useQuery({
@@ -225,7 +224,7 @@ export function useFriendScores(placeIds: string[]) {
 
 export function useSearchPlaces(query: string, coords: Coords | null) {
   const q = useDebounced(query.trim());
-  const rounded = coords && { latitude: +coords.latitude.toFixed(2), longitude: +coords.longitude.toFixed(2) };
+  const rounded = roundCoords(coords);
   return useQuery({
     queryKey: keys.searchPlaces(q, rounded),
     queryFn: () => api.searchPlaces(q, rounded),
@@ -324,7 +323,7 @@ export function useUnreadNotifications(enabled = true) {
 }
 
 export function useMutedNotifications() {
-  const { userId } = useAppStore();
+  const userId = useAppSelector((s) => s.userId);
   return useQuery({
     queryKey: keys.mutedNotifications(),
     queryFn: () => notificationsApi.fetchMutedKinds(userId!),

@@ -11,7 +11,7 @@ import { UserRow } from '@/components/user-row';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
 import { useNearbyPlaceSearch, useSearchUsers, useSuggestedUsers } from '@/hooks/queries';
 import { haptics } from '@/lib/haptics';
-import { useAppStore } from '@/store/app-store';
+import { useAppActions, useAppSelector, useScoreOf } from '@/store/app-store';
 import type { Place, User } from '@/types';
 
 type Scope = 'all' | 'places' | 'people';
@@ -24,7 +24,12 @@ type Section =
 
 /** Hem mekân hem kişi araması */
 export default function SearchTab() {
-  const { following, scoreOf, isSaved, actions } = useAppStore();
+  // Sekme açık kaldığı için tüm mağazayı değil yalnızca kullanılan alanları dinler
+  const following = useAppSelector((s) => s.following);
+  const savedPlaces = useAppSelector((s) => s.saved);
+  const scoreOf = useScoreOf();
+  const actions = useAppActions();
+  const savedIds = useMemo(() => new Set(savedPlaces.map((s) => s.placeId)), [savedPlaces]);
   const { t } = useTranslation();
   const scopeLabel = (s: Scope) => (s === 'all' ? t('common.all') : s === 'places' ? t('common.places') : t('common.people'));
   const [query, setQuery] = useState('');
@@ -128,7 +133,7 @@ export default function SearchTab() {
           if (section.key === 'people') return <UserRow user={item as User} />;
           const place = item as Place;
           const score = scoreOf(place.id);
-          const saved = isSaved(place.id);
+          const saved = savedIds.has(place.id);
           return (
             <PlaceRow
               place={place}

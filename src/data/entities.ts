@@ -149,23 +149,29 @@ async function load(kind: Kind, ids: string[]) {
   }
 }
 
+/** Tek istekteki en fazla kimlik: `in (...)` adreste taşınır, çok uzun adresi sunucu reddeder */
+const BATCH_SIZE = 100;
+
 function flush() {
   flushScheduled = false;
   for (const kind of Object.keys(pending) as Kind[]) {
-    const ids = [...pending[kind]];
+    const all = [...pending[kind]];
     pending[kind].clear();
-    if (!ids.length) continue;
-    ids.forEach((id) => inflight[kind].add(id));
-    load(kind, ids)
-      .then((found) => {
-        const got = new Set(found.map((f) => f.id));
-        for (const id of ids) if (!got.has(id)) missing[kind].add(id);
-        emit();
-      })
-      // Ağ hatasında "bulunamadı" demeyelim; bir sonraki istekte yeniden denenir
-      .catch((error) => __DEV__ && console.warn('[puanla] önbellek yüklenemedi', kind, error))
-      .finally(() => ids.forEach((id) => inflight[kind].delete(id)));
+    for (let i = 0; i < all.length; i += BATCH_SIZE) loadBatch(kind, all.slice(i, i + BATCH_SIZE));
   }
+}
+
+function loadBatch(kind: Kind, ids: string[]) {
+  ids.forEach((id) => inflight[kind].add(id));
+  load(kind, ids)
+    .then((found) => {
+      const got = new Set(found.map((f) => f.id));
+      for (const id of ids) if (!got.has(id)) missing[kind].add(id);
+      emit();
+    })
+    // Ağ hatasında "bulunamadı" demeyelim; bir sonraki istekte yeniden denenir
+    .catch((error) => __DEV__ && console.warn('[puanla] önbellek yüklenemedi', kind, error))
+    .finally(() => ids.forEach((id) => inflight[kind].delete(id)));
 }
 
 /* ---------- Kancalar ---------- */
