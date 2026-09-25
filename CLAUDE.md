@@ -261,6 +261,9 @@ Tutunma tarafı: bildirimler ve rehber eşleştirme olmadan ağın ürettiği de
   Reels/TikTok/Safari'den paylaşılan bağlantı → `+native-intent` (`dataUrl=` yolunu `paylasim-al`'a çevirir) →
   `listeye-ekle` (`baglanti` hazır, `ara`: paylaşımdaki 📍 mekân adı; TikTok'ta açıklama oEmbed'den, Instagram açıklama vermez).
   Sağlayıcı kök düzende en dışta; Expo Go ve web'de kapalı. Yeni build gerekir.
+  Uzantının Xcode hedefi `PuanlaShare` (ana hedef "Puanla" ile aynı olursa EAS uzantının profilini ana uygulamaya
+  takar, build düşer); menüdeki ad `plugins/with-share-extension-display-name` ile "Puanla" (app.json'da
+  expo-share-intent'ten ÖNCE durmalı: eklentilerde son eklenen önce çalışır).
 - **Lezzet haritası paylaşımı** (`harita-paylas/[id]`, profildeki harita kartının paylaş simgesi; kendi ve başkasının):
   degrade zeminde beyaz kart ("{Ad}'ın lezzet haritası" — `lib/possessive.ts` Türkçe iyelik eki —, şehir · mekân sayısı,
   harita, en çok gidilen mutfaklar), altta Paylaş / Kaydet (Fotoğraflar, yalnızca ekleme izni) / Mesajlar (görsel ekli) /
