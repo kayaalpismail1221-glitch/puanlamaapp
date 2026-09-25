@@ -1,6 +1,6 @@
 import { Share } from 'react-native';
 
-import { appLink } from '@/constants/app';
+import { appLink, inviteLink } from '@/constants/app';
 import { cuisineLabel } from '@/constants/cuisines';
 import i18n from '@/i18n';
 import { formatScore } from '@/lib/format';
@@ -42,4 +42,9 @@ export function sharePlace(place: Place, community?: { average: number; count: n
   return share(text, `mekan/${place.id}`);
 }
 
-export const shareInvite = () => Share.share({ message: i18n.t('settings.inviteMessage') }).catch(() => {});
+/** Genel davet: indirme bağlantısıyla (yoksa App Store'da aratma önerisiyle) */
+export function shareInvite() {
+  const link = inviteLink();
+  const how = link ? i18n.t('invite.download', { link }) : i18n.t('invite.searchStore');
+  return Share.share({ message: `${i18n.t('settings.inviteMessage')}\n\n${how}` }).catch(() => {});
+}

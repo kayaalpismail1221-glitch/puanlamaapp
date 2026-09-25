@@ -20,6 +20,7 @@ import { FormSection as Section, HighlightPicker, MAX_HIGHLIGHTS, MealPicker, po
 import { Avatar, Button, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { cuisineLabel } from '@/constants/cuisines';
 import { colors, hitSlop, radius, spacing, typography } from '@/constants/theme';
+import { createInvites, matchContacts } from '@/api/contacts';
 import { showError } from '@/api/errors';
 import type { LocalImage } from '@/api/storage';
 import { getPlace, getUser, useEntitiesVersion, usePlace, usePrefetchUsers } from '@/data/entities';
@@ -27,11 +28,14 @@ import { useCreatePost } from '@/hooks/queries';
 import { useKeyboardFooterStyle } from '@/hooks/use-keyboard-footer';
 import { useRankFlow } from '@/hooks/use-rank-flow';
 import i18n from '@/i18n';
+import { pickContact, type DeviceContact } from '@/lib/contacts';
 import { haptics } from '@/lib/haptics';
 import { useAppStore } from '@/store/app-store';
 import type { Meal, User } from '@/types';
 
 const MAX_PHOTOS = 5;
+/** Tek gönderide davet edilebilecek en fazla kişi (sunucuyla aynı) */
+const MAX_INVITEES = 10;
 
 type Params = {
   placeId?: string;
@@ -61,18 +65,22 @@ export default function CreatePostScreen() {
   const [meal, setMeal] = useState<Meal>();
   const [highlights, setHighlights] = useState<string[]>([]);
   const [tagged, setTagged] = useState<string[]>([]);
+  /** Rehberden eklenen, Puanla'da olan kişiler (takip edilmese de etiketlenebilir) */
+  const [contactFriends, setContactFriends] = useState<string[]>([]);
+  /** Rehberden eklenen, Puanla'da olmayanlar: paylaşınca davet edilir (masa döngüsü) */
+  const [invitees, setInvitees] = useState<DeviceContact[]>([]);
   /** Daha önce puanlanmış mekânı yeniden puanlıyor mu */
   const [rerating, setRerating] = useState(false);
   const flow = useRankFlow(placeId);
   const resultText = useRankResultText();
 
-  // Etiketlenebilecek arkadaşlar: takip edilenler
+  // Etiketlenebilecek arkadaşlar: rehberden eklenenler ve takip edilenler
   usePrefetchUsers(following);
   const version = useEntitiesVersion();
   const friends = useMemo<User[]>(
-    () => following.flatMap((id) => getUser(id) ?? []),
+    () => [...new Set([...contactFriends, ...following])].flatMap((id) => getUser(id) ?? []),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [following, version],
+    [contactFriends, following, version],
   );
 
   const place = usePlace(placeId);
@@ -123,6 +131,23 @@ export default function CreatePostScreen() {
     );
   };
 
+  /** Sistem kişi seçicisi: Puanla'daysa etiketlenir, değilse paylaşınca davet edilir */
+  const addFromContacts = async () => {
+    const picked = await pickContact().catch(() => 'unavailable' as const);
+    if (!picked) return;
+    if (picked === 'unavailable') return Alert.alert(t('compose.contactsUnavailable'));
+    if (picked === 'denied') return Alert.alert(t('compose.contactsDeniedTitle'), t('compose.contactsDenied'));
+    if (picked === 'no_mobile') return Alert.alert(t('compose.contactNoMobileTitle'), t('compose.contactNoMobile'));
+    haptics.select();
+    const match = await matchContacts([picked.phone]).then((m) => m[0], () => undefined);
+    if (match) {
+      setContactFriends((ids) => (ids.includes(match.user.id) ? ids : [match.user.id, ...ids]));
+      setTagged((ids) => (ids.includes(match.user.id) ? ids : [...ids, match.user.id]));
+      return;
+    }
+    setInvitees((list) => (list.some((c) => c.phone === picked.phone) ? list : [...list, picked].slice(0, MAX_INVITEES)));
+  };
+
   const toggle = <T,>(list: T[], item: T, max = Infinity) =>
     list.includes(item) ? list.filter((x) => x !== item) : list.length < max ? [...list, item] : list;
 
@@ -143,7 +168,11 @@ export default function CreatePostScreen() {
         onSuccess: (post) => {
           haptics.success();
           router.back();
-          if (!onboarding) offerStory(post.id);
+          if (invitees.length) {
+            // Davet kaydı olmasa da mesaj gönderilebilir; katılınca eşleşme yalnızca kayıtla olur
+            createInvites(place.id, invitees.map((c) => c.phone), post.id).catch(() => {});
+            router.push({ pathname: '/davet-et', params: { mekan: place.id, kisiler: JSON.stringify(invitees) } });
+          } else if (!onboarding) offerStory(post.id);
         },
         onError: (error) => showError(error, t('failures.postShare')),
       },
@@ -290,30 +319,54 @@ export default function CreatePostScreen() {
           <HighlightPicker value={highlights} onChange={setHighlights} />
         </Section>
 
-        {friends.length > 0 && (
-          <Section title={t('compose.withWhom')}>
-            <View style={postFieldStyles.chips}>
-              {friends.map((u) => {
-                const active = tagged.includes(u.id);
-                return (
-                  <PressableScale
-                    key={u.id}
-                    haptic={false}
-                    onPress={() => {
-                      haptics.select();
-                      setTagged((ids) => toggle(ids, u.id));
-                    }}
-                    style={[postFieldStyles.chip, styles.friendChip, active && postFieldStyles.chipActive]}>
-                    <Avatar uri={u.avatarUrl} name={u.name} size={24} />
-                    <Text variant="subhead" color={active ? colors.onPrimary : colors.text}>
-                      {u.name.split(' ')[0]}
-                    </Text>
-                  </PressableScale>
-                );
-              })}
-            </View>
-          </Section>
-        )}
+        <Section title={t('compose.withWhom')} hint={invitees.length ? t('compose.inviteHint') : undefined}>
+          <View style={postFieldStyles.chips}>
+            <PressableScale
+              haptic={false}
+              onPress={addFromContacts}
+              style={[postFieldStyles.chip, styles.friendChip]}
+              accessibilityLabel={t('compose.fromContacts')}>
+              <SymbolView name="person.crop.circle.badge.plus" tintColor={colors.primary} size={20} />
+              <Text variant="subhead" color={colors.primary}>
+                {t('compose.fromContacts')}
+              </Text>
+            </PressableScale>
+            {invitees.map((c) => (
+              <PressableScale
+                key={c.phone}
+                haptic={false}
+                onPress={() => {
+                  haptics.select();
+                  setInvitees((list) => list.filter((x) => x.phone !== c.phone));
+                }}
+                style={[postFieldStyles.chip, styles.friendChip, postFieldStyles.chipActive]}
+                accessibilityLabel={t('compose.removeInvitee', { name: c.name })}>
+                <SymbolView name="paperplane.fill" tintColor={colors.onPrimary} size={14} />
+                <Text variant="subhead" color={colors.onPrimary}>
+                  {c.name.split(' ')[0]}
+                </Text>
+              </PressableScale>
+            ))}
+            {friends.map((u) => {
+              const active = tagged.includes(u.id);
+              return (
+                <PressableScale
+                  key={u.id}
+                  haptic={false}
+                  onPress={() => {
+                    haptics.select();
+                    setTagged((ids) => toggle(ids, u.id));
+                  }}
+                  style={[postFieldStyles.chip, styles.friendChip, active && postFieldStyles.chipActive]}>
+                  <Avatar uri={u.avatarUrl} name={u.name} size={24} />
+                  <Text variant="subhead" color={active ? colors.onPrimary : colors.text}>
+                    {u.name.split(' ')[0]}
+                  </Text>
+                </PressableScale>
+              );
+            })}
+          </View>
+        </Section>
       </ScrollView>
 
       <Animated.View style={[styles.footer, footerStyle]}>

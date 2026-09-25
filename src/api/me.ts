@@ -20,14 +20,16 @@ export type MyData = {
 };
 
 export async function loadMyData(userId: string, email?: string): Promise<MyData> {
-  const [profileRes, rankingRes, savedRes, followRes] = await Promise.all([
+  const [profileRes, privateRes, rankingRes, savedRes, followRes] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', userId).single(),
+    supabase.from('profile_private').select('phone_verified_at, discoverable').eq('user_id', userId).maybeSingle(),
     supabase.from('ranking_view').select('*').eq('user_id', userId).order('position'),
     supabase.from('saved_place_view').select('*').eq('user_id', userId).order('saved_at', { ascending: false }),
     supabase.from('follows').select('followee_id').eq('follower_id', userId).order('created_at', { ascending: false }),
   ]);
 
   const row = unwrap(profileRes);
+  const privateRow = unwrap(privateRes);
   const rankingRows = unwrap(rankingRes);
   const savedRows = unwrap(savedRes);
 
@@ -49,6 +51,8 @@ export async function loadMyData(userId: string, email?: string): Promise<MyData
       yearGoal: row.year_goal ?? undefined,
       joinedAt: row.created_at,
       onboardedAt: row.onboarded_at ?? undefined,
+      phoneVerified: !!privateRow?.phone_verified_at,
+      discoverable: privateRow?.discoverable ?? true,
     },
     rankings,
     saved: savedRows.map(toSavedPlace),
@@ -68,6 +72,11 @@ export async function updateMyProfile(userId: string, patch: ProfilePatch) {
   if ('yearGoal' in patch) update.year_goal = patch.yearGoal ?? null;
   if (patch.onboarded) update.onboarded_at = new Date().toISOString();
   unwrap(await supabase.from('profiles').update(update).eq('id', userId));
+}
+
+/** Rehberinde numaram kayıtlı olanlar beni bulabilir mi */
+export async function setDiscoverable(userId: string, discoverable: boolean) {
+  unwrap(await supabase.from('profile_private').update({ discoverable }).eq('user_id', userId));
 }
 
 /** Yeni profil fotoğrafını yükler, profili günceller ve eskisini siler */

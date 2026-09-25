@@ -3,5 +3,6 @@
   "NSLocationWhenInUseUsageDescription": "Yakınındaki popüler mekânları ve gönderileri gösterebilmek için konumunu kullanıyoruz. Konumun sunucularımızda saklanmaz.",
   "NSCameraUsageDescription": "Gönderine yemek fotoğrafı çekebilmen için kamera erişimi gerekiyor.",
   "NSPhotoLibraryUsageDescription": "Profil ve gönderi fotoğrafı seçebilmen için fotoğraflarına erişim gerekiyor. Yalnızca seçtiğin fotoğraflar yüklenir.",
-  "NSPhotoLibraryAddUsageDescription": "Paylaşım görsellerini (ör. lezzet haritan) fotoğraflarına kaydedebilmek için izin gerekiyor."
+  "NSPhotoLibraryAddUsageDescription": "Paylaşım görsellerini (ör. lezzet haritan) fotoğraflarına kaydedebilmek için izin gerekiyor.",
+  "NSContactsUsageDescription": "Rehberindeki arkadaşlarından Puanla'da olanları bulmak ve birlikte yemek yediklerini davet etmek için. Numaralar yalnızca eşleştirme için gönderilir ve sunucuda özet (hash) olarak saklanır; isimler cihazından çıkmaz."
 }

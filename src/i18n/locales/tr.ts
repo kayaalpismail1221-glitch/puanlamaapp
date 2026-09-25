@@ -42,6 +42,8 @@ const tr = {
   },
 
   screens: {
+    verifyPhone: 'Telefon doğrulama',
+    invite: 'Davet et',
     notifications: 'Bildirimler',
     notificationSettings: 'Bildirim ayarları',
     story: 'Hikâye kartı',
@@ -134,6 +136,9 @@ const tr = {
     passwordReset: 'Şifre sıfırlanamadı',
     accountDelete: 'Hesap silinemedi',
     linkOpen: 'Bağlantı açılamadı',
+    settingsSave: 'Ayar kaydedilemedi',
+    contactsSync: 'Rehber eşleştirilemedi',
+    invite: 'Davet gönderilemedi',
   },
 
   password: {
@@ -351,6 +356,14 @@ const tr = {
     highlights: 'Öne çıkanlar',
     highlightsHint: 'En fazla {{max}}',
     withWhom: 'Kimlerle gittin?',
+    fromContacts: 'Rehberden',
+    inviteHint: 'Puanla’da olmayanlara, paylaşınca davet mesajı gönderebilirsin.',
+    contactNoMobileTitle: 'Cep numarası yok',
+    contactNoMobile: 'Bu kişinin rehberinde Türkiye cep telefonu numarası yok.',
+    contactsDeniedTitle: 'Rehber izni kapalı',
+    contactsDenied: 'Rehberden kişi eklemek için Ayarlar’dan Puanla’ya rehber izni ver.',
+    contactsUnavailable: 'Rehber bu sürümde kullanılamıyor.',
+    removeInvitee: '{{name}} kişisini çıkar',
     uploading: 'Yükleniyor… %{{percent}}',
     sharing: 'Paylaşılıyor…',
     skip: 'Şimdilik atla',
@@ -471,6 +484,8 @@ const tr = {
   },
 
   settings: {
+    discoverable: 'Rehberden bulunabilirim',
+    discoverableFooter: 'Açıkken, rehberinde numaran kayıtlı olan kişiler seni Puanla’da görebilir. Numaran kimseye gösterilmez.',
     notifications: 'Bildirimler',
     editProfile: 'Profili düzenle',
     profile: 'Profil',
@@ -668,6 +683,12 @@ const tr = {
   },
 
   onboarding: {
+    invitedTitle: '{{name}} seni davet etti',
+    invitedText: '{{name}} {{place}} için {{score}} verdi. Sen kaç verirdin?',
+    invitedTextNoScore: '{{name}} seni {{place}} için davet etti. Sen kaç verirdin?',
+    rateInvite: 'Puanla',
+    compare: 'Sen {{mine}} · {{name}} {{theirs}}',
+    invitedBy: 'SENİ DAVET EDEN',
     next: 'Devam',
     skip: 'Şimdilik geç',
     slides: {
@@ -739,6 +760,47 @@ const tr = {
     noSuggestions: 'Henüz önerebileceğimiz kimse yok. Arkadaşlarını davet et, sonra buradan bulursun.',
   },
 
+  invite: {
+    message: '{{name}} {{place}} için {{score}} verdi. Sen kaç verirdin? 🍽️',
+    messageNoScore: '{{name}} seni Puanla’da {{place}} gönderisine ekledi. Sen kaç verirdin? 🍽️',
+    download: 'Puanla’yı indir: {{link}}',
+    searchStore: 'App Store’da “Puanla”yı aratıp indirebilirsin.',
+    title: 'Masadakileri davet et',
+    subtitle_one: '{{count}} kişi henüz Puanla’da değil. Mesajı gönder, onlar da puanlasın; katılınca haber veririz.',
+    subtitle_other: '{{count}} kişi henüz Puanla’da değil. Mesajı gönder, onlar da puanlasın; katılınca haber veririz.',
+    whatsapp: 'WhatsApp',
+    sms: 'Mesaj',
+    sent: 'Gönderildi',
+    done: 'Bitti',
+  },
+
+  contacts: {
+    title: 'Rehberinden bul',
+    text: 'Rehberindeki arkadaşlarından Puanla’da olanları gör; yeni katılanlardan haberin olsun.',
+    verify: 'Numaranı doğrula',
+    scan: 'Rehberini tara',
+    denied: 'Rehber izni kapalı. Ayarlar’dan açabilirsin.',
+    openSettings: 'Ayarları aç',
+    none: 'Rehberinden henüz kimse Puanla’da değil. Davet et, ilk sen başlat.',
+    inviteFriends: 'Arkadaşlarını davet et',
+    inContacts: 'Rehberinde: {{name}}',
+    found_one: 'REHBERİNDEN {{count}} KİŞİ',
+    found_other: 'REHBERİNDEN {{count}} KİŞİ',
+  },
+
+  phoneVerify: {
+    title: 'Numaranı doğrula',
+    subtitle: 'Arkadaşların seni rehberlerinden bulabilsin diye numarana tek seferlik bir kod gönderiyoruz.',
+    send: 'Kod gönder',
+    codeTitle: 'Kodu gir',
+    codeSubtitle: '{{phone}} numarasına gönderdiğimiz 6 haneli kodu yaz.',
+    verify: 'Doğrula',
+    resend: 'Kodu tekrar gönder',
+    resent: 'Yeni kod gönderildi.',
+    changeNumber: 'Numarayı değiştir',
+    verified: 'Numaran doğrulandı',
+  },
+
   notifications: {
     like: '{{place}} gönderini beğendi.',
     comment: 'yorum yaptı: “{{comment}}”',
@@ -746,6 +808,8 @@ const tr = {
     follow: 'seni takip etmeye başladı.',
     friendRated: '{{place}} için {{score}} verdi. Sen {{mine}} vermiştin.',
     friendRatedNoScore: 'senin de gittiğin {{place}} mekânını puanladı.',
+    friendJoined: 'Puanla’ya katıldı. Rehberinde kayıtlı.',
+    friendJoinedInvite: 'davetinle Puanla’ya katıldı. Bakalım {{place}} için kaç verecek?',
     sections: { today: 'Bugün', week: 'Bu hafta', earlier: 'Daha önce' },
     emptyTitle: 'Henüz bildirim yok',
     emptyText: 'Arkadaşlarını takip et; beğeniler, yorumlar, etiketler ve arkadaşlarının puanları burada görünür.',
@@ -770,6 +834,7 @@ const tr = {
       comment: 'Yorumlar',
       like: 'Beğeniler',
       follow: 'Yeni takipçiler',
+      friend_joined: 'Rehberindeki arkadaşın katıldı',
     },
   },
 

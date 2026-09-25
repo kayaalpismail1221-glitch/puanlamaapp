@@ -2,7 +2,7 @@
   "expo": {
     "name": "Puanla",
     "slug": "puanla",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "puanla",
@@ -105,6 +105,14 @@
             "NSPrivacyCollectedDataTypePurposes": [
               "NSPrivacyCollectedDataTypePurposeAppFunctionality"
             ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeContacts",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
           }
         ]
       }
@@ -185,6 +193,12 @@
         {
           "savePhotosPermission": "Paylaşım görsellerini fotoğraflarına kaydedebilmek için izin gerekiyor.",
           "isAccessMediaLocationEnabled": false
+        }
+      ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Rehberindeki arkadaşlarından Puanla'da olanları bulmak ve birlikte yemek yediklerini davet etmek için. Numaralar yalnızca eşleştirme için gönderilir ve sunucuda özet (hash) olarak saklanır; isimler cihazından çıkmaz."
         }
       ]
     ],

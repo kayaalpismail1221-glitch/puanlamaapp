@@ -33,7 +33,7 @@ function sectionsOf(list: AppNotification[]): Section[] {
 }
 
 function openTarget(n: AppNotification) {
-  if (n.kind === 'follow') openUserProfile(n.actor.id);
+  if (n.kind === 'follow' || n.kind === 'friend_joined') openUserProfile(n.actor.id);
   else if (n.kind === 'friend_rated' && n.placeId) router.push({ pathname: '/mekan/[id]', params: { id: n.placeId } });
   else if (n.postId) router.push({ pathname: '/gonderi/[id]', params: { id: n.postId } });
 }
@@ -143,6 +143,7 @@ const ICONS: Record<AppNotification['kind'], SFSymbol> = {
   tag: 'person.2.fill',
   follow: 'person.fill.badge.plus',
   friend_rated: 'fork.knife',
+  friend_joined: 'person.crop.circle.badge.checkmark',
 };
 
 function NotificationRow({ item }: { item: AppNotification }) {
@@ -156,7 +157,11 @@ function NotificationRow({ item }: { item: AppNotification }) {
           ? t('notifications.tag', { place: item.placeName })
           : item.kind === 'follow'
             ? t('notifications.follow')
-            : item.myScore !== undefined && item.score !== undefined
+            : item.kind === 'friend_joined'
+              ? item.placeName
+                ? t('notifications.friendJoinedInvite', { place: item.placeName })
+                : t('notifications.friendJoined')
+              : item.myScore !== undefined && item.score !== undefined
               ? t('notifications.friendRated', {
                   place: item.placeName,
                   score: formatScore(item.score),
@@ -189,7 +194,7 @@ function NotificationRow({ item }: { item: AppNotification }) {
         </Text>
       </View>
 
-      {item.kind === 'follow' ? (
+      {item.kind === 'follow' || item.kind === 'friend_joined' ? (
         !item.following && <FollowButton userId={item.actor.id} />
       ) : item.kind === 'friend_rated' && item.score !== undefined ? (
         <ScoreBadge score={item.score} size="sm" />

@@ -68,6 +68,26 @@ Beta'dan önce **Authentication → Emails → SMTP Settings** bölümünden ken
 3. *Client IDs* alanına uygulamanın bundle kimliğini yaz (ör. `com.puanla.app`). Expo Go'da denemek için
    `host.exp.Exponent` kimliğini de ekle.
 
+**Telefon doğrulaması (SMS)** — rehberden arkadaş bulma bunun için gerekli:
+
+> **Şu anki durum:** SMS sağlayıcısı yok, uygulamada `PHONE_VERIFICATION_ENABLED = false`
+> (`src/constants/features.ts`). Kapalıyken "Rehberinden bul" ve kayıttaki kod adımı gizli; gönderide rehberden
+> davet yine çalışır (davet edilen, numarasını doğruladığı gün eşleşir).
+
+1. Bir SMS sağlayıcısında hesap aç: Supabase'in doğrudan desteklediği **Twilio** (ya da Twilio Verify, Vonage,
+   MessageBird). SMS başına ücretlidir; Türkiye fiyatını ve Türkiye'ye gönderim kurallarını (gönderici adı kaydı)
+   sağlayıcının sayfasından kontrol et. Netgsm gibi yerli bir sağlayıcı istenirse **Auth Hooks → Send SMS** ile
+   bir Edge Function üzerinden bağlanabilir.
+2. Supabase → **Authentication → Sign In / Providers → Phone** → etkinleştir, sağlayıcıyı seç, anahtarları gir.
+3. **Authentication → Rate Limits → SMS** sınırını beklenen kayıt sayısına göre ayarla (saatlik gönderim sınırı).
+4. Uygulamada `PHONE_VERIFICATION_ENABLED = true` yap ve `npm run update` ile yayınla.
+5. Dene: Ayarlar → Arkadaş bul → **Numaranı doğrula** → gelen kodu gir → **Rehberini tara**.
+
+Nasıl çalışır: uygulama `auth.updateUser({ phone })` ile kod ister, `verifyOtp(type: 'phone_change')` ile doğrular.
+Supabase Auth `auth.users.phone_confirmed_at` alanını doldurunca `on_auth_user_phone` tetikleyicisi numarayı
+`profile_private`'a onaylı olarak yazar; rehberinde bu numara olanlara ve davet edenlere "arkadaşın katıldı" gider.
+Eşleşmede yalnızca doğrulanmış numaralar kullanılır; bir numara tek hesaba bağlıdır.
+
 ## 5. Dene
 
 ```bash
@@ -81,8 +101,10 @@ iPhone'da Expo Go ile aç → **Başla** → kayıt ol. Demo verisini yüklediys
 - Her tabloda **RLS** açık. Giriş yapmamış kişi hiçbir içeriği göremez, herkes yalnızca kendi verisini değiştirebilir.
 - Beğeni, yorum ve takipçi sayaçları ile puanlar veritabanında hesaplanır; uygulama bu değerleri değiştiremez.
 - Fotoğraflar `post-photos/<kullanıcı>/…` ve `avatars/<kullanıcı>/…` klasörlerine yüklenir. Herkes yalnızca kendi klasörüne yazabilir.
-- Telefon numarası `profile_private` tablosunda durur ve yalnızca sahibi görebilir.
-- Kötüye kullanıma karşı günlük sınırlar var: 30 mekân, 30 gönderi, 300 yorum, 50 şikâyet.
+- Telefon numarası `profile_private` tablosunda durur ve yalnızca sahibi görebilir; doğrulama alanlarını yalnızca
+  sunucu yazar. Rehber numaraları ve davetler yalnızca SHA-256 özetiyle saklanır (`contact_hashes`, `invites`) ve
+  yalnızca fonksiyonlarla okunur; rehber eşleştirme günde 30 istek / istek başına 3000 numarayla sınırlı.
+- Kötüye kullanıma karşı günlük sınırlar var: 30 mekân, 30 gönderi, 300 yorum, 50 şikâyet, 50 davet.
 - App Store kuralları için gönderi şikâyeti, kullanıcı engelleme ve uygulama içinden hesap silme hazır.
   Şikâyetler `reports` tablosunda birikir; panelden incelenir.
 

@@ -242,6 +242,10 @@ export type Actions = {
   /** Sunucudan yeniden yükle (ör. aşağı çekip yenileme, hata sonrası) */
   refresh: () => Promise<void>;
   updateProfile: (patch: meApi.ProfilePatch) => Promise<boolean>;
+  /** Telefon SMS ile doğrulandı (rehber eşleştirme açılır) */
+  markPhoneVerified: () => void;
+  /** Rehberinde numaram olanlar beni bulabilir mi */
+  setDiscoverable: (discoverable: boolean) => void;
   /** Yeni profil fotoğrafı; null fotoğrafı kaldırır */
   updateAvatar: (image: LocalImage | null) => Promise<boolean>;
   completeOnboarding: () => Promise<boolean>;
@@ -490,6 +494,19 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           showError(error, i18n.t('failures.profileUpdate'));
           return false;
         }
+      },
+
+      markPhoneVerified: () => dispatch({ type: 'updateProfile', patch: { phoneVerified: true } }),
+
+      setDiscoverable: (discoverable) => {
+        const { profile } = stateRef.current;
+        if (!profile) return;
+        optimistic(
+          { type: 'updateProfile', patch: { discoverable } },
+          { profile },
+          () => meApi.setDiscoverable(me(), discoverable),
+          i18n.t('failures.settingsSave'),
+        );
       },
 
       updateAvatar: async (image) => {

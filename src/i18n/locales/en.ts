@@ -40,6 +40,8 @@ const en: Translation = {
   },
 
   screens: {
+    verifyPhone: 'Verify phone',
+    invite: 'Invite',
     notifications: 'Notifications',
     notificationSettings: 'Notification settings',
     story: 'Story card',
@@ -131,6 +133,9 @@ const en: Translation = {
     passwordReset: 'Couldn’t reset password',
     accountDelete: 'Couldn’t delete account',
     linkOpen: 'Couldn’t open link',
+    settingsSave: 'Couldn’t save setting',
+    contactsSync: 'Couldn’t match contacts',
+    invite: 'Couldn’t send invite',
   },
 
   password: {
@@ -348,6 +353,14 @@ const en: Translation = {
     highlights: 'Highlights',
     highlightsHint: 'Up to {{max}}',
     withWhom: 'Who were you with?',
+    fromContacts: 'Contacts',
+    inviteHint: 'After you share, you can send an invite to people who aren’t on Puanla.',
+    contactNoMobileTitle: 'No mobile number',
+    contactNoMobile: 'This contact has no Turkish mobile number.',
+    contactsDeniedTitle: 'Contacts access is off',
+    contactsDenied: 'To add people from your contacts, allow contacts access for Puanla in Settings.',
+    contactsUnavailable: 'Contacts aren’t available in this version.',
+    removeInvitee: 'Remove {{name}}',
     uploading: 'Uploading… {{percent}}%',
     sharing: 'Sharing…',
     skip: 'Skip for now',
@@ -468,6 +481,8 @@ const en: Translation = {
   },
 
   settings: {
+    discoverable: 'Findable from contacts',
+    discoverableFooter: 'When on, people who have your number in their contacts can see you on Puanla. Your number is never shown.',
     notifications: 'Notifications',
     editProfile: 'Edit profile',
     profile: 'Profile',
@@ -665,6 +680,12 @@ const en: Translation = {
   },
 
   onboarding: {
+    invitedTitle: '{{name}} invited you',
+    invitedText: '{{name}} gave {{place}} a {{score}}. What would you give it?',
+    invitedTextNoScore: '{{name}} invited you to rate {{place}}. What would you give it?',
+    rateInvite: 'Rate',
+    compare: 'You {{mine}} · {{name}} {{theirs}}',
+    invitedBy: 'INVITED BY',
     next: 'Continue',
     skip: 'Skip for now',
     slides: {
@@ -736,6 +757,47 @@ const en: Translation = {
     noSuggestions: 'No one to suggest yet. Invite your friends and find them here later.',
   },
 
+  invite: {
+    message: '{{name}} gave {{place}} a {{score}}. What would you give it? 🍽️',
+    messageNoScore: '{{name}} added your meal at {{place}} to Puanla. What would you give it? 🍽️',
+    download: 'Get Puanla: {{link}}',
+    searchStore: 'Search for “Puanla” on the App Store to get it.',
+    title: 'Invite your table',
+    subtitle_one: '{{count}} person isn’t on Puanla yet. Send the message so they can rate it too; we’ll let you know when they join.',
+    subtitle_other: '{{count}} people aren’t on Puanla yet. Send the message so they can rate it too; we’ll let you know when they join.',
+    whatsapp: 'WhatsApp',
+    sms: 'Message',
+    sent: 'Sent',
+    done: 'Done',
+  },
+
+  contacts: {
+    title: 'Find from contacts',
+    text: 'See which of your contacts are on Puanla, and hear when new ones join.',
+    verify: 'Verify your number',
+    scan: 'Scan contacts',
+    denied: 'Contacts access is off. You can turn it on in Settings.',
+    openSettings: 'Open Settings',
+    none: 'None of your contacts are on Puanla yet. Invite them and be the first.',
+    inviteFriends: 'Invite friends',
+    inContacts: 'In your contacts: {{name}}',
+    found_one: '{{count}} FROM YOUR CONTACTS',
+    found_other: '{{count}} FROM YOUR CONTACTS',
+  },
+
+  phoneVerify: {
+    title: 'Verify your number',
+    subtitle: 'We’ll text you a one-time code so friends can find you from their contacts.',
+    send: 'Send code',
+    codeTitle: 'Enter the code',
+    codeSubtitle: 'Enter the 6-digit code we sent to {{phone}}.',
+    verify: 'Verify',
+    resend: 'Resend code',
+    resent: 'New code sent.',
+    changeNumber: 'Change number',
+    verified: 'Number verified',
+  },
+
   notifications: {
     like: 'liked your post at {{place}}.',
     comment: 'commented: “{{comment}}”',
@@ -743,6 +805,8 @@ const en: Translation = {
     follow: 'started following you.',
     friendRated: 'gave {{place}} a {{score}}. You gave it {{mine}}.',
     friendRatedNoScore: 'rated {{place}}, a place you’ve been to.',
+    friendJoined: 'joined Puanla. They’re in your contacts.',
+    friendJoinedInvite: 'joined Puanla from your invite. Let’s see what they give {{place}}.',
     sections: { today: 'Today', week: 'This week', earlier: 'Earlier' },
     emptyTitle: 'No notifications yet',
     emptyText: 'Follow your friends — likes, comments, tags and their ratings will show up here.',
@@ -767,6 +831,7 @@ const en: Translation = {
       comment: 'Comments',
       like: 'Likes',
       follow: 'New followers',
+      friend_joined: 'A friend from your contacts joined',
     },
   },
 

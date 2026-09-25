@@ -23,6 +23,7 @@ export default function OnboardingLayout() {
       <Stack.Screen name="giris" />
       <Stack.Screen name="sifre-sifirla" />
       {/* Hesap oluşturulduktan sonra kayıt adımlarına geri dönülmesin */}
+      <Stack.Screen name="telefon-kodu" options={{ headerBackVisible: false, gestureEnabled: false }} />
       <Stack.Screen name="ilk-puan" options={{ headerBackVisible: false, gestureEnabled: false }} />
       <Stack.Screen name="takip" />
     </Stack>

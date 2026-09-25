@@ -22,3 +22,11 @@ export const legalUrl = (doc: 'terms' | 'privacy' | 'support', lang: 'tr' | 'en'
  */
 export const APP_SCHEME = 'puanla';
 export const appLink = (path: string) => `${APP_SCHEME}://${path}`;
+
+/**
+ * Davet mesajlarındaki indirme bağlantısı. Şimdilik App Store sayfası (yayınlanınca) ya da herkese açık
+ * TestFlight bağlantısı buraya yazılır; boşsa mesaj "App Store'da Puanla'yı arat" der.
+ * Alan adı gelince web önizleme sayfasına çevrilir (ör. `https://puanla.app/indir`) — tek yer burası.
+ */
+export const APP_STORE_URL = '';
+export const inviteLink = () => APP_STORE_URL;

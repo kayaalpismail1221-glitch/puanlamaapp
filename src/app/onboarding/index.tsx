@@ -19,7 +19,8 @@ import { Button, PressableScale, Text } from '@/components/ui';
 import { colors, fonts, onScoreColor, radius, scoreColor, spacing } from '@/constants/theme';
 import { formatScore } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
-import { useAppStore } from '@/store/app-store';
+import { PHONE_VERIFICATION_ENABLED } from '@/constants/features';
+import { useAppSelector } from '@/store/app-store';
 
 const SLIDES = ['remember', 'trust', 'discover'] as const;
 
@@ -47,8 +48,12 @@ const CAMERA = { latitude: 41.028, longitude: 29.018 };
 /** Karşılama: harita arka planı + kaydırılabilir tanıtım */
 export default function WelcomeRoute() {
   // Hesap açılmış ama kurulum yarım kalmışsa kaldığı yerden devam
-  const { status } = useAppStore();
-  if (status === 'signedIn') return <Redirect href="/onboarding/ilk-puan" />;
+  const status = useAppSelector((s) => s.status);
+  // Kayıtta numara girildiyse önce SMS koduyla doğrulanır (atlanabilir; atlayınca taslaktan silinir)
+  const verifyPhone = useAppSelector(
+    (s) => PHONE_VERIFICATION_ENABLED && !!s.draft.phone && !s.profile?.phoneVerified,
+  );
+  if (status === 'signedIn') return <Redirect href={verifyPhone ? '/onboarding/telefon-kodu' : '/onboarding/ilk-puan'} />;
   return <WelcomeScreen />;
 }
 

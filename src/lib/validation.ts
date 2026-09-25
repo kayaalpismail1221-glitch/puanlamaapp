@@ -19,6 +19,15 @@ export function formatPhone(digits: string): string {
 /** Türkiye cep telefonu: 5 ile başlayan 10 hane */
 export const isValidPhone = (digits: string) => /^5\d{9}$/.test(digits);
 
+/**
+ * Rehberdeki numarayı E.164'e çevirir ("0532 123 45 67", "+90 532…" → "+905321234567").
+ * Türkiye cep numarası değilse undefined. Sunucudaki `normalize_tr_phone` ile aynı kural.
+ */
+export function normalizePhone(input: string): string | undefined {
+  const d = input.replace(/\D/g, '').replace(/^(90|0)/, '');
+  return /^5\d{9}$/.test(d) ? `+90${d}` : undefined;
+}
+
 export const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim());
 
 export type PasswordCheck = { label: string; ok: boolean };

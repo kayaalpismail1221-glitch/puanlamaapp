@@ -98,6 +98,10 @@ export type Profile = {
   yearGoal?: number;
   joinedAt: string;
   onboardedAt?: string;
+  /** Telefonu SMS ile doğrulandı (rehber eşleştirme için gerekli) */
+  phoneVerified: boolean;
+  /** Rehberinde numarası olanlar onu bulabilir */
+  discoverable: boolean;
 };
 
 /** Kayıt sırasında hesap açılmadan önce toplanan bilgiler (şifre hariç; şifre cihazda saklanmaz) */
@@ -148,7 +152,7 @@ export type Post = {
 /** Popüler feed'in hangi bölgeyi gösterdiği */
 export type FeedArea = { type: 'near' } | { type: 'area'; city: string; district?: string };
 
-export type NotificationKind = 'like' | 'comment' | 'tag' | 'follow' | 'friend_rated';
+export type NotificationKind = 'like' | 'comment' | 'tag' | 'follow' | 'friend_rated' | 'friend_joined';
 
 /** Bildirim merkezindeki bir satır */
 export type AppNotification = {
