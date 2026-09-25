@@ -12,7 +12,7 @@ import { colors, hitSlop, onScoreColor, radius, scoreColor, spacing } from '@/co
 import { formatScore, timeAgo } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
 import { linkSource } from '@/lib/links';
-import { useAppStore } from '@/store/app-store';
+import { useAppActions } from '@/store/app-store';
 import type { Place, SavedPlace } from '@/types';
 
 const ACTION_WIDTH = 80;
@@ -22,7 +22,7 @@ const ACTION_WIDTH = 80;
  * `friends`: takip edilenlerin bu mekâna verdiği ortalama puan (liste tek sorguda çeker).
  */
 export function SavedPlaceCard({ entry, place, friends }: { entry: SavedPlace; place: Place; friends?: FriendScore }) {
-  const { actions } = useAppStore();
+  const actions = useAppActions();
   const { t } = useTranslation();
   const swipeRef = useRef<SwipeableMethods>(null);
   const source = entry.link ? linkSource(entry.link) : null;

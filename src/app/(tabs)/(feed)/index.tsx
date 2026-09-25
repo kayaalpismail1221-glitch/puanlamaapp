@@ -14,7 +14,7 @@ import { colors, hitSlop, radius, spacing } from '@/constants/theme';
 import { useFollowingFeed, usePopularFeed, useUnreadNotifications } from '@/hooks/queries';
 import { areaLabel } from '@/lib/feed';
 import { useUserLocation } from '@/lib/location';
-import { useAppStore } from '@/store/app-store';
+import { useAppSelector } from '@/store/app-store';
 import type { FeedArea } from '@/types';
 
 type Tab = 'popular' | 'following';
@@ -31,7 +31,9 @@ const openAreaPicker = () => router.push('/konum-sec');
  * - Takip: takip ettiklerinin ve kendi gönderilerin, en yeni başta
  */
 export default function FeedScreen() {
-  const { profile, feedArea } = useAppStore();
+  // Yalnızca kullanılan alanlar: bir beğeni feed ekranını ve başlığını yeniden çizdirmez
+  const profile = useAppSelector((s) => s.profile);
+  const feedArea = useAppSelector((s) => s.feedArea);
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>('popular');
   const tabs = [

@@ -17,7 +17,7 @@ import { getPlace, useEntitiesVersion, usePrefetchPlaces } from '@/data/entities
 import { useMapPlaces } from '@/hooks/queries';
 import { DEFAULT_REGION } from '@/lib/geo';
 import { haptics } from '@/lib/haptics';
-import { useAppStore } from '@/store/app-store';
+import { useAppSelector, useScored } from '@/store/app-store';
 import type { Place } from '@/types';
 
 type Filter = 'puanla' | 'been' | 'want';
@@ -35,7 +35,9 @@ const toBounds = (r: Region) => ({
 
 export default function MapScreen() {
   const insets = useSafeAreaInsets();
-  const { scored, saved } = useAppStore();
+  // Yalnızca sıralama ve Listem değişince yeniden çizer (pinler başka ekrandaki beğenilerle tazelenmez)
+  const scored = useScored();
+  const saved = useAppSelector((s) => s.saved);
   const { t } = useTranslation();
   const filters: { key: Filter; label: string }[] = [
     { key: 'puanla', label: t('map.community') },

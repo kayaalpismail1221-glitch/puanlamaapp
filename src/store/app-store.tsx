@@ -229,6 +229,12 @@ const profileUser = (p: Profile): User => ({
   schoolId: p.schoolId,
 });
 
+/** Listelerde satır başına tüm sıralamayı taramamak için kimlikten puana sabit süreli arama */
+function scoreLookup(scored: ReturnType<typeof flattenRankings>) {
+  const byPlace = new Map(scored.map((e) => [e.placeId, e.score]));
+  return (placeId: string) => byPlace.get(placeId);
+}
+
 /* ---------- Bağlam ---------- */
 
 export type Actions = {
@@ -373,9 +379,9 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     return () => data.subscription.unsubscribe();
   }, [load]);
 
-  /* Son hâli cihaza yaz */
+  /* Son hâli cihaza yaz (yalnızca saklanan alanlar değişince; beğeni/kaydetme gibi geçici durumlar tetiklemez) */
+  const { userId, ready, profile, rankings, saved, following } = state;
   useEffect(() => {
-    const { userId, ready, profile, rankings, saved, following } = state;
     if (!userId || !ready || !profile) return;
     const timer = setTimeout(() => {
       const placeIds = new Set([...Object.values(rankings).flat(), ...saved].map((e) => e.placeId));
@@ -383,7 +389,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       writeJson(cacheKey(userId), { profile, rankings, saved, following, places } satisfies CachedData);
     }, 500);
     return () => clearTimeout(timer);
-  }, [state]);
+  }, [userId, ready, profile, rankings, saved, following]);
 
   /* ---------- Eylemler ---------- */
 
@@ -611,7 +617,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   /* ---------- Türetilmiş değerler ---------- */
 
   const scored = useMemo(() => flattenRankings(state.rankings), [state.rankings]);
-  const scoreOf = useCallback((placeId: string) => scored.find((e) => e.placeId === placeId)?.score, [scored]);
+  const scoreOf = useMemo(() => scoreLookup(scored), [scored]);
   const isSaved = useCallback((placeId: string) => state.saved.some((s) => s.placeId === placeId), [state.saved]);
   const isFollowing = useCallback((userId: string) => state.following.includes(userId), [state.following]);
   const isLiked = useCallback((post: Post) => state.likeOverrides[post.id] ?? post.likedByMe, [state.likeOverrides]);
@@ -654,7 +660,7 @@ export function useAppStore() {
 
 /** Oturum açmış kullanıcının kimliği (oturum yoksa boş metin) */
 export function useMyId(): string {
-  return useAppStore().userId ?? '';
+  return useAppSelector((s) => s.userId) ?? '';
 }
 
 /** Mağazadan tek bir değer; yalnızca o değer değişince yeniden çizer (seçici ilkel ya da sabit referans dönmeli) */
@@ -662,6 +668,18 @@ export function useAppSelector<T>(selector: (state: State) => T): T {
   const source = useContext(StateSourceContext);
   if (!source) throw new Error('useAppSelector, AppStoreProvider içinde kullanılmalı');
   return useSyncExternalStore(source.subscribe, () => selector(source.get()));
+}
+
+/** Puanlanan mekânlar puanlarıyla; yalnızca sıralama değişince yeniden hesaplanır */
+export function useScored() {
+  const rankings = useAppSelector((s) => s.rankings);
+  return useMemo(() => flattenRankings(rankings), [rankings]);
+}
+
+/** Mekânın kullanıcının sıralamasındaki puanı; yalnızca sıralama değişince yeniden oluşur */
+export function useScoreOf() {
+  const scored = useScored();
+  return useMemo(() => scoreLookup(scored), [scored]);
 }
 
 /** Eylemler (sabit; mağaza değişince yeniden çizdirmez) */

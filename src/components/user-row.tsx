@@ -5,7 +5,7 @@ import { Avatar, PressableScale, Text } from '@/components/ui';
 import { colors, radius, spacing } from '@/constants/theme';
 import { openUserProfile } from '@/lib/navigation';
 import { isMe } from '@/lib/session';
-import { useAppStore } from '@/store/app-store';
+import { useAppActions, useAppSelector } from '@/store/app-store';
 import type { User } from '@/types';
 
 /** Kişi satırı: dokununca profili açılır, sağda takip butonu */
@@ -30,9 +30,10 @@ export function UserRow({ user, subtitle }: { user: User; subtitle?: string }) {
 }
 
 export function FollowButton({ userId, large }: { userId: string; large?: boolean }) {
-  const { isFollowing: follows, actions } = useAppStore();
+  // Listede çok kopyası olur: yalnızca bu kişinin takip durumunu dinler
+  const isFollowing = useAppSelector((s) => s.following.includes(userId));
+  const actions = useAppActions();
   const { t } = useTranslation();
-  const isFollowing = follows(userId);
   return (
     <PressableScale
       onPress={() => actions.toggleFollow(userId)}

@@ -360,7 +360,11 @@ export type City = { name: string; center: Coords; postCount: number; districts:
 export async function fetchAreas(): Promise<City[]> {
   const rows: AreaViewRow[] = unwrap(await supabase.from('area_view').select('*'));
   const byCity = new Map<string, AreaViewRow[]>();
-  for (const r of rows) byCity.set(r.city, [...(byCity.get(r.city) ?? []), r]);
+  for (const r of rows) {
+    const list = byCity.get(r.city);
+    if (list) list.push(r);
+    else byCity.set(r.city, [r]);
+  }
   return [...byCity.entries()]
     .map(([name, list]) => {
       const total = list.reduce((s, r) => s + r.place_count, 0);

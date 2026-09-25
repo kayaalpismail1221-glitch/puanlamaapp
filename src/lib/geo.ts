@@ -14,6 +14,15 @@ export function distanceKm(a: Coords, b: Coords): number {
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
+/**
+ * Sorgu anahtarları için ~1 km hassasiyete yuvarlanmış konum; küçük oynamalarda istek yenilenmesin.
+ * Konum yoksa null.
+ */
+export function roundCoords(coords: Coords | null | undefined): Coords | null {
+  if (!coords) return null;
+  return { latitude: +coords.latitude.toFixed(2), longitude: +coords.longitude.toFixed(2) };
+}
+
 export function formatDistance(km: number): string {
   const decimal = currentLanguage() === 'tr' ? ',' : '.';
   if (km < 1) return `${Math.max(100, Math.round((km * 1000) / 100) * 100)} m`;
