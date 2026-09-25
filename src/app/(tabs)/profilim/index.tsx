@@ -22,6 +22,7 @@ import { Button, Divider, PressableScale, Text } from '@/components/ui';
 import { colors, hitSlop, spacing } from '@/constants/theme';
 import { getPlace, useEntitiesVersion } from '@/data/entities';
 import { useUserPosts, useUserRank } from '@/hooks/queries';
+import { showMenu } from '@/lib/moderation';
 import { queryClient } from '@/lib/query-client';
 import { computeBadges, tasteProfile, type ScoredPlace } from '@/lib/insights';
 import { shareProfile as shareProfileLink } from '@/lib/share';
@@ -70,22 +71,22 @@ export default function ProfileScreen() {
   );
   const recsLocked = scored.length < RECS_UNLOCK;
 
-  const shareProfile = () => profile && shareProfileLink(profile);
+  const shareProfile = () =>
+    showMenu(undefined, [
+      { label: t('me.storyCard'), onPress: () => router.push('/hikaye') },
+      { label: t('me.shareLink'), onPress: () => profile && shareProfileLink(profile) },
+    ]);
 
   return (
     <>
       <Stack.Screen
         options={{
           title: '',
+          // Paylaşma, profildeki "Paylaş" düğmesinden; başlıkta yalnızca ayarlar
           headerRight: () => (
-            <View style={styles.headerActions}>
-              <PressableScale onPress={shareProfile} hitSlop={hitSlop} accessibilityLabel={t('me.shareProfile')}>
-                <SymbolView name="square.and.arrow.up" tintColor={colors.primary} size={21} />
-              </PressableScale>
-              <PressableScale onPress={() => router.push('/ayarlar')} hitSlop={hitSlop} accessibilityLabel={t('common.settings')}>
-                <SymbolView name="gearshape" tintColor={colors.primary} size={22} />
-              </PressableScale>
-            </View>
+            <PressableScale onPress={() => router.push('/ayarlar')} hitSlop={hitSlop} accessibilityLabel={t('common.settings')}>
+              <SymbolView name="gearshape" tintColor={colors.primary} size={22} />
+            </PressableScale>
           ),
         }}
       />
@@ -198,11 +199,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.lg,
   },
   buttons: {
     flexDirection: 'row',

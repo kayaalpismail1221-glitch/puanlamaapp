@@ -16,6 +16,8 @@ type Props = {
   selectedKey?: string | null;
   /** Verilirse noktalar dokunulabilir olur */
   onDotPress?: (key: string) => void;
+  /** Nokta boyutu çarpanı (ör. hikâye kartında daha iri) */
+  dotScale?: number;
 };
 
 /** Ülke şekilleri tek path; görünüm değişmedikçe yeniden çizilmez */
@@ -36,9 +38,10 @@ const Land = memo(function Land() {
  * Çizim tarzı dünya haritası ve şehir noktaları (lezzet haritası).
  * Noktalar yakınlaşmadan bağımsız olarak ekranda aynı boyutta kalır.
  */
-export function WorldMap({ view, width, height, dots, selectedKey, onDotPress }: Props) {
+export function WorldMap({ view, width, height, dots, selectedKey, onDotPress, dotScale = 1 }: Props) {
   // Piksel → harita birimi
   const unit = view.width / width;
+  const dotUnit = unit * dotScale;
 
   return (
     <Svg width={width} height={height} viewBox={`${view.x} ${view.y} ${view.width} ${view.height}`}>
@@ -46,7 +49,7 @@ export function WorldMap({ view, width, height, dots, selectedKey, onDotPress }:
       {dots.map((dot) => {
         const selected = dot.key === selectedKey;
         // Çok mekân olan şehir biraz daha büyük
-        const r = (selected ? 7 : 4.5 + Math.min(2.5, Math.sqrt(dot.count) / 2)) * unit;
+        const r = (selected ? 7 : 4.5 + Math.min(2.5, Math.sqrt(dot.count) / 2)) * dotUnit;
         return (
           <G key={dot.key} onPress={onDotPress ? () => onDotPress(dot.key) : undefined}>
             {/* Parmakla vurulması kolay olsun diye görünmez geniş alan */}
@@ -58,7 +61,7 @@ export function WorldMap({ view, width, height, dots, selectedKey, onDotPress }:
               r={r}
               fill={colors.primary}
               stroke={colors.background}
-              strokeWidth={1.5 * unit}
+              strokeWidth={1.5 * dotUnit}
             />
           </G>
         );

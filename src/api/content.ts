@@ -1,4 +1,5 @@
 import * as Crypto from 'expo-crypto';
+import { Image } from 'expo-image';
 
 import { unwrap } from '@/api/errors';
 import { mediaUrl, toComment, toUserProfile } from '@/api/mappers';
@@ -21,31 +22,51 @@ const PAGE = 20;
 
 export type FeedEntry = { post: Post; distanceKm?: number };
 
+/** Popüler feed sayfası: `asOf` sıralamanın sabit anı, sonraki sayfalarda aynen geri yollanır */
+export type PopularCursor = { offset: number; asOf?: string };
+
 export type PopularPage = {
   entries: FeedEntry[];
   radiusKm?: number;
   fallbackCity?: string;
-  nextOffset?: number;
+  next?: PopularCursor;
 };
 
-export async function fetchPopularFeed(area: FeedArea, coords: Coords | null, offset = 0): Promise<PopularPage> {
+export async function fetchPopularFeed(
+  area: FeedArea,
+  coords: Coords | null,
+  cursor: PopularCursor = { offset: 0 },
+): Promise<PopularPage> {
+  const page = { p_offset: cursor.offset, p_limit: PAGE, p_as_of: cursor.asOf };
   const args =
     area.type === 'area'
-      ? { p_city: area.city, p_district: area.district, p_offset: offset, p_limit: PAGE }
-      : { p_latitude: coords?.latitude, p_longitude: coords?.longitude, p_offset: offset, p_limit: PAGE };
+      ? { p_city: area.city, p_district: area.district, ...page }
+      : { p_latitude: coords?.latitude, p_longitude: coords?.longitude, ...page };
   const feed = unwrap(await supabase.rpc('feed_popular', args)) as unknown as PopularFeedJson;
   const posts = ingestPosts(feed.entries.map((e) => e.post));
+  prefetchPostPhotos(posts);
   return {
     entries: posts.map((post, i) => ({ post, distanceKm: feed.entries[i]!.distance_km ?? undefined })),
     radiusKm: feed.radius_km ?? undefined,
     fallbackCity: feed.fallback_city ?? undefined,
-    nextOffset: feed.entries.length === PAGE ? offset + PAGE : undefined,
+    next: feed.entries.length === PAGE ? { offset: cursor.offset + PAGE, asOf: feed.as_of ?? cursor.asOf } : undefined,
   };
 }
 
 /** Takip feed'i; imleç son gönderinin tarihi */
 export async function fetchFollowingFeed(before?: string): Promise<Post[]> {
-  return ingestPosts(unwrap(await supabase.rpc('feed_following', { p_before: before, p_limit: PAGE })));
+  const posts = ingestPosts(unwrap(await supabase.rpc('feed_following', { p_before: before, p_limit: PAGE })));
+  prefetchPostPhotos(posts);
+  return posts;
+}
+
+/**
+ * Yeni gelen sayfanın fotoğrafları kaydırmadan önce diske indirilir: kart ekrana girdiğinde
+ * küçük kopya anında, tam boy çoğu zaman hazır olur.
+ */
+function prefetchPostPhotos(posts: Post[]) {
+  const urls = posts.flatMap((p) => [p.thumbs[0], p.photos[0]].filter((u): u is string => !!u));
+  if (urls.length) Image.prefetch(urls, 'disk').catch(() => {});
 }
 
 export async function fetchUserPosts(userId: string, before?: string): Promise<Post[]> {

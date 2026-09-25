@@ -10,7 +10,7 @@ type MapProps = { style?: StyleProp<ViewStyle>; children?: ReactNode };
 
 const MapView = forwardRef(function MapView({ style }: MapProps, ref) {
   const { t } = useTranslation();
-  useImperativeHandle(ref, () => ({ animateToRegion: () => {}, fitToCoordinates: () => {} }));
+  useImperativeHandle(ref, () => ({ animateToRegion: () => {}, fitToCoordinates: () => {}, animateCamera: () => {} }));
   return (
     <View style={[styles.map, style]}>
       <Text style={styles.text}>{t('map.mapPlaceholder')}</Text>
@@ -19,6 +19,10 @@ const MapView = forwardRef(function MapView({ style }: MapProps, ref) {
 });
 
 export function Marker(_: { children?: ReactNode }) {
+  return null;
+}
+
+export function Polyline(_: object) {
   return null;
 }
 

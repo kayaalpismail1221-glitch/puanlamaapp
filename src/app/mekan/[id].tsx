@@ -7,7 +7,7 @@ import MapView, { Marker } from 'react-native-maps';
 import { PlaceDetailSkeleton, PostGridSkeleton } from '@/components/skeleton';
 import { Avatar, Button, Divider, ErrorView, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { cuisineLabel } from '@/constants/cuisines';
-import { colors, hitSlop, radius, spacing } from '@/constants/theme';
+import { colors, hitSlop, onScoreColor, radius, scoreColor, spacing } from '@/constants/theme';
 import { PostGrid } from '@/components/post-grid';
 import { usePlace, useUser } from '@/data/entities';
 import { usePlaceDetails, usePlacePosts } from '@/hooks/queries';
@@ -186,8 +186,14 @@ export default function PlaceDetailScreen() {
 
         <Divider />
 
-        <View style={styles.mapWrap}>
+        <PressableScale
+          onPress={() => router.push({ pathname: '/yol-tarifi/[id]', params: { id: place.id } })}
+          scaleTo={0.98}
+          style={styles.mapWrap}
+          accessibilityRole="button"
+          accessibilityLabel={t('place.directions')}>
           <MapView
+            pointerEvents="none"
             style={StyleSheet.absoluteFill}
             initialRegion={{
               latitude: place.latitude,
@@ -205,7 +211,13 @@ export default function PlaceDetailScreen() {
               </View>
             </Marker>
           </MapView>
-        </View>
+          <View style={styles.directionsChip}>
+            <SymbolView name="arrow.triangle.turn.up.right.diamond.fill" tintColor={colors.onPrimary} size={15} />
+            <Text variant="footnote" color={colors.onPrimary} style={{ fontWeight: '600' }}>
+              {t('place.directions')}
+            </Text>
+          </View>
+        </PressableScale>
 
         {/* ODbL: OpenStreetMap kaynaklı mekân bilgisinin atfı */}
         <Text variant="caption" color={colors.textTertiary}>
@@ -239,9 +251,12 @@ function FriendScore({ userId, score, postId }: { userId: string; score: number;
           : router.push({ pathname: '/kullanici/[id]', params: { id: userId } })
       }
       style={styles.friendScore}>
-      <Avatar uri={user.avatarUrl} name={user.name} size={48} />
-      <View style={styles.friendBadge}>
-        <ScoreBadge score={score} size="sm" />
+      <Avatar uri={user.avatarUrl} name={user.name} size={52} />
+      {/* Puan, avatarın alt kenarına ortalanmış dolu etiket */}
+      <View style={[styles.friendPill, { backgroundColor: scoreColor(score) }]}>
+        <Text variant="caption" color={onScoreColor(score)} style={styles.friendPillText}>
+          {formatScore(score)}
+        </Text>
       </View>
       <Text variant="caption" numberOfLines={1}>
         {user.name.split(' ')[0]}
@@ -325,11 +340,33 @@ const styles = StyleSheet.create({
   friendScore: {
     alignItems: 'center',
     gap: spacing.xs,
-    width: 64,
+    width: 68,
   },
-  friendBadge: {
-    marginTop: -spacing.lg,
-    marginLeft: spacing.xl,
+  friendPill: {
+    marginTop: -12,
+    minWidth: 40,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: colors.background,
+  },
+  friendPillText: {
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  directionsChip: {
+    position: 'absolute',
+    right: spacing.md,
+    bottom: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.full,
+    backgroundColor: colors.primary,
   },
   mapWrap: {
     height: 160,

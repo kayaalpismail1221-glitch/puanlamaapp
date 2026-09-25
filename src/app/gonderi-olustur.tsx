@@ -15,15 +15,18 @@ import {
 import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
 
 import { PlacePicker } from '@/components/place-picker';
+import { CompareStep, SentimentChoice, useRankResultText } from '@/components/rank-steps';
 import { FormSection as Section, HighlightPicker, MAX_HIGHLIGHTS, MealPicker, postFieldStyles } from '@/components/post-fields';
 import { Avatar, Button, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { cuisineLabel } from '@/constants/cuisines';
 import { colors, hitSlop, radius, spacing, typography } from '@/constants/theme';
 import { showError } from '@/api/errors';
 import type { LocalImage } from '@/api/storage';
-import { getUser, useEntitiesVersion, usePlace, usePrefetchUsers } from '@/data/entities';
+import { getPlace, getUser, useEntitiesVersion, usePlace, usePrefetchUsers } from '@/data/entities';
 import { useCreatePost } from '@/hooks/queries';
 import { useKeyboardFooterStyle } from '@/hooks/use-keyboard-footer';
+import { useRankFlow } from '@/hooks/use-rank-flow';
+import i18n from '@/i18n';
 import { haptics } from '@/lib/haptics';
 import { useAppStore } from '@/store/app-store';
 import type { Meal, User } from '@/types';
@@ -37,13 +40,13 @@ type Params = {
 };
 
 /**
- * Gönderi paylaş: mekân + puan + (isteğe bağlı) fotoğraf ve yorum
+ * Gönderi paylaş: mekân + puan (Beli tarzı akış ekranın içinde; zorunlu) + (isteğe bağlı) fotoğraf ve yorum
  * + isteğe bağlı bilgiler: öğün, öne çıkanlar, kimlerle gidildi.
  * Fiyat ve ne yenildiği bilerek sorulmaz: paylaşım hafif kalsın, kimse hesap vermek zorunda hissetmesin.
  */
 export default function CreatePostScreen() {
   const params = useLocalSearchParams<Params>();
-  const { following, scoreOf } = useAppStore();
+  const { following, scored, actions } = useAppStore();
   const createPost = useCreatePost();
   const onboarding = params.akis === 'onboarding';
   const { t } = useTranslation();
@@ -58,6 +61,10 @@ export default function CreatePostScreen() {
   const [meal, setMeal] = useState<Meal>();
   const [highlights, setHighlights] = useState<string[]>([]);
   const [tagged, setTagged] = useState<string[]>([]);
+  /** Daha önce puanlanmış mekânı yeniden puanlıyor mu */
+  const [rerating, setRerating] = useState(false);
+  const flow = useRankFlow(placeId);
+  const resultText = useRankResultText();
 
   // Etiketlenebilecek arkadaşlar: takip edilenler
   usePrefetchUsers(following);
@@ -73,7 +80,10 @@ export default function CreatePostScreen() {
     return <PlacePicker title={t('compose.whereDidYouEat')} onSelect={(p) => setPlaceId(p.id)} />;
   }
 
-  const score = scoreOf(place.id);
+  const existing = scored.find((e) => e.placeId === place.id);
+  // Puanlanmamış mekânda (ya da "Değiştir" denince) puanlama akışı ekranın içinde açılır
+  const rating = !existing || rerating;
+  const score = rating ? flow.result?.score : existing.score;
 
   const addFromLibrary = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -117,6 +127,9 @@ export default function CreatePostScreen() {
     list.includes(item) ? list.filter((x) => x !== item) : list.length < max ? [...list, item] : list;
 
   const share = () => {
+    if (score === undefined) return;
+    // Yeni puan önce kaydedilir; gönderi puanını sunucudaki sıralamadan alır (bkz. waitForRank)
+    if (rating && flow.result) actions.rank(place.id, flow.result.sentiment, flow.result.index, existing?.note);
     createPost.mutate(
       {
         placeId: place.id,
@@ -127,9 +140,10 @@ export default function CreatePostScreen() {
         highlights,
       },
       {
-        onSuccess: () => {
+        onSuccess: (post) => {
           haptics.success();
           router.back();
+          if (!onboarding) offerStory(post.id);
         },
         onError: (error) => showError(error, t('failures.postShare')),
       },
@@ -163,23 +177,58 @@ export default function CreatePostScreen() {
               </Text>
             </View>
           </PressableScale>
-          {score !== undefined ? (
-            <ScoreBadge score={score} />
-          ) : (
-            <PressableScale
-              onPress={() =>
-                router.push({
-                  pathname: '/degerlendir/[id]',
-                  params: { id: place.id, from: 'gonderi' },
-                })
-              }
-              style={styles.rateButton}>
-              <Text variant="footnote" color={colors.onPrimary} style={styles.bold}>
-                {t('compose.rate')}
-              </Text>
-            </PressableScale>
-          )}
         </Animated.View>
+
+        <Section title={t('compose.yourScore')}>
+          {!rating ? (
+            <View style={styles.scoreRow}>
+              <ScoreBadge score={existing.score} />
+              <Text variant="subhead" color={colors.textSecondary} style={styles.flex}>
+                {t('place.yourRank', { rank: existing.rank })}
+              </Text>
+              <PressableScale
+                onPress={() => {
+                  flow.reset();
+                  setRerating(true);
+                }}
+                hitSlop={hitSlop}>
+                <Text variant="subhead" color={colors.primary} style={styles.bold}>
+                  {t('common.change')}
+                </Text>
+              </PressableScale>
+            </View>
+          ) : flow.phase === 'sentiment' ? (
+            <View style={styles.rateStep}>
+              <SentimentChoice compact onChoose={flow.choose} />
+              {existing && (
+                <Button title={t('common.cancel')} variant="ghost" size="sm" onPress={() => setRerating(false)} />
+              )}
+            </View>
+          ) : flow.phase === 'compare' ? (
+            <CompareStep
+              key={`compare-${flow.step}`}
+              compact
+              place={place}
+              other={flow.otherPlaceId ? getPlace(flow.otherPlaceId) : undefined}
+              step={flow.step}
+              total={flow.totalSteps}
+              onPick={flow.answer}
+              onSkip={flow.skip}
+            />
+          ) : flow.result ? (
+            <Animated.View entering={FadeIn} style={styles.scoreRow}>
+              <ScoreBadge score={flow.result.score} />
+              <Text variant="subhead" color={colors.textSecondary} style={styles.flex}>
+                {resultText(flow.result)}
+              </Text>
+              <PressableScale onPress={flow.undo} hitSlop={hitSlop}>
+                <Text variant="subhead" color={colors.primary} style={styles.bold}>
+                  {t('rate.undo')}
+                </Text>
+              </PressableScale>
+            </Animated.View>
+          ) : null}
+        </Section>
 
         <Section title={t('compose.photos')} hint={t('compose.photosHint', { count: photos.length, max: MAX_PHOTOS })}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoRow}>
@@ -277,7 +326,7 @@ export default function CreatePostScreen() {
               : t('common.share')
           }
           onPress={share}
-          disabled={(score === undefined && !photos.length && !caption.trim()) || createPost.isPending}
+          disabled={score === undefined || createPost.isPending}
         />
         {onboarding && !createPost.isPending && (
           <Button title={t('compose.skip')} variant="ghost" onPress={() => router.back()} />
@@ -306,6 +355,17 @@ const styles = StyleSheet.create({
   bold: {
     fontWeight: '600',
   },
+  scoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  rateStep: {
+    gap: spacing.xs,
+  },
+  flex: {
+    flex: 1,
+  },
   placeCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -325,13 +385,6 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: radius.button,
-  },
-  rateButton: {
-    height: 32,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.button,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
   },
   photoRow: {
     gap: spacing.sm,
@@ -382,3 +435,14 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
   },
 });
+
+/** Gönderi paylaşıldıktan sonra Instagram hikâyesi kartını önerir (yayılmanın en doğal anı) */
+function offerStory(postId: string) {
+  Alert.alert(i18n.t('story.postPublished'), i18n.t('story.postPublishedText'), [
+    { text: i18n.t('story.later'), style: 'cancel' },
+    {
+      text: i18n.t('story.shareToStory'),
+      onPress: () => router.push({ pathname: '/hikaye', params: { gonderi: postId } }),
+    },
+  ]);
+}

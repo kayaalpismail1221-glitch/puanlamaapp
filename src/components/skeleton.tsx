@@ -10,6 +10,9 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { Text } from '@/components/ui';
 import { colors, radius, spacing } from '@/constants/theme';
 
 /**
@@ -190,6 +193,47 @@ export function SkeletonScreen({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * Açılış: kullanıcının verisi yüklenirken (ör. girişten sonraki ilk açılış) açılış görseli yerine
+ * Feed'in iskeleti: büyük başlık, sekme seçici, konum ve paylaşım satırı, kartlar ve alt bar.
+ * Veri gelince aynı yerleşimdeki gerçek Feed'e geçilir; zıplama olmaz.
+ */
+export function LaunchSkeleton() {
+  const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  return (
+    <View style={[styles.screen, { paddingTop: insets.top }]}>
+      <View style={styles.launchNav}>
+        <Bone width={22} height={22} round />
+      </View>
+      <Text variant="largeTitle" color={colors.primary} style={styles.launchTitle}>
+        {t('tabs.feed')}
+      </Text>
+      <Skeleton>
+        <Bone width={width - spacing.lg * 2} height={32} round={9} style={styles.launchSegment} />
+        <View style={styles.row}>
+          <Bone width={32} height={32} round />
+          <View style={styles.lines}>
+            <Bone width="40%" height={16} />
+            <Bone width="55%" height={11} />
+          </View>
+        </View>
+        <View style={styles.row}>
+          <Bone width={36} height={36} round />
+          <Bone width="60%" height={15} />
+        </View>
+      </Skeleton>
+      <PostCardsSkeleton count={1} />
+      <Skeleton style={{ ...styles.launchTabs, bottom: insets.bottom + spacing.sm }}>
+        {range(5).map((i) => (
+          <Bone key={i} width={24} height={24} round />
+        ))}
+      </Skeleton>
+    </View>
+  );
+}
+
 /** Başka birinin profili: kimlik, sayaçlar, butonlar ve gönderi ızgarası */
 export function ProfileSkeleton() {
   return (
@@ -254,6 +298,35 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  launchNav: {
+    height: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: spacing.lg,
+    paddingHorizontal: spacing.lg,
+  },
+  launchTitle: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
+  },
+  launchSegment: {
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.sm,
+  },
+  launchTabs: {
+    position: 'absolute',
+    left: spacing.xl,
+    right: spacing.xl,
+    height: 62,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    borderRadius: radius.full,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   row: {
     flexDirection: 'row',

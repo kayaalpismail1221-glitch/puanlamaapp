@@ -1,21 +1,30 @@
 import { QueryClientProvider } from '@tanstack/react-query';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { ShareIntentProvider } from 'expo-share-intent';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { Platform } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 import { BackendSetup } from '@/components/backend-setup';
-import { ErrorView, LoadingView } from '@/components/ui';
+import { LaunchSkeleton } from '@/components/skeleton';
+import { ErrorView } from '@/components/ui';
 import { colors } from '@/constants/theme';
 import { useLanguageLoaded } from '@/i18n';
+import { usePushNotifications } from '@/lib/notifications';
 import { queryClient } from '@/lib/query-client';
 import { isBackendConfigured } from '@/lib/supabase';
 import { AppStoreProvider, useAppStore } from '@/store/app-store';
 
 SplashScreen.preventAutoHideAsync();
+
+/** "Paylaş → Puanla" uzantısı yerel kod ister: Expo Go'da ve web'de kapalı */
+const shareIntentDisabled =
+  Platform.OS === 'web' || Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
 const navigationTheme = {
   ...DefaultTheme,
@@ -34,9 +43,14 @@ function RootNavigator() {
   const { t } = useTranslation();
   const languageLoaded = useLanguageLoaded();
 
-  // Oturum, kullanıcı verisi ve dil tercihi belli olana kadar açılış ekranı kalır
-  const deciding = status === 'loading' || !prefsLoaded || !languageLoaded || (status === 'signedIn' && !ready);
-  const splashDone = !deciding || !!loadError;
+  // Açılış görseli yalnızca oturum, tercihler ve dil okunana kadar kalır (anlık, cihazdan);
+  // kullanıcı verisi sunucudan beklenirken Feed iskeleti gösterilir
+  const booting = status === 'loading' || !prefsLoaded || !languageLoaded;
+  const loadingData = status === 'signedIn' && !ready;
+  const deciding = booting || loadingData;
+  const splashDone = !booting || !!loadError;
+  const showOnboarding = status === 'signedOut' || !onboarded;
+  usePushNotifications(!deciding && !showOnboarding);
 
   useEffect(() => {
     if (splashDone) SplashScreen.hideAsync();
@@ -44,11 +58,8 @@ function RootNavigator() {
 
   if (deciding) {
     if (loadError) return <ErrorView onRetry={actions.refresh} style={{ flex: 1 }} />;
-    // Kayıt/giriş sonrası veri yüklenirken (açılış ekranı çoktan kapanmış olabilir)
-    return status === 'signedIn' ? <LoadingView style={{ flex: 1 }} /> : null;
+    return loadingData ? <LaunchSkeleton /> : null;
   }
-
-  const showOnboarding = status === 'signedOut' || !onboarded;
 
   return (
     <Stack
@@ -81,6 +92,11 @@ function RootNavigator() {
         <Stack.Screen name="engellenenler" options={{ title: t('screens.blocked') }} />
         <Stack.Screen name="oneriler" options={{ title: t('screens.recs') }} />
         <Stack.Screen name="gonderi-duzenle" options={{ presentation: 'modal', title: t('screens.editPost') }} />
+        <Stack.Screen name="paylasim-al" options={{ headerShown: false, animation: 'fade' }} />
+        <Stack.Screen name="yol-tarifi/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="bildirimler" options={{ title: t('screens.notifications') }} />
+        <Stack.Screen name="bildirim-ayarlari" options={{ title: t('screens.notificationSettings') }} />
+        <Stack.Screen name="hikaye" options={{ presentation: 'modal', title: t('screens.story') }} />
         <Stack.Screen name="okul-sec" options={{ presentation: 'modal', title: t('screens.school') }} />
         <Stack.Screen
           name="profil-fotografi"
@@ -108,17 +124,19 @@ export default function RootLayout() {
   if (!isBackendConfigured) return <BackendSetup />;
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <KeyboardProvider>
-        <ThemeProvider value={navigationTheme}>
-          <QueryClientProvider client={queryClient}>
-            <AppStoreProvider>
-              <StatusBar style="dark" />
-              <RootNavigator />
-            </AppStoreProvider>
-          </QueryClientProvider>
-        </ThemeProvider>
-      </KeyboardProvider>
-    </GestureHandlerRootView>
+    <ShareIntentProvider options={{ disabled: shareIntentDisabled, resetOnBackground: true }}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <KeyboardProvider>
+          <ThemeProvider value={navigationTheme}>
+            <QueryClientProvider client={queryClient}>
+              <AppStoreProvider>
+                <StatusBar style="dark" />
+                <RootNavigator />
+              </AppStoreProvider>
+            </QueryClientProvider>
+          </ThemeProvider>
+        </KeyboardProvider>
+      </GestureHandlerRootView>
+    </ShareIntentProvider>
   );
 }

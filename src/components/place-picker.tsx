@@ -79,16 +79,25 @@ export function PlaceSearchList({ query, onSelect, trailing, exclude, header }: 
 }
 
 /** Arama kutusuyla birlikte tam ekran mekân seçici */
-export function PlacePicker({ title, onSelect }: { title: string; onSelect: (place: Place) => void }) {
+export function PlacePicker({
+  title,
+  onSelect,
+  initialQuery,
+}: {
+  title: string;
+  onSelect: (place: Place) => void;
+  /** Arama kutusunu önceden doldurur (ör. paylaşılan Reels'teki mekân adı); o zaman klavye açılmaz, sonuçlar görünür */
+  initialQuery?: string;
+}) {
   const { t } = useTranslation();
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(initialQuery ?? '');
   return (
     <View style={styles.container}>
       <View style={styles.searchWrap}>
         <Text variant="subhead" color={colors.textSecondary}>
           {title}
         </Text>
-        <SearchField value={query} onChangeText={setQuery} placeholder={t('picker.searchPlaceholder')} autoFocus />
+        <SearchField value={query} onChangeText={setQuery} placeholder={t('picker.searchPlaceholder')} autoFocus={!initialQuery} />
       </View>
       <PlaceSearchList query={query} onSelect={onSelect} />
     </View>

@@ -2,7 +2,8 @@ import { router, Stack } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, FlatList, Linking, RefreshControl, StyleSheet, View } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
+import { ActivityIndicator, Linking, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { PostCard } from '@/components/post-card';
 import { SegmentedControl } from '@/components/segmented-control';
@@ -10,7 +11,7 @@ import type { FeedEntry } from '@/api/content';
 import { PostCardsSkeleton } from '@/components/skeleton';
 import { Avatar, Button, Divider, ErrorView, PressableScale, Text } from '@/components/ui';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
-import { useFollowingFeed, usePopularFeed } from '@/hooks/queries';
+import { useFollowingFeed, usePopularFeed, useUnreadNotifications } from '@/hooks/queries';
 import { areaLabel } from '@/lib/feed';
 import { useUserLocation } from '@/lib/location';
 import { useAppStore } from '@/store/app-store';
@@ -49,20 +50,22 @@ export default function FeedScreen() {
   const active = tab === 'popular' ? popular : followingFeed;
 
   const firstPage = popular.data?.pages[0];
-  const entries = useMemo<FeedEntry[]>(
-    () =>
+  const entries = useMemo<FeedEntry[]>(() => {
+    const list =
       tab === 'popular'
         ? (popular.data?.pages.flatMap((p) => p.entries) ?? [])
-        : (followingFeed.data?.pages.flat().map((post) => ({ post })) ?? []),
-    [tab, popular.data, followingFeed.data],
-  );
+        : (followingFeed.data?.pages.flat().map((post) => ({ post })) ?? []);
+    // Sayfalar arasında aynı gönderi iki kez gelirse (ör. beğeniyle sırası değişti) bir kez gösterilir
+    const seen = new Set<string>();
+    return list.filter((e) => !seen.has(e.post.id) && !!seen.add(e.post.id));
+  }, [tab, popular.data, followingFeed.data]);
 
   // Yakınımda modunda konum henüz gelmedi
   const locationPending = tab === 'popular' && feedArea.type === 'near' && !location.coords && !locationUnavailable;
   const [refreshing, setRefreshing] = useState(false);
   const refresh = async () => {
     setRefreshing(true);
-    await active.refetch();
+    await active.restart().catch(() => {});
     setRefreshing(false);
   };
 
@@ -70,25 +73,25 @@ export default function FeedScreen() {
     <>
       <Stack.Screen
         options={{
-          headerRight: () => (
-            <PressableScale onPress={openComposer} hitSlop={hitSlop} accessibilityLabel={t('common.sharePost')}>
-              <SymbolView name="plus" tintColor={colors.primary} size={22} weight="semibold" />
-            </PressableScale>
-          ),
+          // Gönderi paylaşma feed'in üstündeki satırdan; başlıkta yalnızca bildirimler
+          headerRight: () => <NotificationBell />,
         }}
       />
-      <FlatList
+      <FlashList
         data={entries}
         keyExtractor={(e) => e.post.id}
+        // Fotoğraflı ve fotoğrafsız kartlar ayrı havuzlarda geri dönüştürülür
+        getItemType={(e) => (e.post.photos.length ? 'photo' : 'tile')}
         contentInsetAdjustmentBehavior="automatic"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary} />}
         onEndReached={() => active.hasNextPage && !active.isFetchingNextPage && active.fetchNextPage()}
-        onEndReachedThreshold={0.6}
+        // Sonraki sayfa, sona bir ekran kala istenir: kaydırma hiç beklemez
+        onEndReachedThreshold={1}
         ListFooterComponent={
           active.isFetchingNextPage ? <ActivityIndicator color={colors.primary} style={styles.more} /> : null
         }
         renderItem={({ item }) => <PostCard post={item.post} distanceKm={item.distanceKm} />}
-        ItemSeparatorComponent={() => <Divider />}
+        ItemSeparatorComponent={Separator}
         ListHeaderComponent={
           <View>
             <SegmentedControl options={tabs} value={tab} onChange={setTab} style={styles.segment} />
@@ -177,6 +180,31 @@ export default function FeedScreen() {
   );
 }
 
+const Separator = () => <Divider />;
+
+/** Bildirim merkezine giden zil; okunmamış varsa sayı rozeti */
+function NotificationBell() {
+  const { t } = useTranslation();
+  const unread = useUnreadNotifications().data ?? 0;
+  return (
+    <PressableScale
+      onPress={() => router.push('/bildirimler')}
+      hitSlop={hitSlop}
+      // Rozet bu kutunun içinde kalır: iOS başlık çubuğu öğenin dışına taşanı keser
+      style={styles.bell}
+      accessibilityLabel={unread ? t('notifications.bellUnread', { count: unread }) : t('screens.notifications')}>
+      <SymbolView name="bell" tintColor={colors.primary} size={21} />
+      {unread > 0 && (
+        <View style={styles.bellBadge}>
+          <Text variant="caption" color={colors.onPrimary} style={styles.bellBadgeText}>
+            {unread > 9 ? '9+' : unread}
+          </Text>
+        </View>
+      )}
+    </PressableScale>
+  );
+}
+
 /** Konum kapalıyken feed'in üstünde küçük öneri: yakındakileri görmek için konumu aç */
 function LocationBanner({ denied, onRetry }: { denied: boolean; onRetry: () => void }) {
   const { t } = useTranslation();
@@ -225,6 +253,33 @@ function EmptyState({
 }
 
 const styles = StyleSheet.create({
+  bell: {
+    width: 36,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    minWidth: 17,
+    height: 17,
+    paddingHorizontal: 4,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.like,
+    borderWidth: 1.5,
+    borderColor: colors.background,
+  },
+  bellBadgeText: {
+    fontSize: 10,
+    lineHeight: 12,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+    includeFontPadding: false,
+  },
   banner: {
     flexDirection: 'row',
     alignItems: 'center',

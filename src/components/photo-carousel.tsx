@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
+import { FlatList, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   useAnimatedStyle,
@@ -17,6 +17,8 @@ import { colors, radius, spacing } from '@/constants/theme';
 
 type Props = {
   photos: string[];
+  /** Küçük boy kopyalar (aynı sırada): tam boy yüklenene kadar anında gösterilir */
+  thumbs?: string[];
   /** Çift dokunuş: beğen */
   onDoubleTap?: () => void;
   /** Tek dokunuş */
@@ -24,9 +26,13 @@ type Props = {
   aspectRatio?: number;
 };
 
-/** Kaydırmalı fotoğraf galerisi; çift dokununca ortada kalp animasyonu */
-export function PhotoCarousel({ photos, onDoubleTap, onPress, aspectRatio = 4 / 5 }: Props) {
-  const [width, setWidth] = useState(0);
+/**
+ * Kaydırmalı fotoğraf galerisi; çift dokununca ortada kalp animasyonu.
+ * Genişlik ekrandan bilinir (feed ve gönderi detayında yatay boşluk `spacing.lg`): ölçmeyi beklemeden
+ * ilk karede doğru boyutta çizilir, kaydırırken zıplamaz.
+ */
+export function PhotoCarousel({ photos, thumbs, onDoubleTap, onPress, aspectRatio = 4 / 5 }: Props) {
+  const width = useWindowDimensions().width - spacing.lg * 2;
   const [index, setIndex] = useState(0);
   const heart = useSharedValue(0);
 
@@ -52,18 +58,21 @@ export function PhotoCarousel({ photos, onDoubleTap, onPress, aspectRatio = 4 / 
 
   return (
     <GestureDetector gesture={Gesture.Exclusive(doubleTap, singleTap)}>
-      <View style={styles.container} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
-        {width > 0 && (
-          <FlatList
-            data={photos}
-            keyExtractor={(uri, i) => `${i}-${uri}`}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onMomentumScrollEnd={(e) => setIndex(Math.round(e.nativeEvent.contentOffset.x / width))}
-            renderItem={({ item }) => <PlaceImage uri={item} style={{ width, height }} />}
-          />
-        )}
+      <View style={[styles.container, { height }]}>
+        <FlatList
+          data={photos}
+          keyExtractor={(uri, i) => `${i}-${uri}`}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          initialNumToRender={1}
+          windowSize={3}
+          getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
+          onMomentumScrollEnd={(e) => setIndex(Math.round(e.nativeEvent.contentOffset.x / width))}
+          renderItem={({ item, index: i }) => (
+            <PlaceImage uri={item} placeholder={thumbs?.[i]} style={{ width, height }} />
+          )}
+        />
 
         <Animated.View pointerEvents="none" style={[styles.heart, heartStyle]}>
           <SymbolView name="heart.fill" tintColor={colors.onPrimary} size={88} />

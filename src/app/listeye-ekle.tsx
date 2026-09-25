@@ -23,6 +23,10 @@ type Params = {
   kaynak?: SaveOrigin;
   /** '1' ise açılışta panodaki bağlantı yapıştırılır */
   yapistir?: string;
+  /** "Paylaş → Puanla" ile gelen bağlantı */
+  baglanti?: string;
+  /** Mekân aramasına ön doldurma (paylaşımdaki 📍 mekân adı) */
+  ara?: string;
 };
 
 /**
@@ -39,7 +43,7 @@ export default function AddToListScreen() {
   const origin: SaveOrigin = params.kaynak ?? existing?.origin ?? 'social';
   const isSocial = origin === 'social';
 
-  const [link, setLink] = useState(existing?.link ?? '');
+  const [link, setLink] = useState(existing?.link ?? params.baglanti ?? '');
   const [note, setNote] = useState(existing?.note ?? '');
   const [clipboardHasUrl, setClipboardHasUrl] = useClipboardHasUrl();
 
@@ -79,6 +83,7 @@ export default function AddToListScreen() {
         ) : null}
         <PlacePicker
           title={isSocial ? t('addToList.whichPlaceSocial') : t('addToList.whichPlace')}
+          initialQuery={params.ara}
           onSelect={(item) => {
             const prev = saved.find((s) => s.placeId === item.id);
             setLink((l) => l || prev?.link || '');

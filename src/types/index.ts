@@ -147,3 +147,25 @@ export type Post = {
 
 /** Popüler feed'in hangi bölgeyi gösterdiği */
 export type FeedArea = { type: 'near' } | { type: 'area'; city: string; district?: string };
+
+export type NotificationKind = 'like' | 'comment' | 'tag' | 'follow' | 'friend_rated';
+
+/** Bildirim merkezindeki bir satır */
+export type AppNotification = {
+  id: string;
+  kind: NotificationKind;
+  createdAt: string;
+  read: boolean;
+  actor: User;
+  postId?: string;
+  placeId?: string;
+  placeName?: string;
+  /** Gönderinin küçük boy ilk fotoğrafı */
+  thumbUrl?: string;
+  comment?: string;
+  /** "Arkadaşın gittiğin yeri puanladı": onun ve senin puanın */
+  score?: number;
+  myScore?: number;
+  /** Bildirimi yapanı takip ediyor musun (takip bildiriminde geri takip düğmesi) */
+  following: boolean;
+};

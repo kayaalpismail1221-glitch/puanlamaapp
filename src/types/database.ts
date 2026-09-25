@@ -62,6 +62,25 @@ export type PlaceViewRow = {
   photo: string | null;
 };
 
+export type NotificationType = 'like' | 'comment' | 'tag' | 'follow' | 'friend_rated';
+
+/** my_notifications(): bildirim merkezi satırı */
+export type NotificationRow = {
+  id: string;
+  type: NotificationType;
+  created_at: string;
+  read_at: string | null;
+  actor: PublicProfileJson;
+  post_id: string | null;
+  place_id: string | null;
+  place_name: string | null;
+  photo: string | null;
+  comment: string | null;
+  score: number | null;
+  my_score: number | null;
+  following: boolean;
+};
+
 /** profile_json(): herkese açık profil alanları */
 export type PublicProfileJson = {
   id: string;
@@ -141,6 +160,8 @@ export type AreaViewRow = {
 };
 
 export type PopularFeedJson = {
+  /** Sıralamanın sabit anı (eski sunucuda yok) */
+  as_of?: string;
   radius_km: number | null;
   fallback_city: string | null;
   entries: { post: PostViewRow; distance_km: number | null }[];
@@ -187,9 +208,9 @@ export type Database = {
         Partial<Pick<ProfileRow, 'name' | 'username' | 'avatar_path' | 'school_id' | 'year_goal' | 'onboarded_at'>>
       >;
       profile_private: Table<
-        { user_id: string; phone: string | null; updated_at: string },
+        { user_id: string; phone: string | null; push_muted: NotificationType[]; updated_at: string },
         { user_id: string; phone?: string | null },
-        { phone?: string | null }
+        { phone?: string | null; push_muted?: NotificationType[] }
       >;
       places: Table<
         PlaceRow,
@@ -345,6 +366,7 @@ export type Database = {
           p_district?: string;
           p_offset?: number;
           p_limit?: number;
+          p_as_of?: string;
         };
         Returns: Json;
       };
@@ -409,6 +431,11 @@ export type Database = {
       user_rank: { Args: { p_user_id: string }; Returns: number | null };
       username_available: { Args: { p_username: string }; Returns: boolean };
       delete_account: { Args: Record<string, never>; Returns: undefined };
+      my_notifications: { Args: { p_before?: string | null; p_limit?: number }; Returns: NotificationRow[] };
+      unread_notification_count: { Args: Record<string, never>; Returns: number };
+      mark_notifications_read: { Args: Record<string, never>; Returns: undefined };
+      register_push_token: { Args: { p_token: string; p_locale?: string }; Returns: undefined };
+      unregister_push_token: { Args: { p_token: string }; Returns: undefined };
     };
     Enums: {
       sentiment: Sentiment;
@@ -416,6 +443,7 @@ export type Database = {
       price_bucket: PriceBucket;
       meal: Meal;
       report_reason: ReportReason;
+      notification_type: NotificationType;
     };
     CompositeTypes: Record<string, never>;
   };

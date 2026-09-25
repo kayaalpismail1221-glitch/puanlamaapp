@@ -1,4 +1,4 @@
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -35,11 +35,9 @@ export function VisitedMap({ userId, name }: { userId: string; name: string }) {
   if (!items.length) return null;
 
   const share = () =>
-    Share.share({
-      message: mine
-        ? t('tasteMap.shareMine', { cities: summary.cities, places: summary.places })
-        : t('tasteMap.shareTheirs', { name, cities: summary.cities, places: summary.places }),
-    });
+    mine
+      ? router.push({ pathname: '/hikaye', params: { tur: 'map' } })
+      : Share.share({ message: t('tasteMap.shareTheirs', { name, cities: summary.cities, places: summary.places }) });
 
   return (
     <View style={styles.card}>

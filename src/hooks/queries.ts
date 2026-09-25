@@ -1,7 +1,8 @@
-import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, type InfiniteData, type QueryKey } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
 import * as api from '@/api/content';
+import * as notificationsApi from '@/api/notifications';
 import { adjustCommentCount, removePost, upsertPosts } from '@/data/entities';
 import type { Coords } from '@/lib/geo';
 import { useUserLocation } from '@/lib/location';
@@ -27,26 +28,40 @@ export function useDebounced<T>(value: T, delay = 250): T {
 
 /* ---------- Feed ---------- */
 
+/**
+ * Aşağı çekip yenileme: yüklenmiş tüm sayfaları tek tek yeniden çekmek yerine yalnızca ilk sayfa
+ * (popüler feed'de yeni bir sıralama anıyla) çekilir; liste başa döner. Eski veri, yenisi gelene kadar ekranda kalır.
+ */
+async function restartFeed(queryKey: QueryKey, refetch: () => Promise<unknown>) {
+  queryClient.setQueryData<InfiniteData<unknown, unknown>>(queryKey, (data) =>
+    data && { pages: data.pages.slice(0, 1), pageParams: data.pageParams.slice(0, 1) },
+  );
+  await refetch();
+}
+
 export function usePopularFeed(area: FeedArea, coords: Coords | null, enabled: boolean) {
   // Konum küçük oynamalarda feed'i baştan yüklemesin (~1 km hassasiyet)
   const rounded = coords && { latitude: +coords.latitude.toFixed(2), longitude: +coords.longitude.toFixed(2) };
-  return useInfiniteQuery({
-    queryKey: keys.feedPopular(area, rounded),
+  const queryKey = keys.feedPopular(area, rounded);
+  const query = useInfiniteQuery({
+    queryKey,
     queryFn: ({ pageParam }) => api.fetchPopularFeed(area, rounded, pageParam),
-    initialPageParam: 0,
-    getNextPageParam: (last) => last.nextOffset,
+    initialPageParam: { offset: 0 } as api.PopularCursor,
+    getNextPageParam: (last) => last.next,
     enabled: enabled && (area.type === 'area' || !!rounded),
   });
+  return { ...query, restart: () => restartFeed(queryKey, query.refetch) };
 }
 
 export function useFollowingFeed(enabled = true) {
-  return useInfiniteQuery({
+  const query = useInfiniteQuery({
     queryKey: keys.feedFollowing(),
     queryFn: ({ pageParam }) => api.fetchFollowingFeed(pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => (last.length >= 20 ? last.at(-1)!.createdAt : undefined),
     enabled,
   });
+  return { ...query, restart: () => restartFeed(keys.feedFollowing(), query.refetch) };
 }
 
 /* ---------- Gönderiler ---------- */
@@ -284,5 +299,35 @@ export function useLeaderboard(scope: LeaderboardScope, period: LeaderboardPerio
     queryKey: keys.leaderboard(scope, period, schoolId),
     queryFn: () => api.fetchLeaderboard(scope, period, schoolId),
     enabled: scope !== 'school' || !!schoolId,
+  });
+}
+
+/* ---------- Bildirimler ---------- */
+
+export function useNotifications() {
+  return useInfiniteQuery({
+    queryKey: keys.notifications(),
+    queryFn: ({ pageParam }) => notificationsApi.fetchNotifications(pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) =>
+      last.length >= notificationsApi.NOTIFICATION_PAGE ? last.at(-1)!.createdAt : undefined,
+  });
+}
+
+/** Okunmamış sayısı; uygulama ön plana dönünce ve push gelince yenilenir */
+export function useUnreadNotifications(enabled = true) {
+  return useQuery({
+    queryKey: keys.unreadNotifications(),
+    queryFn: notificationsApi.fetchUnreadCount,
+    enabled,
+  });
+}
+
+export function useMutedNotifications() {
+  const { userId } = useAppStore();
+  return useQuery({
+    queryKey: keys.mutedNotifications(),
+    queryFn: () => notificationsApi.fetchMutedKinds(userId!),
+    enabled: !!userId,
   });
 }

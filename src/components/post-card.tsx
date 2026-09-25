@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
+import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring } from 'react-native-reanimated';
@@ -20,7 +21,7 @@ import { sharePost } from '@/lib/share';
 import { highlightLabel, mealLabel } from '@/lib/post-meta';
 import { queryClient } from '@/lib/query-client';
 import { isMe } from '@/lib/session';
-import { useAppStore } from '@/store/app-store';
+import { useAppActions, useAppSelector } from '@/store/app-store';
 import type { Post } from '@/types';
 
 type Props = {
@@ -31,8 +32,14 @@ type Props = {
   distanceKm?: number;
 };
 
-export function PostCard({ post: initial, expanded, distanceKm }: Props) {
-  const { isLiked, isPostSaved, likeCountOf, actions } = useAppStore();
+/**
+ * Feed kartı. Uygulama durumunun tamamını değil yalnızca bu gönderinin beğeni/kaydetme durumunu dinler;
+ * başka bir karttaki beğeni bu kartı yeniden çizdirmez (uzun feed'de akıcılık için).
+ */
+export const PostCard = memo(function PostCard({ post: initial, expanded, distanceKm }: Props) {
+  const actions = useAppActions();
+  const likeOverride = useAppSelector((s) => s.likeOverrides[initial.id]);
+  const saveOverride = useAppSelector((s) => s.saveOverrides[initial.id]);
   const { t } = useTranslation();
   const deletePost = useDeletePost();
   const heart = useSharedValue(1);
@@ -44,8 +51,10 @@ export function PostCard({ post: initial, expanded, distanceKm }: Props) {
   const place = usePlace(post.placeId);
   if (!user || !place) return null;
 
-  const liked = isLiked(post);
-  const saved = isPostSaved(post);
+  const liked = likeOverride ?? post.likedByMe;
+  const saved = saveOverride ?? post.savedByMe;
+  // Sunucudaki sayı kullanıcının kendi beğenisini içermez
+  const likeCount = post.likeCount + (liked ? 1 : 0);
   const commentCount = post.commentCount;
   const tagged = post.taggedUserIds.flatMap((id) => getUser(id) ?? []);
 
@@ -103,6 +112,10 @@ export function PostCard({ post: initial, expanded, distanceKm }: Props) {
       undefined,
       mine
         ? [
+            {
+              label: t('story.shareToStory'),
+              onPress: () => router.push({ pathname: '/hikaye', params: { gonderi: post.id } }),
+            },
             { label: t('common.share'), onPress: () => sharePost(post, place, user.name) },
             {
               label: t('editPost.edit'),
@@ -162,7 +175,13 @@ export function PostCard({ post: initial, expanded, distanceKm }: Props) {
 
       {post.photos.length > 0 ? (
         <View style={styles.photos}>
-          <PhotoCarousel photos={post.photos} onDoubleTap={likeFromPhoto} onPress={expanded ? undefined : openPost} />
+          <PhotoCarousel
+            key={post.id}
+            photos={post.photos}
+            thumbs={post.thumbs}
+            onDoubleTap={likeFromPhoto}
+            onPress={expanded ? undefined : openPost}
+          />
         </View>
       ) : (
         // Fotoğrafsız gönderi: mekân görseli ve büyük puanla sade bir kart
@@ -191,7 +210,7 @@ export function PostCard({ post: initial, expanded, distanceKm }: Props) {
             />
           </Animated.View>
           <Text variant="subhead" style={styles.bold}>
-            {likeCountOf(post)}
+            {likeCount}
           </Text>
         </PressableScale>
         <PressableScale onPress={openPost} hitSlop={hitSlop} style={styles.action} accessibilityLabel={t('post.comments')}>
@@ -228,7 +247,7 @@ export function PostCard({ post: initial, expanded, distanceKm }: Props) {
       )}
     </View>
   );
-}
+});
 
 /** Öğün ve öne çıkanlar */
 function PostMeta({ post }: { post: Post }) {

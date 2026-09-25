@@ -493,6 +493,29 @@ describe('feed ve arama', () => {
     assert.equal(feed.fallback_city, null);
   });
 
+  test('sayfalar sabit anda sıralanır: tekrar yok, sonradan paylaşılan araya girmez', async () => {
+    const me = await signUp({ name: 'Kaydıran' });
+    const { city } = (await db.query('select city from places where id = $1', [PLACE(15)])).rows[0];
+    const page = async (offset, asOf) =>
+      (await one(me, `select feed_popular(p_city => $1, p_offset => $2, p_limit => 3, p_as_of => $3) as f`, [city, offset, asOf])).f;
+
+    const first = await page(0, null);
+    assert.ok(first.as_of);
+    const all = await page(0, first.as_of).then(async (p) => [...p.entries, ...(await page(3, first.as_of)).entries]);
+    const ids = all.map((e) => e.post.id);
+    assert.equal(new Set(ids).size, ids.length);
+
+    // Sonradan paylaşılan gönderi aynı oturumun sayfalarına girmez, yenileyince (yeni an) gelir
+    const author = await signUp({ name: 'Sonradan' });
+    await as(author, `select rank_place($1, 'liked', 0)`, [PLACE(15)]);
+    const postId = randomUUID();
+    await as(author, `select create_post($1, $2, 'yeni', null, null, '{}', '{}', '{}', '[]')`, [postId, PLACE(15)]);
+    const stale = [...(await page(0, first.as_of)).entries, ...(await page(3, first.as_of)).entries];
+    assert.ok(!stale.some((e) => e.post.id === postId));
+    const fresh = (await one(me, 'select feed_popular(p_city => $1, p_limit => 50) as f', [city])).f;
+    assert.ok(fresh.entries.some((e) => e.post.id === postId));
+  });
+
   test('yakında gönderi yoksa en yakın şehir gösterilir', async () => {
     const me = await signUp({ name: 'Antalyalı' });
     const feed = (await one(me, 'select feed_popular($1, $2) as f', [ANTALYA.lat, ANTALYA.lng])).f;
@@ -594,6 +617,157 @@ describe('liderlik tablosu', () => {
     assert.deepEqual(friends.map((f) => f.user_id).sort(), [me, USER(2)].sort());
     const school = await rows(me, `select user_id from leaderboard('school', 'all', 'bogazici')`);
     assert.deepEqual(school.map((f) => f.user_id).sort(), [USER(1), USER(3), USER(5)].sort());
+  });
+});
+
+describe('bildirimler', () => {
+  const inbox = (userId) => rows(userId, 'select * from my_notifications()');
+
+  /** Yeni kullanıcı + puanladığı mekânda fotoğraflı bir gönderi */
+  async function author(name) {
+    const id = await signUp({ name });
+    await as(id, `select rank_place($1, 'liked', 0)`, [PLACE(15)]);
+    const postId = randomUUID();
+    await as(id, `select create_post($1, $2, 'x', null, null, '{}', '{}', '{}', $3)`, [
+      postId,
+      PLACE(15),
+      JSON.stringify([{ path: `${id}/${postId}/0.jpg` }]),
+    ]);
+    return { id, postId };
+  }
+
+  test('beğeni, yorum, takip; kendine bildirim yok, beğeni geri alınınca silinir', async () => {
+    const { id: me, postId } = await author('Bildirim Sahibi');
+    const fan = await signUp({ name: 'Hayran' });
+    await as(fan, `insert into post_likes (post_id) values ($1)`, [postId]);
+    await as(fan, `insert into comments (post_id, body) values ($1, 'Enfes görünüyor')`, [postId]);
+    await as(fan, `insert into follows (followee_id) values ($1)`, [me]);
+    await as(me, `insert into post_likes (post_id) values ($1)`, [postId]);
+
+    let list = await inbox(me);
+    assert.deepEqual(list.map((n) => n.type).sort(), ['comment', 'follow', 'like']);
+    const comment = list.find((n) => n.type === 'comment');
+    assert.equal(comment.actor.id, fan);
+    assert.equal(comment.comment, 'Enfes görünüyor');
+    assert.equal(comment.photo, `${me}/${postId}/0.jpg`);
+    assert.equal(comment.place_id, PLACE(15));
+    assert.equal(list.find((n) => n.type === 'follow').following, false);
+
+    await as(fan, `delete from post_likes where post_id = $1`, [postId]);
+    await as(fan, `delete from follows where followee_id = $1`, [me]);
+    list = await inbox(me);
+    assert.deepEqual(list.map((n) => n.type), ['comment']);
+
+    // Tekrar beğenmek çift bildirim üretmez
+    await as(fan, `insert into post_likes (post_id) values ($1)`, [postId]);
+    await as(fan, `delete from post_likes where post_id = $1`, [postId]);
+    await as(fan, `insert into post_likes (post_id) values ($1)`, [postId]);
+    assert.equal((await inbox(me)).filter((n) => n.type === 'like').length, 1);
+  });
+
+  test('gönderide etiketlenen kişiye bildirim gider', async () => {
+    const friend = await signUp({ name: 'Etiketlenen' });
+    const me = await signUp({ name: 'Etiketleyen' });
+    await as(me, `select rank_place($1, 'liked', 0)`, [PLACE(15)]);
+    const postId = randomUUID();
+    await as(me, `select create_post($1, $2, null, null, null, '{}', '{}', array[$3::uuid], '[]')`, [
+      postId,
+      PLACE(15),
+      friend,
+    ]);
+    const [n] = await inbox(friend);
+    assert.equal(n.type, 'tag');
+    assert.equal(n.post_id, postId);
+    assert.equal(n.actor.id, me);
+  });
+
+  test('arkadaşın gittiğin yeri puanladı: yalnızca takipçiler ve o mekânı puanlamışlar', async () => {
+    const rater = await signUp({ name: 'Puanlayan' });
+    const been = await signUp({ name: 'Gitmiş Takipçi' });
+    const notBeen = await signUp({ name: 'Gitmemiş Takipçi' });
+    const stranger = await signUp({ name: 'Yabancı' });
+    await as(been, `select rank_place($1, 'fine', 0)`, [PLACE(16)]);
+    await as(stranger, `select rank_place($1, 'fine', 0)`, [PLACE(16)]);
+    await as(been, `insert into follows (followee_id) values ($1)`, [rater]);
+    await as(notBeen, `insert into follows (followee_id) values ($1)`, [rater]);
+
+    await as(rater, `select rank_place($1, 'liked', 0)`, [PLACE(16)]);
+    const [n] = await inbox(been);
+    assert.equal(n.type, 'friend_rated');
+    assert.equal(n.place_id, PLACE(16));
+    assert.equal(Number(n.score), 10);
+    assert.equal(Number(n.my_score), 6.6);
+    assert.equal(n.following, true);
+    assert.equal((await inbox(notBeen)).length, 0);
+    assert.equal((await inbox(stranger)).length, 0);
+
+    // Yeniden sıralamak ikinci bildirim üretmez
+    await as(rater, `select rank_place($1, 'fine', 0)`, [PLACE(16)]);
+    assert.equal((await inbox(been)).length, 1);
+  });
+
+  test('engelli çiftler arasında bildirim oluşmaz, eskileri görünmez', async () => {
+    const { id: me, postId } = await author('Engelleyen Yazar');
+    const troll = await signUp({ name: 'Trol' });
+    await as(troll, `insert into post_likes (post_id) values ($1)`, [postId]);
+    await as(me, `insert into blocks (blocked_id) values ($1)`, [troll]);
+    assert.equal((await inbox(me)).length, 0);
+  });
+
+  test('okundu işaretleme, sayaç ve erişim kuralları', async () => {
+    const { id: me, postId } = await author('Okuyan');
+    const fan = await signUp({ name: 'Okunan' });
+    await as(fan, `insert into post_likes (post_id) values ($1)`, [postId]);
+    await as(fan, `insert into follows (followee_id) values ($1)`, [me]);
+    assert.equal((await one(me, 'select unread_notification_count() as c')).c, 2);
+    // Başkasının bildirimleri görünmez, bildirim elle yazılamaz
+    assert.equal((await rows(fan, 'select * from notifications where user_id = $1', [me])).length, 0);
+    await rejects(
+      as(fan, `insert into notifications (user_id, actor_id, type) values ($1, $2, 'follow')`, [me, fan]),
+      /42501/,
+    );
+    await as(me, 'select mark_notifications_read()');
+    assert.equal((await one(me, 'select unread_notification_count() as c')).c, 0);
+    assert.ok((await inbox(me)).every((n) => n.read_at));
+  });
+
+  test('push jetonu: cihaz hesap değiştirince devralınır, çıkışta silinir; tercih yalnızca sahibinde', async () => {
+    const a = await signUp({ name: 'Cihaz A' });
+    const b = await signUp({ name: 'Cihaz B' });
+    const token = 'ExponentPushToken[abc123]';
+    const owner = async () => (await db.query('select user_id, locale from push_tokens where token = $1', [token])).rows[0];
+    await as(a, 'select register_push_token($1, $2)', [token, 'en']);
+    await as(b, 'select register_push_token($1, $2)', [token, 'tr']);
+    assert.deepEqual(await owner(), { user_id: b, locale: 'tr' });
+    await rejects(as(a, 'select * from push_tokens'), /42501/);
+    await rejects(as(a, 'select register_push_token($1)', ['gecersiz']), /check constraint/);
+    // Başkasının jetonunu silemez
+    await as(a, 'select unregister_push_token($1)', [token]);
+    assert.equal((await owner()).user_id, b);
+    await as(b, 'select unregister_push_token($1)', [token]);
+    assert.equal(await owner(), undefined);
+
+    await as(a, `update profile_private set push_muted = '{like,follow}' where user_id = $1`, [a]);
+    assert.equal((await one(a, 'select push_muted from profile_private where user_id = $1', [a])).push_muted, '{like,follow}');
+    assert.equal((await rows(b, 'select push_muted from profile_private where user_id = $1', [a])).length, 0);
+  });
+
+  test('push metni alıcının dilinde', async () => {
+    const rater = await signUp({ name: 'Zeynep' });
+    const fan = await signUp({ name: 'Mert' });
+    await as(fan, `select rank_place($1, 'fine', 0)`, [PLACE(17)]);
+    await as(fan, `insert into follows (followee_id) values ($1)`, [rater]);
+    await as(rater, `select rank_place($1, 'liked', 0)`, [PLACE(17)]);
+    const text = async (locale) =>
+      (
+        await db.query(
+          `select notification_text(n, $2) as t, notification_path(n) as p from notifications n where user_id = $1 and type = 'friend_rated'`,
+          [fan, locale],
+        )
+      ).rows[0];
+    const place = (await db.query('select name from places where id = $1', [PLACE(17)])).rows[0].name;
+    assert.deepEqual(await text('tr'), { t: `Zeynep, ${place} için 10,0 verdi. Sen 6,6 vermiştin.`, p: `mekan/${PLACE(17)}` });
+    assert.equal((await text('en')).t, `Zeynep gave ${place} a 10.0. You gave it 6.6.`);
   });
 });
 

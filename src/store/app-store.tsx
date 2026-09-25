@@ -8,6 +8,7 @@ import {
   useMemo,
   useReducer,
   useRef,
+  useSyncExternalStore,
   type ReactNode,
 } from 'react';
 
@@ -18,6 +19,7 @@ import * as meApi from '@/api/me';
 import type { LocalImage } from '@/api/storage';
 import { clearEntities, getPlace, upsertPlaces, upsertUsers } from '@/data/entities';
 import { setHapticsEnabled } from '@/lib/haptics';
+import { unregisterDevice } from '@/lib/notifications';
 import i18n from '@/i18n';
 import { keys, queryClient } from '@/lib/query-client';
 import { emptyRankings, flattenRankings, insertEntry, removeFromRankings } from '@/lib/ranking';
@@ -270,15 +272,36 @@ export type Store = State & {
 
 const StoreContext = createContext<Store | null>(null);
 
+/**
+ * Seçici abonelik: uzun listelerdeki bileşenler (feed kartları) tüm mağazayı değil yalnızca seçtikleri
+ * değeri dinler; bir beğeni bütün kartları yeniden çizdirmez. Eylemler sabit, ayrı bağlamda.
+ */
+type StateSource = { get: () => State; subscribe: (listener: () => void) => () => void };
+const StateSourceContext = createContext<StateSource | null>(null);
+const ActionsContext = createContext<Actions | null>(null);
+
 export function AppStoreProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
   // Eşzamansız işlemler en güncel duruma baksın
   const stateRef = useRef(state);
   // Sunucuya yazılmakta olan puanlamalar
   const pendingRanks = useRef(new Map<string, Promise<void>>());
+  const listeners = useRef(new Set<() => void>());
   useLayoutEffect(() => {
+    if (stateRef.current === state) return;
     stateRef.current = state;
+    listeners.current.forEach((listener) => listener());
   });
+  const source = useMemo<StateSource>(
+    () => ({
+      get: () => stateRef.current,
+      subscribe: (listener) => {
+        listeners.current.add(listener);
+        return () => listeners.current.delete(listener);
+      },
+    }),
+    [],
+  );
 
   /* Tercihler ve kayıt taslağı */
   useEffect(() => {
@@ -572,6 +595,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
 
       signOut: async () => {
         const userId = stateRef.current.userId;
+        await unregisterDevice();
         await authApi.signOut();
         if (userId) AsyncStorage.removeItem(cacheKey(userId)).catch(() => {});
       },
@@ -613,7 +637,13 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     [state, actions, scored, scoreOf, isSaved, isFollowing, isLiked, isPostSaved, likeCountOf],
   );
 
-  return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
+  return (
+    <ActionsContext.Provider value={actions}>
+      <StateSourceContext.Provider value={source}>
+        <StoreContext.Provider value={value}>{children}</StoreContext.Provider>
+      </StateSourceContext.Provider>
+    </ActionsContext.Provider>
+  );
 }
 
 export function useAppStore() {
@@ -625,4 +655,18 @@ export function useAppStore() {
 /** Oturum açmış kullanıcının kimliği (oturum yoksa boş metin) */
 export function useMyId(): string {
   return useAppStore().userId ?? '';
+}
+
+/** Mağazadan tek bir değer; yalnızca o değer değişince yeniden çizer (seçici ilkel ya da sabit referans dönmeli) */
+export function useAppSelector<T>(selector: (state: State) => T): T {
+  const source = useContext(StateSourceContext);
+  if (!source) throw new Error('useAppSelector, AppStoreProvider içinde kullanılmalı');
+  return useSyncExternalStore(source.subscribe, () => selector(source.get()));
+}
+
+/** Eylemler (sabit; mağaza değişince yeniden çizdirmez) */
+export function useAppActions(): Actions {
+  const actions = useContext(ActionsContext);
+  if (!actions) throw new Error('useAppActions, AppStoreProvider içinde kullanılmalı');
+  return actions;
 }

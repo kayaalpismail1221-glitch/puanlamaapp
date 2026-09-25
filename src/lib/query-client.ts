@@ -44,5 +44,8 @@ export const keys = {
   userRankings: (userId: string) => ['rankings', userId] as const,
   connections: (userId: string, kind: string) => ['connections', userId, kind] as const,
   suggested: () => ['suggested'] as const,
+  notifications: () => ['notifications'] as const,
+  unreadNotifications: () => ['notifications', 'unread'] as const,
+  mutedNotifications: () => ['notifications', 'muted'] as const,
   leaderboard: (scope: string, period: string, schoolId?: string) => ['leaderboard', scope, period, schoolId] as const,
 };

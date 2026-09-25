@@ -44,7 +44,7 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
   `20260926100000_osm_places` ('osm' kaynağı + 11 yeni kategori, toplam 23), `20260926110000_map_places`
   (harita topluluk katmanı), `20260927100000_moderation` (uygunsuz ifade filtresi + `blocked_users`).
   `20260928100000_recs_moderation_admin` (telefon o an kapatılmıştı, `is_admin` + şikâyet kuyruğu RPC'leri,
-  `recommended_places`). Eski demo silindi; canlıda 12.146 OSM
+  `recommended_places`), `20260929100000_phone_optional`, `20260930100000_notifications` (bildirimler, 2026-09-25 canlıda doğrulandı). Eski demo silindi; canlıda 12.146 OSM
   mekânı ve gerçek mekânlar üzerine yeni demo var (`npm run demo:seed`: 7 `@demo.puanla.app` hesabı, 25 gönderi).
 - Auth: e-posta/şifre açık, **Confirm email kapalı**. SMTP yok (Supabase SMTP'siz şablon düzenletmiyor ve
   varsayılan e-posta kod değil bağlantı gönderiyor). Bu yüzden `src/constants/features.ts` →
@@ -65,6 +65,9 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
   `place_details`, `search_places` (Türkçe katlama + trigram + popülerlik), `search_users`, `suggested_users`,
   `leaderboard`/`user_rank`, `saved_posts`, `delete_account`. PGlite+PostGIS ile 30 DB testi (`npm run test:db`).
 - Puan formülü istemci (`lib/ranking.ts` `scoreAt`) ve sunucu (`sentiment_score`) birebir aynı (tam sayı onda birlik).
+- Puanlama Beli tarzı kalır (kullanıcı kararı 2026-09-25; direkt 0–10 kaydırıcı denendi, vazgeçildi). Akış mantığı
+  `hooks/use-rank-flow.ts`, görünüm `components/rank-steps.tsx` (`compact`). `degerlendir` tam ekran; gönderi ekranında
+  aynı akış "Puanın" bölümüne gömülü ve zorunlu (puanlıysa rozet + "Değiştir"); yeni puan paylaşırken kaydedilir.
 - İstemci: sahte veri tamamen kaldırıldı. Oturum/iyimser güncelleme/cihaz önbelleği `store/app-store.tsx`;
   gönderi paylaşımı yeni puanın yazılmasını bekler (`waitForRank`). Foto: telefonda 1440 px + 480 px küçük kopya
   (`<kullanıcı>/<gönderi>/<n>.jpg` ve `_t.jpg`).
@@ -84,12 +87,48 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
   `onPress`'i React fiber'dan tetiklenir. Reanimated `entering` animasyonları web'de öğeyi gizli bırakabiliyor.
 - `package.json`'daki `tunnel` betiği ve `@expo/ngrok` kullanıcının eklediği, commit edilmemiş değişiklik.
 
-## Sıradaki işler
-1. Web yönetim paneli (şikâyet kuyruğu; RPC'ler hazır). App Store çıkışı: `docs/app-store.md` (destek e-postası, Apple Developer, bundle id — kullanıcı "şimdi koyma,
-   ad değişebilir" dedi —, inceleme hesabı, ekran görüntüleri, EAS build/submit).
-2. Alan adı + Resend SMTP → e-posta doğrulama ve şifre sıfırlamayı aç; yasal sayfaları HTML olarak taşı.
-3. Mekân verisini Foursquare OS Places ile zenginleştirme (Hugging Face token gerekiyor).
-4. Bildirimler (beğeni/yorum/takip), paylaşılabilir "en iyi mekânlarım" hikâye kartı.
+## Sıradaki işler (büyüme önceliğine göre; bkz. "Büyüme" ilkesi)
+1. **Alan adı + web önizleme sayfaları** (`/p/<gönderi>`, `/m/<mekân>`, `/@<kullanıcı>`, OG görseli, App Store butonu)
+   + Universal Links (`appLink` https'e geçer) + App Store `ct` kampanya parametresi. Aynı alan adıyla Resend SMTP →
+   e-posta doğrulama/şifre sıfırlama; yasal sayfalar HTML.
+2. **Birinci taraf ölçüm:** `events` tablosu, paylaşımlarda davet kodu/`sharer_id`, telefonla davet eşleştirme,
+   uzak özellik bayrakları (A/B için). Gizlilik metnini güncelle.
+3. **Masa döngüsü:** rehberden etiketleme (uygulamada olmayan dahil), "Sen kaç verirdin?" daveti, davet bağlamını
+   koruyan onboarding, puan karşılaştırma ekranı. Rehber eşleştirme gelince telefon zorunlu olur.
+4. Bildirimler: "arkadaşın katıldı" (rehber eşleştirme gelince) ve ölü jeton temizliği (Expo yanıtı `DeviceNotRegistered`).
+5. Hikâye kartlarına link/CTA; paylaşılabilir listeler; damak uyumu %; grup oylaması; şehir içi "lezzet rotası" kartı.
+6. App Store çıkışı (`docs/app-store.md`), web yönetim paneli (şikâyet kuyruğu; RPC'ler hazır),
+   Foursquare OS Places ile mekân zenginleştirme.
+
+## Büyüme: viralite ve ağ etkisi (kalıcı ilke)
+Amaç: kullanıcı kazanımını ürünün kendisi üretsin, dağıtım pahalı olmasın. Her yeni özellik şu sorulardan geçer:
+1. **Hangi döngüyü besliyor?** Kullanıcı → eylem → paylaşım → yeni kullanıcı → aktivasyon → tekrar. Hiçbir döngüye
+   ya da ağ etkisine hizmet etmiyorsa önceliği düşük.
+2. **Ağ etkisi yaratıyor mu?** Yeni kullanıcı geldikçe mevcut kullanıcının değeri artmalı (arkadaş puanları
+   `friend_scores`, öneriler `recommended_places`, topluluk ortalaması `map_places`, feed yoğunluğu). Ağ etkisi yerel:
+   büyüme İstanbul'da semt/kampüs kümelerinde yoğunlaşır, dağınık büyüme etkiyi sulandırır.
+3. **Paylaşım temel eylemin yan ürünü mü?** Paylaşım puanlama/gönderi anına bağlanır (ör. gönderi sonrası hikâye
+   önerisi). Doğal viralite: kullanıcı kendi isteğiyle paylaşır. Bazı özellikler ileride davetle açılabilir.
+4. **Paylaşılan her şeyin gidecek yeri var mı?** Her dış paylaşım uygulaması olmayan kişiyi de karşılar (web sayfası +
+   App Store) ve bir çağrı içerir ("Sen kaç verirdin?", "Listeyi kaydet"). Uygulamaya özel `puanla://` tek başına yetmez.
+5. **Ölçülebilir mi?** Paylaşımlar kaynağını taşır (davet kodu/`sharer_id`, App Store `ct`). Ölçüm birinci taraf
+   (Supabase); üçüncü taraf analiz SDK'sı yok. Huni: paylaşım oranı → link açılma → kurulum → kayıt → 7 günde
+   aktivasyon (≥3 puan + ≥3 takip) → ikinci kuşak paylaşım; kohort bazlı K ve döngü süresi.
+6. **Davet bağlamı korunur:** linkle gelen kişinin onboarding'i o mekânla (`ilk-puan`) ve davet edenle (`takip`) başlar.
+
+Durum (2026-09-25): K ≈ 0. `puanla://` linkleri uygulaması olmayana açılmıyor, Ayarlar'daki davet mesajında link yok,
+etiketleme yalnızca mevcut kullanıcılar arası ve bildirimsiz, ölçüm yok. En zayıf halka: link → karşılama.
+Başlangıç dağıtımı kullanıcının ~180 bin takipçili gastronomi hesabı: bu bir kanal, döngü değil; döngüler onu çoğaltır.
+Gerçekçi hedef K ≈ 0,3 (her kampanyanın etkisini ~1,4 katına çıkarmak), K > 1 beklenmez.
+
+**Ana döngü, Masa döngüsü:** restorana genelde birlikte gidilir. Puanla → masadakileri rehberden etiketle →
+"X, Y'ye 8,7 verdi. Sen kaç verirdin?" (sistem paylaşım menüsüyle WhatsApp/iMessage) → web sayfası (puan, sen
+puanlayınca açılır) → kurulum → aynı mekânı puanla + davet edeni takip et → karşılaştırma → bir sonraki yemekte kendi
+masasını etiketler. Atıf kayıttaki telefon numarasıyla (SDK'sız). Viral etkiyle ağ etkisini aynı eylemde birleştirir.
+
+Diğer döngüler: hikâye kartları (var), paylaşılabilir listeler (içerik üreticisi → takipçi kaydeder → kendi listesi),
+damak uyumu %, "Nerede yiyoruz?" grup oylaması (uygulamasız web), okul rekabeti kartı, web mekân sayfalarıyla SEO.
+Tutunma tarafı: bildirimler ve rehber eşleştirme olmadan ağın ürettiği değer kullanıcıya ulaşmaz.
 
 ## Çok dillilik (kalıcı ilke)
 - i18next + react-i18next + expo-localization. `src/i18n/index.ts`: uygulamaya özel örnek, dil tercihi
@@ -195,6 +234,34 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
   (öncelikli) ya da topluluk ortalaması ≥ 6,7 mekânlar; sevdiğin mutfağa bonus, konum varsa uzaklık cezası.
 - **Paylaşım** `lib/share.ts`: profil, gönderi (… menüsü), mekân (sağ üst) → metin + `appLink()` (`puanla://…`,
   Expo Router rotalarını doğrudan açar). Alan adı gelince `constants/app.ts` → `appLink` https evrensel bağlantıya çevrilir.
+- **Bildirimler** (migration `20260930100000_notifications`): `notifications` tablosunu yalnızca tetikleyiciler yazar
+  (beğeni, yorum, etiket, takip; "arkadaşın gittiğin yeri puanladı" = puanlayanı takip eden ve o mekânı puanlamış
+  kişilere, işlem sonunda çalışan ertelenmiş tetikleyiciyle). Kendine, engelli çiftlere ve oturumsuz betiklere bildirim
+  yok; `notifications_once` tekrarları yutar, beğeni/takip/etiket geri alınınca bildirim silinir. Push: bildirim eklenince
+  `pg_net` ile Expo Push API'ye (alıcının dilinde metin `notification_text`, dokununca açılan yol `notification_path`,
+  rozet = okunmamış sayısı); pg_net yoksa (testler) atlanır. Jetonlar `push_tokens` (yalnızca `register/unregister_push_token`),
+  tür başına kapatma `profile_private.push_muted`. İstemci: `lib/notifications.ts` (izin öncesi açıklama, cihaz kaydı,
+  dokununca yönlendirme, çıkışta jeton silme), `bildirimler` (Bugün/Bu hafta/Daha önce, açılınca okundu), `bildirim-ayarlari`,
+  Feed'de zil + okunmamış rozeti. APNs anahtarı EAS build sırasında kurulur; yeni build gerekir.
+- **Feed mekaniği (akıcılık):** FlashList (`getItemType` foto/fotosuz), `PostCard` memo ve yalnızca kendi beğeni/kaydetme
+  durumunu dinler (`useAppSelector` / `useAppActions`; uzun listelerde `useAppStore` kullanma, her değişimde yeniden çizer).
+  Popüler feed sabit anda sıralanır (`feed_popular(..., p_as_of)`, migration `20261001100000_feed_as_of`; yanıttaki `as_of`
+  sonraki sayfalarda geri yollanır), istemci ayrıca tekrarları ayıklar. Yenileme yalnızca ilk sayfayı çeker (`restart`).
+  Fotoğraf: küçük kopya `placeholder`, `recyclingKey`, yeni sayfanın görselleri diske önceden indirilir; karusel genişliği
+  ekrandan. Açılışta açılış görseli yalnızca oturum/tercih okunana kadar; veri beklenirken `LaunchSkeleton`.
+- **Yol tarifi** (`yol-tarifi/[id]`, mekân sayfasındaki haritaya dokununca): yerel Expo modülü `modules/puanla-directions`
+  (Swift, Apple MKDirections; anahtar/ücret yok, EAS build'de derlenir, Expo Go ve web'de yok → `inAppDirections` false,
+  kuş uçuşu + Apple Haritalar yedeği). Yürüyerek/arabayla rota çizgisi, süre, mesafe, varış, adımlar; Başlat: konum takibi,
+  talimat bandı + sesli okuma (`expo-speech`), adım ilerletme/rotadan çıkınca yeniden hesaplama/varış (`lib/directions.ts`),
+  ekran açık kalır. Toplu taşımada MapKit yalnızca süre verir; hat adımları için Apple Haritalar açılır.
+- **Paylaş → Puanla** (`expo-share-intent`, iOS paylaşım uzantısı `app.puanla.share-extension`, App Group `group.app.puanla`):
+  Reels/TikTok/Safari'den paylaşılan bağlantı → `+native-intent` (`dataUrl=` yolunu `paylasim-al`'a çevirir) →
+  `listeye-ekle` (`baglanti` hazır, `ara`: paylaşımdaki 📍 mekân adı; TikTok'ta açıklama oEmbed'den, Instagram açıklama vermez).
+  Sağlayıcı kök düzende en dışta; Expo Go ve web'de kapalı. Yeni build gerekir.
+- **Hikâye kartları** (`hikaye`, 1080×1920 PNG, `react-native-view-shot` + `expo-sharing`): Favori 5, Lezzet haritası,
+  Bu ay (aylık özet; bu ay boşsa geçen ay), tek gönderi. Kartlar `components/story-cards.tsx` (540×960 çizilir,
+  Instagram güvenli alanı içinde), veri `lib/story.ts`. Giriş: Profil → Paylaş menüsü, kendi gönderisinin … menüsü,
+  lezzet haritası paylaş ikonu, gönderi paylaşıldıktan sonra öneri (onboarding hariç).
 - **Gönderi düzenleme** (`gonderi-duzenle`, kendi gönderinde … → Düzenle): açıklama, öğün, öne çıkanlar;
   fotoğraf ve puan değişmez. Öğün/öne çıkan seçicileri `components/post-fields.tsx` (oluşturma ile ortak).
 

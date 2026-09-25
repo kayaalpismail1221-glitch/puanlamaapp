@@ -151,7 +151,26 @@
           "imageWidth": 76
         }
       ],
-      "expo-localization"
+      "expo-localization",
+      "expo-sharing",
+      [
+        "expo-notifications",
+        {
+          "color": "#0F1E3D"
+        }
+      ],
+      [
+        "expo-share-intent",
+        {
+          "iosShareExtensionName": "Puanla",
+          "iosActivationRules": {
+            "NSExtensionActivationSupportsWebURLWithMaxCount": 1,
+            "NSExtensionActivationSupportsWebPageWithMaxCount": 1,
+            "NSExtensionActivationSupportsText": true
+          },
+          "androidIntentFilters": ["text/*"]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

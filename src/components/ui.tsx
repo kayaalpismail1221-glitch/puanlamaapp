@@ -168,15 +168,16 @@ export function ScoreBadge({ score, size = 'md' }: { score: number; size?: 'sm' 
 /* ---------- Avatar ---------- */
 
 export function Avatar({ uri, name, size = 40 }: { uri?: string; name: string; size?: number }) {
-  const [failed, setFailed] = useState(false);
+  const [failedUri, setFailedUri] = useState<string>();
   const style = { width: size, height: size, borderRadius: radius.full };
-  if (uri && !failed) {
+  if (uri && failedUri !== uri) {
     return (
       <Image
         source={{ uri }}
+        recyclingKey={uri}
         style={[style, { backgroundColor: colors.surface }]}
         transition={200}
-        onError={() => setFailed(true)}
+        onError={() => setFailedUri(uri)}
       />
     );
   }
@@ -193,13 +194,17 @@ export function Avatar({ uri, name, size = 40 }: { uri?: string; name: string; s
 
 export function PlaceImage({
   uri,
+  placeholder,
   style,
 }: {
   uri?: string;
+  /** Tam boy yüklenene kadar gösterilecek küçük kopya */
+  placeholder?: string;
   style?: StyleProp<ViewStyle>;
 }) {
-  const [failed, setFailed] = useState(false);
-  if (!uri || failed) {
+  // Hangi adresin yüklenemediği tutulur: liste hücresi başka görselle yeniden kullanılınca sıfırlanır
+  const [failedUri, setFailedUri] = useState<string>();
+  if (!uri || failedUri === uri) {
     return (
       <View style={[styles.imageFallback, style]}>
         <SymbolView name="fork.knife" tintColor={colors.textTertiary} size={24} />
@@ -209,10 +214,13 @@ export function PlaceImage({
   return (
     <Image
       source={{ uri }}
+      placeholder={placeholder ? { uri: placeholder } : undefined}
+      placeholderContentFit="cover"
+      recyclingKey={uri}
       style={[{ backgroundColor: colors.surface }, style as object]}
       contentFit="cover"
-      transition={250}
-      onError={() => setFailed(true)}
+      transition={placeholder ? 150 : 250}
+      onError={() => setFailedUri(uri)}
     />
   );
 }

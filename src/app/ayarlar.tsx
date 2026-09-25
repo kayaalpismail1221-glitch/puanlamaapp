@@ -95,6 +95,7 @@ export default function SettingsScreen() {
       </SettingsGroup>
 
       <SettingsGroup title={t('settings.preferences')}>
+        <SettingsRow icon="bell.fill" label={t('settings.notifications')} onPress={() => router.push('/bildirim-ayarlari')} />
         <SettingsRow icon="globe" label={t('settings.language')} value={languageValue} onPress={() => router.push('/dil')} />
         <SettingsRow
           icon="location.fill"
