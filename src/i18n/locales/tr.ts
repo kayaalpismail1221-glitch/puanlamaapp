@@ -468,7 +468,6 @@ const tr = {
     summary: '{{cities}} şehir · {{places}} mekân',
     share: 'Lezzet haritasını paylaş',
     expand: 'Lezzet haritasını büyüt',
-    shareTheirs: '{{name}} Puanla’da {{cities}} şehirde {{places}} mekân puanladı 🍽️',
   },
 
   settings: {
@@ -804,6 +803,16 @@ const tr = {
     receiving: 'Paylaşım alınıyor…',
   },
 
+  mapShare: {
+    title: 'Paylaş',
+    actions: { share: 'Paylaş', save: 'Kaydet', message: 'Mesajlar', link: 'Bağlantı' },
+    saved: 'Kaydedildi',
+    hint: 'Instagram hikâyesi için: Paylaş → Instagram → Hikâye',
+    messageBody: 'Puanla’daki lezzet haritama bak 🍽️',
+    savePermission: 'Kaydetmek için Ayarlar’dan Fotoğraflar’a ekleme izni ver.',
+    messageUnavailable: 'Bu cihazda Mesajlar kullanılamıyor.',
+  },
+
   story: {
     kinds: { top5: 'Favori 5', map: 'Harita', recap: 'Bu ay', post: 'Gönderi' },
     share: 'Paylaş',
@@ -813,7 +822,7 @@ const tr = {
     top5Kicker: 'En iyi mekânlarım',
     top5Title_one: 'Favori mekânım',
     top5Title_other: 'Favori {{count}} mekânım',
-    mapKicker: 'Lezzet haritam',
+    mapCardTitle: '{{name}} lezzet haritası',
     mapCities_one: '{{count}} şehir',
     mapCities_other: '{{count}} şehir',
     mapPlaces_one: '{{count}} mekân',

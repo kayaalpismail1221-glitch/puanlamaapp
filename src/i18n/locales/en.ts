@@ -465,7 +465,6 @@ const en: Translation = {
     summary: '{{cities}} cities · {{places}} places',
     share: 'Share food map',
     expand: 'Expand food map',
-    shareTheirs: '{{name}} has rated {{places}} places in {{cities}} cities on Puanla 🍽️',
   },
 
   settings: {
@@ -801,6 +800,16 @@ const en: Translation = {
     receiving: 'Getting your share…',
   },
 
+  mapShare: {
+    title: 'Share',
+    actions: { share: 'Share', save: 'Save', message: 'Messages', link: 'Link' },
+    saved: 'Saved',
+    hint: 'For an Instagram story: Share → Instagram → Story',
+    messageBody: 'Check out my food map on Puanla 🍽️',
+    savePermission: 'To save, allow adding to Photos in Settings.',
+    messageUnavailable: 'Messages isn’t available on this device.',
+  },
+
   story: {
     kinds: { top5: 'Top 5', map: 'Map', recap: 'This month', post: 'Post' },
     share: 'Share',
@@ -810,7 +819,7 @@ const en: Translation = {
     top5Kicker: 'My best spots',
     top5Title_one: 'My favorite spot',
     top5Title_other: 'My top {{count}} spots',
-    mapKicker: 'My food map',
+    mapCardTitle: '{{name}} food map',
     mapCities_one: '{{count}} city',
     mapCities_other: '{{count}} cities',
     mapPlaces_one: '{{count}} place',

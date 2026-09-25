@@ -42,18 +42,20 @@ export function mergeVisited(
 
 export type CityDot = { key: string; count: number; point: Point };
 
-/** Şehir başına bir nokta, şehirdeki mekânların ortalama konumunda */
+/** Şehir başına bir nokta, şehirdeki mekânların ortalama konumunda; çok mekânlı şehir önce */
 export function cityDots(items: VisitedPlace[]): CityDot[] {
-  const byCity = new Map<string, Place[]>();
-  for (const { place } of items) byCity.set(place.city, [...(byCity.get(place.city) ?? []), place]);
-  return [...byCity.entries()].map(([city, places]) => ({
-    key: city,
-    count: places.length,
-    point: project(
-      places.reduce((s, p) => s + p.latitude, 0) / places.length,
-      places.reduce((s, p) => s + p.longitude, 0) / places.length,
-    ),
-  }));
+  const byCity = new Map<string, VisitedPlace[]>();
+  for (const item of items) byCity.set(item.place.city, [...(byCity.get(item.place.city) ?? []), item]);
+  return [...byCity.entries()]
+    .map(([city, list]) => ({
+      key: city,
+      count: list.length,
+      point: project(
+        list.reduce((s, i) => s + i.place.latitude, 0) / list.length,
+        list.reduce((s, i) => s + i.place.longitude, 0) / list.length,
+      ),
+    }))
+    .sort((a, b) => b.count - a.count);
 }
 
 /* ---------- Kırılım: mutfak, şehir, ilçe ---------- */

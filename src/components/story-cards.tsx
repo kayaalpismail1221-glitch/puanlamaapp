@@ -7,9 +7,10 @@ import { StyleSheet, View } from 'react-native';
 import { Text } from '@/components/ui';
 import { WorldMap } from '@/components/world-map';
 import { cuisineLabel } from '@/constants/cuisines';
-import { colors, fonts, onScoreColor, scoreColor } from '@/constants/theme';
-import { currentLocale } from '@/i18n';
+import { colors, fonts, gradients, onScoreColor, scoreColor } from '@/constants/theme';
+import { currentLanguage, currentLocale } from '@/i18n';
 import { formatScore, initials, monthYear } from '@/lib/format';
+import { possessive } from '@/lib/possessive';
 import type { ScoredPlace, TasteSlice } from '@/lib/insights';
 import { STORY_SIZE, type MonthRecap } from '@/lib/story';
 import type { CityDot, VisitedSummary } from '@/lib/visited';
@@ -192,43 +193,68 @@ export const PostStoryCard = forwardRef<View, Common & { post: Post; place: Plac
 
 /* ---------- Lezzet haritası ---------- */
 
-const MAP_WIDTH = STORY_SIZE.width - PAD * 2;
+/** Kartın iç genişliği: kenar boşluğu + kart dolgusu */
+const MAP_CARD_PAD = 22;
+const MAP_WIDTH = STORY_SIZE.width - PAD * 2 - MAP_CARD_PAD * 2;
 export const STORY_MAP_ASPECT = 1.15;
 
+/**
+ * Lezzet haritası paylaşımı: degrade zeminde beyaz kart. "İsmail'in lezzet haritası", şehir ve mekân sayısı,
+ * gidilen şehirler haritada, en çok gidilen mutfaklar; altta kim paylaştı.
+ */
 export const MapStoryCard = forwardRef<
   View,
   Common & { dots: CityDot[]; view: ViewBox; summary: VisitedSummary; taste: TasteSlice[] }
 >(function MapStoryCard({ dots, view, summary, taste, ...common }, ref) {
   const { t } = useTranslation();
+  const firstName = common.author.name.split(' ')[0] || common.author.username;
   return (
-    <Frame ref={ref}>
-      <Wordmark />
-      <View style={styles.titleBlock}>
-        <Kicker>{t('story.mapKicker')}</Kicker>
-        <Text style={styles.title}>
-          {t('story.mapCities', { count: summary.cities })},{'\n'}
-          {t('story.mapPlaces', { count: summary.places })}
-        </Text>
-      </View>
-      <View style={styles.map}>
-        <WorldMap view={view} width={MAP_WIDTH} height={MAP_WIDTH / STORY_MAP_ASPECT} dots={dots} dotScale={1.8} />
-      </View>
-      {taste.length > 0 && (
-        <View style={styles.chips}>
-          {taste.slice(0, 3).map((s) => (
-            <View key={s.cuisine} style={styles.chip}>
-              <Text style={styles.chipText}>
-                {cuisineLabel(s.cuisine)} · %{Math.round(s.share * 100)}
-              </Text>
-            </View>
-          ))}
+    <Frame
+      ref={ref}
+      background={<LinearGradient colors={gradients.share} locations={gradients.shareStops} style={StyleSheet.absoluteFill} />}>
+      <View style={styles.spacer} />
+      <View style={styles.mapCard}>
+        <View style={styles.mapCardHeader}>
+          <View style={styles.flex}>
+            <Text style={styles.mapCardTitle} numberOfLines={2}>
+              {t('story.mapCardTitle', { name: possessive(firstName, currentLanguage()) })}
+            </Text>
+            <Text style={styles.mapCardStats}>
+              {t('story.mapCities', { count: summary.cities })} · {t('story.mapPlaces', { count: summary.places })}
+            </Text>
+          </View>
+          <InkWordmark />
         </View>
-      )}
+        <View style={styles.map}>
+          <WorldMap view={view} width={MAP_WIDTH} height={MAP_WIDTH / STORY_MAP_ASPECT} dots={dots} dotScale={1.4} />
+        </View>
+        {taste.length > 0 && (
+          <View style={styles.chips}>
+            {taste.slice(0, 3).map((s) => (
+              <View key={s.cuisine} style={styles.mapChip}>
+                <Text style={styles.mapChipText}>
+                  {cuisineLabel(s.cuisine)} · %{Math.round(s.share * 100)}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
       <View style={styles.spacer} />
       <Footer {...common} />
     </Frame>
   );
 });
+
+/** Beyaz kartın üstünde lacivert "puanla" yazısı */
+function InkWordmark() {
+  return (
+    <View style={styles.wordmark}>
+      <Text style={[styles.wordmarkText, styles.inkWordmark]}>puanla</Text>
+      <View style={[styles.wordmarkDot, styles.inkWordmarkDot]} />
+    </View>
+  );
+}
 
 /* ---------- Aylık özet ---------- */
 
@@ -413,12 +439,57 @@ const styles = StyleSheet.create({
     marginTop: 28,
   },
   map: {
-    marginTop: 32,
     width: MAP_WIDTH,
     aspectRatio: STORY_MAP_ASPECT,
-    borderRadius: 24,
+    borderRadius: 18,
     overflow: 'hidden',
     backgroundColor: colors.mapWater,
+  },
+  mapCard: {
+    padding: MAP_CARD_PAD,
+    gap: 16,
+    borderRadius: 30,
+    backgroundColor: colors.background,
+    boxShadow: '0 18px 48px rgba(5, 12, 30, 0.35)',
+  },
+  mapCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  mapCardTitle: {
+    fontFamily: fonts.serif,
+    fontSize: 28,
+    lineHeight: 33,
+    fontWeight: '700',
+    color: colors.primary,
+    letterSpacing: -0.3,
+  },
+  mapCardStats: {
+    marginTop: 4,
+    fontSize: 17,
+    fontWeight: '500',
+    color: colors.textSecondary,
+  },
+  mapChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: colors.surface,
+  },
+  mapChipText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  inkWordmark: {
+    fontSize: 22,
+    color: colors.primary,
+  },
+  inkWordmarkDot: {
+    width: 6,
+    height: 6,
+    marginBottom: 6,
   },
   chips: {
     flexDirection: 'row',

@@ -21,6 +21,12 @@ export const MAP_HEIGHT = TOP - K * miller(SOUTH);
 
 export type Point = { x: number; y: number };
 
+/**
+ * Lezzet haritasının en yakın görünüm genişliği (harita birimi, ~11,5° boylam): tek şehir varsa
+ * harita Marmara / bölge ölçeğinde kalır, sokak ölçeğine inmez.
+ */
+export const MIN_MAP_VIEW_WIDTH = 32;
+
 /** Enlem/boylamı harita birimine çevirir */
 export function project(latitude: number, longitude: number): Point {
   const lat = Math.max(SOUTH, Math.min(NORTH, latitude));

@@ -160,15 +160,31 @@
         }
       ],
       [
+        "./plugins/with-share-extension-display-name",
+        {
+          "target": "PuanlaShare",
+          "displayName": "Puanla"
+        }
+      ],
+      [
         "expo-share-intent",
         {
-          "iosShareExtensionName": "Puanla",
+          "iosShareExtensionName": "PuanlaShare",
           "iosActivationRules": {
             "NSExtensionActivationSupportsWebURLWithMaxCount": 1,
             "NSExtensionActivationSupportsWebPageWithMaxCount": 1,
             "NSExtensionActivationSupportsText": true
           },
-          "androidIntentFilters": ["text/*"]
+          "androidIntentFilters": [
+            "text/*"
+          ]
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "savePhotosPermission": "Paylaşım görsellerini fotoğraflarına kaydedebilmek için izin gerekiyor.",
+          "isAccessMediaLocationEnabled": false
         }
       ]
     ],

@@ -92,6 +92,7 @@ function RootNavigator() {
         <Stack.Screen name="engellenenler" options={{ title: t('screens.blocked') }} />
         <Stack.Screen name="oneriler" options={{ title: t('screens.recs') }} />
         <Stack.Screen name="gonderi-duzenle" options={{ presentation: 'modal', title: t('screens.editPost') }} />
+        <Stack.Screen name="harita-paylas/[id]" options={{ presentation: 'modal', headerShown: false }} />
         <Stack.Screen name="paylasim-al" options={{ headerShown: false, animation: 'fade' }} />
         <Stack.Screen name="yol-tarifi/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="bildirimler" options={{ title: t('screens.notifications') }} />

@@ -2,7 +2,7 @@ import { Link, router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Share, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { PressableScale, Text } from '@/components/ui';
 import { WorldMap } from '@/components/world-map';
@@ -10,12 +10,10 @@ import { colors, hitSlop, radius, spacing } from '@/constants/theme';
 import { useVisitedPlaces } from '@/hooks/use-visited-places';
 import { isMe } from '@/lib/session';
 import { cityDots, visitedSummary } from '@/lib/visited';
-import { fitView } from '@/lib/world-projection';
+import { fitView, MIN_MAP_VIEW_WIDTH } from '@/lib/world-projection';
 
 /** Harita kutusunun en-boy oranı */
 const ASPECT = 1.6;
-/** Tek şehir varsa bile ülke ölçeğinde kalsın (harita birimi) */
-const MIN_VIEW_WIDTH = 70;
 
 /**
  * Profilde gönderilerin üstündeki lezzet haritası: kişinin gönderi paylaştığı ve puanladığı
@@ -29,15 +27,12 @@ export function VisitedMap({ userId, name }: { userId: string; name: string }) {
   const [width, setWidth] = useState(0);
   const dots = useMemo(() => cityDots(items), [items]);
   const summary = useMemo(() => visitedSummary(items), [items]);
-  const view = useMemo(() => fitView(dots.map((d) => d.point), ASPECT, MIN_VIEW_WIDTH), [dots]);
+  const view = useMemo(() => fitView(dots.map((d) => d.point), ASPECT, MIN_MAP_VIEW_WIDTH), [dots]);
   const mine = isMe(userId);
 
   if (!items.length) return null;
 
-  const share = () =>
-    mine
-      ? router.push({ pathname: '/hikaye', params: { tur: 'map' } })
-      : Share.share({ message: t('tasteMap.shareTheirs', { name, cities: summary.cities, places: summary.places }) });
+  const share = () => router.push({ pathname: '/harita-paylas/[id]', params: { id: userId } });
 
   return (
     <View style={styles.card}>
@@ -64,6 +59,9 @@ export function VisitedMap({ userId, name }: { userId: string; name: string }) {
             accessibilityRole="button"
             accessibilityLabel={t('tasteMap.expand')}>
             {width > 0 && <WorldMap view={view} width={width} height={width / ASPECT} dots={dots} />}
+            <View style={styles.expand} pointerEvents="none">
+              <SymbolView name="arrow.up.left.and.arrow.down.right" tintColor={colors.primary} size={12} weight="semibold" />
+            </View>
           </PressableScale>
         </Link.AppleZoom>
       </Link>
@@ -96,5 +94,16 @@ const styles = StyleSheet.create({
     borderRadius: radius.button,
     overflow: 'hidden',
     backgroundColor: colors.mapWater,
+  },
+  expand: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+    width: 26,
+    height: 26,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
   },
 });

@@ -24,7 +24,7 @@ import { haptics } from '@/lib/haptics';
 import { tasteProfile, type ScoredPlace } from '@/lib/insights';
 import { monthRecap, recapMonth, STORY_EXPORT, STORY_SIZE, type DatedPlace, type StoryKind } from '@/lib/story';
 import { cityDots, visitedSummary } from '@/lib/visited';
-import { fitView } from '@/lib/world-projection';
+import { fitView, MIN_MAP_VIEW_WIDTH } from '@/lib/world-projection';
 import { useAppStore } from '@/store/app-store';
 
 type Params = { tur?: StoryKind; gonderi?: string };
@@ -73,7 +73,7 @@ export default function StoryScreen() {
       view: fitView(
         dots.map((d) => d.point),
         STORY_MAP_ASPECT,
-        70,
+        MIN_MAP_VIEW_WIDTH,
       ),
       summary: visitedSummary(visited.items),
       taste: tasteProfile(visited.items.flatMap((i) => (i.score === undefined ? [] : [{ place: i.place, score: i.score }]))),

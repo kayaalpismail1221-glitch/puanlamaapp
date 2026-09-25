@@ -26,11 +26,19 @@ export const colors = {
   overlay: 'rgba(15, 30, 61, 0.45)',
 
 
-  // Çizim tarzı dünya haritası (profildeki lezzet haritası)
-  mapWater: '#EAF0F8',
-  mapLand: '#D3D9E2',
-  mapBorder: '#FFFFFF',
+  // Çizim tarzı dünya haritası (profildeki lezzet haritası): kâğıt tonunda kara, yumuşak mavi deniz
+  mapWater: '#DCE7F3',
+  mapLand: '#FBFCFE',
+  mapCoast: '#AFC0D4',
+  mapBorder: '#D9E1EB',
+  mapShadow: 'rgba(15, 30, 61, 0.10)',
 } as const;
+
+/** Paylaşım kartlarının zemini: marka lacivertinden açık maviye */
+export const gradients = {
+  share: ['#0F1E3D', '#22386A', '#5670AE'] as const,
+  shareStops: [0, 0.55, 1] as const,
+};
 
 export const spacing = {
   xs: 4,

@@ -26,10 +26,9 @@ import {
   type BreakdownRow,
   type BreakdownSort,
 } from '@/lib/visited';
-import { fitView } from '@/lib/world-projection';
+import { fitView, MIN_MAP_VIEW_WIDTH } from '@/lib/world-projection';
 
 const ASPECT = 1.3;
-const MIN_VIEW_WIDTH = 70;
 
 /** Mutfak satırlarında veritabanındaki Türkçe ad etkin dile çevrilir */
 const rowLabel = (kind: BreakdownKind, label: string) => (kind === 'cuisine' ? cuisineLabel(label) : label);
@@ -61,7 +60,7 @@ export default function VisitedPlacesScreen() {
   const summary = useMemo(() => visitedSummary(items), [items]);
   const rows = useMemo(() => breakdown(items, kind, sort), [items, kind, sort]);
   const mapWidth = screenWidth - spacing.lg * 2;
-  const view = useMemo(() => fitView(dots.map((d) => d.point), ASPECT, MIN_VIEW_WIDTH), [dots]);
+  const view = useMemo(() => fitView(dots.map((d) => d.point), ASPECT, MIN_MAP_VIEW_WIDTH), [dots]);
 
   const selectedItems = selection ? itemsOf(items, selection.kind, selection.key) : [];
   const selectedPosts = selectedItems.flatMap((i) => i.posts).sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));

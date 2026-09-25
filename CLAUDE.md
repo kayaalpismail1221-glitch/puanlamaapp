@@ -76,7 +76,10 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
   hesap silme, Listem, konum yokken feed İstanbul'a düşer + "konumunu aç" bandı.
 - Profilde **Lezzet haritası** (Beli "Dining Map" esinli, kopya değil): Natural Earth'ten üretilen çizim tarzı
   dünya haritası (`npm run generate:world-map` → `constants/world-map.ts`, Miller projeksiyonu `lib/world-projection.ts`),
-  şehir başına nokta, en az ülke ölçeğine yakınlaşır. Büyük hâli `gittigi-yerler/[id]`: şehir noktasına ya da
+  şehir başına nokta, en fazla Marmara/bölge ölçeğine yakınlaşır (`MIN_MAP_VIEW_WIDTH`). İki çözünürlük: dünya 1:50m,
+  Avrupa–Türkiye–Orta Doğu 1:10m (görünüm bölgedeyse; kıyı ve ülke sınırı ayrı çizilir). Görünüm: kâğıt tonunda kara +
+  gölge, yumuşak deniz (enlem-boylam ağı yok: yakında tek çizgi kusur gibi duruyor); noktalar tek renk (puan değil,
+  gidilen yer; kullanıcı kararı), çakışmayan şehir etiketleri (uygulama yazı tipiyle, SVG üstünde). Büyük hâli `gittigi-yerler/[id]`: şehir noktasına ya da
   Mutfaklar/Şehirler/İlçeler satırına dokununca o yerdeki gönderiler. Kart gönderilerin üstünde.
 
 ## Geliştirme notları
@@ -258,6 +261,12 @@ Tutunma tarafı: bildirimler ve rehber eşleştirme olmadan ağın ürettiği de
   Reels/TikTok/Safari'den paylaşılan bağlantı → `+native-intent` (`dataUrl=` yolunu `paylasim-al`'a çevirir) →
   `listeye-ekle` (`baglanti` hazır, `ara`: paylaşımdaki 📍 mekân adı; TikTok'ta açıklama oEmbed'den, Instagram açıklama vermez).
   Sağlayıcı kök düzende en dışta; Expo Go ve web'de kapalı. Yeni build gerekir.
+- **Lezzet haritası paylaşımı** (`harita-paylas/[id]`, profildeki harita kartının paylaş simgesi; kendi ve başkasının):
+  degrade zeminde beyaz kart ("{Ad}'ın lezzet haritası" — `lib/possessive.ts` Türkçe iyelik eki —, şehir · mekân sayısı,
+  harita, en çok gidilen mutfaklar), altta Paylaş / Kaydet (Fotoğraflar, yalnızca ekleme izni) / Mesajlar (görsel ekli) /
+  Bağlantı. Dışa aktarma `lib/story-export.ts`; `expo-media-library` ve `expo-sms` yalnızca düğmeye basınca yüklenir
+  (yerel modül yoksa dosya yüklenirken hata veriyor). Beli'den esinli, birebir kopya değil (App Store 4.1/4.3);
+  Instagram/TikTok logoları kullanılmaz.
 - **Hikâye kartları** (`hikaye`, 1080×1920 PNG, `react-native-view-shot` + `expo-sharing`): Favori 5, Lezzet haritası,
   Bu ay (aylık özet; bu ay boşsa geçen ay), tek gönderi. Kartlar `components/story-cards.tsx` (540×960 çizilir,
   Instagram güvenli alanı içinde), veri `lib/story.ts`. Giriş: Profil → Paylaş menüsü, kendi gönderisinin … menüsü,

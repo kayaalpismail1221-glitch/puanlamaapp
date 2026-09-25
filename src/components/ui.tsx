@@ -148,6 +148,9 @@ export function ScoreBadge({ score, size = 'md' }: { score: number; size?: 'sm' 
   useTranslation(); // dil değişince ondalık ayracı güncellensin
   const dim = size === 'sm' ? 32 : size === 'md' ? 40 : 64;
   const color = scoreColor(score);
+  const text = formatScore(score);
+  // "10,0" dört karakter: dairenin içine sığsın diye biraz küçülür
+  const fontSize = (size === 'sm' ? 13 : size === 'md' ? 15 : 22) * (text.length > 3 ? 0.82 : 1);
   return (
     <View
       style={[
@@ -158,8 +161,11 @@ export function ScoreBadge({ score, size = 'md' }: { score: number; size?: 'sm' 
       <Text
         variant={size === 'lg' ? 'title2' : size === 'md' ? 'subhead' : 'footnote'}
         color={scoreInk(score)}
-        style={{ fontWeight: '700', fontVariant: ['tabular-nums'] }}>
-        {formatScore(score)}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.7}
+        style={{ fontSize, fontWeight: '700', fontVariant: ['tabular-nums'], letterSpacing: -0.3, maxWidth: dim - 6 }}>
+        {text}
       </Text>
     </View>
   );
