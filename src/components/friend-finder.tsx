@@ -10,6 +10,7 @@ import { UserRow } from '@/components/user-row';
 import { colors, spacing } from '@/constants/theme';
 import { usePeopleYouMayKnow, useSearchUsers } from '@/hooks/queries';
 import { shareInvite } from '@/lib/share';
+import { useAppSelector } from '@/store/app-store';
 import type { PersonSuggestion, UserProfile } from '@/types';
 
 type Item = PersonSuggestion | UserProfile;
@@ -21,6 +22,7 @@ const isSuggestion = (item: Item): item is PersonSuggestion => 'reason' in item;
  */
 export function FriendFinder({ header }: { header?: React.ReactElement }) {
   const { t } = useTranslation();
+  const username = useAppSelector((s) => s.profile?.username);
   const [query, setQuery] = useState('');
   const searching = query.trim().replace(/^@/, '').length > 0;
   const suggested = usePeopleYouMayKnow(30);
@@ -62,7 +64,7 @@ export function FriendFinder({ header }: { header?: React.ReactElement }) {
             <Text variant="subhead" color={colors.textSecondary} align="center">
               {t('friends.allCaughtUp')}
             </Text>
-            <Button title={t('contacts.inviteFriends')} icon="square.and.arrow.up" size="sm" onPress={shareInvite} />
+            <Button title={t('contacts.inviteFriends')} icon="square.and.arrow.up" size="sm" onPress={() => shareInvite({ username })} />
           </View>
         )
       }

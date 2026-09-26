@@ -259,10 +259,15 @@ export type TasteMatchJson = {
 
 export type LeaderboardRow = {
   user_id: string;
-  reviews: number;
-  likes: number;
+  xp: number;
   rank: number;
   profile: PublicProfileJson;
+  ratings: number;
+  posts: number;
+  photo_posts: number;
+  likes: number;
+  invites: number;
+  welcome: number;
 };
 
 type Table<Row, Insert = Partial<Row>, Update = Partial<Row>> = {
@@ -292,6 +297,7 @@ export type Database = {
           discoverable: boolean;
           phone_verified_at: string | null;
           verified_phone_hash: string | null;
+          invited_by: string | null;
           updated_at: string;
         },
         { user_id: string; phone?: string | null; discoverable?: boolean },
@@ -582,6 +588,7 @@ export type Database = {
         Returns: LeaderboardRow[];
       };
       user_rank: { Args: { p_user_id: string }; Returns: number | null };
+      set_inviter: { Args: { p_username: string }; Returns: PublicProfileJson };
       username_available: { Args: { p_username: string }; Returns: boolean };
       delete_account: { Args: Record<string, never>; Returns: undefined };
       my_notifications: { Args: { p_before?: string | null; p_limit?: number }; Returns: NotificationRow[] };

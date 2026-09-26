@@ -25,6 +25,7 @@ import type {
   Place,
   Post,
   Segment,
+  User,
   UserProfile,
 } from '@/types';
 
@@ -602,7 +603,25 @@ export async function fetchLeaderboard(
     await supabase.rpc('leaderboard', { p_scope: scope, p_period: period, p_school_id: schoolId, p_limit: 100 }),
   );
   ingestUsers(rows.map((r) => r.profile));
-  return rows.map((r) => ({ userId: r.user_id, reviews: r.reviews, likes: r.likes, rank: r.rank }));
+  return rows.map((r) => ({
+    userId: r.user_id,
+    xp: r.xp,
+    rank: r.rank,
+    breakdown: {
+      ratings: r.ratings,
+      posts: r.posts,
+      photoPosts: r.photo_posts,
+      likes: r.likes,
+      invites: r.invites,
+      welcome: r.welcome,
+    },
+  }));
+}
+
+/** "Seni kim davet etti?": davet edeni kaydeder (bir kez, ilk 30 gün); davet edeni döner */
+export async function setInviter(username: string): Promise<User> {
+  const [user] = ingestUsers([unwrap(await supabase.rpc('set_inviter', { p_username: username }))]);
+  return user!;
 }
 
 export async function fetchUserRank(userId: string): Promise<number | null> {

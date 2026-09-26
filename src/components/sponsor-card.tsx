@@ -36,12 +36,12 @@ export function LeaderboardSponsorCard({ userId }: { userId: string }) {
   const lang = currentLanguage() === 'en' ? 'en' : 'tr';
 
   const entries = board.data ?? [];
-  const mine = entries.find((e) => e.userId === userId && e.reviews > 0);
+  const mine = entries.find((e) => e.userId === userId && e.xp > 0);
   const winner = !!mine && mine.rank <= sponsor.topN;
   // İlk N'in son sırasındakini geçmek için gereken değerlendirme (eşitlikte beğeni belirler, bu yüzden +1)
-  const ranked = entries.filter((e) => e.reviews > 0);
+  const ranked = entries.filter((e) => e.xp > 0);
   const cutoff = ranked.filter((e) => e.rank <= sponsor.topN).at(-1);
-  const toGo = !winner && cutoff && ranked.length >= sponsor.topN ? cutoff.reviews - (mine?.reviews ?? 0) + 1 : undefined;
+  const toGo = !winner && cutoff && ranked.length >= sponsor.topN ? cutoff.xp - (mine?.xp ?? 0) + 1 : undefined;
   const month = new Date().toLocaleDateString(currentLocale(), { month: 'long' });
   const values = { sponsor: sponsor.name, percent: sponsor.discountPercent, top: sponsor.topN, month };
 

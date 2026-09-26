@@ -45,7 +45,10 @@ export type LeaderboardSponsor = {
   };
 };
 
-export const LEADERBOARD_SPONSOR: LeaderboardSponsor | null = {
+/** Şimdilik kapalı (2026-09-27, kullanıcı kararı); açmak için `CULINORA` verilir */
+export const LEADERBOARD_SPONSOR: LeaderboardSponsor | null = null;
+
+export const CULINORA: LeaderboardSponsor = {
   name: 'Culinora',
   wordmark: ['ulin', 'ora'],
   logo: require('../../assets/images/partners/culinora-mark.png'),

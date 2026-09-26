@@ -70,8 +70,15 @@ export function shareTasteMatch(other: { username: string }, percent: number, co
 }
 
 /** Genel davet: indirme bağlantısıyla (yoksa App Store'da aratma önerisiyle) */
-export function shareInvite() {
+/**
+ * Uygulamaya davet mesajı. Kullanıcı adı verilirse davetliye "Seni kim davet etti?" alanına ne yazacağı söylenir
+ * (ilk puanından sonra davet edene +100, davetliye +50 XP). Düğmelere doğrudan bağlanabilir: dokunma olayı
+ * `username` taşımadığı için yok sayılır.
+ */
+export function shareInvite(options?: { username?: string }) {
   const link = inviteLink();
   const how = link ? i18n.t('invite.download', { link }) : i18n.t('invite.searchStore');
-  return Share.share({ message: `${i18n.t('settings.inviteMessage')}\n\n${how}` }).catch(() => {});
+  const username = typeof options?.username === 'string' ? options.username : undefined;
+  const hint = username ? `\n${i18n.t('invite.xpHint', { username })}` : '';
+  return Share.share({ message: `${i18n.t('settings.inviteMessage')}${hint}\n\n${how}` }).catch(() => {});
 }

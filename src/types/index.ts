@@ -117,6 +117,8 @@ export type Profile = {
   phoneVerified: boolean;
   /** Rehberinde numarası olanlar onu bulabilir */
   discoverable: boolean;
+  /** "Seni kim davet etti?" dolduruldu (XP: davet edene +100, sana +50) */
+  hasInviter?: boolean;
 };
 
 /** Kayıt sırasında hesap açılmadan önce toplanan bilgiler (şifre hariç; şifre cihazda saklanmaz) */

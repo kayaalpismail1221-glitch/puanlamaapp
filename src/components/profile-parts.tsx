@@ -83,7 +83,7 @@ export function SchoolChip({ userId, schoolId, editable }: { userId: string; sch
       <Text variant="subhead" style={styles.bold} numberOfLines={1}>
         {schoolLabel(school)}
       </Text>
-      {entry && entry.reviews > 0 && (
+      {entry && entry.xp > 0 && (
         <Text variant="subhead" color={colors.textSecondary}>
           {t('profile.rankAtSchool', { rank: entry.rank })}
         </Text>

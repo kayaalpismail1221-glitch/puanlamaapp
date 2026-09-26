@@ -99,7 +99,7 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
   beğeni/kaydetme/yorum, şikâyet), RLS + sütun yetkileri, günlük sınırlar, sayaç tetikleyicileri; RPC'ler:
   `rank_place`, `create_post`, `feed_popular` (3→10→30 km, yoksa en yakın şehir), `feed_following`,
   `place_details`, `search_places` (Türkçe katlama + trigram + popülerlik), `search_users`, `suggested_users`,
-  `leaderboard`/`user_rank`, `saved_posts`, `delete_account`. PGlite+PostGIS ile 78 DB testi (`npm run test:db`).
+  `leaderboard`/`user_rank`, `saved_posts`, `delete_account`. PGlite+PostGIS ile 82 DB testi (`npm run test:db`).
 - **Keşfet araması (2026-09-26):** mekân, kişi ve semt/ilçe; her harfte canlı (120 ms gecikme, önceki sonuç yenisi
   gelene kadar kalır, eşleşen kısım `HighlightText` ile vurgulu, Türkçe harfsiz yazım `lib/fold.ts` = `tr_fold`).
   `search_areas` şehir/ilçe/mahalle; semt tam yazılınca oranın en yüksek puanlıları Keşfet'te (5), tümü `bolge`
@@ -300,11 +300,19 @@ Tutunma tarafı: bildirimler ve rehber eşleştirme olmadan ağın ürettiği de
   Türk mutfağına özel rozetler, Seri, yıllık hedef, Gönderilerim ızgarası. Sağ üstte paylaş + ⚙️ Ayarlar.
 
 ### Diğer ekranlar
+- **Puanla Ligi / XP (2026-09-27):** liderlik tablosu XP'ye göre (`xp_totals`, `lib/xp.ts` aynı değerler): puanlama
+  +10 (günde en fazla 20), gönderi +20, fotoğraflı +20 ek, gelen beğeni +2 (kendi beğenin değil), davetle katılan
+  ilk puanını verince davet edene +100 / davetliye +50. XP saklanmaz, veriden hesaplanır (silinen gönderinin XP'si
+  düşer). Seviyeler: Çaylak 0 · Meraklı 100 · Gurme 300 · Usta 800 · Efsane 2000. Ligler Genel / Okulum /
+  Arkadaşlar, tüm zamanlar ya da bu ay (İstanbul saatiyle ayın 1'i). Profildeki "Sıralama" = genel XP sırası
+  (`user_rank`). Davet eden: `set_inviter` ("Seni kim davet etti?", ilk 30 gün, bir kez, davet eden daha eski üye;
+  `profile_private.invited_by` yalnızca sahibine görünür); davet mesajı kullanıcı adını söyler. İlk girişte 4 adımlı
+  tanıtım (`leaderboard-intro`, cihazda bir kez; ⓘ ile tekrar). Migration `20261008100000_xp`.
 - **Liderlik tablosu sponsoru** (`constants/sponsors.ts`, `components/sponsor-card.tsx`): ilk ortak Culinora (gastronomi
   kursları; kullanıcının kendi uygulaması). Genel · bu ay tablosunun ilk 10'una Culinora Premium %20 indirimli; kart Culinora'nın tasarım dilinde (siyah, turuncu #FE6E00, logo `assets/images/partners`, "Sponsor" etiketi yok), her
   sekmede, uygunluk hep o tabloya göre. Üç durum: kazanan (tebrik, kod varsa kopyala), yakın ("ilk 10'a N değerlendirme
   kaldı"), duyuru. "Culinora'ya git" platformun mağazasını açar. `promoCode` boşken indirim yalnızca duyuru; kapatmak
-  için `LEADERBOARD_SPONSOR = null`.
+  için `LEADERBOARD_SPONSOR = null`. **2026-09-27'den beri kapalı** (kullanıcı kararı); açmak için `= CULINORA`.
 - **Sana özel öneriler** (`oneriler`, profilde 10 puandan sonra açılır): `recommended_places` — gitmediğin, arkadaş
   (öncelikli) ya da topluluk ortalaması ≥ 6,7 mekânlar; sevdiğin mutfağa bonus, konum varsa uzaklık cezası.
 - **Paylaşım** `lib/share.ts`: profil, gönderi (… menüsü), mekân (sağ üst) → metin + `appLink()` (`puanla://…`,

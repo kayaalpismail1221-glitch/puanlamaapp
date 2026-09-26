@@ -128,7 +128,7 @@ export default function SettingsScreen() {
         <SettingsRow
           icon="square.and.arrow.up"
           label={t('settings.invite')}
-          onPress={shareInvite}
+          onPress={() => shareInvite({ username: profile?.username })}
           last
         />
       </SettingsGroup>

@@ -916,19 +916,96 @@ describe('feed ve arama', () => {
 });
 
 describe('liderlik tablosu', () => {
-  test('değerlendirme sayısı, eşitlikte beğeni; yarışma usulü sıra', async () => {
+  test("XP sırası, yarışma usulü; genelde XP'si olmayan yok (kendin hariç); user_rank aynı sırayı verir", async () => {
     const me = await signUp({ name: 'Yarışmacı' });
     const board = await rows(me, 'select * from leaderboard()');
     for (let i = 1; i < board.length; i++) {
       const [a, b] = [board[i - 1], board[i]];
-      assert.ok(a.reviews > b.reviews || (a.reviews === b.reviews && a.likes >= b.likes));
-      assert.ok(b.rank >= a.rank);
+      assert.ok(a.xp >= b.xp);
+      assert.ok(a.xp > b.xp ? b.rank > a.rank : b.rank === a.rank);
     }
-    // Genel tabloda değerlendirmesi olmayan listelenmez; kullanıcının kendisi hariç
-    assert.ok(board.filter((e) => e.reviews === 0).every((e) => e.user_id === me));
+    assert.ok(board.filter((e) => e.xp === 0).every((e) => e.user_id === me));
+    // Kırılım XP'yi verir
+    for (const e of board) {
+      assert.equal(e.xp, e.ratings * 10 + e.posts * 20 + e.photo_posts * 20 + e.likes * 2 + e.invites * 100 + e.welcome * 50);
+    }
     const top = board[0];
     assert.equal((await one(me, 'select user_rank($1) as r', [top.user_id])).r, top.rank);
     assert.equal((await one(me, 'select user_rank($1) as r', [me])).r, null);
+    await rejects(rows(null, 'select * from leaderboard()'), /42501/);
+  });
+
+  test('XP kuralları: puan +10, gönderi +20, fotoğraf +20, beğeni +2 (kendi beğenin değil); silinince düşer', async () => {
+    const me = await signUp({ name: 'XP Toplayan' });
+    const fan = await signUp({ name: 'XP Hayranı' });
+    const mine = async () => (await rows(me, `select * from leaderboard('friends')`)).find((e) => e.user_id === me);
+    assert.equal((await mine()).xp, 0);
+
+    await as(me, `select rank_place($1, 'liked', 0)`, [PLACE(3)]);
+    assert.equal((await mine()).xp, 10);
+    const plain = randomUUID();
+    await as(me, `select create_post($1, $2, 'x', null, null, '{}', '{}', '{}', '[]')`, [plain, PLACE(3)]);
+    assert.equal((await mine()).xp, 30);
+    await as(me, `select rank_place($1, 'liked', 0)`, [PLACE(4)]);
+    const photo = randomUUID();
+    await as(me, `select create_post($1, $2, 'x', null, null, '{}', '{}', '{}', $3)`, [
+      photo,
+      PLACE(4),
+      JSON.stringify([{ path: `${me}/${photo}/0.jpg` }]),
+    ]);
+    const after = await mine();
+    assert.equal(after.xp, 10 + 20 + 10 + 40);
+    assert.equal(after.photo_posts, 1);
+
+    await as(fan, 'insert into post_likes (post_id) values ($1)', [photo]);
+    await as(me, 'insert into post_likes (post_id) values ($1)', [photo]);
+    assert.equal((await mine()).xp, 82, 'yalnızca başkasının beğenisi');
+    // Bu ayın tablosu da aynı (hepsi bu ay)
+    assert.equal((await rows(me, `select * from leaderboard('friends', 'month')`)).find((e) => e.user_id === me).xp, 82);
+
+    await as(me, 'delete from posts where id = $1', [photo]);
+    assert.equal((await mine()).xp, 10 + 20 + 10);
+  });
+
+  test('günde en fazla 20 puanlama XP getirir', async () => {
+    const me = await signUp({ name: 'Puan Makinesi' });
+    const { rows: many } = await db.query(`select id from places where closed_at is null order by id limit 25`);
+    for (const p of many) await as(me, `select rank_place($1, 'fine', 0)`, [p.id]);
+    const e = (await rows(me, `select * from leaderboard('friends')`)).find((x) => x.user_id === me);
+    assert.equal(e.ratings, 20);
+    assert.equal(e.xp, 200);
+  });
+
+  test('davet: yeni kullanıcı davet edeni bir kez yazar; ilk puanından sonra davet eden +100, davetli +50', async () => {
+    const inviter = await signUp({ name: 'Davet Eden', username: 'davetci' });
+    const invitee = await signUp({ name: 'Davetli' });
+    const xpOf = async (id) => (await rows(id, `select * from leaderboard('friends')`)).find((e) => e.user_id === id);
+
+    const who = await one(invitee, `select set_inviter('@Davetci') as p`);
+    assert.equal(who.p.id, inviter);
+    await rejects(one(invitee, `select set_inviter('davetci')`), /already_set|zaten/);
+    assert.equal((await xpOf(inviter)).invites, 0, 'davetli henüz puan vermedi');
+
+    await as(invitee, `select rank_place($1, 'liked', 0)`, [PLACE(5)]);
+    assert.equal((await xpOf(inviter)).xp, 100);
+    const me = await xpOf(invitee);
+    assert.equal(me.welcome, 1);
+    assert.equal(me.xp, 10 + 50);
+
+    // Kim kimi davet etti başkasına görünmez; sütun doğrudan yazılamaz
+    assert.equal((await rows(inviter, 'select invited_by from profile_private')).every((r) => r.invited_by === null), true);
+    await rejects(as(invitee, 'update profile_private set invited_by = null where user_id = $1', [invitee]), /permission denied/);
+  });
+
+  test('davet eden kuralları: kendisi, bilinmeyen ve senden sonra katılan olamaz', async () => {
+    const early = await signUp({ name: 'Erken' });
+    const late = await signUp({ name: 'Geç', username: 'gecgelen' });
+    const lateName = (await one(late, 'select username from profiles where id = $1', [late])).username;
+    await rejects(one(early, 'select set_inviter($1)', [lateName]), /newer|sonra/);
+    const earlyName = (await one(early, 'select username from profiles where id = $1', [early])).username;
+    await rejects(one(early, 'select set_inviter($1)', [earlyName]), /P0002/);
+    await rejects(one(early, `select set_inviter('yokboylebiri')`), /P0002/);
+    await rejects(rows(null, `select set_inviter('x')`), /42501/);
   });
 
   test('arkadaş ve okul kapsamı', async () => {
