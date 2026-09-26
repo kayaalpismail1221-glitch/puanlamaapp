@@ -1,7 +1,7 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useTranslation } from 'react-i18next';
-import { Alert, Linking, ScrollView, StyleSheet, View } from 'react-native';
+import { Linking, ScrollView, StyleSheet, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 
 import { PlaceDetailSkeleton, PostGridSkeleton } from '@/components/skeleton';
@@ -14,6 +14,7 @@ import { usePlaceDetails, usePlacePosts } from '@/hooks/queries';
 import { formatScore } from '@/lib/format';
 import { linkSource } from '@/lib/links';
 import { haptics } from '@/lib/haptics';
+import { confirmRemoveScore } from '@/lib/remove-score';
 import { highlightLabel } from '@/lib/post-meta';
 import { sharePlace } from '@/lib/share';
 import { useAppStore } from '@/store/app-store';
@@ -40,18 +41,7 @@ export default function PlaceDetailScreen() {
   const myScore = scoreOf(place.id);
   const myEntry = scored.find((e) => e.placeId === place.id);
   // Puan sıralamadan ve Top 3'ten çıkar; paylaşılan gönderiler kalır
-  const confirmUnrank = () =>
-    Alert.alert(t('place.removeScoreTitle'), t('place.removeScoreText', { place: place.name }), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('place.removeScore'),
-        style: 'destructive',
-        onPress: () => {
-          haptics.success();
-          actions.unrank(place.id);
-        },
-      },
-    ]);
+  const confirmUnrank = () => confirmRemoveScore(place.name, () => actions.unrank(place.id));
   const saved = isSaved(place.id);
   const savedEntry = savedPlaces.find((s) => s.placeId === place.id);
   const source = savedEntry?.link ? linkSource(savedEntry.link) : null;

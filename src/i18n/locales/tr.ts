@@ -395,6 +395,8 @@ const tr = {
   },
 
   me: {
+    openPlace: 'Mekânı aç',
+    topThreeMenu: '{{place}} seçenekleri',
     storyCard: 'Hikâye kartı oluştur',
     shareLink: 'Profil bağlantısını paylaş',
     editProfile: 'Profili düzenle',

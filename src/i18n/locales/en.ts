@@ -392,6 +392,8 @@ const en: Translation = {
   },
 
   me: {
+    openPlace: 'Open place',
+    topThreeMenu: '{{place}} options',
     storyCard: 'Create story card',
     shareLink: 'Share profile link',
     editProfile: 'Edit profile',
