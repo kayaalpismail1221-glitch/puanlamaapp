@@ -68,7 +68,7 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
   `20260928100000_recs_moderation_admin` (telefon o an kapatılmıştı, `is_admin` + şikâyet kuyruğu RPC'leri,
   `recommended_places`), `20260929100000_phone_optional`, `20260930100000_notifications` (bildirimler, 2026-09-25 canlıda doğrulandı),
   `20261003100000_place_quality` (2026-09-26: `admin_areas`, `place_sources`, adres/telefon/web, koordinattan semt).
-  **Henüz canlıya uygulanmadı:** `20261002100000_table_loop` (telefon doğrulama, rehber eşleştirme, davetler). Eski demo silindi; canlıda OSM + Overture
+  `20261002100000_table_loop` (telefon doğrulama, rehber eşleştirme, davetler; 2026-09-26 canlıda doğrulandı). Eski demo silindi; canlıda OSM + Overture
   mekânları ve gerçek mekânlar üzerine yeni demo var (`npm run demo:seed`: 7 `@demo.puanla.app` hesabı, 25 gönderi).
 - Auth: e-posta/şifre açık, **Confirm email kapalı**. SMTP yok (Supabase SMTP'siz şablon düzenletmiyor ve
   varsayılan e-posta kod değil bağlantı gönderiyor). Bu yüzden `src/constants/features.ts` →
