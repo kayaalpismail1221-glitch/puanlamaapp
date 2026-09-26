@@ -14,7 +14,6 @@ import { colors, gradients, hitSlop, radius, scoreColor, spacing } from '@/const
 import { useUser } from '@/data/entities';
 import { useVisitedPlaces } from '@/hooks/use-visited-places';
 import { haptics } from '@/lib/haptics';
-import { tasteProfile } from '@/lib/insights';
 import { isMe } from '@/lib/session';
 import { shareProfile } from '@/lib/share';
 import { STORY_SIZE } from '@/lib/story';
@@ -34,7 +33,7 @@ const ACTIONS: { key: Action; icon: SFSymbol }[] = [
 
 /**
  * Lezzet haritası paylaşımı: kartın önizlemesi ve altta paylaşım yolları. Kart "{Ad}'ın lezzet haritası",
- * şehir ve mekân sayısı, harita ve en çok gidilen mutfakları gösterir; 1080×1920 görsel olarak gider.
+ * şehir ve mekân sayısı ile haritayı gösterir; 1080×1920 görsel olarak gider.
  */
 export default function ShareTasteMapScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -61,7 +60,6 @@ export default function ShareTasteMapScreen() {
         MIN_MAP_VIEW_WIDTH,
       ),
       summary: visitedSummary(items),
-      taste: tasteProfile(items.flatMap((i) => (i.score === undefined ? [] : [{ place: i.place, score: i.score }]))),
     };
   }, [items]);
 

@@ -47,9 +47,13 @@ export default function ListScreen() {
 
   const { list, items } = details;
   const mine = isMe(list.author.id);
-  const share = () => shareList(list);
-
   const openStory = () => router.push({ pathname: '/hikaye', params: { liste: list.id } });
+  /** Tek paylaş: görsel hikâye kartı mı, bağlantı mı */
+  const share = () =>
+    showMenu(t('lists.shareTitle'), [
+      { label: t('lists.shareStory'), onPress: openStory },
+      { label: t('lists.shareLink'), onPress: () => shareList(list) },
+    ]);
   const edit = () => router.push({ pathname: '/liste-duzenle', params: { id: list.id } });
   const confirmDelete = () =>
     Alert.alert(t('lists.deleteTitle'), t('lists.deleteText', { title: list.title }), [
@@ -73,12 +77,10 @@ export default function ListScreen() {
       undefined,
       mine
         ? [
-            { label: t('lists.storyCard'), onPress: openStory },
             { label: t('lists.edit'), onPress: edit },
             { label: t('lists.deleteTitle'), destructive: true, onPress: confirmDelete },
           ]
         : [
-            { label: t('lists.storyCard'), onPress: openStory },
             { label: t('moderation.report'), destructive: true, onPress: () => openReportMenu({ listId: list.id }) },
             {
               label: t('moderation.blockUser', { name: list.author.name.split(' ')[0] }),
@@ -110,15 +112,11 @@ export default function ListScreen() {
       <Stack.Screen
         options={{
           title: '',
+          // Paylaşım aşağıdaki tek "Paylaş" düğmesinde; burada yalnızca diğer seçenekler
           headerRight: () => (
-            <View style={styles.headerButtons}>
-              <PressableScale onPress={share} hitSlop={hitSlop} accessibilityLabel={t('common.share')}>
-                <SymbolView name="square.and.arrow.up" tintColor={colors.primary} size={20} />
-              </PressableScale>
-              <PressableScale onPress={openMenu} hitSlop={hitSlop} accessibilityLabel={t('moderation.options')}>
-                <SymbolView name="ellipsis.circle" tintColor={colors.primary} size={22} />
-              </PressableScale>
-            </View>
+            <PressableScale onPress={openMenu} hitSlop={hitSlop} accessibilityLabel={t('moderation.options')}>
+              <SymbolView name="ellipsis.circle" tintColor={colors.primary} size={22} />
+            </PressableScale>
           ),
         }}
       />
@@ -161,7 +159,13 @@ export default function ListScreen() {
                     onPress={toggleSave}
                     style={styles.flex}
                   />
-                  <Button title={t('common.share')} variant="outline" onPress={share} style={styles.flex} />
+                  <Button
+                    title={t('common.share')}
+                    icon="square.and.arrow.up"
+                    variant="outline"
+                    onPress={share}
+                    style={styles.flex}
+                  />
                 </>
               )}
             </View>

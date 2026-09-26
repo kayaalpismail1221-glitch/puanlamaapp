@@ -23,7 +23,7 @@ import { useListDetails, useUserPosts } from '@/hooks/queries';
 import { useVisitedPlaces } from '@/hooks/use-visited-places';
 import { haptics } from '@/lib/haptics';
 import { isMe } from '@/lib/session';
-import { tasteProfile, type ScoredPlace } from '@/lib/insights';
+import type { ScoredPlace } from '@/lib/insights';
 import { monthRecap, recapMonth, STORY_EXPORT, STORY_SIZE, type DatedPlace, type StoryKind } from '@/lib/story';
 import { cityDots, visitedSummary } from '@/lib/visited';
 import { fitView, MIN_MAP_VIEW_WIDTH } from '@/lib/world-projection';
@@ -81,7 +81,6 @@ export default function StoryScreen() {
         MIN_MAP_VIEW_WIDTH,
       ),
       summary: visitedSummary(visited.items),
-      taste: tasteProfile(visited.items.flatMap((i) => (i.score === undefined ? [] : [{ place: i.place, score: i.score }]))),
     };
   }, [visited.items]);
 

@@ -5,7 +5,6 @@ import { Alert, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { LinearTransition } from 'react-native-reanimated';
 
 import { Avatar, PlaceImage, PressableScale, Text } from '@/components/ui';
-import { cuisineLabel } from '@/constants/cuisines';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
 import { schoolById, schoolLabel } from '@/data/schools';
 import { useLeaderboard } from '@/hooks/queries';
@@ -13,7 +12,7 @@ import { formatScore, monthYear } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
 import { showMenu } from '@/lib/moderation';
 import { confirmRemoveScore } from '@/lib/remove-score';
-import type { Badge, ScoredPlace, TasteSlice } from '@/lib/insights';
+import type { Badge, ScoredPlace } from '@/lib/insights';
 
 /* ---------- Kimlik: avatar, kullanıcı adı, üyelik ---------- */
 
@@ -334,43 +333,6 @@ export function TopThree({ items, title, onRemoveScore }: TopThreeProps) {
   );
 }
 
-/* ---------- Damak zevki ---------- */
-
-export function TasteCard({ slices, title }: { slices: TasteSlice[]; title: string }) {
-  const { t } = useTranslation();
-  if (!slices.length) return null;
-  return (
-    <View style={styles.section}>
-      <Text variant="title3" style={styles.sectionTitle}>
-        {title}
-      </Text>
-      <View style={styles.tasteCard}>
-        {slices.map((s) => (
-          <View key={s.cuisine} style={styles.tasteRow}>
-            <View style={styles.tasteLabel}>
-              <Text variant="subhead" style={styles.bold} numberOfLines={1}>
-                {cuisineLabel(s.cuisine)}
-              </Text>
-              <Text variant="caption" color={colors.textSecondary}>
-                {t('profile.tasteRow', { count: s.count, average: formatScore(s.average) })}
-              </Text>
-            </View>
-            <View style={styles.tasteTrack}>
-              <Animated.View
-                layout={LinearTransition.springify()}
-                style={[styles.tasteFill, { width: `${Math.max(s.share * 100, 6)}%` }]}
-              />
-            </View>
-            <Text variant="footnote" color={colors.primary} style={styles.tastePct}>
-              {t('profile.percent', { value: Math.round(s.share * 100) })}
-            </Text>
-          </View>
-        ))}
-      </View>
-    </View>
-  );
-}
-
 /* ---------- Rozetler ---------- */
 
 export function BadgeStrip({ badges }: { badges: Badge[] }) {
@@ -502,39 +464,6 @@ const styles = StyleSheet.create({
     right: spacing.sm,
     bottom: spacing.sm,
     gap: 2,
-  },
-  tasteCard: {
-    marginHorizontal: spacing.lg,
-    padding: spacing.lg,
-    gap: spacing.lg,
-    borderRadius: radius.card,
-    backgroundColor: colors.surface,
-  },
-  tasteRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  tasteLabel: {
-    width: 118,
-  },
-  tasteTrack: {
-    flex: 1,
-    height: 8,
-    borderRadius: radius.full,
-    backgroundColor: colors.background,
-    overflow: 'hidden',
-  },
-  tasteFill: {
-    height: '100%',
-    borderRadius: radius.full,
-    backgroundColor: colors.primary,
-  },
-  tastePct: {
-    width: 40,
-    textAlign: 'right',
-    fontWeight: '600',
-    fontVariant: ['tabular-nums'],
   },
   badgeRow: {
     gap: spacing.sm,

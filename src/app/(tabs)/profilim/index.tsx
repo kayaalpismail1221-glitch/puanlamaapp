@@ -14,7 +14,6 @@ import {
   ProfileIdentity,
   SchoolChip,
   StatCard,
-  TasteCard,
   TopThree,
 } from '@/components/profile-parts';
 import { ProfileStats } from '@/components/profile-stats';
@@ -22,10 +21,10 @@ import { PostGridSkeleton } from '@/components/skeleton';
 import { Button, Divider, PressableScale, Text } from '@/components/ui';
 import { colors, hitSlop, spacing } from '@/constants/theme';
 import { getPlace, useEntitiesVersion } from '@/data/entities';
-import { useUserPosts, useUserRank } from '@/hooks/queries';
+import { useUserPosts } from '@/hooks/queries';
 import { showMenu } from '@/lib/moderation';
 import { queryClient } from '@/lib/query-client';
-import { computeBadges, tasteProfile, type ScoredPlace } from '@/lib/insights';
+import { computeBadges, type ScoredPlace } from '@/lib/insights';
 import { shareProfile as shareProfileLink } from '@/lib/share';
 import { placesThisYear, weeklyStreak } from '@/lib/stats';
 import { useAppStore } from '@/store/app-store';
@@ -38,7 +37,6 @@ export default function ProfileScreen() {
   const { t } = useTranslation();
   const me = userId ?? '';
   const postsQuery = useUserPosts(me);
-  const myRank = useUserRank(me).data;
   const version = useEntitiesVersion();
   const [refreshing, setRefreshing] = useState(false);
 
@@ -60,7 +58,6 @@ export default function ProfileScreen() {
     setRefreshing(false);
   };
   const streak = weeklyStreak([...allEntries.map((e) => e.ratedAt), ...myPosts.map((p) => p.createdAt)]);
-  const taste = useMemo(() => tasteProfile(myPlaces), [myPlaces]);
   const badges = useMemo(
     () =>
       computeBadges({
@@ -153,18 +150,10 @@ export default function ProfileScreen() {
 
         <ProfileLists userId={me} name={profile?.name ?? ''} mine />
 
+        {/* Sıralama üstteki istatistiklerde (Takipçi · Takip · Sıralama); burada yalnızca seri */}
         <View style={styles.cards}>
-          <StatCard
-            icon="trophy"
-            title={t('me.ranking')}
-            value={myRank ? `#${myRank}` : undefined}
-            locked={!myRank}
-            onPress={() => router.push('/siralama')}
-          />
           <StatCard icon="flame" title={t('me.streak')} value={t('me.weeks', { count: streak })} />
         </View>
-
-        <TasteCard slices={taste} title={t('me.taste')} />
 
         <BadgeStrip badges={badges} />
 

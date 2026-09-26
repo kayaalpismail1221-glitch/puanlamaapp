@@ -11,7 +11,7 @@ import { colors, fonts, gradients, onScoreColor, scoreColor } from '@/constants/
 import { currentLanguage, currentLocale } from '@/i18n';
 import { formatScore, initials, monthYear } from '@/lib/format';
 import { possessive } from '@/lib/possessive';
-import type { ScoredPlace, TasteSlice } from '@/lib/insights';
+import type { ScoredPlace } from '@/lib/insights';
 import { placeShortArea } from '@/lib/place';
 import { STORY_SIZE, type MonthRecap } from '@/lib/story';
 import type { CityDot, VisitedSummary } from '@/lib/visited';
@@ -247,12 +247,11 @@ export const STORY_MAP_ASPECT = 1.15;
 
 /**
  * Lezzet haritası paylaşımı: degrade zeminde beyaz kart. "İsmail'in lezzet haritası", şehir ve mekân sayısı,
- * gidilen şehirler haritada, en çok gidilen mutfaklar; altta kim paylaştı.
+ * gidilen şehirler haritada; altta kim paylaştı.
  */
-export const MapStoryCard = forwardRef<
-  View,
-  Common & { dots: CityDot[]; view: ViewBox; summary: VisitedSummary; taste: TasteSlice[] }
->(function MapStoryCard({ dots, view, summary, taste, ...common }, ref) {
+type MapStoryProps = Common & { dots: CityDot[]; view: ViewBox; summary: VisitedSummary };
+
+export const MapStoryCard = forwardRef<View, MapStoryProps>(function MapStoryCard({ dots, view, summary, ...common }, ref) {
   const { t } = useTranslation();
   const firstName = common.author.name.split(' ')[0] || common.author.username;
   return (
@@ -275,17 +274,6 @@ export const MapStoryCard = forwardRef<
         <View style={styles.map}>
           <WorldMap view={view} width={MAP_WIDTH} height={MAP_WIDTH / STORY_MAP_ASPECT} dots={dots} dotScale={1.4} />
         </View>
-        {taste.length > 0 && (
-          <View style={styles.chips}>
-            {taste.slice(0, 3).map((s) => (
-              <View key={s.cuisine} style={styles.mapChip}>
-                <Text style={styles.mapChipText}>
-                  {cuisineLabel(s.cuisine)} · %{Math.round(s.share * 100)}
-                </Text>
-              </View>
-            ))}
-          </View>
-        )}
       </View>
       <View style={styles.spacer} />
       <Footer {...common} />
