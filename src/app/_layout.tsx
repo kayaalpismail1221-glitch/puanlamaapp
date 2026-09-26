@@ -13,6 +13,7 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { BackendSetup } from '@/components/backend-setup';
 import { LaunchSkeleton } from '@/components/skeleton';
 import { ErrorView } from '@/components/ui';
+import { ZoomOverlayProvider } from '@/components/zoom-overlay';
 import { colors } from '@/constants/theme';
 import { useLanguageLoaded } from '@/i18n';
 import { usePushNotifications } from '@/lib/notifications';
@@ -144,7 +145,10 @@ export default function RootLayout() {
             <QueryClientProvider client={queryClient}>
               <AppStoreProvider>
                 <StatusBar style="dark" />
-                <RootNavigator />
+                {/* Yakınlaştırılan fotoğraf gezinmenin (başlık, alt bar) üstünde çizilir */}
+                <ZoomOverlayProvider>
+                  <RootNavigator />
+                </ZoomOverlayProvider>
               </AppStoreProvider>
             </QueryClientProvider>
           </ThemeProvider>
