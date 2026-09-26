@@ -493,6 +493,10 @@ export type Database = {
         Args: { p_query: string; p_limit?: number };
         Returns: { kind: 'city' | 'district' | 'neighborhood'; name: string; district: string | null; city: string; place_count: number }[];
       };
+      area_bounds: {
+        Args: { p_city: string; p_district?: string | null; p_neighborhood?: string | null };
+        Returns: { south: number; west: number; north: number; east: number }[];
+      };
       area_top_places: {
         Args: {
           p_city: string;

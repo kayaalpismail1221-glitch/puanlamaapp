@@ -1185,6 +1185,8 @@ const tr = {
     average_one: 'Puanla puanı · {{count}} kişi',
     average_other: 'Puanla puanı · {{count}} kişi',
     mapPlaceholder: 'Harita (yalnızca iOS)',
+    searchPlaceholder: 'Mekân, semt, ilçe ara',
+    clearSearch: 'Aramayı temizle',
   },
 };
 

@@ -1758,3 +1758,20 @@ describe('arama hızı: bölge dizini ve mekân arama', () => {
     }
   });
 });
+
+describe('haritada bölgeye gitme', () => {
+  test('bölge sınırları mekânlarını kapsar; mekânsız bölge boş; oturumsuz çağrılamaz', async () => {
+    const me = await signUp({ name: 'Haritada Gezen' });
+    const b = await one(me, `select * from area_bounds('İstanbul', 'Kadıköy')`);
+    assert.ok(b.south < b.north && b.west < b.east);
+    const inside = await rows(me, `select latitude, longitude from places where district = 'Kadıköy' and closed_at is null`);
+    const within = inside.filter((p) => p.latitude >= b.south && p.latitude <= b.north && p.longitude >= b.west && p.longitude <= b.east);
+    assert.ok(within.length >= inside.length * 0.9);
+    // Kadıköy, İstanbul'un içinde kalır
+    const city = await one(me, `select * from area_bounds('İstanbul')`);
+    assert.ok(city.south <= b.south && city.north >= b.north);
+    assert.ok((await one(me, `select * from area_bounds('İstanbul', 'Kadıköy', 'Moda')`)).north <= b.north);
+    assert.equal((await rows(me, `select * from area_bounds('Hayal Şehir')`)).length, 0);
+    await rejects(rows(null, `select * from area_bounds('İstanbul')`), /42501/);
+  });
+});

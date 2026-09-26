@@ -338,6 +338,18 @@ export async function fetchAreaTopPlaces(
   return rows.map((r, i) => ({ place: places[i]!, average: r.average ?? undefined, count: r.rating_count }));
 }
 
+/** Bölgenin haritadaki alanı (açık mekânlarının kapladığı; mekânı yoksa null) */
+export async function fetchAreaBounds(area: Pick<AreaHit, 'kind' | 'name' | 'city' | 'district'>): Promise<MapBounds | null> {
+  const rows = unwrap(
+    await supabase.rpc('area_bounds', {
+      p_city: area.city,
+      p_district: area.kind === 'city' ? null : (area.district ?? area.name),
+      p_neighborhood: area.kind === 'neighborhood' ? area.name : null,
+    }),
+  );
+  return rows[0] ?? null;
+}
+
 export async function searchPlaces(query: string, coords: Coords | null): Promise<Place[]> {
   const rows = unwrap(
     await supabase.rpc('search_places', {

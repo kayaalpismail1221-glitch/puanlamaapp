@@ -1182,6 +1182,8 @@ const en: Translation = {
     average_one: 'Puanla score · {{count}} rating',
     average_other: 'Puanla score · {{count}} ratings',
     mapPlaceholder: 'Map (iOS only)',
+    searchPlaceholder: 'Search places and areas',
+    clearSearch: 'Clear search',
   },
 };
 
