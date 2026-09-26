@@ -4,16 +4,18 @@ import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { Bone, Skeleton } from '@/components/skeleton';
-import { PlaceImage, PressableScale, Text } from '@/components/ui';
+import { Button, PlaceImage, PressableScale, Text } from '@/components/ui';
 import { colors, fonts, hitSlop, radius, spacing } from '@/constants/theme';
 import { useUserLists } from '@/hooks/queries';
+import { currentLanguage } from '@/i18n';
+import { possessive } from '@/lib/possessive';
 import type { PlaceList } from '@/types';
 
 const CARD_WIDTH = 200;
 const COVER_HEIGHT = 124;
 
 export const openList = (id: string) => router.push({ pathname: '/liste/[id]', params: { id } });
-export const newList = () => router.push('/liste-duzenle');
+export const newList = (title?: string) => router.push({ pathname: '/liste-duzenle', params: title ? { baslik: title } : {} });
 
 /** Kapak: en iyi 3 mekânın fotoğrafı (bir büyük + iki küçük); fotoğraf yoksa gri zemin */
 export function ListCover({ covers, height = COVER_HEIGHT }: { covers: string[]; height?: number }) {
@@ -56,7 +58,7 @@ export function ListCard({ list, showAuthor }: { list: PlaceList; showAuthor?: b
 function NewListCard() {
   const { t } = useTranslation();
   return (
-    <PressableScale onPress={newList} scaleTo={0.97} style={styles.card} accessibilityRole="button">
+    <PressableScale onPress={() => newList()} scaleTo={0.97} style={styles.card} accessibilityRole="button">
       <View style={[styles.cover, styles.newCover]}>
         <View style={styles.plus}>
           <SymbolView name="plus" tintColor={colors.onPrimary} size={18} weight="bold" />
@@ -127,16 +129,43 @@ export function ListStripSkeleton() {
 }
 
 /**
- * Profildeki listeler: kendi profilinde "Yeni liste" kartıyla her zaman görünür,
- * başkasının profilinde yalnızca listesi varsa.
+ * Profildeki listeler. Başkasının profilinde "İsmail'in listeleri" (listesi yoksa hiç görünmez);
+ * kendi profilinde "Listelerim" + Yeni liste kartı, hiç listen yoksa "Favori mekânlarını listele" çağrısı.
  */
-export function ProfileLists({ userId, mine }: { userId: string; mine?: boolean }) {
+export function ProfileLists({ userId, name, mine }: { userId: string; name: string; mine?: boolean }) {
   const { t } = useTranslation();
   const query = useUserLists(userId);
   if (query.isPending) return <ListStripSkeleton />;
   const lists = query.data ?? [];
-  if (!mine && lists.length === 0) return null;
-  return <ListStrip title={mine ? t('lists.mine') : t('lists.title')} lists={lists} withNew={mine} />;
+  if (mine && lists.length === 0) return <CreateListPrompt />;
+  if (lists.length === 0) return null;
+  const firstName = name.split(' ')[0] || name;
+  return (
+    <ListStrip
+      title={mine ? t('lists.mine') : t('lists.theirs', { name: possessive(firstName, currentLanguage()) })}
+      lists={lists}
+      withNew={mine}
+    />
+  );
+}
+
+/** Kendi profilinde henüz liste yokken: favori mekânlar listesiyle başlama çağrısı */
+function CreateListPrompt() {
+  const { t } = useTranslation();
+  return (
+    <View style={styles.prompt}>
+      <View style={styles.promptIcon}>
+        <SymbolView name="list.star" tintColor={colors.onPrimary} size={20} />
+      </View>
+      <View style={styles.promptText}>
+        <Text variant="headline">{t('lists.emptyTitle')}</Text>
+        <Text variant="footnote" color={colors.textSecondary}>
+          {t('lists.emptyText')}
+        </Text>
+      </View>
+      <Button title={t('lists.create')} size="sm" onPress={() => newList(t('lists.favoritesTitle'))} />
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -208,5 +237,27 @@ const styles = StyleSheet.create({
   },
   bold: {
     fontWeight: '600',
+  },
+  prompt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.xl,
+    padding: spacing.lg,
+    borderRadius: radius.card,
+    backgroundColor: colors.surface,
+  },
+  promptIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+  },
+  promptText: {
+    flex: 1,
+    gap: 2,
   },
 });

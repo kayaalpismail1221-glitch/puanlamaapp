@@ -151,7 +151,7 @@ export default function ProfileScreen() {
 
         <TopThree items={myPlaces} title={t('me.topThree')} onRemoveScore={actions.unrank} />
 
-        <ProfileLists userId={me} mine />
+        <ProfileLists userId={me} name={profile?.name ?? ''} mine />
 
         <View style={styles.cards}>
           <StatCard

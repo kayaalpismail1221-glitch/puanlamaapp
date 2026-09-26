@@ -145,7 +145,7 @@ export default function UserProfileScreen() {
 
         <TopThree items={beenPlaces} title={t('user.topThree', { name: user.name.split(' ')[0] })} />
 
-        <ProfileLists userId={user.id} mine={isMe(user.id)} />
+        <ProfileLists userId={user.id} name={user.name} mine={isMe(user.id)} />
 
         <View style={styles.cards}>
           <StatCard

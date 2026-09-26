@@ -26,7 +26,8 @@ import type { Place, PlaceList, PlaceListItem, Post } from '@/types';
  * çağırır; ekran tüm görseller hazır olmadan görüntü almaz.
  */
 
-export type StoryAuthor = { name: string; username: string; avatarUri?: string };
+/** Kartın altındaki kişi; `hint` verilmezse "Puanla'da beni takip et" (başkasının listesinde "Puanla'da takip et") */
+export type StoryAuthor = { name: string; username: string; avatarUri?: string; hint?: string };
 
 type Common = { author: StoryAuthor; onImageSettled?: (uri: string) => void };
 
@@ -95,7 +96,7 @@ function Footer({ author, onImageSettled }: Common) {
           @{author.username}
         </Text>
         <Text style={styles.footerHint} numberOfLines={1}>
-          {t('story.followHint')}
+          {author.hint ?? t('story.followHint')}
         </Text>
       </View>
     </View>

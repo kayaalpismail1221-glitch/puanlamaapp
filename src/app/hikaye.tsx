@@ -22,6 +22,7 @@ import { getPlace, useEntitiesVersion, usePlace, usePost } from '@/data/entities
 import { useListDetails, useUserPosts } from '@/hooks/queries';
 import { useVisitedPlaces } from '@/hooks/use-visited-places';
 import { haptics } from '@/lib/haptics';
+import { isMe } from '@/lib/session';
 import { tasteProfile, type ScoredPlace } from '@/lib/insights';
 import { monthRecap, recapMonth, STORY_EXPORT, STORY_SIZE, type DatedPlace, type StoryKind } from '@/lib/story';
 import { cityDots, visitedSummary } from '@/lib/visited';
@@ -109,7 +110,18 @@ export default function StoryScreen() {
     (uri: string) => setSettled((prev) => (prev.has(uri) ? prev : new Set(prev).add(uri))),
     [],
   );
-  const expected = [author.avatarUri, kind === 'post' ? post?.photos[0] : undefined].filter(
+  // Liste kartında altta listenin sahibi (başkasının listesi de paylaşılabilir)
+  const listAuthor: StoryAuthor | undefined =
+    kind === 'list' && listDetails && !isMe(listDetails.list.author.id)
+      ? {
+          name: listDetails.list.author.name,
+          username: listDetails.list.author.username,
+          avatarUri: listDetails.list.author.avatarUrl,
+          hint: t('story.followHintOther'),
+        }
+      : undefined;
+  const cardAuthor = listAuthor ?? author;
+  const expected = [cardAuthor.avatarUri, kind === 'post' ? post?.photos[0] : undefined].filter(
     (u): u is string => !!u,
   );
   const imagesReady = expected.every((u) => settled.has(u));
@@ -170,7 +182,7 @@ export default function StoryScreen() {
     );
   }
 
-  const common = { ref: cardRef, author, onImageSettled };
+  const common = { ref: cardRef, author: cardAuthor, onImageSettled };
   const card =
     kind === 'post' && post && postPlace ? (
       <PostStoryCard {...common} post={post} place={postPlace} />

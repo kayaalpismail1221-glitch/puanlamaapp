@@ -172,7 +172,7 @@ const privacyTr: LegalText = {
     {
       heading: '3. Kimler görebilir',
       paragraphs: [
-        'Profilin (ad, kullanıcı adı, fotoğraf, okul), puanların, gönderilerin ve yorumların Puanla kullanıcılarına görünür. Oluşturduğun listeler (başlık, açıklama, notlar, mekânlar ve puanların, adın ve profil fotoğrafın) bağlantıyı alan herkese, uygulaması olmayanlara da web sayfasında açıktır. E-posta adresin diğer kullanıcılara gösterilmez. Engellediğin kişiler seni ve paylaşımlarını uygulamada göremez.',
+        'Profilin (ad, kullanıcı adı, fotoğraf, okul), puanların, gönderilerin ve yorumların Puanla kullanıcılarına görünür. Oluşturduğun listeler (başlık, açıklama, notlar ve mekânlardaki puanların) de Puanla kullanıcılarına görünür. E-posta adresin diğer kullanıcılara gösterilmez. Engellediğin kişiler seni ve paylaşımlarını göremez.',
       ],
     },
     {
@@ -238,7 +238,7 @@ const privacyEn: LegalText = {
     {
       heading: '3. Who can see it',
       paragraphs: [
-        'Your profile (name, username, photo, school), ratings, posts and comments are visible to Puanla users. Lists you create (title, description, notes, places and your scores, your name and profile photo) are visible to anyone with the link, including on a web page for people without the app. Your email is never shown to other users. People you block can’t see you or your content in the app.',
+        'Your profile (name, username, photo, school), ratings, posts and comments are visible to Puanla users. Lists you create (title, description, notes and your scores for the places) are also visible to Puanla users. Your email is never shown to other users. People you block can’t see you or your content.',
       ],
     },
     {

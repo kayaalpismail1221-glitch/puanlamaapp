@@ -1023,23 +1023,23 @@ describe('paylaşılabilir listeler', () => {
     assert.equal(await details(me, id), null);
   });
 
-  test('görünürlük: üyeler ve web ziyaretçisi görür, engelli kişi görmez', async () => {
+  test('görünürlük: üyeler görür, girişsiz ve engelli kişi görmez', async () => {
     const owner = await signUp({ name: 'Görünür Liste' });
     await as(owner, `select rank_place($1, 'liked', 0)`, [ps[0]]);
     const id = await saveList(owner, { title: 'Açık liste', places: [ps[0], ps[1]], notes: ['Tavsiye'] });
 
     const member = await signUp({ name: 'Üye Bakan' });
-    assert.equal((await details(member, id)).items.length, 2);
 
+    const seen = await details(member, id);
+    assert.equal(seen.items.length, 2);
+    assert.equal(seen.list.author.name, 'Görünür Liste');
+    assert.equal(seen.list.saved_by_me, false);
+    assert.equal(seen.items[0].note, 'Tavsiye');
+    assert.equal(Number(seen.items[0].score), 10);
+    assert.equal(await details(member, randomUUID()), null);
     await rejects(rows(null, 'select list_details($1)', [id]), /42501/);
+    await rejects(rows(null, 'select user_lists($1)', [owner]), /42501/);
     await rejects(rows(null, 'select * from lists'), /42501/);
-    const web = (await one(null, 'select public_list($1) as d', [id])).d;
-    assert.equal(web.list.title, 'Açık liste');
-    assert.equal(web.list.author.name, 'Görünür Liste');
-    assert.equal(web.list.saved_by_me, false);
-    assert.equal(web.items[0].note, 'Tavsiye');
-    assert.equal(Number(web.items[0].score), 10);
-    assert.equal((await one(null, 'select public_list($1) as d', [randomUUID()])).d, null);
 
     const blocked = await signUp({ name: 'Engelli Liste' });
     await as(owner, `insert into blocks (blocked_id) values ($1)`, [blocked]);

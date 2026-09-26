@@ -1,6 +1,6 @@
 import { Share } from 'react-native';
 
-import { appLink, inviteLink, listLink } from '@/constants/app';
+import { appLink, inviteLink } from '@/constants/app';
 import { cuisineLabel } from '@/constants/cuisines';
 import i18n, { currentLanguage } from '@/i18n';
 import { formatScore } from '@/lib/format';
@@ -43,7 +43,7 @@ export function sharePlace(place: Place, community?: { average: number; count: n
   return share(text, `mekan/${place.id}`);
 }
 
-/** Liste: başlık + mekân sayısı + kaydetme çağrısı; bağlantı web sayfası (varsa) */
+/** Liste: başlık + mekân sayısı; bağlantı listeyi uygulamada açar */
 export function shareList(list: PlaceList) {
   const text = isMe(list.author.id)
     ? i18n.t('share.listMine', { title: list.title, count: list.placeCount })
@@ -52,8 +52,7 @@ export function shareList(list: PlaceList) {
         title: list.title,
         count: list.placeCount,
       });
-  const message = `${text}\n\n${i18n.t('share.listCta', { link: listLink(list.id) })}`;
-  return Share.share({ message }).catch(() => {});
+  return share(text, `liste/${list.id}`);
 }
 
 /** Damak uyumu: "@zeynepyer ile damak uyumumuz %82"; bağlantı kendi profiline, alan kişi kendi uyumunu görsün */

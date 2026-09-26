@@ -207,7 +207,7 @@ export type ListJson = {
   saved_by_me: boolean;
 };
 
-/** list_details() / public_list(): liste ve mekânları (sahibin puanıyla) */
+/** list_details(): liste ve mekânları (sahibin puanıyla) */
 export type ListDetailsJson = {
   list: ListJson;
   items: { place: PlaceViewRow; score: number | null; note: string | null }[];
@@ -522,7 +522,6 @@ export type Database = {
       user_lists: { Args: { p_user_id: string }; Returns: Json };
       saved_lists: { Args: Record<string, never>; Returns: Json };
       list_details: { Args: { p_list_id: string }; Returns: Json };
-      public_list: { Args: { p_list_id: string }; Returns: Json };
     };
     Enums: {
       sentiment: Sentiment;

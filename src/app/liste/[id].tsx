@@ -1,4 +1,3 @@
-import * as Clipboard from 'expo-clipboard';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useTranslation } from 'react-i18next';
@@ -8,7 +7,6 @@ import { showError } from '@/api/errors';
 import { ListCover, newList } from '@/components/list-card';
 import { Bone, PlaceRowsSkeleton, Skeleton } from '@/components/skeleton';
 import { Avatar, Button, Divider, ErrorView, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
-import { listLink } from '@/constants/app';
 import { cuisineLabel } from '@/constants/cuisines';
 import { colors, fonts, hitSlop, radius, scoreInk, spacing } from '@/constants/theme';
 import { useDeleteList, useListDetails, useToggleListSaved } from '@/hooks/queries';
@@ -51,12 +49,7 @@ export default function ListScreen() {
   const mine = isMe(list.author.id);
   const share = () => shareList(list);
 
-  const copyLink = async () => {
-    await Clipboard.setStringAsync(listLink(list.id));
-    haptics.success();
-    Alert.alert(t('lists.linkCopied'));
-  };
-
+  const openStory = () => router.push({ pathname: '/hikaye', params: { liste: list.id } });
   const edit = () => router.push({ pathname: '/liste-duzenle', params: { id: list.id } });
   const confirmDelete = () =>
     Alert.alert(t('lists.deleteTitle'), t('lists.deleteText', { title: list.title }), [
@@ -80,13 +73,12 @@ export default function ListScreen() {
       undefined,
       mine
         ? [
-            { label: t('lists.storyCard'), onPress: () => router.push({ pathname: '/hikaye', params: { liste: list.id } }) },
-            { label: t('lists.copyLink'), onPress: copyLink },
+            { label: t('lists.storyCard'), onPress: openStory },
             { label: t('lists.edit'), onPress: edit },
             { label: t('lists.deleteTitle'), destructive: true, onPress: confirmDelete },
           ]
         : [
-            { label: t('lists.copyLink'), onPress: copyLink },
+            { label: t('lists.storyCard'), onPress: openStory },
             { label: t('moderation.report'), destructive: true, onPress: () => openReportMenu({ listId: list.id }) },
             {
               label: t('moderation.blockUser', { name: list.author.name.split(' ')[0] }),
@@ -189,7 +181,7 @@ export default function ListScreen() {
               <Text variant="subhead" color={colors.textSecondary} align="center">
                 {t('lists.makeYourOwnText')}
               </Text>
-              <Button title={t('lists.newList')} icon="plus" variant="secondary" size="sm" onPress={newList} />
+              <Button title={t('lists.newList')} icon="plus" variant="secondary" size="sm" onPress={() => newList()} />
             </View>
           )
         }

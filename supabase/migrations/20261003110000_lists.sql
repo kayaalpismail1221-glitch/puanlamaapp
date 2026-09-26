@@ -1,7 +1,7 @@
 -- Puanla: paylaşılabilir listeler
 -- "Kadıköy'de en iyi dürümcülerim" gibi, kullanıcının kendi sıralamasından seçtiği mekânlar.
 -- Sıra her zaman listenin sahibinin güncel puanına göredir (yeniden puanlayınca liste de güncellenir).
--- Listeler herkese açıktır: uygulamada üyelere, web sayfasında (public_list) bağlantıyı alan herkese.
+-- Listeler tüm üyelere açıktır (profilde "İsmail'in listeleri"); engelli kişi görmez.
 -- Başkaları listeyi "kaydeder" (list_saves); kayıt sayısı sahibine sosyal kanıt olarak görünür.
 
 -- ---------------------------------------------------------------------------
@@ -275,20 +275,6 @@ as $$
   where l.id = p_list_id
 $$;
 
-/**
- * Web sayfası için (giriş yapmamış ziyaretçi dahil): list_details ile aynı içerik.
- * Listeler bağlantıyla paylaşılmak için vardır; yalnızca kimliği bilinen liste döner.
- */
-create or replace function public.public_list(p_list_id uuid)
-returns jsonb
-language sql
-stable
-security definer
-set search_path = ''
-as $$
-  select public.list_details(p_list_id)
-$$;
-
 -- ---------------------------------------------------------------------------
 -- Yönetim: şikâyet kuyruğu listeleri de kapsar
 -- ---------------------------------------------------------------------------
@@ -433,8 +419,7 @@ revoke execute on function
   public.list_json(public.lists),
   public.user_lists(uuid),
   public.saved_lists(),
-  public.list_details(uuid),
-  public.public_list(uuid)
+  public.list_details(uuid)
 from public, anon;
 
 grant execute on function
@@ -442,9 +427,5 @@ grant execute on function
   public.list_json(public.lists),
   public.user_lists(uuid),
   public.saved_lists(),
-  public.list_details(uuid),
-  public.public_list(uuid)
+  public.list_details(uuid)
 to authenticated;
-
--- Web sayfası: giriş yapmamış ziyaretçi yalnızca bu fonksiyonu çağırabilir
-grant execute on function public.public_list(uuid) to anon;

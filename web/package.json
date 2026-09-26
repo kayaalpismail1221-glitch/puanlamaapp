@@ -1,9 +1,0 @@
-{
-  "name": "puanla-web",
-  "private": true,
-  "type": "module",
-  "description": "Puanla web önizleme sayfaları (Vercel). Bkz. README.md",
-  "engines": {
-    "node": ">=20"
-  }
-}

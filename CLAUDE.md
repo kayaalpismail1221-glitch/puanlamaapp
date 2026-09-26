@@ -47,7 +47,7 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
   `recommended_places`), `20260929100000_phone_optional`, `20260930100000_notifications` (bildirimler, 2026-09-25 canlıda doğrulandı).
   `20261002100000_table_loop` (telefon doğrulama, rehber eşleştirme, davetler; 2026-09-25 canlıya uygulandı).
   **Canlıya henüz uygulanmadı (2026-09-26):** `20261003100000_taste_match` (damak uyumu) ve `20261003110000_lists`
-  (paylaşılabilir listeler, `public_list` girişsiz web için, `reports.list_id`). Sırayla SQL Editor'de çalıştırılmalı. Eski demo silindi; canlıda 12.146 OSM
+  (paylaşılabilir listeler, `reports.list_id`). Sırayla SQL Editor'de çalıştırılmalı. Eski demo silindi; canlıda 12.146 OSM
   mekânı ve gerçek mekânlar üzerine yeni demo var (`npm run demo:seed`: 7 `@demo.puanla.app` hesabı, 25 gönderi).
 - Auth: e-posta/şifre açık, **Confirm email kapalı**. SMTP yok (Supabase SMTP'siz şablon düzenletmiyor ve
   varsayılan e-posta kod değil bağlantı gönderiyor). Bu yüzden `src/constants/features.ts` →
@@ -66,7 +66,7 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
   beğeni/kaydetme/yorum, şikâyet), RLS + sütun yetkileri, günlük sınırlar, sayaç tetikleyicileri; RPC'ler:
   `rank_place`, `create_post`, `feed_popular` (3→10→30 km, yoksa en yakın şehir), `feed_following`,
   `place_details`, `search_places` (Türkçe katlama + trigram + popülerlik), `search_users`, `suggested_users`,
-  `leaderboard`/`user_rank`, `saved_posts`, `delete_account`. PGlite+PostGIS ile 56 DB testi (`npm run test:db`); web sayfası testleri `npm run test:web`.
+  `leaderboard`/`user_rank`, `saved_posts`, `delete_account`. PGlite+PostGIS ile 56 DB testi (`npm run test:db`).
 - Puan formülü istemci (`lib/ranking.ts` `scoreAt`) ve sunucu (`sentiment_score`) birebir aynı (tam sayı onda birlik).
 - Puanlama Beli tarzı kalır (kullanıcı kararı 2026-09-25; direkt 0–10 kaydırıcı denendi, vazgeçildi). Akış mantığı
   `hooks/use-rank-flow.ts`, görünüm `components/rank-steps.tsx` (`compact`). `degerlendir` tam ekran; gönderi ekranında
@@ -100,9 +100,9 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
 - `package.json`'daki `tunnel` betiği ve `@expo/ngrok` kullanıcının eklediği, commit edilmemiş değişiklik.
 
 ## Sıradaki işler (büyüme önceliğine göre; bkz. "Büyüme" ilkesi)
-1. **Alan adı + web önizleme sayfaları**: liste sayfası `web/`'de hazır (Vercel'e deploy + `WEB_URL`). Kalanlar:
-   `/p/<gönderi>`, `/m/<mekân>`, `/@<kullanıcı>` aynı yapıyla, davet bağlamının kurulumdan sonra korunması (listeyle gelen
-   kişi onboarding sonrası o listeye dönmeli), liste kaydedilince sahibine bildirim, web görüntülenme sayısı
+1. **Alan adı + web önizleme sayfaları** (`/p/<gönderi>`, `/m/<mekân>`, `/@<kullanıcı>`, `/l/<liste>`, OG görseli, App Store butonu)
+   — **kullanıcı kararı 2026-09-26: web sayfası şimdilik yapılmayacak** (geliştirilmeyecek), önerme. Listeler yalnızca
+   uygulama içinde (profil + hikâye kartı).
    + Universal Links (`appLink` https'e geçer) + App Store `ct` kampanya parametresi. Aynı alan adıyla Resend SMTP →
    e-posta doğrulama/şifre sıfırlama; yasal sayfalar HTML.
 2. **Birinci taraf ölçüm:** `events` tablosu, paylaşımlarda davet kodu/`sharer_id`, telefonla davet eşleştirme,
@@ -312,18 +312,16 @@ Tutunma tarafı: bildirimler ve rehber eşleştirme olmadan ağın ürettiği de
   dengelenir; 3 ortak mekândan az ise yüzde yok (`taste_match_percent`). Yüzde puan renk skalasında (%82 → 8,2 rengi).
 - **Paylaşılabilir listeler** (migration `20261003110000_lists`): `lists` + `list_places` (listeye özel not) +
   `list_saves` (kaydetme, `save_count` tetikleyiciyle). Yazma yalnızca `save_list` (1–50 mekân, günde 20 liste, uygunsuz
-  ifade filtresi); sıra her okumada sahibin güncel puanına göre. Okuma: `user_lists`, `saved_lists`, `list_details`,
-  `public_list` (security definer, anon'a açık: web sayfası için). Kimin kaydettiği gizli, engelli kişi listeyi görmez,
+  ifade filtresi); sıra her okumada sahibin güncel puanına göre. Okuma: `user_lists`, `saved_lists`, `list_details`
+  (yalnızca üyeler; web/girişsiz erişim yok, kullanıcı kararı). Kimin kaydettiği gizli, engelli kişi listeyi görmez,
   listeler şikâyet edilebilir (`reports.list_id`, yönetim RPC'leri kapsıyor). İstemci: `api/lists.ts`,
-  `components/list-card.tsx` (profilde "Listelerim" şeridi + Yeni liste; başkasının profilinde "Listeler"; Listem →
-  Kaydettiklerim'de kaydedilen listeler), `liste/[id]` (kaydet/paylaş/bağlantıyı kopyala/hikâye kartı/düzenle/sil;
-  başkasının listesinde her mekânda senin puanın + "Sen de liste yap"), `liste-duzenle` (puanladıklarından seçim,
-  mutfak/ilçe çipleri, "Görünenleri seç", mekân başına not; mantık `lib/lists.ts`), hikâye kartı `hikaye?liste=<id>`.
-  Paylaşım `shareList` → `constants/app.ts` `listLink`: `WEB_URL` doluysa `https://…/l/<id>`, boşsa `puanla://liste/<id>`.
-- **Web sayfaları** (`web/`, Vercel; kurulum `web/README.md`): `/l/<liste>` sunucuda çizilir (OG etiketleri, TR/EN,
-  OSM atfı), "Listeyi kaydet" `puanla://` açar, uygulama yoksa `APP_STORE_URL`'e gider. Supabase HTML sunmadığı için
-  ayrı sunucu. Deploy edilince `WEB_URL` doldurulur. Gizlilik metni listelerin herkese açık olduğunu söylüyor
-  (`legal:build -- --upload` ile herkese açık kopya güncellenmeli).
+  `components/list-card.tsx`: başkasının profilinde "İsmail'in listeleri" şeridi (listesi yoksa görünmez); kendi
+  profilinde "Listelerim" + Yeni liste kartı, hiç liste yoksa "Favori mekânlarını listele" kartı (düzenleyici "Favori
+  mekânlarım" başlığıyla açılır, `baslik` parametresi); Listem → Kaydettiklerim'de kaydedilen listeler. `liste/[id]`:
+  kaydet/paylaş/hikâye kartı (kendi ve başkasının listesi; başkasınınkinde kartın altında liste sahibi)/düzenle/sil;
+  başkasının listesinde her mekânda senin puanın + "Sen de liste yap". `liste-duzenle`: puanladıklarından seçim,
+  mutfak/ilçe çipleri, "Görünenleri seç", mekân başına not (mantık `lib/lists.ts`). Hikâye kartı `hikaye?liste=<id>`.
+  Paylaşım `shareList` diğer paylaşımlar gibi `appLink('liste/<id>')`.
 - **Gönderi düzenleme** (`gonderi-duzenle`, kendi gönderinde … → Düzenle): açıklama, öğün, öne çıkanlar;
   fotoğraf ve puan değişmez. Öğün/öne çıkan seçicileri `components/post-fields.tsx` (oluşturma ile ortak).
 

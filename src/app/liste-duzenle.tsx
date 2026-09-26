@@ -35,7 +35,8 @@ import { useScored } from '@/store/app-store';
  * ("Kadıköy · Dürümcü" → Görünenleri seç). Seçilen her mekâna isteğe bağlı not yazılabilir.
  */
 export default function ListEditorScreen() {
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  // `baslik`: yeni listenin hazır başlığı (profildeki "Favori mekânlarını listele")
+  const { id, baslik } = useLocalSearchParams<{ id?: string; baslik?: string }>();
   const existing = useListDetails(id);
   // Düzenlemede form, mevcut liste yüklenince onun değerleriyle açılır
   if (id && existing.isPending) {
@@ -45,17 +46,17 @@ export default function ListEditorScreen() {
       </View>
     );
   }
-  return <ListEditor id={id} initial={existing.data ?? undefined} />;
+  return <ListEditor id={id} initial={existing.data ?? undefined} initialTitle={baslik} />;
 }
 
-function ListEditor({ id, initial }: { id?: string; initial?: ListDetails }) {
+function ListEditor({ id, initial, initialTitle }: { id?: string; initial?: ListDetails; initialTitle?: string }) {
   const { t } = useTranslation();
   const footerStyle = useKeyboardFooterStyle();
   const scored = useScored();
   const version = useEntitiesVersion();
   const save = useSaveList();
 
-  const [title, setTitle] = useState(initial?.list.title ?? '');
+  const [title, setTitle] = useState(initial?.list.title ?? initialTitle ?? '');
   const [description, setDescription] = useState(initial?.list.description ?? '');
   const [selected, setSelected] = useState<Map<string, string>>(
     () => new Map((initial?.items ?? []).map((i) => [i.place.id, i.note ?? ''])),
