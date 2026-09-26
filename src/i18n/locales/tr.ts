@@ -300,6 +300,9 @@ const tr = {
   post: {
     deleteTitle: 'Gönderiyi sil',
     deleteText: 'Bu gönderi ve fotoğrafları kalıcı olarak silinecek.',
+    deleteTextWithScore: 'Bu gönderi ve fotoğrafları kalıcı olarak silinecek. {{place}} için verdiğin puan da sıralamandan çıkarılsın mı?',
+    deleteOnlyPost: 'Yalnızca gönderiyi sil',
+    deleteWithScore: 'Gönderiyi ve puanı sil',
     profileOf: '{{name}} profili',
     togetherPrefix: '',
     togetherSuffix: ' ile birlikte',
@@ -392,6 +395,8 @@ const tr = {
   },
 
   me: {
+    openPlace: 'Mekânı aç',
+    topThreeMenu: '{{place}} seçenekleri',
     storyCard: 'Hikâye kartı oluştur',
     shareLink: 'Profil bağlantısını paylaş',
     editProfile: 'Profili düzenle',
@@ -429,6 +434,9 @@ const tr = {
     yourRank: 'Sıralamanda {{rank}}. sırada',
     openSource: '{{source}} gönderisini aç',
     rerate: 'Yeniden puanla',
+    removeScore: 'Puanımı sil',
+    removeScoreTitle: 'Puanını sil',
+    removeScoreText: '{{place}} sıralamandan ve Top 3’ünden çıkarılır. Paylaştığın gönderiler kalır.',
     rate: 'Puanla',
     saved: 'Kaydedildi',
     save: 'Kaydet',

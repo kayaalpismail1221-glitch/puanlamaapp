@@ -40,6 +40,10 @@ export const PostCard = memo(function PostCard({ post: initial, expanded, distan
   const actions = useAppActions();
   const likeOverride = useAppSelector((s) => s.likeOverrides[initial.id]);
   const saveOverride = useAppSelector((s) => s.saveOverrides[initial.id]);
+  // Kendi gönderisinde: mekânın puanı hâlâ sıralamada mı (silerken puanı da silme seçeneği için)
+  const ranked = useAppSelector(
+    (s) => isMe(initial.userId) && Object.values(s.rankings).some((list) => list.some((e) => e.placeId === initial.placeId)),
+  );
   const { t } = useTranslation();
   const deletePost = useDeletePost();
   const heart = useSharedValue(1);
@@ -83,22 +87,32 @@ export const PostCard = memo(function PostCard({ post: initial, expanded, distan
 
   const mine = isMe(post.userId);
 
-  const confirmDelete = () =>
-    Alert.alert(t('post.deleteTitle'), t('post.deleteText'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('common.delete'),
-        style: 'destructive',
-        onPress: () =>
-          deletePost.mutate(post, {
-            onSuccess: () => {
-              haptics.success();
-              if (expanded) router.back();
-            },
-            onError: (error) => showError(error, t('failures.postDelete')),
-          }),
+  const removePost = (withScore: boolean) =>
+    deletePost.mutate(post, {
+      onSuccess: () => {
+        haptics.success();
+        // Puan gönderiden ayrı durur; istenirse sıralamadan (ve Top 3'ten) da çıkar
+        if (withScore) actions.unrank(post.placeId);
+        if (expanded) router.back();
       },
-    ]);
+      onError: (error) => showError(error, t('failures.postDelete')),
+    });
+
+  const confirmDelete = () =>
+    Alert.alert(
+      t('post.deleteTitle'),
+      ranked ? t('post.deleteTextWithScore', { place: place.name }) : t('post.deleteText'),
+      ranked
+        ? [
+            { text: t('common.cancel'), style: 'cancel' },
+            { text: t('post.deleteOnlyPost'), style: 'destructive', onPress: () => removePost(false) },
+            { text: t('post.deleteWithScore'), style: 'destructive', onPress: () => removePost(true) },
+          ]
+        : [
+            { text: t('common.cancel'), style: 'cancel' },
+            { text: t('common.delete'), style: 'destructive', onPress: () => removePost(false) },
+          ],
+    );
 
   const blockUser = () =>
     confirmBlock(user, () => {

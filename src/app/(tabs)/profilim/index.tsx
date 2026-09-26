@@ -148,7 +148,7 @@ export default function ProfileScreen() {
           <Divider />
         </View>
 
-        <TopThree items={myPlaces} title={t('me.topThree')} />
+        <TopThree items={myPlaces} title={t('me.topThree')} onRemoveScore={actions.unrank} />
 
         <View style={styles.cards}>
           <StatCard

@@ -297,6 +297,9 @@ const en: Translation = {
   post: {
     deleteTitle: 'Delete post',
     deleteText: 'This post and its photos will be permanently deleted.',
+    deleteTextWithScore: 'This post and its photos will be permanently deleted. Also remove your score for {{place}} from your rankings?',
+    deleteOnlyPost: 'Delete post only',
+    deleteWithScore: 'Delete post and score',
     profileOf: '{{name}}’s profile',
     togetherPrefix: 'With ',
     togetherSuffix: '',
@@ -389,6 +392,8 @@ const en: Translation = {
   },
 
   me: {
+    openPlace: 'Open place',
+    topThreeMenu: '{{place}} options',
     storyCard: 'Create story card',
     shareLink: 'Share profile link',
     editProfile: 'Edit profile',
@@ -426,6 +431,9 @@ const en: Translation = {
     yourRank: '#{{rank}} in your ranking',
     openSource: 'Open {{source}} post',
     rerate: 'Rate again',
+    removeScore: 'Remove my score',
+    removeScoreTitle: 'Remove your score',
+    removeScoreText: '{{place}} will be removed from your rankings and Top 3. Posts you shared stay.',
     rate: 'Rate',
     saved: 'Saved',
     save: 'Save',

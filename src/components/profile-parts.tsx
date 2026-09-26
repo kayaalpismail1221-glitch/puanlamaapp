@@ -6,11 +6,13 @@ import Animated, { LinearTransition } from 'react-native-reanimated';
 
 import { Avatar, PlaceImage, PressableScale, Text } from '@/components/ui';
 import { cuisineLabel } from '@/constants/cuisines';
-import { colors, radius, spacing } from '@/constants/theme';
+import { colors, hitSlop, radius, spacing } from '@/constants/theme';
 import { schoolById, schoolLabel } from '@/data/schools';
 import { useLeaderboard } from '@/hooks/queries';
 import { formatScore, monthYear } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
+import { showMenu } from '@/lib/moderation';
+import { confirmRemoveScore } from '@/lib/remove-score';
 import type { Badge, ScoredPlace, TasteSlice } from '@/lib/insights';
 
 /* ---------- Kimlik: avatar, kullanıcı adı, üyelik ---------- */
@@ -268,9 +270,26 @@ export function GoalCard({
 
 /* ---------- Top 3 vitrini ---------- */
 
-export function TopThree({ items, title }: { items: ScoredPlace[]; title: string }) {
-  useTranslation();
+type TopThreeProps = {
+  items: ScoredPlace[];
+  title: string;
+  /** Yalnızca kendi profilinde: kartın … menüsünden puanı sil (gönderiler kalır) */
+  onRemoveScore?: (placeId: string) => void;
+};
+
+export function TopThree({ items, title, onRemoveScore }: TopThreeProps) {
+  const { t } = useTranslation();
   if (!items.length) return null;
+  const openPlace = (id: string) => router.push({ pathname: '/mekan/[id]', params: { id } });
+  const showCardMenu = (place: ScoredPlace['place']) =>
+    showMenu(place.name, [
+      { label: t('me.openPlace'), onPress: () => openPlace(place.id) },
+      {
+        label: t('place.removeScore'),
+        destructive: true,
+        onPress: () => confirmRemoveScore(place.name, () => onRemoveScore?.(place.id)),
+      },
+    ]);
   return (
     <View style={styles.section}>
       <Text variant="title3" style={styles.sectionTitle}>
@@ -281,7 +300,8 @@ export function TopThree({ items, title }: { items: ScoredPlace[]; title: string
           <PressableScale
             key={place.id}
             scaleTo={0.96}
-            onPress={() => router.push({ pathname: '/mekan/[id]', params: { id: place.id } })}
+            onPress={() => openPlace(place.id)}
+            onLongPress={onRemoveScore && (() => showCardMenu(place))}
             style={styles.topCard}>
             <PlaceImage uri={place.photoUrl} style={StyleSheet.absoluteFill} />
             <View style={styles.topShade} />
@@ -290,6 +310,15 @@ export function TopThree({ items, title }: { items: ScoredPlace[]; title: string
                 {i + 1}
               </Text>
             </View>
+            {onRemoveScore && (
+              <PressableScale
+                onPress={() => showCardMenu(place)}
+                hitSlop={hitSlop}
+                style={styles.topMenu}
+                accessibilityLabel={t('me.topThreeMenu', { place: place.name })}>
+                <SymbolView name="ellipsis" tintColor={colors.onPrimary} size={14} weight="bold" />
+              </PressableScale>
+            )}
             <View style={styles.topInfo}>
               <Text variant="footnote" color={colors.onPrimary} numberOfLines={2} style={styles.heavy}>
                 {place.name}
@@ -444,6 +473,17 @@ const styles = StyleSheet.create({
   topShade: {
     ...StyleSheet.absoluteFill,
     backgroundColor: colors.overlay,
+  },
+  topMenu: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+    width: 24,
+    height: 24,
+    borderRadius: radius.full,
+    backgroundColor: colors.overlay,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   topRank: {
     position: 'absolute',

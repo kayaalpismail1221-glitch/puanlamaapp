@@ -14,6 +14,7 @@ import { usePlaceDetails, usePlacePosts } from '@/hooks/queries';
 import { formatScore } from '@/lib/format';
 import { linkSource } from '@/lib/links';
 import { haptics } from '@/lib/haptics';
+import { confirmRemoveScore } from '@/lib/remove-score';
 import { highlightLabel } from '@/lib/post-meta';
 import { sharePlace } from '@/lib/share';
 import { useAppStore } from '@/store/app-store';
@@ -39,6 +40,8 @@ export default function PlaceDetailScreen() {
 
   const myScore = scoreOf(place.id);
   const myEntry = scored.find((e) => e.placeId === place.id);
+  // Puan sıralamadan ve Top 3'ten çıkar; paylaşılan gönderiler kalır
+  const confirmUnrank = () => confirmRemoveScore(place.name, () => actions.unrank(place.id));
   const saved = isSaved(place.id);
   const savedEntry = savedPlaces.find((s) => s.placeId === place.id);
   const source = savedEntry?.link ? linkSource(savedEntry.link) : null;
@@ -86,6 +89,10 @@ export default function PlaceDetailScreen() {
           <Text variant="footnote" color={colors.textSecondary}>
             {t('place.yourRank', { rank: myEntry.rank })}
             {myEntry.note ? ` · “${myEntry.note}”` : ''}
+            {'  '}
+            <Text variant="footnote" color={colors.primary} style={{ fontWeight: '600' }} onPress={confirmUnrank}>
+              {t('place.removeScore')}
+            </Text>
           </Text>
         )}
 
