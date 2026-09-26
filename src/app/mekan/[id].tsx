@@ -1,7 +1,7 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useTranslation } from 'react-i18next';
-import { Linking, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Linking, ScrollView, StyleSheet, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 
 import { PlaceDetailSkeleton, PostGridSkeleton } from '@/components/skeleton';
@@ -39,6 +39,19 @@ export default function PlaceDetailScreen() {
 
   const myScore = scoreOf(place.id);
   const myEntry = scored.find((e) => e.placeId === place.id);
+  // Puan sıralamadan ve Top 3'ten çıkar; paylaşılan gönderiler kalır
+  const confirmUnrank = () =>
+    Alert.alert(t('place.removeScoreTitle'), t('place.removeScoreText', { place: place.name }), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('place.removeScore'),
+        style: 'destructive',
+        onPress: () => {
+          haptics.success();
+          actions.unrank(place.id);
+        },
+      },
+    ]);
   const saved = isSaved(place.id);
   const savedEntry = savedPlaces.find((s) => s.placeId === place.id);
   const source = savedEntry?.link ? linkSource(savedEntry.link) : null;
@@ -86,6 +99,10 @@ export default function PlaceDetailScreen() {
           <Text variant="footnote" color={colors.textSecondary}>
             {t('place.yourRank', { rank: myEntry.rank })}
             {myEntry.note ? ` · “${myEntry.note}”` : ''}
+            {'  '}
+            <Text variant="footnote" color={colors.primary} style={{ fontWeight: '600' }} onPress={confirmUnrank}>
+              {t('place.removeScore')}
+            </Text>
           </Text>
         )}
 
