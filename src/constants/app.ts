@@ -24,6 +24,16 @@ export const APP_SCHEME = 'puanla';
 export const appLink = (path: string) => `${APP_SCHEME}://${path}`;
 
 /**
+ * Web önizleme sayfalarının adresi (sonunda / yok), ör. `https://puanla.app` ya da alan adı alınana kadar
+ * `https://puanla.vercel.app`. Kurulum: web/README.md. Boşken paylaşımlar uygulama bağlantısıyla (`appLink`) yapılır.
+ * Şimdilik yalnızca listelerin sayfası var: `/l/<liste>`.
+ */
+export const WEB_URL = '';
+
+/** Web sayfası varsa onun adresi, yoksa uygulama bağlantısı (uygulaması olmayan kişi yalnızca webi açabilir) */
+export const listLink = (listId: string) => (WEB_URL ? `${WEB_URL}/l/${listId}` : appLink(`liste/${listId}`));
+
+/**
  * Davet mesajlarındaki indirme bağlantısı. Şimdilik App Store sayfası (yayınlanınca) ya da herkese açık
  * TestFlight bağlantısı buraya yazılır; boşsa mesaj "App Store'da Puanla'yı arat" der.
  * Alan adı gelince web önizleme sayfasına çevrilir (ör. `https://puanla.app/indir`) — tek yer burası.

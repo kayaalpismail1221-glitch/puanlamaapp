@@ -97,6 +97,8 @@ function RootNavigator() {
         <Stack.Screen name="dil" options={{ title: t('screens.language') }} />
         <Stack.Screen name="engellenenler" options={{ title: t('screens.blocked') }} />
         <Stack.Screen name="oneriler" options={{ title: t('screens.recs') }} />
+        <Stack.Screen name="uyum/[id]" options={{ title: t('match.title') }} />
+        <Stack.Screen name="liste/[id]" options={{ title: '' }} />
         <Stack.Screen name="gonderi-duzenle" options={{ presentation: 'modal', title: t('screens.editPost') }} />
         <Stack.Screen name="harita-paylas/[id]" options={{ presentation: 'modal', headerShown: false }} />
         <Stack.Screen name="paylasim-al" options={{ headerShown: false, animation: 'fade' }} />
@@ -105,6 +107,7 @@ function RootNavigator() {
         <Stack.Screen name="bildirim-ayarlari" options={{ title: t('screens.notificationSettings') }} />
         <Stack.Screen name="telefon-dogrula" options={{ presentation: 'modal', headerTransparent: true, title: '' }} />
         <Stack.Screen name="hikaye" options={{ presentation: 'modal', title: t('screens.story') }} />
+        <Stack.Screen name="liste-duzenle" options={{ presentation: 'modal', title: t('screens.newList') }} />
         <Stack.Screen name="okul-sec" options={{ presentation: 'modal', title: t('screens.school') }} />
         <Stack.Screen
           name="profil-fotografi"

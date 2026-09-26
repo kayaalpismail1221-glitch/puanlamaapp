@@ -77,6 +77,7 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "test:db": "node --experimental-strip-types --no-warnings --test supabase/tests/database.test.mjs",
+    "test:web": "node --test web/list-page.test.mjs",
     "generate:world-map": "node --experimental-strip-types --no-warnings scripts/generate-world-map.mjs",
     "places:fetch": "node scripts/osm/fetch.mjs",
     "places:build": "node scripts/osm/build.mjs",

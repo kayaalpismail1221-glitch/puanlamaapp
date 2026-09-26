@@ -149,6 +149,25 @@ export type Post = {
   meal?: Meal;
 };
 
+/** Paylaşılabilir liste ("Kadıköy'de en iyi dürümcülerim"): kart ve başlık bilgisi */
+export type PlaceList = {
+  id: string;
+  title: string;
+  description?: string;
+  author: User;
+  placeCount: number;
+  /** Başkalarının kaydetme sayısı */
+  saveCount: number;
+  /** En iyi 3 mekânın küçük kapak fotoğrafları */
+  covers: string[];
+  savedByMe: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** Listedeki mekân: sahibinin güncel puanı ve listeye özel notu */
+export type PlaceListItem = { place: Place; score?: number; note?: string };
+
 /** Popüler feed'in hangi bölgeyi gösterdiği */
 export type FeedArea = { type: 'near' } | { type: 'area'; city: string; district?: string };
 

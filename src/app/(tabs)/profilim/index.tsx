@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 
+import { ProfileLists } from '@/components/list-card';
 import { VisitedMap } from '@/components/visited-map';
 import { PostGrid } from '@/components/post-grid';
 import {
@@ -149,6 +150,8 @@ export default function ProfileScreen() {
         </View>
 
         <TopThree items={myPlaces} title={t('me.topThree')} onRemoveScore={actions.unrank} />
+
+        <ProfileLists userId={me} mine />
 
         <View style={styles.cards}>
           <StatCard

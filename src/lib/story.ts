@@ -10,7 +10,7 @@ import type { Cuisine } from '@/types';
 export const STORY_SIZE = { width: 540, height: 960 } as const;
 export const STORY_EXPORT = { width: 1080, height: 1920 } as const;
 
-export type StoryKind = 'top5' | 'map' | 'recap' | 'post';
+export type StoryKind = 'top5' | 'map' | 'recap' | 'post' | 'list';
 
 /** Puanlanma tarihiyle birlikte mekân (aylık özet için) */
 export type DatedPlace = ScoredPlace & { ratedAt: string };

@@ -8,7 +8,7 @@ import { ingestPlaces, ingestPosts, ingestUsers, upsertUsers } from '@/data/enti
 import type { Coords } from '@/lib/geo';
 import type { LeaderboardEntry, LeaderboardPeriod, LeaderboardScope } from '@/lib/leaderboard';
 import { supabase } from '@/lib/supabase';
-import type { AreaViewRow, PlaceDetailsJson, PopularFeedJson, ProfileViewRow } from '@/types/database';
+import type { AreaViewRow, PlaceDetailsJson, PopularFeedJson, ProfileViewRow, TasteMatchJson } from '@/types/database';
 import type { Comment, FeedArea, Meal, Place, Post, UserProfile } from '@/types';
 
 /**
@@ -207,12 +207,16 @@ export async function deleteComment(commentId: string) {
 
 export type ReportReason = 'spam' | 'offensive' | 'fake' | 'other';
 
-export async function report(target: { postId?: string; commentId?: string; userId?: string }, reason: ReportReason) {
+export async function report(
+  target: { postId?: string; commentId?: string; userId?: string; listId?: string },
+  reason: ReportReason,
+) {
   unwrap(
     await supabase.from('reports').insert({
       post_id: target.postId ?? null,
       comment_id: target.commentId ?? null,
       user_id: target.userId ?? null,
+      list_id: target.listId ?? null,
       reason,
     }),
   );
@@ -421,6 +425,26 @@ export async function fetchUserRankings(userId: string): Promise<{ placeId: stri
   );
   ingestPlaces(rows.map((r) => r.place));
   return rows.map((r) => ({ placeId: r.place_id, score: r.score, ratedAt: r.rated_at }));
+}
+
+export type TasteMatch = {
+  common: number;
+  /** Yüzde; 3 ortak mekândan az ise yok */
+  percent?: number;
+  /** Ortak mekânlar, ikinizin de en sevdiği önce */
+  places: { place: Place; myScore: number; theirScore: number }[];
+};
+
+/** Damak uyumu: ikinizin de puanladığı mekânlardaki puan farkından (engelli çiftte null) */
+export async function fetchTasteMatch(userId: string): Promise<TasteMatch | null> {
+  const json = unwrap(await supabase.rpc('taste_match', { p_user_id: userId })) as unknown as TasteMatchJson | null;
+  if (!json) return null;
+  const places = ingestPlaces(json.places.map((p) => p.place));
+  return {
+    common: json.common,
+    percent: json.percent ?? undefined,
+    places: json.places.map((p, i) => ({ place: places[i]!, myScore: p.my_score, theirScore: p.their_score })),
+  };
 }
 
 /* ---------- Liderlik tablosu ---------- */

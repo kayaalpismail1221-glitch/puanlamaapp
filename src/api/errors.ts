@@ -22,8 +22,9 @@ const AUTH_MESSAGES: [RegExp, () => string][] = [
 ];
 
 // Veritabanının günlük sınır mesajındaki Türkçe etiket → i18n anahtarı
-const LIMIT_THINGS: Record<string, 'post' | 'comment' | 'place' | 'report'> = {
+const LIMIT_THINGS: Record<string, 'post' | 'comment' | 'place' | 'report' | 'list'> = {
   gönderi: 'post',
+  liste: 'list',
   yorum: 'comment',
   mekân: 'place',
   şikâyet: 'report',

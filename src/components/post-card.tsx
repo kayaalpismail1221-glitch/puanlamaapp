@@ -8,11 +8,11 @@ import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring } 
 import { PhotoCarousel } from '@/components/photo-carousel';
 import { Avatar, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { cuisineLabel } from '@/constants/cuisines';
-import { colors, hitSlop, radius, spacing } from '@/constants/theme';
+import { colors, hitSlop, radius, scoreInk, spacing } from '@/constants/theme';
 import { showError } from '@/api/errors';
 import { getUser, usePlace, usePost, useUser } from '@/data/entities';
 import { useDeletePost } from '@/hooks/queries';
-import { timeAgo } from '@/lib/format';
+import { formatScore, timeAgo } from '@/lib/format';
 import { formatDistance } from '@/lib/geo';
 import { haptics } from '@/lib/haptics';
 import { openUserProfile } from '@/lib/navigation';
@@ -20,6 +20,7 @@ import { confirmBlock, openReportMenu, showMenu } from '@/lib/moderation';
 import { sharePost } from '@/lib/share';
 import { highlightLabel, mealLabel } from '@/lib/post-meta';
 import { queryClient } from '@/lib/query-client';
+import { scoreInRankings } from '@/lib/ranking';
 import { isMe } from '@/lib/session';
 import { useAppActions, useAppSelector } from '@/store/app-store';
 import type { Post } from '@/types';
@@ -44,6 +45,8 @@ export const PostCard = memo(function PostCard({ post: initial, expanded, distan
   const ranked = useAppSelector(
     (s) => isMe(initial.userId) && Object.values(s.rankings).some((list) => list.some((e) => e.placeId === initial.placeId)),
   );
+  // Başkasının gönderisinde: benim bu mekâna verdiğim puan ("Sen 7,9" / "Ben de gittim")
+  const myScore = useAppSelector((s) => (isMe(initial.userId) ? undefined : scoreInRankings(s.rankings, initial.placeId)));
   const { t } = useTranslation();
   const deletePost = useDeletePost();
   const heart = useSharedValue(1);
@@ -234,6 +237,19 @@ export const PostCard = memo(function PostCard({ post: initial, expanded, distan
           </Text>
         </PressableScale>
         <View style={{ flex: 1 }} />
+        {!mine && post.score !== undefined && (
+          <MyScorePill
+            myScore={myScore}
+            onRate={() =>
+              router.push({
+                pathname: '/degerlendir/[id]',
+                params: { id: place.id, karsi: user.name.split(' ')[0], karsiPuan: String(post.score) },
+              })
+            }
+            onOpen={openPlace}
+            placeName={place.name}
+          />
+        )}
         <PressableScale onPress={toggleSave} haptic={false} hitSlop={hitSlop} accessibilityLabel={saved ? t('post.unsave') : t('post.save')}>
           <SymbolView
             name={saved ? 'bookmark.fill' : 'bookmark'}
@@ -262,6 +278,52 @@ export const PostCard = memo(function PostCard({ post: initial, expanded, distan
     </View>
   );
 });
+
+/**
+ * Başkasının gönderisinde kendi puanın: puanladıysan "Sen 7,9" (dokununca mekân),
+ * puanlamadıysan "Ben de gittim" (dokununca puanlama; paylaşanın puanı karşılaştırma için taşınır).
+ */
+function MyScorePill({
+  myScore,
+  onRate,
+  onOpen,
+  placeName,
+}: {
+  myScore?: number;
+  onRate: () => void;
+  onOpen: () => void;
+  placeName: string;
+}) {
+  const { t } = useTranslation();
+  if (myScore === undefined) {
+    return (
+      <PressableScale
+        onPress={onRate}
+        style={styles.pill}
+        accessibilityRole="button"
+        accessibilityLabel={t('post.rateTooLabel', { place: placeName })}>
+        <SymbolView name="plus" tintColor={colors.primary} size={11} weight="bold" />
+        <Text variant="footnote" color={colors.primary} style={styles.bold}>
+          {t('post.rateToo')}
+        </Text>
+      </PressableScale>
+    );
+  }
+  return (
+    <PressableScale
+      onPress={onOpen}
+      haptic={false}
+      style={styles.pill}
+      accessibilityLabel={t('post.yourScoreLabel', { score: formatScore(myScore) })}>
+      <Text variant="footnote" color={colors.textSecondary}>
+        {t('post.you')}
+      </Text>
+      <Text variant="footnote" color={scoreInk(myScore)} style={styles.pillScore}>
+        {formatScore(myScore)}
+      </Text>
+    </PressableScale>
+  );
+}
 
 /** Öğün ve öne çıkanlar */
 function PostMeta({ post }: { post: Post }) {
@@ -356,5 +418,18 @@ const styles = StyleSheet.create({
   },
   caption: {
     paddingHorizontal: spacing.lg,
+  },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    height: 28,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface,
+  },
+  pillScore: {
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
   },
 });

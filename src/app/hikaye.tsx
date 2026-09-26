@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SegmentedControl } from '@/components/segmented-control';
 import {
+  ListStoryCard,
   MapStoryCard,
   PostStoryCard,
   RecapStoryCard,
@@ -18,7 +19,7 @@ import {
 import { Button, LoadingView, Text } from '@/components/ui';
 import { colors, radius, spacing } from '@/constants/theme';
 import { getPlace, useEntitiesVersion, usePlace, usePost } from '@/data/entities';
-import { useUserPosts } from '@/hooks/queries';
+import { useListDetails, useUserPosts } from '@/hooks/queries';
 import { useVisitedPlaces } from '@/hooks/use-visited-places';
 import { haptics } from '@/lib/haptics';
 import { tasteProfile, type ScoredPlace } from '@/lib/insights';
@@ -27,11 +28,12 @@ import { cityDots, visitedSummary } from '@/lib/visited';
 import { fitView, MIN_MAP_VIEW_WIDTH } from '@/lib/world-projection';
 import { useAppStore } from '@/store/app-store';
 
-type Params = { tur?: StoryKind; gonderi?: string };
+type Params = { tur?: StoryKind; gonderi?: string; liste?: string };
 
 /**
  * Instagram hikâyesi kartı oluşturma: kartı seç, önizle, 1080×1920 görsel olarak paylaş.
- * `gonderi` verilirse yalnızca o gönderinin kartı; yoksa profil kartları (Favori 5, Lezzet haritası, Bu ay).
+ * `gonderi` verilirse yalnızca o gönderinin kartı, `liste` verilirse o listenin kartı;
+ * yoksa profil kartları (Favori 5, Lezzet haritası, Bu ay).
  * Paylaşım sistem menüsüyle yapılır; Instagram orada "Hikâye" seçeneğini sunar.
  */
 export default function StoryScreen() {
@@ -45,6 +47,8 @@ export default function StoryScreen() {
   const post = usePost(params.gonderi);
   const postPlace = usePlace(post ? post.placeId : undefined);
   const posts = useUserPosts(me);
+  const listQuery = useListDetails(params.liste);
+  const listDetails = listQuery.data;
   const visited = useVisitedPlaces(me);
 
   const author: StoryAuthor = {
@@ -87,12 +91,13 @@ export default function StoryScreen() {
 
   const kinds = useMemo<StoryKind[]>(() => {
     if (params.gonderi) return ['post'];
+    if (params.liste) return listDetails ? ['list'] : [];
     return [
       ...(top.length ? (['top5'] as const) : []),
       ...(visited.items.length ? (['map'] as const) : []),
       ...(recap ? (['recap'] as const) : []),
     ];
-  }, [params.gonderi, top.length, visited.items.length, recap]);
+  }, [params.gonderi, params.liste, listDetails, top.length, visited.items.length, recap]);
 
   const [picked, setPicked] = useState<StoryKind | undefined>(params.tur);
   const kind = picked && kinds.includes(picked) ? picked : kinds[0];
@@ -145,7 +150,11 @@ export default function StoryScreen() {
 
   /* ---------- Çizim ---------- */
 
-  const loading = params.gonderi ? post === undefined || (post && postPlace === undefined) : visited.loading;
+  const loading = params.gonderi
+    ? post === undefined || (post && postPlace === undefined)
+    : params.liste
+      ? listQuery.isPending
+      : visited.loading;
   if (loading) return <LoadingView style={styles.container} />;
 
   if (!kind) {
@@ -155,7 +164,7 @@ export default function StoryScreen() {
           {t('story.emptyTitle')}
         </Text>
         <Text variant="subhead" color={colors.textSecondary} align="center">
-          {params.gonderi ? t('story.postGone') : t('story.emptyText')}
+          {params.gonderi ? t('story.postGone') : params.liste ? t('story.listGone') : t('story.emptyText')}
         </Text>
       </View>
     );
@@ -169,6 +178,8 @@ export default function StoryScreen() {
       <TopFiveCard {...common} items={top} />
     ) : kind === 'map' ? (
       <MapStoryCard {...common} {...map} />
+    ) : kind === 'list' && listDetails ? (
+      <ListStoryCard {...common} list={listDetails.list} items={listDetails.items} />
     ) : kind === 'recap' && recap ? (
       <RecapStoryCard {...common} recap={recap} />
     ) : null;

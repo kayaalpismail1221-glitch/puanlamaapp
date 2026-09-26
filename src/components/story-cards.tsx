@@ -15,7 +15,7 @@ import type { ScoredPlace, TasteSlice } from '@/lib/insights';
 import { STORY_SIZE, type MonthRecap } from '@/lib/story';
 import type { CityDot, VisitedSummary } from '@/lib/visited';
 import type { ViewBox } from '@/lib/world-projection';
-import type { Place, Post } from '@/types';
+import type { Place, PlaceList, PlaceListItem, Post } from '@/types';
 
 /**
  * Instagram hikâyesi kartları (9:16). 540×960 mantıksal boyutta çizilir, dışa aktarımda
@@ -136,6 +136,51 @@ export const TopFiveCard = forwardRef<View, Common & { items: ScoredPlace[] }>(f
           </View>
         ))}
       </View>
+      <View style={styles.spacer} />
+      <Footer {...common} />
+    </Frame>
+  );
+});
+
+/* ---------- Liste ---------- */
+
+const LIST_STORY_ROWS = 5;
+
+/** Paylaşılabilir liste: "Zeynep'in listesi", başlık, ilk 5 mekân puanlarıyla, kalanların sayısı */
+export const ListStoryCard = forwardRef<View, Common & { list: PlaceList; items: PlaceListItem[] }>(function ListStoryCard(
+  { list, items, ...common },
+  ref,
+) {
+  const { t } = useTranslation();
+  const firstName = list.author.name.split(' ')[0] || list.author.username;
+  const shown = items.slice(0, LIST_STORY_ROWS);
+  const more = items.length - shown.length;
+  return (
+    <Frame ref={ref}>
+      <Wordmark />
+      <View style={styles.titleBlock}>
+        <Kicker>{t('story.listKicker', { name: possessive(firstName, currentLanguage()) })}</Kicker>
+        <Text style={[styles.title, styles.listTitle]} numberOfLines={3}>
+          {list.title}
+        </Text>
+      </View>
+      <View style={styles.list}>
+        {shown.map(({ place, score }, i) => (
+          <View key={place.id} style={[styles.row, i > 0 && styles.rowBorder]}>
+            <Text style={styles.rank}>{i + 1}</Text>
+            <View style={styles.flex}>
+              <Text style={styles.rowTitle} numberOfLines={1}>
+                {place.name}
+              </Text>
+              <Text style={styles.rowSub} numberOfLines={1}>
+                {placeLine(place)}
+              </Text>
+            </View>
+            {score !== undefined && <ScoreDisc score={score} size={56} />}
+          </View>
+        ))}
+      </View>
+      {more > 0 && <Text style={styles.more}>{t('story.listMore', { count: more })}</Text>}
       <View style={styles.spacer} />
       <Footer {...common} />
     </Frame>
@@ -378,6 +423,16 @@ const styles = StyleSheet.create({
   },
   list: {
     marginTop: 32,
+  },
+  listTitle: {
+    fontSize: 40,
+    lineHeight: 46,
+  },
+  more: {
+    marginTop: 14,
+    fontSize: 17,
+    fontWeight: '600',
+    color: INK_SOFT,
   },
   row: {
     flexDirection: 'row',
