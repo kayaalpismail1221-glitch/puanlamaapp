@@ -11,6 +11,7 @@ import { UserRow } from '@/components/user-row';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
 import { useNearbyPlaceSearch, useSearchUsers, useSuggestedUsers } from '@/hooks/queries';
 import { haptics } from '@/lib/haptics';
+import { requestPlaceChoice } from '@/lib/place-choice';
 import { useAppActions, useAppSelector, useScoreOf } from '@/store/app-store';
 import type { Place, User } from '@/types';
 
@@ -123,7 +124,15 @@ export default function SearchTab() {
                   title={t('common.addPlace')}
                   icon="plus"
                   variant="secondary"
-                  onPress={() => router.push({ pathname: '/mekan-ekle', params: { ad: query.trim() } })}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/mekan-ekle',
+                      params: {
+                        ad: query.trim(),
+                        istek: requestPlaceChoice((p) => router.push({ pathname: '/mekan/[id]', params: { id: p.id } })),
+                      },
+                    })
+                  }
                 />
               )}
             </View>

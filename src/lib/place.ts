@@ -82,3 +82,29 @@ export function normalizeWebsiteInput(raw: string): string | null {
     return null;
   }
 }
+
+// Ad karşılaştırmasında anlamsız kelimeler (tür ve şube ekleri)
+const GENERIC = new Set([
+  'cafe', 'kafe', 'coffee', 'kahve', 'restaurant', 'restoran', 'lokanta', 'lokantasi', 'bar', 'pub', 'the', 've',
+  'istanbul', 'sube', 'subesi', 'salonu', 'evi', 'house', 'shop', 'bistro', 'mutfagi', 'kitchen',
+]);
+const foldName = (name: string) =>
+  name
+    .toLocaleLowerCase('tr')
+    .replace(/[çğıöşüâîû]/g, (c) => ({ ç: 'c', ğ: 'g', ı: 'i', ö: 'o', ş: 's', ü: 'u', â: 'a', î: 'i', û: 'u' })[c] ?? c);
+
+/**
+ * İki ad aynı mekân olabilir mi ("Kronotrop" ~ "Kronotrop Cihangir", "Kasapdöner" ~ "Kasap Döner").
+ * Kopya uyarısı için; emin olmak gerekmez, kullanıcı karar verir.
+ */
+export function similarPlaceNames(a: string, b: string): boolean {
+  const tokens = (s: string) => foldName(s).split(/[^a-z0-9]+/).filter((t) => t.length > 1 && !GENERIC.has(t));
+  const ta = tokens(a);
+  const tb = tokens(b);
+  const ja = ta.join('');
+  const jb = tb.join('');
+  if (!ja || !jb) return foldName(a).replace(/[^a-z0-9]/g, '') === foldName(b).replace(/[^a-z0-9]/g, '');
+  if (ja.includes(jb) || jb.includes(ja)) return Math.min(ja.length, jb.length) >= 3;
+  const shared = ta.filter((t) => tb.includes(t)).length;
+  return shared > 0 && shared / new Set([...ta, ...tb]).size >= 0.5;
+}

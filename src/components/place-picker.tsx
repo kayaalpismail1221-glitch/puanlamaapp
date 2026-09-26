@@ -9,6 +9,7 @@ import { PlaceRowsSkeleton } from '@/components/skeleton';
 import { Button, Divider, ErrorView, SearchField, Text } from '@/components/ui';
 import { colors, spacing } from '@/constants/theme';
 import { useNearbyPlaceSearch } from '@/hooks/queries';
+import { requestPlaceChoice } from '@/lib/place-choice';
 import type { Place } from '@/types';
 
 type ListProps = {
@@ -21,7 +22,9 @@ type ListProps = {
   header?: React.ReactElement;
 };
 
-const openAddPlace = (name: string) => router.push({ pathname: '/mekan-ekle', params: { ad: name } });
+/** Yeni mekân ekleme; eklenen (ya da "Bunlardan biri mi?" ile seçilen) mekân doğrudan seçilir */
+const openAddPlace = (name: string, onSelect: (place: Place) => void) =>
+  router.push({ pathname: '/mekan-ekle', params: { ad: name, istek: requestPlaceChoice(onSelect) } });
 
 /**
  * Mekân arama sonuçları. Boş aramada yakındaki mekânlar listelenir.
@@ -51,7 +54,7 @@ export function PlaceSearchList({ query, onSelect, trailing, exclude, header }: 
             <Text variant="subhead" color={colors.textSecondary} align="center">
               {q ? t('picker.notFound', { query: q }) : t('picker.noneNearby')}
             </Text>
-            <Button title={t('common.addPlace')} icon="plus" variant="secondary" onPress={() => openAddPlace(q)} />
+            <Button title={t('common.addPlace')} icon="plus" variant="secondary" onPress={() => openAddPlace(q, onSelect)} />
           </View>
         )
       }
@@ -60,7 +63,7 @@ export function PlaceSearchList({ query, onSelect, trailing, exclude, header }: 
           <Button
             title={t('picker.notListed')}
             variant="ghost"
-            onPress={() => openAddPlace(q)}
+            onPress={() => openAddPlace(q, onSelect)}
             style={styles.footer}
           />
         ) : null
