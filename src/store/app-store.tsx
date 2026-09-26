@@ -22,7 +22,7 @@ import { setHapticsEnabled } from '@/lib/haptics';
 import { unregisterDevice } from '@/lib/notifications';
 import i18n from '@/i18n';
 import { keys, queryClient } from '@/lib/query-client';
-import { emptyRankings, flattenRankings, insertEntry, removeFromRankings } from '@/lib/ranking';
+import { emptyRankings, flattenRankings, insertEntry, removeFromRankings, type Placement } from '@/lib/ranking';
 import { setCurrentUserId } from '@/lib/session';
 import { isBackendConfigured, supabase } from '@/lib/supabase';
 import type {
@@ -33,7 +33,7 @@ import type {
   RankedEntry,
   Rankings,
   SavedPlace,
-  Sentiment,
+  Segment,
   SignupDraft,
   User,
 } from '@/types';
@@ -112,7 +112,7 @@ type Action =
   | { type: 'restore'; patch: Restorable }
   | { type: 'updateProfile'; patch: Partial<Profile> }
   | { type: 'setDraft'; draft: SignupDraft }
-  | { type: 'rank'; sentiment: Sentiment; index: number; entry: RankedEntry }
+  | { type: 'rank'; placement: Placement; entry: RankedEntry }
   | { type: 'unrank'; placeId: string }
   | { type: 'savePlace'; entry: SavedPlace }
   | { type: 'unsavePlace'; placeId: string }
@@ -173,7 +173,7 @@ function reducer(state: State, action: Action): State {
     case 'rank':
       return {
         ...state,
-        rankings: insertEntry(state.rankings, action.sentiment, action.index, action.entry),
+        rankings: insertEntry(state.rankings, action.placement, action.entry),
         // Puanlanan mekân artık "Listem"de durmasın
         saved: withoutSaved(state.saved, action.entry.placeId),
       };
@@ -206,7 +206,8 @@ function reducer(state: State, action: Action): State {
 
 const PREFS_KEY = 'puanla:prefs:v2';
 const DRAFT_KEY = 'puanla:draft:v1';
-const cacheKey = (userId: string) => `puanla:me:v1:${userId}`;
+// v2: sıralama kayıtlarında segment var; eski önbellek okunmaz, sunucudan yeniden yüklenir
+const cacheKey = (userId: string) => `puanla:me:v2:${userId}`;
 
 type CachedData = MyData & { places: Place[] };
 
@@ -249,7 +250,8 @@ export type Actions = {
   /** Yeni profil fotoğrafı; null fotoğrafı kaldırır */
   updateAvatar: (image: LocalImage | null) => Promise<boolean>;
   completeOnboarding: () => Promise<boolean>;
-  rank: (placeId: string, sentiment: Sentiment, index: number, note?: string) => void;
+  /** Mekânı segmentindeki listede `placement` yerine koyar (bkz. hooks/use-rank-flow) */
+  rank: (placeId: string, placement: Placement & { segment: Segment }, note?: string) => void;
   /** Mekânın puanı hâlâ sunucuya yazılıyorsa bitmesini bekler (gönderi puanı boş kalmasın) */
   waitForRank: (placeId: string) => Promise<void>;
   unrank: (placeId: string) => void;
@@ -542,11 +544,11 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         }
       },
 
-      rank: (placeId, sentiment, index, note) => {
+      rank: (placeId, { sentiment, index, segment }, note) => {
         const { rankings, saved } = stateRef.current;
-        const entry = { placeId, note: note?.trim() || undefined, ratedAt: new Date().toISOString() };
+        const entry = { placeId, segment, note: note?.trim() || undefined, ratedAt: new Date().toISOString() };
         const write = optimistic(
-          { type: 'rank', sentiment, index, entry },
+          { type: 'rank', placement: { sentiment, index }, entry },
           { rankings, saved },
           () => meApi.rankPlace(placeId, sentiment, index, entry.note),
           i18n.t('failures.rankSave'),

@@ -20,6 +20,8 @@ const KINDS: { kind: NotificationKind; icon: SFSymbol }[] = [
   { kind: 'friend_joined', icon: 'person.crop.circle.badge.checkmark' },
   { kind: 'tag', icon: 'person.2.fill' },
   { kind: 'comment', icon: 'bubble.left.fill' },
+  { kind: 'reply', icon: 'arrowshape.turn.up.left.fill' },
+  { kind: 'comment_like', icon: 'heart.text.square.fill' },
   { kind: 'like', icon: 'heart.fill' },
   { kind: 'follow', icon: 'person.fill.badge.plus' },
 ];

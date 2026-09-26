@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, RefreshControl, SectionList, StyleSheet, View } from 'react-native';
 
 import { markAllRead } from '@/api/notifications';
+import { PeopleYouMayKnow } from '@/components/people-you-may-know';
 import { UserRowsSkeleton } from '@/components/skeleton';
 import { Avatar, Button, Divider, ErrorView, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { FollowButton } from '@/components/user-row';
@@ -32,6 +33,18 @@ function sectionsOf(list: AppNotification[]): Section[] {
   return (['today', 'week', 'earlier'] as const).flatMap((key) => (groups[key].length ? [{ key, data: groups[key] }] : []));
 }
 
+/** Öneriler, en az bu kadar bildirim gösterildikten sonraki bölümün altına girer (az bildirim varsa en sona) */
+const SUGGESTIONS_AFTER = 3;
+
+function suggestionsSection(sections: Section[]): Section['key'] | undefined {
+  let seen = 0;
+  for (const section of sections) {
+    seen += section.data.length;
+    if (seen >= SUGGESTIONS_AFTER) return section.key;
+  }
+  return sections.at(-1)?.key;
+}
+
 function openTarget(n: AppNotification) {
   if (n.kind === 'follow' || n.kind === 'friend_joined') openUserProfile(n.actor.id);
   else if (n.kind === 'friend_rated' && n.placeId) router.push({ pathname: '/mekan/[id]', params: { id: n.placeId } });
@@ -39,7 +52,8 @@ function openTarget(n: AppNotification) {
 }
 
 /**
- * Bildirim merkezi: beğeni, yorum, etiket, takip ve "arkadaşın gittiğin yeri puanladı".
+ * Bildirim merkezi: beğeni, yorum, yanıt, yorum beğenisi, etiket, takip ve "arkadaşın gittiğin yeri puanladı".
+ * İlk birkaç bildirimden sonra "Tanıyor olabileceğin kişiler" araya girer (bildirim yoksa boş ekranda).
  * Açılınca hepsi okundu sayılır; okunmamışlar bu ziyaret boyunca vurgulu kalır.
  */
 export default function NotificationsScreen() {
@@ -50,6 +64,7 @@ export default function NotificationsScreen() {
 
   const list = useMemo(() => query.data?.pages.flat() ?? [], [query.data]);
   const sections = useMemo(() => sectionsOf(list), [list]);
+  const suggestionsAfter = suggestionsSection(sections);
 
   useFocusEffect(
     useCallback(() => {
@@ -63,7 +78,7 @@ export default function NotificationsScreen() {
 
   const refresh = async () => {
     setRefreshing(true);
-    await query.refetch();
+    await Promise.all([query.refetch(), queryClient.invalidateQueries({ queryKey: keys.peopleYouMayKnow() })]);
     setRefreshing(false);
   };
 
@@ -104,6 +119,7 @@ export default function NotificationsScreen() {
           </Text>
         )}
         renderItem={({ item }) => <NotificationRow item={item} />}
+        renderSectionFooter={({ section }) => (section.key === suggestionsAfter ? <PeopleYouMayKnow /> : null)}
         ItemSeparatorComponent={() => <Divider inset={spacing.lg + 44 + spacing.md} />}
         ListFooterComponent={
           query.isFetchingNextPage ? <ActivityIndicator color={colors.primary} style={styles.more} /> : null
@@ -114,21 +130,24 @@ export default function NotificationsScreen() {
           ) : query.isError ? (
             <ErrorView onRetry={() => query.refetch()} />
           ) : (
-            <View style={styles.empty}>
-              <SymbolView name="bell" tintColor={colors.textTertiary} size={40} />
-              <Text variant="headline" align="center">
-                {t('notifications.emptyTitle')}
-              </Text>
-              <Text variant="subhead" color={colors.textSecondary} align="center">
-                {t('notifications.emptyText')}
-              </Text>
-              <Button
-                title={t('screens.findFriends')}
-                variant="outline"
-                size="sm"
-                onPress={() => router.push('/arkadas-bul')}
-                style={styles.emptyButton}
-              />
+            <View>
+              <View style={styles.empty}>
+                <SymbolView name="bell" tintColor={colors.textTertiary} size={40} />
+                <Text variant="headline" align="center">
+                  {t('notifications.emptyTitle')}
+                </Text>
+                <Text variant="subhead" color={colors.textSecondary} align="center">
+                  {t('notifications.emptyText')}
+                </Text>
+                <Button
+                  title={t('screens.findFriends')}
+                  variant="outline"
+                  size="sm"
+                  onPress={() => router.push('/arkadas-bul')}
+                  style={styles.emptyButton}
+                />
+              </View>
+              <PeopleYouMayKnow />
             </View>
           )
         }
@@ -140,6 +159,8 @@ export default function NotificationsScreen() {
 const ICONS: Record<AppNotification['kind'], SFSymbol> = {
   like: 'heart.fill',
   comment: 'bubble.left.fill',
+  reply: 'arrowshape.turn.up.left.fill',
+  comment_like: 'heart.fill',
   tag: 'person.2.fill',
   follow: 'person.fill.badge.plus',
   friend_rated: 'fork.knife',
@@ -153,6 +174,10 @@ function NotificationRow({ item }: { item: AppNotification }) {
       ? t('notifications.like', { place: item.placeName })
       : item.kind === 'comment'
         ? t('notifications.comment', { comment: item.comment ?? '' })
+        : item.kind === 'reply'
+          ? t('notifications.reply', { comment: item.comment ?? '' })
+        : item.kind === 'comment_like'
+          ? t('notifications.commentLike', { comment: item.comment ?? '' })
         : item.kind === 'tag'
           ? t('notifications.tag', { place: item.placeName })
           : item.kind === 'follow'
@@ -177,7 +202,7 @@ function NotificationRow({ item }: { item: AppNotification }) {
       accessibilityRole="button">
       <PressableScale onPress={() => openUserProfile(item.actor.id)} haptic={false}>
         <Avatar uri={item.actor.avatarUrl} name={item.actor.name} size={44} />
-        <View style={[styles.kind, item.kind === 'like' && styles.kindLike]}>
+        <View style={[styles.kind, (item.kind === 'like' || item.kind === 'comment_like') && styles.kindLike]}>
           <SymbolView name={ICONS[item.kind]} tintColor={colors.onPrimary} size={10} />
         </View>
       </PressableScale>
@@ -286,6 +311,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingHorizontal: spacing.xxl,
     paddingTop: 96,
+    paddingBottom: spacing.lg,
   },
   emptyButton: {
     marginTop: spacing.md,

@@ -7,6 +7,7 @@
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 type Sentiment = 'liked' | 'fine' | 'disliked';
+type Segment = 'restaurant' | 'street' | 'breakfast' | 'cafe' | 'nightlife';
 type SaveOrigin = 'social' | 'app';
 type PriceBucket = 'u250' | '250-500' | '500-1000' | '1000-2000' | 'o2000';
 type Meal = 'kahvalti' | 'ogle' | 'aksam' | 'gece';
@@ -62,7 +63,23 @@ export type PlaceViewRow = {
   photo: string | null;
 };
 
-export type NotificationType = 'like' | 'comment' | 'tag' | 'follow' | 'friend_rated' | 'friend_joined';
+export type NotificationType =
+  | 'like'
+  | 'comment'
+  | 'reply'
+  | 'comment_like'
+  | 'tag'
+  | 'follow'
+  | 'friend_rated'
+  | 'friend_joined';
+
+/** people_you_may_know(): öneri ve gerekçesi */
+export type PersonSuggestionRow = {
+  profile: PublicProfileJson;
+  reason: 'follows_you' | 'contact' | 'together' | 'mutual' | 'engaged' | 'school' | 'popular';
+  mutual_count: number;
+  mutual_name: string | null;
+};
 
 /** match_contacts(): rehberdeki numaralardan uygulamada olanlar */
 export type ContactMatchRow = { phone: string; user: PublicProfileJson; following: boolean };
@@ -142,6 +159,7 @@ export type RankingViewRow = {
   note: string | null;
   rated_at: string;
   place: PlaceViewRow;
+  segment: Segment;
 };
 
 export type SavedPlaceViewRow = {
@@ -161,6 +179,9 @@ export type CommentViewRow = {
   body: string;
   created_at: string;
   author: PublicProfileJson;
+  parent_id: string | null;
+  like_count: number;
+  liked_by_me: boolean;
 };
 
 export type AreaViewRow = {
@@ -242,7 +263,7 @@ export type Database = {
   __InternalSupabase: { PostgrestVersion: '12' };
   public: {
     Tables: {
-      cuisines: Table<{ name: string; position: number }>;
+      cuisines: Table<{ name: string; position: number; segment: Segment }>;
       profiles: Table<
         ProfileRow,
         never,
@@ -283,6 +304,7 @@ export type Database = {
         score: number;
         note: string | null;
         rated_at: string;
+        segment: Segment;
       }>;
       saved_places: Table<
         {
@@ -342,8 +364,22 @@ export type Database = {
       post_saves: Table<{ post_id: string; user_id: string; created_at: string }, { post_id: string }, never>;
       post_tags: Table<{ post_id: string; user_id: string }, { post_id: string; user_id: string }, never>;
       comments: Table<
-        { id: string; post_id: string; user_id: string; body: string; created_at: string },
-        { post_id: string; body: string },
+        {
+          id: string;
+          post_id: string;
+          user_id: string;
+          body: string;
+          created_at: string;
+          parent_id: string | null;
+          like_count: number;
+        },
+        { post_id: string; body: string; parent_id?: string | null },
+        never
+      >;
+      comment_likes: Table<{ comment_id: string; user_id: string; created_at: string }, { comment_id: string }, never>;
+      suggestion_dismissals: Table<
+        { user_id: string; dismissed_id: string; created_at: string },
+        { dismissed_id: string },
         never
       >;
       lists: Table<
@@ -447,6 +483,7 @@ export type Database = {
       };
       search_users: { Args: { p_query: string; p_limit?: number }; Returns: ProfileViewRow[] };
       suggested_users: { Args: { p_limit?: number }; Returns: ProfileViewRow[] };
+      people_you_may_know: { Args: { p_limit?: number }; Returns: PersonSuggestionRow[] };
       recommended_places: {
         Args: { p_latitude?: number; p_longitude?: number; p_limit?: number };
         Returns: (PlaceViewRow & {

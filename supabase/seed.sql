@@ -141,7 +141,8 @@ insert into public.comments (id, post_id, user_id, body, created_at) values
   ('d0000000-0000-4000-8000-000000000007', 'c0000000-0000-4000-8000-000000000016', 'b0000000-0000-4000-8000-000000000004', 'Rezervasyon şart mı?', now() - interval '2 hours'),
   ('d0000000-0000-4000-8000-000000000008', 'c0000000-0000-4000-8000-000000000012', 'b0000000-0000-4000-8000-000000000001', 'Ankara’ya gelince ilk durak.', now() - interval '5 hours');
 
--- Demo kullanıcıların sıralamaları gönderi puanlarından türetilir; puanlar sonra sıradan yeniden hesaplanır
+-- Demo kullanıcıların sıralamaları gönderi puanlarından türetilir (segment tetikleyiciyle gelir);
+-- sıralar sonra segment bazında sıkıştırılıp puanlar yeniden hesaplanır
 insert into public.rankings (user_id, place_id, sentiment, position, score, rated_at)
 select
   user_id,
@@ -158,5 +159,5 @@ from (
   order by user_id, place_id, created_at desc
 ) latest;
 
-select public.recompute_group_scores(g.user_id, g.sentiment)
-from (select distinct user_id, sentiment from public.rankings) g;
+-- Segmentlere bölünmüş sıraları boşluksuz yapar ve puanları hesaplar
+select public.normalize_rankings();

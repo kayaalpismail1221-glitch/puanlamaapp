@@ -154,7 +154,7 @@ export default function CreatePostScreen() {
   const share = () => {
     if (score === undefined) return;
     // Yeni puan önce kaydedilir; gönderi puanını sunucudaki sıralamadan alır (bkz. waitForRank)
-    if (rating && flow.result) actions.rank(place.id, flow.result.sentiment, flow.result.index, existing?.note);
+    if (rating && flow.result) actions.rank(place.id, flow.result, existing?.note);
     createPost.mutate(
       {
         placeId: place.id,
@@ -239,6 +239,7 @@ export default function CreatePostScreen() {
               compact
               place={place}
               other={flow.otherPlaceId ? getPlace(flow.otherPlaceId) : undefined}
+              segment={flow.segment}
               step={flow.step}
               total={flow.totalSteps}
               onPick={flow.answer}

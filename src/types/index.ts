@@ -42,14 +42,21 @@ export type Place = {
 /** Beli tarzı ilk izlenim */
 export type Sentiment = 'liked' | 'fine' | 'disliked';
 
-/** Kullanıcının puanladığı bir mekân. Puan, sıralamadaki konumdan hesaplanır. */
+/** Birbiriyle kıyaslanan mekân ailesi (bkz. constants/segments) */
+export type Segment = 'restaurant' | 'street' | 'breakfast' | 'cafe' | 'nightlife';
+
+/** Kullanıcının puanladığı bir mekân. Puan, segmentindeki sıralamadan hesaplanır. */
 export type RankedEntry = {
   placeId: string;
+  segment: Segment;
   note?: string;
   ratedAt: string; // ISO tarih
 };
 
-/** Her grup en iyiden en kötüye sıralı */
+/**
+ * Her izlenim grubu en iyiden en kötüye sıralı. Segmentler aynı dizide karışık durur; bir segmentin
+ * kendi sırası, dizideki o segmente ait kayıtların sırasıdır.
+ */
 export type Rankings = Record<Sentiment, RankedEntry[]>;
 
 /** Kaydın nereden geldiği: sosyal medyada görülen ya da uygulama içinde kaydedilen */
@@ -119,6 +126,10 @@ export type Comment = {
   userId: string;
   text: string;
   createdAt: string;
+  /** Yanıtsa yanıtlanan yorum (o da bir yanıt olabilir; ekranda ilk yorumun altında toplanır) */
+  parentId?: string;
+  likeCount: number;
+  likedByMe: boolean;
 };
 
 export type Meal = 'kahvalti' | 'ogle' | 'aksam' | 'gece';
@@ -171,7 +182,27 @@ export type PlaceListItem = { place: Place; score?: number; note?: string };
 /** Popüler feed'in hangi bölgeyi gösterdiği */
 export type FeedArea = { type: 'near' } | { type: 'area'; city: string; district?: string };
 
-export type NotificationKind = 'like' | 'comment' | 'tag' | 'follow' | 'friend_rated' | 'friend_joined';
+export type NotificationKind =
+  | 'like'
+  | 'comment'
+  | 'reply'
+  | 'comment_like'
+  | 'tag'
+  | 'follow'
+  | 'friend_rated'
+  | 'friend_joined';
+
+/** Neden önerildiği: en güçlü bağ (bkz. people_you_may_know) */
+export type SuggestionReason = 'follows_you' | 'contact' | 'together' | 'mutual' | 'engaged' | 'school' | 'popular';
+
+/** "Tanıyor olabileceğin kişiler" satırı */
+export type PersonSuggestion = {
+  user: User;
+  reason: SuggestionReason;
+  mutualCount: number;
+  /** Ortak arkadaşlardan birinin adı ("Ayşe ve 2 kişi daha takip ediyor") */
+  mutualName?: string;
+};
 
 /** Bildirim merkezindeki bir satır */
 export type AppNotification = {

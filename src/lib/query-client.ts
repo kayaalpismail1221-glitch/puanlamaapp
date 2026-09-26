@@ -48,6 +48,7 @@ export const keys = {
   list: (id: string) => ['lists', 'detail', id] as const,
   connections: (userId: string, kind: string) => ['connections', userId, kind] as const,
   suggested: () => ['suggested'] as const,
+  peopleYouMayKnow: () => ['suggested', 'people-you-may-know'] as const,
   contactMatches: () => ['contacts', 'matches'] as const,
   myInvites: () => ['contacts', 'invites'] as const,
   notifications: () => ['notifications'] as const,

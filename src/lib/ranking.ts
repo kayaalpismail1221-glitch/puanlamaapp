@@ -1,9 +1,10 @@
-import type { RankedEntry, Rankings, Sentiment } from '@/types';
+import type { RankedEntry, Rankings, Segment, Sentiment } from '@/types';
 
 /**
- * Beli tarzı sıralama.
- * Her ilk izlenim grubunun kendi puan aralığı vardır. Grup içindeki sıra ikili
- * karşılaştırmayla (ikili arama) bulunur ve puan 0–10 arasında sıradan hesaplanır.
+ * Beli tarzı sıralama, segment bazında.
+ * Her ilk izlenim grubunun kendi puan aralığı vardır. Yeni mekân yalnızca aynı segmentteki (bkz.
+ * constants/segments) aynı gruptaki mekânlarla ikili karşılaştırılır (ikili arama); puan o listedeki
+ * sıradan hesaplanır.
  */
 
 export const SENTIMENT_RANGES: Record<Sentiment, { min: number; max: number }> = {
@@ -14,32 +15,62 @@ export const SENTIMENT_RANGES: Record<Sentiment, { min: number; max: number }> =
 
 export const SENTIMENT_ORDER: Sentiment[] = ['liked', 'fine', 'disliked'];
 
+/**
+ * Liste bu kadar mekâna ulaşınca puanlar grubun tüm aralığına yayılır. Daha kısa listelerde puanlar
+ * aralığın ortasına yakın durur: tek bir "Beğendim" 10,0 değil 8,4 alır; iki mekândan ikincisi
+ * 6,7'ye düşmez. Az veriyle uç puan verilmez, kıyaslandıkça puanlar netleşir.
+ */
+export const FULL_SPREAD_AT = 5;
 
 export const emptyRankings = (): Rankings => ({ liked: [], fine: [], disliked: [] });
 
 /**
- * Grup içinde `index` sırasındaki (0 = en iyi) mekânın puanı.
- * Sunucudaki `sentiment_score` ile birebir aynı sonucu vermesi için onda birler cinsinden tam sayılarla hesaplanır.
+ * Listede `index` sırasındaki (0 = en iyi) mekânın puanı: aralığın ortası + yayılma × sıradaki yer.
+ * Yayılma liste uzadıkça 0'dan 1'e çıkar (bkz. FULL_SPREAD_AT).
+ * Sunucudaki `sentiment_score` ile birebir aynı sonucu vermesi için onda birler cinsinden, yalnızca
+ * tam sayılarla hesaplanır; yarım değerler yukarı yuvarlanır.
  */
 export function scoreAt(sentiment: Sentiment, index: number, count: number): number {
-  const { min, max } = SENTIMENT_RANGES[sentiment];
-  if (count <= 1) return max;
-  // En iyi `max`, en kötü `min` alır; aradakiler eşit aralıklı dağılır.
-  const hi = Math.round(max * 10);
-  const lo = Math.round(min * 10);
-  return Math.round(hi - ((hi - lo) * index) / (count - 1)) / 10;
+  const hi = Math.round(SENTIMENT_RANGES[sentiment].max * 10);
+  const lo = Math.round(SENTIMENT_RANGES[sentiment].min * 10);
+  if (count <= 1) return Math.floor((hi + lo + 1) / 2) / 10;
+  const d = count - 1;
+  const steps = FULL_SPREAD_AT - 1;
+  const spread = Math.min(d, steps);
+  const pos = Math.min(Math.max(index, 0), d);
+  // puan×10 = n / m  →  (hi+lo)/2 + (spread/steps) × (hi−lo) × (d − 2·pos) / (2d)
+  const n = steps * d * (hi + lo) + spread * (hi - lo) * (d - 2 * pos);
+  const m = 2 * steps * d;
+  return Math.floor((2 * n + m) / (2 * m)) / 10;
 }
+
+/** Bir grubun yalnızca verilen segmentteki kayıtları (sırası korunur) */
+export const segmentEntries = (list: RankedEntry[], segment: Segment, exceptPlaceId?: string) =>
+  list.filter((e) => e.segment === segment && e.placeId !== exceptPlaceId);
 
 export type ScoredEntry = RankedEntry & { sentiment: Sentiment; score: number; rank: number };
 
-/** Tüm grupları puanlarıyla birlikte tek, sıralı listeye çevirir */
+/** Bir gruptaki her kaydın puanı: segment içindeki sırası ve segmentin o gruptaki mekân sayısından */
+function scoreGroup(sentiment: Sentiment, list: RankedEntry[]) {
+  const counts = new Map<Segment, number>();
+  for (const e of list) counts.set(e.segment, (counts.get(e.segment) ?? 0) + 1);
+  const seen = new Map<Segment, number>();
+  return list.map((entry) => {
+    const index = seen.get(entry.segment) ?? 0;
+    seen.set(entry.segment, index + 1);
+    return { entry, score: scoreAt(sentiment, index, counts.get(entry.segment)!) };
+  });
+}
+
+/**
+ * Tüm grupları puanlarıyla tek listeye çevirir: önce izlenim grubu, grup içinde puan (segmentler
+ * karışık; eşit puanda dizideki sıra korunur).
+ */
 export function flattenRankings(rankings: Rankings): ScoredEntry[] {
   const result: ScoredEntry[] = [];
   for (const sentiment of SENTIMENT_ORDER) {
-    const list = rankings[sentiment];
-    list.forEach((entry, i) => {
-      result.push({ ...entry, sentiment, score: scoreAt(sentiment, i, list.length), rank: 0 });
-    });
+    const scored = scoreGroup(sentiment, rankings[sentiment]).sort((a, b) => b.score - a.score);
+    for (const { entry, score } of scored) result.push({ ...entry, sentiment, score, rank: 0 });
   }
   return result.map((e, i) => ({ ...e, rank: i + 1 }));
 }
@@ -48,8 +79,10 @@ export function flattenRankings(rankings: Rankings): ScoredEntry[] {
 export function scoreInRankings(rankings: Rankings, placeId: string): number | undefined {
   for (const sentiment of SENTIMENT_ORDER) {
     const list = rankings[sentiment];
-    const i = list.findIndex((e) => e.placeId === placeId);
-    if (i >= 0) return scoreAt(sentiment, i, list.length);
+    const entry = list.find((e) => e.placeId === placeId);
+    if (!entry) continue;
+    const peers = segmentEntries(list, entry.segment);
+    return scoreAt(sentiment, peers.indexOf(entry), peers.length);
   }
   return undefined;
 }
@@ -87,14 +120,18 @@ export const skipComparison = (c: Comparison): Comparison => {
 /** Karşılaştırmalar kabaca kaç soru sürer (ilerleme göstergesi için) */
 export const expectedSteps = (count: number) => (count === 0 ? 0 : Math.ceil(Math.log2(count + 1)));
 
-export function insertEntry(
-  rankings: Rankings,
-  sentiment: Sentiment,
-  index: number,
-  entry: RankedEntry,
-): Rankings {
+/** Puanlamanın sonucu: izlenim grubu ve o gruptaki segment listesinde sıra (0 = en iyi) */
+export type Placement = { sentiment: Sentiment; index: number };
+
+/**
+ * Mekânı grubuna, kendi segmentinin `index`. sırasına yerleştirir (varsa eski yerinden çıkarır).
+ * Sunucudaki `rank_place` ile aynı davranır.
+ */
+export function insertEntry(rankings: Rankings, { sentiment, index }: Placement, entry: RankedEntry): Rankings {
   const next = removeFromRankings(rankings, entry.placeId);
   const list = [...next[sentiment]];
-  list.splice(Math.min(index, list.length), 0, entry);
+  const peers = list.flatMap((e, i) => (e.segment === entry.segment ? [i] : []));
+  const at = index < peers.length ? peers[Math.max(index, 0)]! : peers.length ? peers.at(-1)! + 1 : list.length;
+  list.splice(at, 0, entry);
   return { ...next, [sentiment]: list };
 }

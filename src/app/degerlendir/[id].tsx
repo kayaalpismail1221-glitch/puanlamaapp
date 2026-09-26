@@ -58,7 +58,7 @@ export default function RateScreen() {
   const save = (thenShare = false) => {
     if (!flow.result) return;
     haptics.success();
-    actions.rank(place.id, flow.result.sentiment, flow.result.index, note);
+    actions.rank(place.id, flow.result, note);
     if (sonra === 'gonderi') {
       router.replace({ pathname: '/gonderi-olustur', params: { placeId: place.id, akis: 'onboarding' } });
     } else if (thenShare) {
@@ -100,6 +100,7 @@ export default function RateScreen() {
             key={`compare-${flow.step}`}
             place={place}
             other={flow.otherPlaceId ? getPlace(flow.otherPlaceId) : undefined}
+            segment={flow.segment}
             step={flow.step}
             total={flow.totalSteps}
             onPick={flow.answer}

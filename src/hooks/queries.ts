@@ -12,7 +12,7 @@ import type { LeaderboardPeriod, LeaderboardScope } from '@/lib/leaderboard';
 import { keys, queryClient } from '@/lib/query-client';
 import i18n from '@/i18n';
 import { useAppActions, useAppSelector } from '@/store/app-store';
-import type { Comment, FeedArea, Post } from '@/types';
+import type { Comment, FeedArea, PersonSuggestion, Post, UserProfile } from '@/types';
 
 /**
  * Sunucu verisi kancaları. Hepsi TanStack Query üzerinden önbelleklenir,
@@ -154,7 +154,7 @@ export function useUpdatePost() {
 
 export function useAddComment(postId: string) {
   return useMutation({
-    mutationFn: (text: string) => api.addComment(postId, text),
+    mutationFn: ({ text, parentId }: { text: string; parentId?: string }) => api.addComment(postId, text, parentId),
     onSuccess: (comment) => {
       queryClient.setQueryData(keys.comments(postId), (old: Comment[] | undefined) => [...(old ?? []), comment]);
       adjustCommentCount(postId, 1);
@@ -163,16 +163,52 @@ export function useAddComment(postId: string) {
   });
 }
 
+/** Silinen yorumun yanıtları da (sunucuda cascade) listeden ve sayaçtan düşer */
 export function useDeleteComment(postId: string) {
   return useMutation({
     mutationFn: (commentId: string) => api.deleteComment(commentId),
     onSuccess: (_, commentId) => {
-      queryClient.setQueryData(keys.comments(postId), (old: { id: string }[] | undefined) =>
-        old?.filter((c) => c.id !== commentId),
+      const old = queryClient.getQueryData<Comment[]>(keys.comments(postId)) ?? [];
+      const removed = new Set([commentId]);
+      for (let grew = true; grew; ) {
+        grew = false;
+        for (const c of old) {
+          if (c.parentId && removed.has(c.parentId) && !removed.has(c.id)) {
+            removed.add(c.id);
+            grew = true;
+          }
+        }
+      }
+      queryClient.setQueryData(
+        keys.comments(postId),
+        old.filter((c) => !removed.has(c.id)),
       );
-      adjustCommentCount(postId, -1);
+      adjustCommentCount(postId, -removed.size);
     },
   });
+}
+
+/**
+ * Yorum beğenme: kalp ve sayı hemen değişir, sunucuya arkadan yazılır; hata olursa geri alınır.
+ * Hızlı çift dokunuşta son istenen durum kazanır (her dokunuş kendi hedefini yazar).
+ */
+export function useToggleCommentLike(postId: string) {
+  const update = (commentId: string, liked: boolean) =>
+    queryClient.setQueryData(keys.comments(postId), (old: Comment[] | undefined) =>
+      old?.map((c) =>
+        c.id === commentId && c.likedByMe !== liked
+          ? { ...c, likedByMe: liked, likeCount: Math.max(0, c.likeCount + (liked ? 1 : -1)) }
+          : c,
+      ),
+    );
+  return (comment: Comment) => {
+    const liked = !comment.likedByMe;
+    update(comment.id, liked);
+    api.setCommentLiked(comment.id, liked).catch((error) => {
+      update(comment.id, !liked);
+      showError(error, i18n.t('failures.commentLike'));
+    });
+  };
 }
 
 /* ---------- Mekânlar ---------- */
@@ -356,6 +392,34 @@ export function useSuggestedUsers(limit = 30) {
     staleTime: Infinity,
     refetchOnWindowFocus: false,
   });
+}
+
+/**
+ * Tanıyor olabileceğin kişiler (bildirim merkezi). Takip edilen kişi listede "Takip ediliyor" olarak
+ * kalsın diye kendiliğinden yenilenmez; aşağı çekince yenilenir.
+ */
+export function usePeopleYouMayKnow(limit = 10) {
+  return useQuery({
+    queryKey: keys.peopleYouMayKnow(),
+    queryFn: () => api.fetchPeopleYouMayKnow(limit),
+    staleTime: 10 * 60_000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+/** ✕: öneri tüm listelerden hemen kalkar, sunucuya arkadan yazılır */
+export function useDismissSuggestion() {
+  return (userId: string) => {
+    const pymk = queryClient.getQueryData<PersonSuggestion[]>(keys.peopleYouMayKnow());
+    const suggested = queryClient.getQueryData<UserProfile[]>(keys.suggested());
+    queryClient.setQueryData(keys.peopleYouMayKnow(), pymk?.filter((s) => s.user.id !== userId));
+    queryClient.setQueryData(keys.suggested(), suggested?.filter((u) => u.id !== userId));
+    api.dismissSuggestion(userId).catch((error) => {
+      queryClient.setQueryData(keys.peopleYouMayKnow(), pymk);
+      queryClient.setQueryData(keys.suggested(), suggested);
+      showError(error);
+    });
+  };
 }
 
 export function useSearchUsers(query: string) {

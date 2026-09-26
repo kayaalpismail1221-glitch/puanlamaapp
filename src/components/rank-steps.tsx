@@ -4,9 +4,11 @@ import { StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown, FadeOut } from 'react-native-reanimated';
 
 import { Button, PlaceImage, PressableScale, Text } from '@/components/ui';
+import { SEGMENT_ICONS } from '@/constants/segments';
 import { colors, radius, spacing } from '@/constants/theme';
 import type { RankResult } from '@/hooks/use-rank-flow';
-import type { Place, Sentiment } from '@/types';
+import { FULL_SPREAD_AT } from '@/lib/ranking';
+import type { Place, Segment, Sentiment } from '@/types';
 
 /**
  * Beli tarzı puanlama adımlarının görünümü (mantık: hooks/use-rank-flow).
@@ -57,10 +59,24 @@ export function SentimentChoice({ onChoose, compact }: { onChoose: (s: Sentiment
   );
 }
 
-/** 2) "Hangisi daha iyiydi?" */
+/** Karşılaştırmanın yapıldığı segment: "🔥 Sokak lezzetleri" */
+export function SegmentTag({ segment }: { segment: Segment }) {
+  const { t } = useTranslation();
+  return (
+    <View style={styles.segmentTag}>
+      <SymbolView name={SEGMENT_ICONS[segment]} tintColor={colors.textSecondary} size={12} weight="semibold" />
+      <Text variant="caption" color={colors.textSecondary} style={styles.bold}>
+        {t(`segments.${segment}`)}
+      </Text>
+    </View>
+  );
+}
+
+/** 2) "Hangisi daha iyiydi?" — yalnızca aynı segmentteki mekânlarla */
 export function CompareStep({
   place,
   other,
+  segment,
   step,
   total,
   onPick,
@@ -70,6 +86,7 @@ export function CompareStep({
   place: Place;
   /** Karşılaştırılan mekân önbellekte yoksa (çok nadir) "Emin değilim" gibi davranılır */
   other: Place | undefined;
+  segment: Segment;
   step: number;
   total: number;
   onPick: (newIsBetter: boolean) => void;
@@ -86,6 +103,14 @@ export function CompareStep({
         <Text variant="footnote" color={colors.textSecondary}>
           {Math.min(step, total)}/{total}
         </Text>
+      </View>
+      <View style={styles.compareMeta}>
+        <SegmentTag segment={segment} />
+        {!compact && (
+          <Text variant="caption" color={colors.textTertiary} style={styles.flex} numberOfLines={1}>
+            {t('rate.sameSegmentOnly')}
+          </Text>
+        )}
       </View>
       <View style={styles.compareRow}>
         <CompareCard place={place} onPress={() => onPick(true)} compact={compact} />
@@ -121,13 +146,20 @@ function CompareCard({ place, onPress, compact }: { place: Place; onPress: () =>
   );
 }
 
-/** 3) "“Beğendim” listende 5 mekân arasında 2. sırada." */
+/**
+ * 3) "“Beğendim” listende 5 mekân arasında 2. sırada." (liste = aynı segment)
+ * Liste kısayken puanın henüz kesinleşmediği de söylenir.
+ */
 export function useRankResultText() {
   const { t } = useTranslation();
-  return (result: RankResult) =>
-    result.total === 1
-      ? t('rate.firstInList', { list: t(`sentiments.${result.sentiment}`) })
-      : t('rate.position', { list: t(`sentiments.${result.sentiment}`), total: result.total, rank: result.index + 1 });
+  return (result: RankResult) => {
+    const list = t(`sentiments.${result.sentiment}`);
+    const text =
+      result.total === 1
+        ? t('rate.firstInList', { list })
+        : t('rate.position', { list, total: result.total, rank: result.index + 1 });
+    return result.total < FULL_SPREAD_AT ? `${text}\n${t('rate.provisional')}` : text;
+  };
 }
 
 const styles = StyleSheet.create({
@@ -136,6 +168,24 @@ const styles = StyleSheet.create({
   },
   bold: {
     fontWeight: '600',
+  },
+  flex: {
+    flex: 1,
+  },
+  segmentTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface,
+  },
+  compareMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: -spacing.xs,
   },
   pills: {
     flexDirection: 'row',

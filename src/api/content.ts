@@ -9,7 +9,7 @@ import type { Coords } from '@/lib/geo';
 import type { LeaderboardEntry, LeaderboardPeriod, LeaderboardScope } from '@/lib/leaderboard';
 import { supabase } from '@/lib/supabase';
 import type { AreaViewRow, PlaceDetailsJson, PopularFeedJson, ProfileViewRow, TasteMatchJson } from '@/types/database';
-import type { Comment, FeedArea, Meal, Place, Post, UserProfile } from '@/types';
+import type { Comment, FeedArea, Meal, PersonSuggestion, Place, Post, UserProfile } from '@/types';
 
 /**
  * Paylaşılan içerik: feed, gönderiler, yorumlar, mekânlar, kişiler ve liderlik tablosu.
@@ -196,9 +196,34 @@ export async function fetchComments(postId: string): Promise<Comment[]> {
   return rows.map(toComment);
 }
 
-export async function addComment(postId: string, text: string): Promise<Comment> {
-  const row = unwrap(await supabase.from('comments').insert({ post_id: postId, body: text }).select().single());
-  return { id: row.id, postId: row.post_id, userId: row.user_id, text: row.body, createdAt: row.created_at };
+/** Yorum ya da `parentId` verilirse o yoruma yanıt */
+export async function addComment(postId: string, text: string, parentId?: string): Promise<Comment> {
+  const row = unwrap(
+    await supabase
+      .from('comments')
+      .insert({ post_id: postId, body: text, parent_id: parentId ?? null })
+      .select()
+      .single(),
+  );
+  return {
+    id: row.id,
+    postId: row.post_id,
+    userId: row.user_id,
+    text: row.body,
+    createdAt: row.created_at,
+    parentId: row.parent_id ?? undefined,
+    likeCount: 0,
+    likedByMe: false,
+  };
+}
+
+export async function setCommentLiked(commentId: string, liked: boolean) {
+  if (liked) {
+    const { error } = await supabase.from('comment_likes').insert({ comment_id: commentId });
+    if (error && error.code !== '23505') throw error;
+  } else {
+    unwrap(await supabase.from('comment_likes').delete().eq('comment_id', commentId));
+  }
 }
 
 export async function deleteComment(commentId: string) {
@@ -411,6 +436,24 @@ export async function searchUsers(query: string): Promise<UserProfile[]> {
 
 export async function fetchSuggestedUsers(limit = 30): Promise<UserProfile[]> {
   return ingestProfiles(unwrap(await supabase.rpc('suggested_users', { p_limit: limit })));
+}
+
+/** Tanıyor olabileceğin kişiler, gerekçesiyle (bildirim merkezi) */
+export async function fetchPeopleYouMayKnow(limit = 10): Promise<PersonSuggestion[]> {
+  const rows = unwrap(await supabase.rpc('people_you_may_know', { p_limit: limit }));
+  const users = ingestUsers(rows.map((r) => r.profile));
+  return rows.map((r, i) => ({
+    user: users[i]!,
+    reason: r.reason,
+    mutualCount: r.mutual_count,
+    mutualName: r.mutual_name ?? undefined,
+  }));
+}
+
+/** ✕: kişi bir daha öneri listelerinde çıkmaz */
+export async function dismissSuggestion(userId: string) {
+  const { error } = await supabase.from('suggestion_dismissals').insert({ dismissed_id: userId });
+  if (error && error.code !== '23505') throw error;
 }
 
 export async function fetchConnections(userId: string, kind: 'followers' | 'following'): Promise<UserProfile[]> {

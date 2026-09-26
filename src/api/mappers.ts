@@ -96,11 +96,14 @@ export function toComment(row: CommentViewRow): Comment {
     userId: row.user_id,
     text: row.body,
     createdAt: row.created_at,
+    parentId: row.parent_id ?? undefined,
+    likeCount: row.like_count,
+    likedByMe: row.liked_by_me,
   };
 }
 
 export function toRankedEntry(row: RankingViewRow): RankedEntry {
-  return { placeId: row.place_id, note: row.note ?? undefined, ratedAt: row.rated_at };
+  return { placeId: row.place_id, segment: row.segment, note: row.note ?? undefined, ratedAt: row.rated_at };
 }
 
 export function toSavedPlace(row: SavedPlaceViewRow): SavedPlace {

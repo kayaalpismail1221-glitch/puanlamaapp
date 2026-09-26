@@ -46,8 +46,13 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
   `20260928100000_recs_moderation_admin` (telefon o an kapatılmıştı, `is_admin` + şikâyet kuyruğu RPC'leri,
   `recommended_places`), `20260929100000_phone_optional`, `20260930100000_notifications` (bildirimler, 2026-09-25 canlıda doğrulandı).
   `20261002100000_table_loop` (telefon doğrulama, rehber eşleştirme, davetler; 2026-09-25 canlıya uygulandı).
-  **Canlıya henüz uygulanmadı (2026-09-26):** `20261003100000_taste_match` (damak uyumu) ve `20261003110000_lists`
-  (paylaşılabilir listeler, `reports.list_id`). Sırayla SQL Editor'de çalıştırılmalı. Eski demo silindi; canlıda 12.146 OSM
+  **Canlıya henüz uygulanmadı (2026-09-26):** `20261003100000_taste_match` (damak uyumu), `20261003110000_lists`
+  (paylaşılabilir listeler, `reports.list_id`) ve `20261004100000_segment_rankings` (segment bazlı sıralama,
+  yeni puan formülü, Bayes topluluk puanı; mevcut puanları yeniden hesaplar), `20261005100000_comment_notification_types`
+  (yalnızca enum değerleri; ayrı çalıştırılmalı, aynı işlemde kullanılamıyor) ve `20261005110000_comment_social` (yorum
+  yanıtı/beğenisi, tanıyor olabileceğin kişiler). Sırayla, her dosya ayrı ayrı SQL Editor'de çalıştırılmalı; hepsi
+  uygulanmadan yeni uygulama sürümü (`npm run update`) yayınlanmamalı (istemci `ranking_view.segment`,
+  `comment_view.parent_id/like_count/liked_by_me` ve `people_you_may_know` bekler). Eski demo silindi; canlıda 12.146 OSM
   mekânı ve gerçek mekânlar üzerine yeni demo var (`npm run demo:seed`: 7 `@demo.puanla.app` hesabı, 25 gönderi).
 - Auth: e-posta/şifre açık, **Confirm email kapalı**. SMTP yok (Supabase SMTP'siz şablon düzenletmiyor ve
   varsayılan e-posta kod değil bağlantı gönderiyor). Bu yüzden `src/constants/features.ts` →
@@ -66,8 +71,21 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
   beğeni/kaydetme/yorum, şikâyet), RLS + sütun yetkileri, günlük sınırlar, sayaç tetikleyicileri; RPC'ler:
   `rank_place`, `create_post`, `feed_popular` (3→10→30 km, yoksa en yakın şehir), `feed_following`,
   `place_details`, `search_places` (Türkçe katlama + trigram + popülerlik), `search_users`, `suggested_users`,
-  `leaderboard`/`user_rank`, `saved_posts`, `delete_account`. PGlite+PostGIS ile 56 DB testi (`npm run test:db`).
+  `leaderboard`/`user_rank`, `saved_posts`, `delete_account`. PGlite+PostGIS ile 66 DB testi (`npm run test:db`).
+- Yorumlar (2026-09-26): yanıt (`comments.parent_id`, yanıtın yanıtı olabilir; ekranda ilk yorumun altında toplanır,
+  2'den fazla yanıt "N yanıt daha gör"), yorum beğenme (`comment_likes`, kimin beğendiği gizli, sayaç `like_count`).
+  Bildirim türleri `reply` (yanıtlanan yorumun yazarına) ve `comment_like`. Bildirim merkezinde ilk 3 bildirimden sonra
+  **Tanıyor olabileceğin kişiler** (`people_you_may_know`: seni takip eden > rehber > birlikte etiketlenen > ortak
+  arkadaş > etkileşen > okul > popüler; gerekçesiyle, Takip et + ✕). ✕ `suggestion_dismissals`'a yazılır, kişi hiçbir
+  öneri listesinde (`suggested_users` dahil) bir daha çıkmaz.
 - Puan formülü istemci (`lib/ranking.ts` `scoreAt`) ve sunucu (`sentiment_score`) birebir aynı (tam sayı onda birlik).
+- **Segment bazlı sıralama (2026-09-26, kullanıcı isteği: "aynı segmentteki mekânlarla kıyasla"):** 23 kategori 5
+  segmente ayrılır (`constants/segments.ts` = `cuisines.segment`): restoran, sokak lezzeti, kahvaltı, kafe/tatlı,
+  meyhane/bar. Karşılaştırma ve puan yalnızca segment + izlenim listesi içinde; `rankings.segment` mekânın
+  kategorisinden tetikleyiciyle gelir, kategori segment değiştirirse mekân yeni listenin sonuna taşınır.
+  Kısa listede uç puan yok: tek "Beğendim" 8,4, liste 5 mekâna ulaşınca (`FULL_SPREAD_AT`) tüm aralık (10–6,7).
+  Topluluk puanı (mekân sayfası, harita, öneriler) ham ortalama değil Bayes ortalaması `community_score`
+  (m = 7,0, C = 2); arkadaş puanı düz ortalama kalır. Segment/formül değişirse iki taraf ve testler birlikte değişir.
 - Puanlama Beli tarzı kalır (kullanıcı kararı 2026-09-25; direkt 0–10 kaydırıcı denendi, vazgeçildi). Akış mantığı
   `hooks/use-rank-flow.ts`, görünüm `components/rank-steps.tsx` (`compact`). `degerlendir` tam ekran; gönderi ekranında
   aynı akış "Puanın" bölümüne gömülü ve zorunlu (puanlıysa rozet + "Değiştir"); yeni puan paylaşırken kaydedilir.

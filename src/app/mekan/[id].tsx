@@ -188,6 +188,8 @@ export default function PlaceDetailScreen() {
               score: formatScore(details.data.rating.average),
               count: details.data.rating.count,
             })}
+            {/* Puan az kişiden geliyorsa neden ham ortalamadan farklı olabileceğini söyle */}
+            {details.data.rating.count < 5 && `\n${t('place.communityHint')}`}
           </Text>
         )}
 
