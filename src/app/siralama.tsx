@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { FlatList, StyleSheet, View } from 'react-native';
 
 import { SegmentedControl } from '@/components/segmented-control';
+import { LeaderboardSponsorCard } from '@/components/sponsor-card';
 import { UserRowsSkeleton } from '@/components/skeleton';
 import { Avatar, Button, Divider, ErrorView, PressableScale, Text } from '@/components/ui';
 import { colors, radius, spacing } from '@/constants/theme';
@@ -88,6 +89,7 @@ export default function LeaderboardScreen() {
                 <Button title={t('leaderboard.addMySchool')} size="sm" onPress={() => router.push('/okul-sec')} />
               </View>
             ) : null}
+            <LeaderboardSponsorCard userId={me} />
             <Text variant="caption" color={colors.textSecondary} style={styles.explain}>
               {t('leaderboard.explain')}
             </Text>

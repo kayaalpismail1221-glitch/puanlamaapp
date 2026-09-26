@@ -29,9 +29,11 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
   sınırlar `admin_areas`'a, mekânlar `import_places` ile: kaynak kimliği `place_sources`'ta eşleşirse aynı satır
   güncellenir, kimlik/puan korunur; `--prune` kaynaktan düşen ve hiçbir kayda bağlı olmayanları siler).
   **İl/ilçe/mahalle her zaman koordinattan:** `places_fill_area` tetikleyicisi `area_at` ile OSM sınırlarından yazar
-  (sınır dışı ≤ 500 m tolerans); İstanbul yazılıp konum dışarıdaysa reddeder (`place_outside_city`). `mekan-ekle`
-  semti iğneden gösterir, elle yazdırmaz; GPS ya da haritaya dokunma olmadan kaydetmez (eskiden varsayılan harita
-  merkezi yanlış semtle kaydediliyordu). Ekranda yer metni yalnızca `lib/place.ts` (`placeSubtitle`, `placeArea`…).
+  (sınır dışı ≤ 500 m tolerans); İstanbul yazılıp konum dışarıdaysa reddeder (`place_outside_city`). `mekan-ekle`:
+  semt iğneden (elle yazılmaz); GPS'le konan iğne "Şu an buradayım" ile onaylanmadıkça ya da harita/adres aramasıyla
+  (Apple geokodlama) taşınmadıkça kayıt yok; adres `lib/address.ts` ile veri setindeki biçime ("Moda Cd. No:12")
+  gelir, kapı numarası varsa geokodlanıp iğneyle karşılaştırılır (> 250 m → kayıt durur); 150 m içinde benzer adlı
+  mekân varsa "Bunlardan biri mi?" (seçilirse yeni kayıt açılmaz). Sonuç çağıran ekrana `lib/place-choice.ts` ile döner. Ekranda yer metni yalnızca `lib/place.ts` (`placeSubtitle`, `placeArea`…).
   Lisans: OSM ODbL + Overture CDLA-Permissive; Ayarlar ve mekân sayfasındaki atıf zorunlu, kaldırma. Fotoğraf yok;
   Google Places kalıcı saklanamaz. Overture aylık yayımlanır: yenilemek için fetch-overture → build → upload.
   **Doğruluk ilkesi (kullanıcı kararı 2026-09-26: en kritik şey doğru bilgi):** emin olunmayan veri değiştirilmez.
@@ -263,6 +265,11 @@ Tutunma tarafı: bildirimler ve rehber eşleştirme olmadan ağın ürettiği de
   Türk mutfağına özel rozetler, Seri, yıllık hedef, Gönderilerim ızgarası. Sağ üstte paylaş + ⚙️ Ayarlar.
 
 ### Diğer ekranlar
+- **Liderlik tablosu sponsoru** (`constants/sponsors.ts`, `components/sponsor-card.tsx`): ilk ortak Culinora (gastronomi
+  kursları; kullanıcının kendi uygulaması). Genel · bu ay tablosunun ilk 10'una Culinora Premium %20 indirimli; kart Culinora'nın tasarım dilinde (siyah, turuncu #FE6E00, logo `assets/images/partners`, "Sponsor" etiketi yok), her
+  sekmede, uygunluk hep o tabloya göre. Üç durum: kazanan (tebrik, kod varsa kopyala), yakın ("ilk 10'a N değerlendirme
+  kaldı"), duyuru. "Culinora'ya git" platformun mağazasını açar. `promoCode` boşken indirim yalnızca duyuru; kapatmak
+  için `LEADERBOARD_SPONSOR = null`.
 - **Sana özel öneriler** (`oneriler`, profilde 10 puandan sonra açılır): `recommended_places` — gitmediğin, arkadaş
   (öncelikli) ya da topluluk ortalaması ≥ 6,7 mekânlar; sevdiğin mutfağa bonus, konum varsa uzaklık cezası.
 - **Paylaşım** `lib/share.ts`: profil, gönderi (… menüsü), mekân (sağ üst) → metin + `appLink()` (`puanla://…`,
