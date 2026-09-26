@@ -1,8 +1,8 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, TextInput, View } from 'react-native';
+import { Keyboard, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
 
 import { CompareStep, SentimentChoice, useRankResultText } from '@/components/rank-steps';
@@ -40,6 +40,13 @@ export default function RateScreen() {
   const footerStyle = useKeyboardFooterStyle();
   const flow = useRankFlow(id);
   const resultText = useRankResultText();
+  const scrollRef = useRef<ScrollView>(null);
+
+  // Not yazarken klavye alttaki butonları yukarı iter; içerik kayar ve not alanı butonların üstünde görünür kalır
+  useEffect(() => {
+    const sub = Keyboard.addListener('keyboardDidShow', () => scrollRef.current?.scrollToEnd({ animated: true }));
+    return () => sub.remove();
+  }, []);
 
   const [note, setNote] = useState(
     () => Object.values(rankings).flat().find((e) => e.placeId === id)?.note ?? '',
@@ -92,7 +99,12 @@ export default function RateScreen() {
         </View>
       </View>
 
-      <View style={styles.body}>
+      <ScrollView
+        ref={scrollRef}
+        style={styles.body}
+        contentContainerStyle={styles.bodyContent}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive">
         {flow.phase === 'sentiment' && <SentimentChoice key="sentiment" onChoose={flow.choose} />}
 
         {flow.phase === 'compare' && (
@@ -135,7 +147,7 @@ export default function RateScreen() {
             />
           </Animated.View>
         )}
-      </View>
+      </ScrollView>
 
       {flow.result && (
         <Animated.View style={[styles.footer, footerStyle]}>
@@ -187,8 +199,11 @@ const styles = StyleSheet.create({
   },
   body: {
     flex: 1,
+  },
+  bodyContent: {
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.xxl,
+    paddingBottom: spacing.lg,
   },
   compare: {
     flexDirection: 'row',
