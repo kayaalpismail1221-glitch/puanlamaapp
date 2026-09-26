@@ -73,12 +73,9 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
   `20261003100000_place_quality` (2026-09-26: `admin_areas`, `place_sources`, adres/telefon/web, koordinattan semt),
   `20261004100000_place_corrections` ("Bilgi yanlış mı?", `closed_at`), `20261003100000_taste_match` ve
   `20261003110000_lists` (hepsi 2026-09-26 itibarıyla canlıda).
-  **Canlıya henüz uygulanmadı:** `20261005100000_segment_rankings` (segment bazlı sıralama, yeni puan formülü, Bayes
-  topluluk puanı; mevcut puanları yeniden hesaplar), `20261006100000_comment_notification_types` (yalnızca enum
-  değerleri; ayrı çalıştırılmalı, aynı işlemde kullanılamıyor) ve `20261006110000_comment_social` (yorum yanıtı/beğenisi,
-  tanıyor olabileceğin kişiler). Sırayla, her dosya ayrı SQL Editor çalıştırmasında; hepsi uygulanmadan yeni uygulama
-  sürümü (`npm run update`) yayınlanmamalı (istemci `ranking_view.segment`, `comment_view.parent_id/like_count/liked_by_me`
-  ve `people_you_may_know` bekler). Canlıdaki fonksiyonu yeniden tanımlayan migration her zaman o fonksiyonun **en son**
+  `20261005100000_segment_rankings`, `20261006100000_comment_notification_types` ve `20261006110000_comment_social`
+  2026-09-26'da canlıya uygulandı ve iki geçici hesapla uçtan uca doğrulandı (segment puanları, Bayes topluluk puanı,
+  harita/öneriler, yorum yanıtı ve beğenisi, bildirimler, kişi önerileri ve gizleme; 13/13). Canlıdaki fonksiyonu yeniden tanımlayan migration her zaman o fonksiyonun **en son**
   tanımından (tüm dallar dahil) yola çıkmalı. Eski demo silindi; canlıda OSM + Overture mekânları ve gerçek mekânlar
   üzerine yeni demo var (`npm run demo:seed`: 7 `@demo.puanla.app` hesabı, 25 gönderi).
 - Auth: e-posta/şifre açık, **Confirm email kapalı**. SMTP yok (Supabase SMTP'siz şablon düzenletmiyor ve
