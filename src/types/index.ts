@@ -34,6 +34,14 @@ export type Place = {
   city: string;
   latitude: number;
   longitude: number;
+  /** Sokak ve kapı no: "Güneşlibahçe Sk. No:48/B" (mahalle/ilçe ayrı alanlarda) */
+  address?: string;
+  /** E.164: "+902161234567" */
+  phone?: string;
+  /** Mekânın sitesi ya da Instagram'ı */
+  website?: string;
+  /** Kullanıcı bildirimleriyle kalıcı olarak kapandı */
+  closed?: boolean;
   photoUrl?: string;
   /** Listeler için küçük boy kapak fotoğrafı */
   thumbUrl?: string;

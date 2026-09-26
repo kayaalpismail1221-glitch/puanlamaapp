@@ -7,12 +7,12 @@ import Animated from 'react-native-reanimated';
 import { showError } from '@/api/errors';
 import { FormSection, HighlightPicker, MAX_HIGHLIGHTS, MealPicker } from '@/components/post-fields';
 import { Button, LoadingView, PlaceImage, Text } from '@/components/ui';
-import { cuisineLabel } from '@/constants/cuisines';
 import { colors, radius, spacing, typography } from '@/constants/theme';
 import { usePlace, usePost } from '@/data/entities';
 import { useUpdatePost } from '@/hooks/queries';
 import { useKeyboardFooterStyle } from '@/hooks/use-keyboard-footer';
 import { haptics } from '@/lib/haptics';
+import { placeSubtitle } from '@/lib/place';
 import type { Meal } from '@/types';
 
 /**
@@ -63,7 +63,7 @@ export default function EditPostScreen() {
               {place.name}
             </Text>
             <Text variant="footnote" color={colors.textSecondary}>
-              {cuisineLabel(place.cuisine)} · {place.neighborhood}
+              {placeSubtitle(place)}
             </Text>
           </View>
         </View>

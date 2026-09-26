@@ -1,9 +1,9 @@
 import { Share } from 'react-native';
 
 import { appLink, inviteLink } from '@/constants/app';
-import { cuisineLabel } from '@/constants/cuisines';
 import i18n from '@/i18n';
 import { formatScore } from '@/lib/format';
+import { placeShortArea, placeSubtitle } from '@/lib/place';
 import { isMe } from '@/lib/session';
 import type { Place, Post } from '@/types';
 
@@ -27,7 +27,7 @@ export const shareProfile = (user: { id: string; username: string }) =>
 export function sharePost(post: Post, place: Place, authorName: string) {
   const text =
     post.score === undefined
-      ? i18n.t('share.postNoScore', { place: place.name, area: place.neighborhood || place.district })
+      ? i18n.t('share.postNoScore', { place: place.name, area: placeShortArea(place) })
       : isMe(post.userId)
         ? i18n.t('share.postMine', { place: place.name, score: formatScore(post.score) })
         : i18n.t('share.post', { name: authorName, place: place.name, score: formatScore(post.score) });
@@ -35,7 +35,7 @@ export function sharePost(post: Post, place: Place, authorName: string) {
 }
 
 export function sharePlace(place: Place, community?: { average: number; count: number }) {
-  const where = [cuisineLabel(place.cuisine), place.neighborhood || place.district].filter(Boolean).join(' · ');
+  const where = placeSubtitle(place);
   const text = community
     ? i18n.t('share.placeRated', { place: place.name, where, score: formatScore(community.average), count: community.count })
     : i18n.t('share.place', { place: place.name, where });

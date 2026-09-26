@@ -164,7 +164,7 @@ export default function SettingsScreen() {
         <SettingsRow
           icon="map"
           label={t('settings.placeData')}
-          value="© OpenStreetMap"
+          value="© OpenStreetMap · Overture"
           onPress={() => Linking.openURL('https://www.openstreetmap.org/copyright')}
           last
         />

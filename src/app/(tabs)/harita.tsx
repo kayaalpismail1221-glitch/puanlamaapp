@@ -11,12 +11,12 @@ import { GlassSurface } from '@/components/glass-surface';
 import { MapPin } from '@/components/map-pin';
 import { SegmentedControl } from '@/components/segmented-control';
 import { PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
-import { cuisineLabel } from '@/constants/cuisines';
 import { colors, radius, spacing } from '@/constants/theme';
 import { getPlace, useEntitiesVersion, usePrefetchPlaces } from '@/data/entities';
 import { useMapPlaces } from '@/hooks/queries';
 import { DEFAULT_REGION } from '@/lib/geo';
 import { haptics } from '@/lib/haptics';
+import { placeSubtitle } from '@/lib/place';
 import { useAppSelector, useScored } from '@/store/app-store';
 import type { Place } from '@/types';
 
@@ -139,7 +139,7 @@ export default function MapScreen() {
                 {selected.place.name}
               </Text>
               <Text variant="footnote" color={colors.textSecondary} numberOfLines={1}>
-                {cuisineLabel(selected.place.cuisine)} · {selected.place.neighborhood}
+                {placeSubtitle(selected.place)}
               </Text>
               {selected.count !== undefined && (
                 <Text variant="caption" color={colors.textSecondary}>

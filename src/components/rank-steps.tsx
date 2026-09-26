@@ -7,6 +7,7 @@ import { Button, PlaceImage, PressableScale, Text } from '@/components/ui';
 import { colors, radius, spacing } from '@/constants/theme';
 import type { RankResult } from '@/hooks/use-rank-flow';
 import type { Place, Sentiment } from '@/types';
+import { placeArea } from '@/lib/place';
 
 /**
  * Beli tarzı puanlama adımlarının görünümü (mantık: hooks/use-rank-flow).
@@ -114,7 +115,7 @@ function CompareCard({ place, onPress, compact }: { place: Place; onPress: () =>
           {place.name}
         </Text>
         <Text variant="footnote" color={colors.textSecondary} numberOfLines={1}>
-          {place.neighborhood}
+          {placeArea(place)}
         </Text>
       </View>
     </PressableScale>

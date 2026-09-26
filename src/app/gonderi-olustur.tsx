@@ -18,7 +18,6 @@ import { PlacePicker } from '@/components/place-picker';
 import { CompareStep, SentimentChoice, useRankResultText } from '@/components/rank-steps';
 import { FormSection as Section, HighlightPicker, MAX_HIGHLIGHTS, MealPicker, postFieldStyles } from '@/components/post-fields';
 import { Avatar, Button, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
-import { cuisineLabel } from '@/constants/cuisines';
 import { colors, hitSlop, radius, spacing, typography } from '@/constants/theme';
 import { createInvites, matchContacts } from '@/api/contacts';
 import { showError } from '@/api/errors';
@@ -30,6 +29,7 @@ import { useRankFlow } from '@/hooks/use-rank-flow';
 import i18n from '@/i18n';
 import { pickContact, type DeviceContact } from '@/lib/contacts';
 import { haptics } from '@/lib/haptics';
+import { placeSubtitle } from '@/lib/place';
 import { useAppStore } from '@/store/app-store';
 import type { Meal, User } from '@/types';
 
@@ -202,7 +202,7 @@ export default function CreatePostScreen() {
                 {place.name}
               </Text>
               <Text variant="footnote" color={colors.textSecondary}>
-                {params.placeId ? `${cuisineLabel(place.cuisine)} · ${place.neighborhood}` : t('compose.tapToChange')}
+                {params.placeId ? placeSubtitle(place) : t('compose.tapToChange')}
               </Text>
             </View>
           </PressableScale>

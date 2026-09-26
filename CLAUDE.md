@@ -17,13 +17,35 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
 - Harita: react-native-maps (iOS'ta Apple Haritalar)
 - Animasyon ve his: react-native-reanimated, expo-haptics, expo-blur
 - Backend: Supabase (auth, Postgres + PostGIS, storage). Apple ile Giriş desteklenmeli. Kurulum: SUPABASE.md
-- Mekân verisi: kendi `places` tablomuz; kullanıcılar mekân ekleyebilir (`mekan-ekle`). İstanbul verisi
-  OpenStreetMap'ten (Overpass) içe aktarıldı — `scripts/osm/`: `npm run places:fetch` (0,2°'lik karelerle indirir,
-  `scripts/.cache/osm/` önbelleği; Overpass IP başına ~4 sorgu sonra bekletir, ~20 dk) → `places:build` (ilçe/mahalle
-  OSM sınırlarından nokta-çokgenle, kategori isim→`cuisine` etiketi→tür sırasıyla; kıraathane/ekmek fırını vb. ayıklanır)
-  → `places:upload` (`source='osm'`, `external_id`=`node/123`, upsert; `.env.local`'da `SUPABASE_SERVICE_ROLE_KEY` ister).
-  ODbL: Ayarlar'da "© OpenStreetMap" atfı zorunlu, kaldırma. OSM'de fotoğraf yok; kapsam Fatih/Kadıköy/Beyoğlu'da
-  iyi, Şişli vb. zayıf → ileride Foursquare OS Places ile zenginleştirilebilir (Google Places kalıcı saklanamaz).
+- Mekân verisi: kendi `places` tablomuz; kullanıcılar mekân ekleyebilir (`mekan-ekle`). İstanbul verisi iki açık
+  kaynağın birleşimi (~35,7 bin mekân, %78'inde sokak adresi, %70'inde telefon), `scripts/places/`:
+  `npm run places:fetch` (OSM Overpass 0,2°'lik karelerle, IP başına ~4 sorgu sonra bekletir, ~20 dk →
+  `scripts/.cache/osm/`; ardından `fetch-overture.py` Overture Maps Places'i DuckDB ile S3'ten çeker, ~1 dk, `pip install duckdb`)
+  → `places:build` (isim/adres/telefon temizliği `lib.mjs`, testleri `npm run test:places`; aynı mekânın kayıtları
+  mesafe + benzer ad + kapı no/telefonla birleşir, zincirleme birleşme engellenir; ad/konum/adres/telefon önce Overture'dan (işletmenin güncel sayfası; OSM girişleri
+  eskiyebiliyor, pinler arası medyan 10 m), tür önce OSM'den, OSM eksikleri ve Overture'da olmayan ~6,5 bin mekânı tamamlar; yalnızca
+  Overture'da olup güveni < 0,75 olan, yalnızca Foursquare kaynaklı, kaynağın ilçesi pinden > 1,5 km uzak olan ve
+  OSM'den silinmiş kayıtlar atılır) → `places:upload` (`.env.local`'da `SUPABASE_SERVICE_ROLE_KEY`;
+  sınırlar `admin_areas`'a, mekânlar `import_places` ile: kaynak kimliği `place_sources`'ta eşleşirse aynı satır
+  güncellenir, kimlik/puan korunur; `--prune` kaynaktan düşen ve hiçbir kayda bağlı olmayanları siler).
+  **İl/ilçe/mahalle her zaman koordinattan:** `places_fill_area` tetikleyicisi `area_at` ile OSM sınırlarından yazar
+  (sınır dışı ≤ 500 m tolerans); İstanbul yazılıp konum dışarıdaysa reddeder (`place_outside_city`). `mekan-ekle`
+  semti iğneden gösterir, elle yazdırmaz; GPS ya da haritaya dokunma olmadan kaydetmez (eskiden varsayılan harita
+  merkezi yanlış semtle kaydediliyordu). Ekranda yer metni yalnızca `lib/place.ts` (`placeSubtitle`, `placeArea`…).
+  Lisans: OSM ODbL + Overture CDLA-Permissive; Ayarlar ve mekân sayfasındaki atıf zorunlu, kaldırma. Fotoğraf yok;
+  Google Places kalıcı saklanamaz. Overture aylık yayımlanır: yenilemek için fetch-overture → build → upload.
+  **Doğruluk ilkesi (kullanıcı kararı 2026-09-26: en kritik şey doğru bilgi):** emin olunmayan veri değiştirilmez.
+  **Ölçüm:** `npm run places:audit -- <tohum>` katmanlı 50 mekân + Google Haritalar bağlantıları üretir; kurallar
+  değişince yeni tohumla ölçülür (Google verisi yalnızca karşılaştırma, saklanmaz). 2026-09-26: gevşek kurallarla
+  50'de 25 tam doğru / 5 yanlış bilgi / 4 kapalı / 10 yok; sıkı kurallarla 31 doğru / 0 yanlış bilgi / 2 kapalı /
+  7 yok / 3 mekân değil (kurala eklendi) / 7 belirsiz. Telefonlar iki turda da neredeyse hep tuttu. OSM son düzenleme
+  tarihi doğrulukla ilişkili çıkmadı (eleme ölçütü değil). Zayıf halka: yalnızca OSM'de olan eski kayıtlar ve
+  kapanmış mekânlar → "Bilgi yanlış mı?" bildirimleri ve aylık yenileme.
+  Türkçe karakter düzeltmesi (`buildDiacriticDictionary`) sözlüğü veriden çıkarır, yalnızca tutarlı kelimeleri ve
+  hiç Türkçe harf içermeyen metinleri düzeltir. **"Bilgi yanlış mı?"** (`mekan-duzelt/[id]`, migration
+  `20261004100000_place_corrections`): tek kişinin önerisi uygulanmaz; bağımsız 2 kişi aynı değeri (kapandı için 3)
+  önerince ya da yönetici onaylayınca (`admin_place_corrections`/`admin_resolve_correction`) uygulanır ve alan
+  `locked_fields`'a girer, içe aktarım onu ezmez. Kapanan mekân (`closed_at`) arama/harita/önerilerden çıkar.
 
 ## Backend mimarisi (kalıcı ilke)
 - Şema değişikliği her zaman yeni bir migration dosyasıyla (`supabase/migrations/`), eskileri düzenlenmez
@@ -44,9 +66,10 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
   `20260926100000_osm_places` ('osm' kaynağı + 11 yeni kategori, toplam 23), `20260926110000_map_places`
   (harita topluluk katmanı), `20260927100000_moderation` (uygunsuz ifade filtresi + `blocked_users`).
   `20260928100000_recs_moderation_admin` (telefon o an kapatılmıştı, `is_admin` + şikâyet kuyruğu RPC'leri,
-  `recommended_places`), `20260929100000_phone_optional`, `20260930100000_notifications` (bildirimler, 2026-09-25 canlıda doğrulandı).
-  **Henüz canlıya uygulanmadı:** `20261002100000_table_loop` (telefon doğrulama, rehber eşleştirme, davetler). Eski demo silindi; canlıda 12.146 OSM
-  mekânı ve gerçek mekânlar üzerine yeni demo var (`npm run demo:seed`: 7 `@demo.puanla.app` hesabı, 25 gönderi).
+  `recommended_places`), `20260929100000_phone_optional`, `20260930100000_notifications` (bildirimler, 2026-09-25 canlıda doğrulandı),
+  `20261003100000_place_quality` (2026-09-26: `admin_areas`, `place_sources`, adres/telefon/web, koordinattan semt).
+  **Henüz canlıya uygulanmadı:** `20261002100000_table_loop` (telefon doğrulama, rehber eşleştirme, davetler). Eski demo silindi; canlıda OSM + Overture
+  mekânları ve gerçek mekânlar üzerine yeni demo var (`npm run demo:seed`: 7 `@demo.puanla.app` hesabı, 25 gönderi).
 - Auth: e-posta/şifre açık, **Confirm email kapalı**. SMTP yok (Supabase SMTP'siz şablon düzenletmiyor ve
   varsayılan e-posta kod değil bağlantı gönderiyor). Bu yüzden `src/constants/features.ts` →
   `EMAIL_CODES_ENABLED = false` ("Şifremi unuttum" ve kod doğrulama gizli). Alan adı alınınca: Resend SMTP →
@@ -108,7 +131,7 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
 4. Bildirimler: ölü jeton temizliği (Expo yanıtı `DeviceNotRegistered`).
 5. Hikâye kartlarına link/CTA; paylaşılabilir listeler; damak uyumu %; grup oylaması; şehir içi "lezzet rotası" kartı.
 6. App Store çıkışı (`docs/app-store.md`), web yönetim paneli (şikâyet kuyruğu; RPC'ler hazır),
-   Foursquare OS Places ile mekân zenginleştirme.
+   Overture'ın aylık yayınıyla mekân verisini yenileme (`places:fetch` → `build` → `upload -- --prune`).
 
 ## Büyüme: viralite ve ağ etkisi (kalıcı ilke)
 Amaç: kullanıcı kazanımını ürünün kendisi üretsin, dağıtım pahalı olmasın. Her yeni özellik şu sorulardan geçer:

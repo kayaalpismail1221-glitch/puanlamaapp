@@ -136,6 +136,243 @@ describe('toplu mekân içe aktarımı', () => {
   });
 });
 
+describe('mekân konumu ve birleşik içe aktarım', () => {
+  /** Kutu biçimli sınır (WKT çizgi, iki parça): batı, güney, doğu, kuzey */
+  const box = (w, s, e, n) => `MULTILINESTRING((${w} ${s}, ${e} ${s}, ${e} ${n}), (${e} ${n}, ${w} ${n}, ${w} ${s}))`;
+
+  /** Testi tek işlemde çalıştırıp geri alır: sınırlar diğer testlerdeki mekânları etkilemesin */
+  async function isolated(fn) {
+    await db.transaction(async (tx) => {
+      await tx.query(`select import_admin_area(1, 6::smallint, 'Kadıköy', 'İstanbul', $1)`, [box(29.0, 40.97, 29.05, 41.0)]);
+      await tx.query(`select import_admin_area(2, 6::smallint, 'Üsküdar', 'İstanbul', $1)`, [box(29.0, 41.0, 29.05, 41.03)]);
+      // Caferağa sınırı ilçe sınırından biraz taşıyor (OSM'deki gibi); Üsküdar tarafında seçilmemeli
+      await tx.query(`select import_admin_area(11, 8::smallint, 'Caferağa', 'İstanbul', $1)`, [box(29.02, 40.98, 29.03, 41.001)]);
+      await tx.query(`select import_admin_area(21, 8::smallint, 'Kuzguncuk', 'İstanbul', $1)`, [box(29.0, 41.0, 29.05, 41.03)]);
+      // Beklenen hatalar işlemi iptal etmesin diye her üye sorgusu kendi kayıt noktasında
+      await fn(tx, async (userId, sql, params = []) => {
+        await tx.exec('savepoint as_user');
+        await tx.query(`select set_config('request.jwt.claims', $1, true)`, [JSON.stringify({ sub: userId, role: 'authenticated' })]);
+        await tx.exec('set local role authenticated');
+        try {
+          const result = (await tx.query(sql, params)).rows;
+          await tx.exec('release savepoint as_user');
+          return result;
+        } catch (error) {
+          await tx.exec('rollback to savepoint as_user');
+          throw error;
+        } finally {
+          await tx.exec('reset role');
+          await tx.query(`select set_config('request.jwt.claims', '', true)`);
+        }
+      });
+      await tx.rollback();
+    });
+  }
+
+  test('ilçe ve mahalle koordinattan yazılır; elle yazılan ilçe düzelir', async () => {
+    const me = await signUp({ name: 'Mekân Ekleyen' });
+    await isolated(async (tx, asUser) => {
+      await tx.query(`select refresh_place_areas()`);
+      assert.equal((await tx.query(`select district from admin_areas where id = 11`)).rows[0].district, 'Kadıköy');
+      // Seed'deki Moda mekânı kutunun içinde: mahallesi sınırdan yeniden hesaplandı
+      assert.equal((await tx.query(`select neighborhood from places where id = $1`, [PLACE(1)])).rows[0].neighborhood, 'Caferağa');
+
+      const [place] = await asUser(
+        me,
+        `insert into places (name, cuisine, district, city, neighborhood, address, latitude, longitude)
+         values ('Yeni Burgerci', 'Burgerci', 'Kadıkoy', 'istanbul', '', 'Moda Cd. No:12', 40.99, 29.025)
+         returning city, district, neighborhood, address`,
+      );
+      assert.deepEqual(place, { city: 'İstanbul', district: 'Kadıköy', neighborhood: 'Caferağa', address: 'Moda Cd. No:12' });
+
+      // Mahalle sınırı taşsa da Üsküdar'daki nokta Kuzguncuk olur
+      const [north] = (await tx.query(`select * from area_at(41.0005, 29.025)`)).rows;
+      assert.deepEqual(north, { city: 'İstanbul', district: 'Üsküdar', neighborhood: 'Kuzguncuk' });
+      // Kıyının hemen dışı (iskele) en yakın ilçeye bağlanır; uzak nokta boş döner
+      assert.equal((await tx.query(`select * from area_at(40.99, 29.053)`)).rows[0].district, 'Kadıköy');
+      assert.equal((await tx.query(`select * from area_at($1, $2)`, [ANTALYA.lat, ANTALYA.lng])).rows.length, 0);
+
+      // Konum İstanbul dışında ama "İstanbul" yazılmışsa reddedilir; başka şehirde girilen değerler kalır
+      await rejects(
+        asUser(me, `insert into places (name, cuisine, district, city, latitude, longitude)
+          values ('Yanlış Yer', 'Kafe', 'Kadıköy', 'İstanbul', 37.82, 36.79)`),
+        /sınırları dışında/,
+      );
+      const [antalya] = await asUser(
+        me,
+        `insert into places (name, cuisine, district, city, latitude, longitude)
+         values ('Sahil Kafe', 'Kafe', 'Muratpaşa', 'Antalya', $1, $2) returning district, city`,
+        [ANTALYA.lat, ANTALYA.lng],
+      );
+      assert.deepEqual(antalya, { district: 'Muratpaşa', city: 'Antalya' });
+
+      // Sınır tabloları ve içe aktarım fonksiyonları üyelere kapalı; konum sorgusu açık
+      await rejects(asUser(me, 'select * from admin_areas'), /42501/);
+      await rejects(asUser(me, 'select * from place_sources'), /42501/);
+      await rejects(asUser(me, `select import_places('[]')`), /42501/);
+      assert.equal((await asUser(me, 'select * from area_at(40.99, 29.025)'))[0].neighborhood, 'Caferağa');
+    });
+  });
+
+  test('içe aktarım kaynak kimliğiyle eşleşir, kimlik korunur; kullanılmayan eski mekân temizlenir', async () => {
+    const me = await signUp({ name: 'Puanlayan' });
+    await isolated(async (tx) => {
+      const row = (sources, name, extra = {}) => ({
+        sources,
+        name,
+        cuisine: 'Kafe',
+        address: 'Moda Cd. No:1',
+        phone: '+902161234567',
+        website: 'https://ornek.com',
+        latitude: 40.99,
+        longitude: 29.025,
+        city: 'İstanbul',
+        district: 'Kadıköy',
+        ...extra,
+      });
+      const importRows = async (list) => (await tx.query(`select import_places($1) as r`, [JSON.stringify(list)])).rows[0].r;
+
+      assert.deepEqual(
+        await importRows([
+          row([{ source: 'osm', external_id: 'node/9001' }], 'Eski Ad'),
+          row([{ source: 'overture', external_id: 'ov-2' }], 'Kapanan Kafe'),
+          row([{ source: 'overture', external_id: 'ov-3' }], 'Puanlı Kafe'),
+        ]),
+        [3, 0],
+      );
+      const first = (await tx.query(`select * from place_view where name = 'Eski Ad'`)).rows[0];
+      assert.equal(first.neighborhood, 'Caferağa');
+      assert.equal(first.address, 'Moda Cd. No:1');
+      assert.equal(first.phone, '+902161234567');
+      const rated = (await tx.query(`select id from places where name = 'Puanlı Kafe'`)).rows[0].id;
+      await tx.query(`insert into saved_places (user_id, place_id) values ($1, $2)`, [me, rated]);
+
+      const cutoff = (await tx.query(`select clock_timestamp() as t`)).rows[0].t;
+      // Aynı mekân ikinci kaynaktan da geldi: yeni satır açılmaz, ad ve adres güncellenir
+      assert.deepEqual(
+        await importRows([
+          row([{ source: 'osm', external_id: 'node/9001' }, { source: 'overture', external_id: 'ov-1' }], 'Yeni Ad', {
+            address: 'Moda Cd. No:3',
+          }),
+        ]),
+        [0, 1],
+      );
+      const again = (await tx.query(`select id, name, address from places where id = $1`, [first.id])).rows[0];
+      assert.deepEqual(again, { id: first.id, name: 'Yeni Ad', address: 'Moda Cd. No:3' });
+      assert.equal((await tx.query(`select count(*)::int as n from place_sources where place_id = $1`, [first.id])).rows[0].n, 2);
+
+      // Bu turda görülmeyen, kullanılmayan mekân silinir; Listem'deki kalır
+      await tx.query(
+        `update places set imported_at = $1::timestamptz - interval '1 minute' where name in ('Kapanan Kafe', 'Puanlı Kafe')`,
+        [cutoff],
+      );
+      assert.equal((await tx.query(`select prune_imported_places($1) as n`, [cutoff])).rows[0].n, 1);
+      const left = (await tx.query(`select name from places where name in ('Kapanan Kafe', 'Puanlı Kafe', 'Yeni Ad') order by name`)).rows;
+      assert.deepEqual(left.map((r) => r.name), ['Puanlı Kafe', 'Yeni Ad']);
+    });
+  });
+});
+
+describe('mekân bilgisi düzeltmeleri', () => {
+  let place;
+  const suggest = (user, field, value = null, lat = null, lng = null) =>
+    one(user, `select suggest_place_correction($1, $2, $3, $4, $5) as r`, [place, field, value, lat, lng]).then((x) => x.r);
+  const current = async () => (await db.query(`select * from places where id = $1`, [place])).rows[0];
+
+  before(async () => {
+    place = (
+      await db.query(`insert into places (name, cuisine, district, city, latitude, longitude, phone, source, external_id)
+        values ('Düzeltme Kafe', 'Kafe', 'Kadıköy', 'İstanbul', 40.99, 29.03, '+902160000000', 'osm', 'node/777') returning id`)
+    ).rows[0].id;
+    await db.query(`insert into place_sources (source, external_id, place_id) values ('osm', 'node/777', $1)`, [place]);
+  });
+  after(() => db.query(`delete from places where id = $1`, [place]));
+
+  test('tek kişinin önerisi bekler; bağımsız ikinci kişi aynısını söyleyince uygulanır ve kilitlenir', async () => {
+    const a = await signUp({ name: 'Düzelten A' });
+    const b = await signUp({ name: 'Düzelten B' });
+    const c = await signUp({ name: 'Farklı C' });
+    assert.equal(await suggest(a, 'phone', '+902164185115'), 'pending');
+    assert.equal(await suggest(c, 'phone', '+902169999999'), 'pending'); // farklı değer sayılmaz
+    assert.equal((await current()).phone, '+902160000000');
+    // Herkes yalnızca kendi önerisini görür
+    assert.equal((await rows(b, 'select * from place_corrections')).length, 0);
+    assert.equal((await rows(a, 'select * from place_corrections')).length, 1);
+
+    assert.equal(await suggest(b, 'phone', '+902164185115'), 'applied');
+    const after = await current();
+    assert.equal(after.phone, '+902164185115');
+    assert.deepEqual(after.locked_fields, ['phone']);
+    const statuses = await db.query(`select status, count(*)::int as n from place_corrections where place_id = $1 group by status order by status`, [place]);
+    assert.deepEqual(statuses.rows, [{ status: 'applied', n: 2 }, { status: 'pending', n: 1 }]);
+
+    // Adres: yazım farkı (büyük harf, Türkçe karakter) aynı öneri sayılır
+    assert.equal(await suggest(a, 'address', 'Güneşlibahçe Sk. No:43'), 'pending');
+    assert.equal(await suggest(b, 'address', 'GUNESLIBAHCE SK. NO:43'), 'applied');
+    assert.equal((await current()).address, 'GUNESLIBAHCE SK. NO:43');
+  });
+
+  test('içe aktarım kilitli alanı ezmez, diğerlerini günceller', async () => {
+    const rowsJson = JSON.stringify([{
+      sources: [{ source: 'osm', external_id: 'node/777' }],
+      name: 'Düzeltme Kafe Moda', cuisine: 'Kafe', address: 'Eski Sk.', phone: '+902160000000', website: 'https://ornek.com',
+      latitude: 40.99, longitude: 29.03, city: 'İstanbul', district: 'Kadıköy',
+    }]);
+    await db.query(`select import_places($1)`, [rowsJson]);
+    const after = await current();
+    assert.equal(after.phone, '+902164185115');
+    assert.equal(after.address, 'GUNESLIBAHCE SK. NO:43');
+    assert.equal(after.name, 'Düzeltme Kafe Moda');
+    assert.equal(after.website, 'https://ornek.com');
+  });
+
+  test('geçersiz değer ve uzak konum reddedilir', async () => {
+    const a = await signUp({ name: 'Hatalı Öneri' });
+    await rejects(suggest(a, 'phone', '0216 418'), /22023/);
+    await rejects(suggest(a, 'website', 'javascript:alert(1)'), /22023/);
+    await rejects(suggest(a, 'location', null, ANTALYA.lat, ANTALYA.lng), /çok uzak/);
+    await rejects(rows(null, `select suggest_place_correction($1, 'closed')`, [place]), /42501/);
+    await rejects(rows(a, `select apply_place_correction(gen_random_uuid())`), /42501/);
+  });
+
+  test('kapandı: üç bağımsız bildirimle kapanır, arama ve haritadan çıkar', async () => {
+    const [a, b, c] = await Promise.all([signUp({ name: 'K1' }), signUp({ name: 'K2' }), signUp({ name: 'K3' })]);
+    await db.query(`insert into rankings (user_id, place_id, sentiment, position, score) values ($1, $2, 'liked', 0, 8)`, [a, place]);
+    const inSearch = async () => (await rows(a, `select id from search_places('Düzeltme Kafe')`)).some((p) => p.id === place);
+    const onMap = async () => (await rows(a, 'select id from map_places(40.8, 28.5, 41.3, 29.4)')).some((p) => p.id === place);
+    assert.ok(await inSearch());
+    assert.ok(await onMap());
+    assert.equal(await suggest(a, 'closed'), 'pending');
+    assert.equal(await suggest(b, 'closed'), 'pending');
+    assert.equal(await suggest(c, 'closed'), 'applied');
+    assert.ok((await current()).closed_at);
+    assert.equal(await inSearch(), false);
+    assert.equal(await onMap(), false);
+    // Mekân sayfası ve geçmiş durur
+    assert.ok((await one(a, 'select closed_at from place_view where id = $1', [place])).closed_at);
+    await db.query(`update places set closed_at = null where id = $1`, [place]);
+  });
+
+  test('yönetici kuyruğu: yalnızca yönetici görür, onaylar ya da reddeder', async () => {
+    const [user, admin] = await Promise.all([signUp({ name: 'Önerici' }), signUp({ name: 'Yönetici Düzeltme' })]);
+    await db.query(`update profiles set is_admin = true where id = $1`, [admin]);
+    assert.equal(await suggest(user, 'website', 'https://ciya.com.tr'), 'pending');
+    assert.equal(await suggest(user, 'name', 'Çiya'), 'pending');
+    await rejects(rows(user, 'select * from admin_place_corrections()'), /42501/);
+    const queue = await rows(admin, 'select * from admin_place_corrections()');
+    const website = queue.find((q) => q.field === 'website');
+    const name = queue.find((q) => q.field === 'name');
+    assert.equal(website.current_value, 'https://ornek.com');
+    assert.equal(website.supporters, 1);
+    await as(admin, 'select admin_resolve_correction($1, true)', [website.id]);
+    await as(admin, 'select admin_resolve_correction($1, false)', [name.id]);
+    const after = await current();
+    assert.equal(after.website, 'https://ciya.com.tr');
+    assert.equal(after.name, 'Düzeltme Kafe Moda');
+    assert.ok(after.locked_fields.includes('website'));
+  });
+});
+
 describe('erişim kuralları', () => {
   test('giriş yapmamış kullanıcı içerik göremez', async () => {
     await rejects(rows(null, 'select * from profiles'), /42501/);

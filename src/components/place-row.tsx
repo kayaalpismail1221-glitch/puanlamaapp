@@ -3,9 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
 import { PlaceImage, PressableScale, Text } from '@/components/ui';
-import { cuisineLabel } from '@/constants/cuisines';
 import { colors, radius, spacing } from '@/constants/theme';
 import type { Place } from '@/types';
+import { placeSubtitle } from '@/lib/place';
 
 type Props = {
   place: Place;
@@ -31,7 +31,7 @@ export function PlaceRow({ place, onPress, rank, trailing }: Props) {
           {place.name}
         </Text>
         <Text variant="footnote" color={colors.textSecondary} numberOfLines={1}>
-          {cuisineLabel(place.cuisine)} · {place.neighborhood}
+          {placeSubtitle(place)}
         </Text>
       </View>
       {trailing}

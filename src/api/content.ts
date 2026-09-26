@@ -8,7 +8,7 @@ import { ingestPlaces, ingestPosts, ingestUsers, upsertUsers } from '@/data/enti
 import type { Coords } from '@/lib/geo';
 import type { LeaderboardEntry, LeaderboardPeriod, LeaderboardScope } from '@/lib/leaderboard';
 import { supabase } from '@/lib/supabase';
-import type { AreaViewRow, PlaceDetailsJson, PopularFeedJson, ProfileViewRow } from '@/types/database';
+import type { AreaViewRow, CorrectionField, PlaceDetailsJson, PopularFeedJson, ProfileViewRow } from '@/types/database';
 import type { Comment, FeedArea, Meal, Place, Post, UserProfile } from '@/types';
 
 /**
@@ -266,9 +266,14 @@ export async function searchPlaces(query: string, coords: Coords | null): Promis
   return ingestPlaces(rows);
 }
 
-export type NewPlace = Pick<Place, 'name' | 'cuisine' | 'neighborhood' | 'district' | 'city' | 'latitude' | 'longitude'>;
+export type NewPlace = Pick<Place, 'name' | 'cuisine' | 'neighborhood' | 'district' | 'city' | 'latitude' | 'longitude'> & {
+  address: string;
+};
 
-/** Veritabanında olmayan bir mekânı ekler (günlük sınır veritabanında) */
+/**
+ * Veritabanında olmayan bir mekânı ekler (günlük sınır veritabanında). Sınırları bilinen bölgede
+ * (İstanbul) il/ilçe/mahalleyi veritabanı koordinattan yazar; burada gönderilenler yalnızca dışarısı için.
+ */
 export async function createPlace(input: NewPlace): Promise<Place> {
   const { id } = unwrap(
     await supabase
@@ -279,6 +284,7 @@ export async function createPlace(input: NewPlace): Promise<Place> {
         neighborhood: input.neighborhood.trim(),
         district: input.district.trim(),
         city: input.city.trim(),
+        address: input.address.trim(),
         latitude: input.latitude,
         longitude: input.longitude,
       })
@@ -287,6 +293,34 @@ export async function createPlace(input: NewPlace): Promise<Place> {
   );
   const rows = unwrap(await supabase.from('place_view').select('*').eq('id', id));
   return ingestPlaces(rows)[0]!;
+}
+
+/**
+ * "Bilgi yanlış mı?" önerisi. Tek kişinin önerisi beklemeye alınır; bağımsız bir kişi daha aynısını
+ * söyleyince (kapandı için iki kişi daha) ya da yönetici onaylayınca uygulanır.
+ */
+export async function suggestPlaceCorrection(
+  placeId: string,
+  field: CorrectionField,
+  input: { value?: string; coords?: Coords } = {},
+): Promise<'applied' | 'pending'> {
+  return unwrap(
+    await supabase.rpc('suggest_place_correction', {
+      p_place_id: placeId,
+      p_field: field,
+      p_value: input.value ?? null,
+      p_latitude: input.coords?.latitude ?? null,
+      p_longitude: input.coords?.longitude ?? null,
+    }),
+  );
+}
+
+export type AreaAt = { city: string; district: string; neighborhood: string };
+
+/** Koordinattaki il/ilçe/mahalle; sınırları bilinmeyen bölgede null (o zaman kullanıcı yazar) */
+export async function fetchAreaAt(coords: Coords): Promise<AreaAt | null> {
+  const rows = unwrap(await supabase.rpc('area_at', { p_latitude: coords.latitude, p_longitude: coords.longitude }));
+  return rows[0] ?? null;
 }
 
 export type PlaceDetails = {
