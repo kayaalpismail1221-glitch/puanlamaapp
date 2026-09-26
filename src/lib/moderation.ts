@@ -37,7 +37,7 @@ export function showMenu(title: string | undefined, options: MenuOption[]) {
 
 const REASONS: ReportReason[] = ['offensive', 'spam', 'fake', 'other'];
 
-type ReportTarget = { postId: string } | { commentId: string } | { userId: string };
+type ReportTarget = { postId: string } | { commentId: string } | { userId: string } | { listId: string };
 
 /** Sebep seçtirip şikâyeti gönderir */
 export function openReportMenu(target: ReportTarget) {

@@ -44,6 +44,16 @@ export function flattenRankings(rankings: Rankings): ScoredEntry[] {
   return result.map((e, i) => ({ ...e, rank: i + 1 }));
 }
 
+/** Mekânın sıralamadaki puanı (puanlanmamışsa undefined); tek kartın seçicisi için ucuz arama */
+export function scoreInRankings(rankings: Rankings, placeId: string): number | undefined {
+  for (const sentiment of SENTIMENT_ORDER) {
+    const list = rankings[sentiment];
+    const i = list.findIndex((e) => e.placeId === placeId);
+    if (i >= 0) return scoreAt(sentiment, i, list.length);
+  }
+  return undefined;
+}
+
 export function removeFromRankings(rankings: Rankings, placeId: string): Rankings {
   return {
     liked: rankings.liked.filter((e) => e.placeId !== placeId),

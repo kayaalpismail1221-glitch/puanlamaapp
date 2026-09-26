@@ -5,12 +5,13 @@ import { useTranslation } from 'react-i18next';
 import { ActionSheetIOS, Alert, FlatList, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
+import { ListStrip } from '@/components/list-card';
 import { SavedPlaceCard } from '@/components/saved-place-card';
 import { Button, Divider, PlaceImage, PressableScale, Text } from '@/components/ui';
 import { cuisineLabel } from '@/constants/cuisines';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
 import { getPlace, useEntitiesVersion, usePrefetchPlaces } from '@/data/entities';
-import { useFriendScores, useSavedPosts } from '@/hooks/queries';
+import { useFriendScores, useSavedLists, useSavedPosts } from '@/hooks/queries';
 import { useClipboardHasUrl } from '@/lib/clipboard';
 import { formatScore } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
@@ -39,6 +40,7 @@ export default function SavedListScreen() {
   const sortLabel = (s: Sort) => t(`list.sort.${s}`);
   const noLink = t('links.noLink');
   const savedPosts = useSavedPosts();
+  const savedLists = useSavedLists().data ?? [];
   const version = useEntitiesVersion();
   usePrefetchPlaces(saved.map((s) => s.placeId));
   const friendScores = useFriendScores(saved.map((s) => s.placeId)).data;
@@ -167,7 +169,7 @@ export default function SavedListScreen() {
               <SectionButton
                 icon="bookmark"
                 label={t('list.saved')}
-                count={appRows.length + posts.length}
+                count={appRows.length + posts.length + savedLists.length}
                 active={section === 'app'}
                 onPress={() => changeSection('app')}
               />
@@ -191,6 +193,16 @@ export default function SavedListScreen() {
                   <SymbolView name="chevron.right" tintColor={colors.primary} size={14} weight="semibold" />
                 </PressableScale>
               </Animated.View>
+            )}
+
+            {/* Kaydedilen listeler şeridi */}
+            {section === 'app' && savedLists.length > 0 && (
+              <ListStrip title={t('lists.title')} lists={savedLists} showAuthor />
+            )}
+            {section === 'app' && savedLists.length > 0 && posts.length === 0 && sectionRows.length > 0 && (
+              <Text variant="title3" color={colors.primary} style={styles.placesTitle}>
+                {t('common.places')}
+              </Text>
             )}
 
             {/* Kaydedilen gönderiler şeridi */}
@@ -294,7 +306,7 @@ export default function SavedListScreen() {
             </View>
           ) : section === 'social' ? (
             <SocialEmpty />
-          ) : posts.length === 0 ? (
+          ) : posts.length === 0 && savedLists.length === 0 ? (
             <AppEmpty />
           ) : null
         }

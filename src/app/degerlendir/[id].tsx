@@ -12,7 +12,9 @@ import { colors, hitSlop, radius, spacing, typography } from '@/constants/theme'
 import { getPlace, usePlace } from '@/data/entities';
 import { useKeyboardFooterStyle } from '@/hooks/use-keyboard-footer';
 import { useRankFlow } from '@/hooks/use-rank-flow';
+import { currentLanguage } from '@/i18n';
 import { haptics } from '@/lib/haptics';
+import { possessive } from '@/lib/possessive';
 import { useAppStore } from '@/store/app-store';
 
 /**
@@ -23,7 +25,15 @@ import { useAppStore } from '@/store/app-store';
 export default function RateScreen() {
   // `from=gonderi`: gönderi ekranından açıldıysa oraya geri dönülür
   // `sonra=gonderi`: kaydedince doğrudan gönderi ekranına geçilir (onboarding)
-  const { id, from, sonra } = useLocalSearchParams<{ id: string; from?: string; sonra?: string }>();
+  // `karsi` + `karsiPuan`: feed'deki gönderiden "Ben de gittim" ile gelindi; sonuçta iki puan yan yana
+  const { id, from, sonra, karsi, karsiPuan } = useLocalSearchParams<{
+    id: string;
+    from?: string;
+    sonra?: string;
+    karsi?: string;
+    karsiPuan?: string;
+  }>();
+  const theirScore = karsiPuan ? Number(karsiPuan) : NaN;
   const place = usePlace(id);
   const { rankings, onboarded, actions } = useAppStore();
   const { t } = useTranslation();
@@ -105,6 +115,14 @@ export default function RateScreen() {
             <Text variant="subhead" color={colors.textSecondary} align="center">
               {resultText(flow.result)}
             </Text>
+            {!!karsi && Number.isFinite(theirScore) && (
+              <View style={styles.compare}>
+                <Text variant="subhead" color={colors.textSecondary}>
+                  {t('rate.theirScore', { name: possessive(karsi, currentLanguage()) })}
+                </Text>
+                <ScoreBadge score={theirScore} size="sm" />
+              </View>
+            )}
             <TextInput
               value={note}
               onChangeText={setNote}
@@ -170,6 +188,11 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.xxl,
+  },
+  compare: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   resultSection: {
     alignItems: 'center',

@@ -903,6 +903,191 @@ describe('rehber ve masa döngüsü', () => {
   });
 });
 
+describe('damak uyumu', () => {
+  const ps = [21, 22, 23, 24].map(PLACE);
+  const rankAll = async (userId, placeIds) => {
+    for (const [i, id] of placeIds.entries()) await as(userId, `select rank_place($1, 'liked', $2)`, [id, i]);
+  };
+  const match = async (me, other) => (await one(me, 'select taste_match($1) as m', [other])).m;
+  // Uygulamadaki açıklamayla aynı formül: 1 - |fark| / 5, iki yarı uyumlu mekânla dengelenir
+  const expected = (pairs) =>
+    Math.round((100 * (pairs.reduce((s, [a, b]) => s + Math.max(0, 1 - Math.abs(a - b) / 5), 0) + 1)) / (pairs.length + 2));
+
+  test('aynı sıralama yüksek, ters sıralama düşük uyum; ortak mekânlar puanlarıyla', async () => {
+    const [a, b, c] = [await signUp({ name: 'Uyum A' }), await signUp({ name: 'Uyum B' }), await signUp({ name: 'Uyum C' })];
+    await rankAll(a, ps.slice(0, 3));
+    await rankAll(b, ps.slice(0, 3));
+    await rankAll(c, ps.slice(0, 3).reverse());
+
+    const same = await match(a, b);
+    assert.equal(same.common, 3);
+    assert.equal(same.percent, 80);
+    assert.equal(same.places.length, 3);
+    assert.ok(same.places.every((p) => p.my_score === p.their_score && p.place.id));
+
+    const reversed = await match(a, c);
+    const scores = [10, 8.4, 6.7];
+    assert.equal(reversed.percent, expected(scores.map((s, i) => [s, scores[2 - i]])));
+    assert.ok(reversed.percent < same.percent);
+    // İkisinin de sevdiği önce: en düşük puanı en yüksek olan (ortadaki mekân, 8,4 – 8,4)
+    assert.equal(reversed.places[0].place.id, ps[1]);
+  });
+
+  test('3 ortak mekândan az: yüzde yok; kendisi, engelli çift ve oturumsuz', async () => {
+    const [a, b] = [await signUp({ name: 'Az Ortak A' }), await signUp({ name: 'Az Ortak B' })];
+    await rankAll(a, ps.slice(0, 2));
+    await rankAll(b, [ps[0], ps[1], ps[3]]);
+    const few = await match(a, b);
+    assert.equal(few.common, 2);
+    assert.equal(few.percent, null);
+    assert.equal((await match(a, await signUp({ name: 'Hiç Ortak' }))).common, 0);
+
+    assert.equal(await match(a, a), null);
+    await as(a, `insert into blocks (blocked_id) values ($1)`, [b]);
+    assert.equal(await match(a, b), null);
+    assert.equal(await match(b, a), null);
+    await rejects(rows(null, 'select taste_match($1)', [a]), /42501/);
+  });
+});
+
+describe('paylaşılabilir listeler', () => {
+  const ps = [1, 2, 3, 4].map(PLACE);
+  const saveList = (userId, args) =>
+    one(userId, 'select save_list($1, $2, $3, $4, $5) as id', [
+      args.id ?? null,
+      args.title,
+      args.description ?? null,
+      args.places,
+      args.notes ?? null,
+    ]).then((r) => r.id);
+  const details = async (userId, id) => (await one(userId, 'select list_details($1) as d', [id])).d;
+
+  test('oluşturma, sahibin puanına göre sıra, notlar; güncelleme mekânları değiştirir', async () => {
+    const me = await signUp({ name: 'Liste Yapan' });
+    // Puan sırası: p3 (10) > p1 > p2; p4 puanlanmamış
+    await as(me, `select rank_place($1, 'liked', 0)`, [ps[0]]);
+    await as(me, `select rank_place($1, 'liked', 0)`, [ps[2]]);
+    await as(me, `select rank_place($1, 'fine', 0)`, [ps[1]]);
+
+    const id = await saveList(me, {
+      title: '  Kadıköy favorilerim ',
+      description: ' ',
+      places: [ps[3], ps[1], ps[0], ps[2], ps[0]],
+      notes: ['', 'Mercimek çorbası', null, 'Acılı iste'],
+    });
+    const d = await details(me, id);
+    assert.equal(d.list.title, 'Kadıköy favorilerim');
+    assert.equal(d.list.description, null);
+    assert.equal(d.list.place_count, 4, 'tekrar eden mekân bir kez eklenir');
+    assert.equal(d.list.author.id, me);
+    assert.deepEqual(
+      d.items.map((i) => i.place.id),
+      [ps[2], ps[0], ps[1], ps[3]],
+    );
+    assert.equal(Number(d.items[0].score), 10);
+    assert.equal(d.items[3].score, null);
+    assert.equal(d.items[0].note, 'Acılı iste');
+    assert.equal(d.items[2].note, 'Mercimek çorbası');
+    assert.equal(d.items[3].note, null);
+
+    // Güncelleme: başlık ve mekânlar tamamen değişir; yeniden puanlama sırayı değiştirir
+    await saveList(me, { id, title: 'Yeni ad', places: [ps[0], ps[1]] });
+    await as(me, `select rank_place($1, 'liked', 0)`, [ps[1]]);
+    const updated = await details(me, id);
+    assert.equal(updated.list.title, 'Yeni ad');
+    assert.deepEqual(
+      updated.items.map((i) => i.place.id),
+      [ps[1], ps[0]],
+    );
+    assert.equal((await one(me, 'select user_lists($1) as l', [me])).l.length, 1);
+  });
+
+  test('kurallar: boş/50+ mekân, uygunsuz başlık, başkasının listesi, doğrudan yazma', async () => {
+    const me = await signUp({ name: 'Kural Liste' });
+    await rejects(saveList(me, { title: 'Boş', places: [] }), /22023/);
+    await rejects(saveList(me, { title: 'Çok', places: Array.from({ length: 51 }, () => randomUUID()) }), /22023/);
+    await rejects(saveList(me, { title: '', places: [ps[0]] }), /23514/);
+    await rejects(saveList(me, { title: 'amk listesi', places: [ps[0]] }), /Uygunsuz/);
+    await rejects(saveList(me, { title: 'Yok', places: [randomUUID()] }), /23503/);
+
+    const id = await saveList(me, { title: 'Benim', places: [ps[0]] });
+    const other = await signUp({ name: 'Başkası Liste' });
+    await rejects(saveList(other, { id, title: 'Çaldım', places: [ps[1]] }), /P0002/);
+    await rejects(as(other, `insert into lists (title) values ('x')`), /42501/);
+    await rejects(as(other, `update lists set save_count = 99 where id = $1`, [id]), /42501/);
+    await rejects(as(other, `insert into list_places (list_id, place_id, position) values ($1, $2, 0)`, [id, ps[1]]), /42501/);
+    // Başkası silemez (0 satır), sahibi siler
+    await as(other, 'delete from lists where id = $1', [id]);
+    assert.ok(await details(me, id));
+    await as(me, 'delete from lists where id = $1', [id]);
+    assert.equal(await details(me, id), null);
+  });
+
+  test('görünürlük: üyeler görür, girişsiz ve engelli kişi görmez', async () => {
+    const owner = await signUp({ name: 'Görünür Liste' });
+    await as(owner, `select rank_place($1, 'liked', 0)`, [ps[0]]);
+    const id = await saveList(owner, { title: 'Açık liste', places: [ps[0], ps[1]], notes: ['Tavsiye'] });
+
+    const member = await signUp({ name: 'Üye Bakan' });
+
+    const seen = await details(member, id);
+    assert.equal(seen.items.length, 2);
+    assert.equal(seen.list.author.name, 'Görünür Liste');
+    assert.equal(seen.list.saved_by_me, false);
+    assert.equal(seen.items[0].note, 'Tavsiye');
+    assert.equal(Number(seen.items[0].score), 10);
+    assert.equal(await details(member, randomUUID()), null);
+    await rejects(rows(null, 'select list_details($1)', [id]), /42501/);
+    await rejects(rows(null, 'select user_lists($1)', [owner]), /42501/);
+    await rejects(rows(null, 'select * from lists'), /42501/);
+
+    const blocked = await signUp({ name: 'Engelli Liste' });
+    await as(owner, `insert into blocks (blocked_id) values ($1)`, [blocked]);
+    assert.equal(await details(blocked, id), null);
+    assert.equal((await one(blocked, 'select user_lists($1) as l', [owner])).l.length, 0);
+    await rejects(as(blocked, `insert into list_saves (list_id) values ($1)`, [id]), /row-level security/);
+  });
+
+  test('kaydetme: sayaç, kaydedilen listeler, kendi listesini kaydedemez; kimin kaydettiği gizli', async () => {
+    const owner = await signUp({ name: 'Kaydedilen Liste' });
+    const id = await saveList(owner, { title: 'Popüler liste', places: [ps[0]] });
+    const [a, b] = [await signUp({ name: 'Kaydeden A' }), await signUp({ name: 'Kaydeden B' })];
+    await as(a, `insert into list_saves (list_id) values ($1)`, [id]);
+    await as(b, `insert into list_saves (list_id) values ($1)`, [id]);
+    await rejects(as(owner, `insert into list_saves (list_id) values ($1)`, [id]), /row-level security/);
+    await rejects(as(a, `insert into list_saves (list_id, user_id) values ($1, $2)`, [id, owner]), /row-level security/);
+
+    assert.equal((await details(owner, id)).list.save_count, 2);
+    const saved = (await one(a, 'select saved_lists() as l', [])).l;
+    assert.deepEqual(saved.map((l) => l.id), [id]);
+    assert.equal(saved[0].saved_by_me, true);
+    assert.equal((await rows(owner, 'select * from list_saves where list_id = $1', [id])).length, 0);
+
+    await as(a, 'delete from list_saves where list_id = $1', [id]);
+    await as(b, 'select delete_account()');
+    assert.equal((await details(owner, id)).list.save_count, 0);
+    assert.equal((await one(a, 'select saved_lists() as l', [])).l.length, 0);
+  });
+
+  test('liste şikâyet edilir; yönetici kaldırınca liste silinir', async () => {
+    const owner = await signUp({ name: 'Şikâyetli Liste' });
+    const id = await saveList(owner, { title: 'Kötü liste', places: [ps[0]] });
+    const reporter = await signUp({ name: 'Liste Şikâyetçi' });
+    await as(reporter, `insert into reports (list_id, reason) values ($1, 'spam')`, [id]);
+    await rejects(as(reporter, `insert into reports (list_id, user_id, reason) values ($1, $2, 'spam')`, [id, owner]), /23514/);
+
+    const admin = await signUp({ name: 'Liste Yönetici' });
+    await db.exec(`update profiles set is_admin = true where id = '${admin}'`);
+    const queue = await rows(admin, 'select * from admin_reports()');
+    const item = queue.find((r) => r.target_id === id);
+    assert.equal(item.target_type, 'list');
+    assert.equal(item.author_id, owner);
+    assert.equal(item.preview, 'Kötü liste');
+    await as(admin, 'select admin_resolve_report($1, $2)', [item.id, 'remove']);
+    assert.equal(await details(owner, id), null);
+  });
+});
+
 describe('hesap', () => {
   test('hesap silinince tüm verisi silinir ve sayaçlar düzelir', async () => {
     const me = await signUp({ name: 'Ayrılan' });

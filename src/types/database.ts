@@ -193,6 +193,34 @@ export type PlaceDetailsJson = {
   friends: { user: PublicProfileJson; score: number; post_id: string | null }[];
 };
 
+/** list_json(): liste kartı */
+export type ListJson = {
+  id: string;
+  title: string;
+  description: string | null;
+  save_count: number;
+  created_at: string;
+  updated_at: string;
+  author: PublicProfileJson;
+  place_count: number;
+  covers: string[];
+  saved_by_me: boolean;
+};
+
+/** list_details(): liste ve mekânları (sahibin puanıyla) */
+export type ListDetailsJson = {
+  list: ListJson;
+  items: { place: PlaceViewRow; score: number | null; note: string | null }[];
+};
+
+/** taste_match(): oturumdaki kullanıcıyla bir başkasının damak uyumu (engelliyse null) */
+export type TasteMatchJson = {
+  common: number;
+  /** 3 ortak mekândan azsa null */
+  percent: number | null;
+  places: { place: PlaceViewRow; my_score: number; their_score: number }[];
+};
+
 export type LeaderboardRow = {
   user_id: string;
   reviews: number;
@@ -318,6 +346,21 @@ export type Database = {
         { post_id: string; body: string },
         never
       >;
+      lists: Table<
+        {
+          id: string;
+          user_id: string;
+          title: string;
+          description: string | null;
+          save_count: number;
+          created_at: string;
+          updated_at: string;
+        },
+        never,
+        never
+      >;
+      list_places: Table<{ list_id: string; place_id: string; position: number; note: string | null }, never, never>;
+      list_saves: Table<{ list_id: string; user_id: string; created_at: string }, { list_id: string }, never>;
       reports: Table<
         {
           id: string;
@@ -325,6 +368,7 @@ export type Database = {
           post_id: string | null;
           comment_id: string | null;
           user_id: string | null;
+          list_id: string | null;
           reason: ReportReason;
           details: string | null;
           created_at: string;
@@ -334,6 +378,7 @@ export type Database = {
           post_id?: string | null;
           comment_id?: string | null;
           user_id?: string | null;
+          list_id?: string | null;
           reason: ReportReason;
           details?: string | null;
         },
@@ -420,7 +465,7 @@ export type Database = {
           details: string | null;
           created_at: string;
           reporter_username: string | null;
-          target_type: 'post' | 'comment' | 'user';
+          target_type: 'post' | 'comment' | 'user' | 'list';
           target_id: string;
           post_id: string | null;
           author_id: string | null;
@@ -463,6 +508,20 @@ export type Database = {
         Returns: undefined;
       };
       my_invites: { Args: Record<string, never>; Returns: InviteRow[] };
+      taste_match: { Args: { p_user_id: string }; Returns: Json };
+      save_list: {
+        Args: {
+          p_id: string | null;
+          p_title: string;
+          p_description: string | null;
+          p_place_ids: string[];
+          p_notes?: (string | null)[] | null;
+        };
+        Returns: string;
+      };
+      user_lists: { Args: { p_user_id: string }; Returns: Json };
+      saved_lists: { Args: Record<string, never>; Returns: Json };
+      list_details: { Args: { p_list_id: string }; Returns: Json };
     };
     Enums: {
       sentiment: Sentiment;

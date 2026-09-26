@@ -554,6 +554,9 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
             queryClient.invalidateQueries({ queryKey: keys.place(placeId) });
             queryClient.invalidateQueries({ queryKey: keys.userRankings(me()) });
             queryClient.invalidateQueries({ queryKey: ['map-places'] });
+            queryClient.invalidateQueries({ queryKey: ['taste-match'] });
+            // Listeler sahibin güncel puanına göre sıralanır
+            queryClient.invalidateQueries({ queryKey: ['lists'] });
           },
         );
         // Gönderi paylaşılırken puanın sunucuya yazılmış olması beklenir (bkz. waitForRank)
@@ -574,6 +577,9 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           () => {
             queryClient.invalidateQueries({ queryKey: keys.place(placeId) });
             queryClient.invalidateQueries({ queryKey: ['map-places'] });
+            queryClient.invalidateQueries({ queryKey: ['taste-match'] });
+            // Listeler sahibin güncel puanına göre sıralanır
+            queryClient.invalidateQueries({ queryKey: ['lists'] });
           },
         ),
 

@@ -11,8 +11,8 @@ export type LegalDoc = 'terms' | 'privacy' | 'support';
 export type LegalSection = { heading: string; paragraphs: string[] };
 export type LegalText = { title: string; updated: string; intro: string; sections: LegalSection[] };
 
-const UPDATED_TR = 'Son güncelleme: 24 Eylül 2026';
-const UPDATED_EN = 'Last updated: September 24, 2026';
+const UPDATED_TR = 'Son güncelleme: 26 Eylül 2026';
+const UPDATED_EN = 'Last updated: September 26, 2026';
 
 const termsTr: LegalText = {
   title: 'Kullanım Koşulları',
@@ -172,7 +172,7 @@ const privacyTr: LegalText = {
     {
       heading: '3. Kimler görebilir',
       paragraphs: [
-        'Profilin (ad, kullanıcı adı, fotoğraf, okul), puanların, gönderilerin ve yorumların Puanla kullanıcılarına görünür. E-posta adresin diğer kullanıcılara gösterilmez. Engellediğin kişiler seni ve paylaşımlarını göremez.',
+        'Profilin (ad, kullanıcı adı, fotoğraf, okul), puanların, gönderilerin ve yorumların Puanla kullanıcılarına görünür. Oluşturduğun listeler (başlık, açıklama, notlar ve mekânlardaki puanların) de Puanla kullanıcılarına görünür. E-posta adresin diğer kullanıcılara gösterilmez. Engellediğin kişiler seni ve paylaşımlarını göremez.',
       ],
     },
     {
@@ -238,7 +238,7 @@ const privacyEn: LegalText = {
     {
       heading: '3. Who can see it',
       paragraphs: [
-        'Your profile (name, username, photo, school), ratings, posts and comments are visible to Puanla users. Your email is never shown to other users. People you block can’t see you or your content.',
+        'Your profile (name, username, photo, school), ratings, posts and comments are visible to Puanla users. Lists you create (title, description, notes and your scores for the places) are also visible to Puanla users. Your email is never shown to other users. People you block can’t see you or your content.',
       ],
     },
     {

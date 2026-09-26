@@ -4,11 +4,13 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { ProfileLists } from '@/components/list-card';
 import { PostGrid } from '@/components/post-grid';
 import { MenuRow, ProfileIdentity, SchoolChip, StatCard, TasteCard, TopThree } from '@/components/profile-parts';
 import { ProfileStats } from '@/components/profile-stats';
 import { PostGridSkeleton, ProfileSkeleton } from '@/components/skeleton';
 import { Button, Divider, ErrorView, PressableScale, Text } from '@/components/ui';
+import { TasteMatchRow } from '@/components/taste-match';
 import { FollowButton } from '@/components/user-row';
 import { VisitedMap } from '@/components/visited-map';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
@@ -121,6 +123,12 @@ export default function UserProfileScreen() {
 
         <View style={styles.menu}>
           <Divider />
+          {!isMe(user.id) && (
+            <>
+              <TasteMatchRow userId={user.id} />
+              <Divider inset={spacing.lg + 44 + spacing.md} />
+            </>
+          )}
           <MenuRow
             icon="checkmark.circle"
             title={t('user.beenTo')}
@@ -136,6 +144,8 @@ export default function UserProfileScreen() {
         </View>
 
         <TopThree items={beenPlaces} title={t('user.topThree', { name: user.name.split(' ')[0] })} />
+
+        <ProfileLists userId={user.id} name={user.name} mine={isMe(user.id)} />
 
         <View style={styles.cards}>
           <StatCard
