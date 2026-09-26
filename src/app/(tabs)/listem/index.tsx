@@ -375,12 +375,12 @@ function FilterChip({ label, active, onPress }: { label: string; active: boolean
   );
 }
 
-/** Sosyal medya bölümü boşken: 3 adımda nasıl kaydedilir */
+/** Sosyal medya bölümü boşken: Instagram/TikTok'tan Paylaş → Puanla ile 3 adımda nasıl kaydedilir */
 function SocialEmpty() {
   const { t } = useTranslation();
   const steps: { icon: SFSymbol; text: string }[] = [
-    { icon: 'camera', text: t('list.socialStep1') },
-    { icon: 'link', text: t('list.socialStep2') },
+    { icon: 'play.rectangle.on.rectangle', text: t('list.socialStep1') },
+    { icon: 'square.and.arrow.up', text: t('list.socialStep2') },
     { icon: 'bookmark.fill', text: t('list.socialStep3') },
   ];
   return (
@@ -403,6 +403,9 @@ function SocialEmpty() {
           </View>
         ))}
       </View>
+      <Text variant="footnote" color={colors.textSecondary} align="center">
+        {t('list.socialTip')}
+      </Text>
       <Button title={t('list.addFromSocial')} icon="plus" onPress={() => addSocial()} style={styles.emptyButton} />
     </View>
   );
