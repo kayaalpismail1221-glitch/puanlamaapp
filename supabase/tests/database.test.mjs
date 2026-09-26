@@ -1684,3 +1684,77 @@ describe('semt araması ve bölgenin en iyileri', () => {
     await rejects(rows(null, `select * from area_top_places('İstanbul', 'Kadıköy')`), /42501/);
   });
 });
+
+describe('arama hızı: bölge dizini ve mekân arama', () => {
+  /** Dizin, mekânlardan baştan sayılmış hâliyle aynı olmalı */
+  async function assertIndexMatchesPlaces() {
+    const { rows: diff } = await db.query(`
+      with fresh as (
+        select 'city' as kind, city, '' as district, city as name, count(*)::int as n
+        from places where closed_at is null and city <> '' group by city
+        union all
+        select 'district', city, district, district, count(*)::int
+        from places where closed_at is null and city <> '' and district <> '' group by city, district
+        union all
+        select 'neighborhood', city, district, neighborhood, count(*)::int
+        from places
+        where closed_at is null and city <> '' and neighborhood <> '' and tr_fold(neighborhood) <> tr_fold(district)
+        group by city, district, neighborhood
+      )
+      select coalesce(f.kind, a.kind) as kind, coalesce(f.name, a.name) as name, f.n, a.place_count
+      from fresh f
+      full join area_index a on a.kind = f.kind and a.city = f.city and a.district = f.district and a.name = f.name
+      where f.n is distinct from a.place_count`);
+    assert.deepEqual(diff, []);
+  }
+
+  test('dizin mekân ekleme, taşıma, kapanma ve silmeyle güncel kalır', async () => {
+    await assertIndexMatchesPlaces();
+    const me = await signUp({ name: 'Dizin Test' });
+    const { id } = await one(
+      me,
+      `insert into places (name, cuisine, neighborhood, district, city, latitude, longitude)
+       values ('Dizin Deneme Kafe', 'Kafe', 'Moda', 'Kadıköy', 'İstanbul', 40.985, 29.026) returning id`,
+    );
+    await assertIndexMatchesPlaces();
+    const moda = async () => (await rows(me, 'select * from search_areas($1)', ['moda']))[0].place_count;
+    const before = await moda();
+    await db.query(`update places set neighborhood = 'Caferağa' where id = $1`, [id]);
+    await assertIndexMatchesPlaces();
+    assert.equal(await moda(), before - 1);
+    await db.query('update places set closed_at = now() where id = $1', [id]);
+    await assertIndexMatchesPlaces();
+    await db.query('update places set closed_at = null where id = $1', [id]);
+    await assertIndexMatchesPlaces();
+    await db.query('delete from places where id = $1', [id]);
+    await assertIndexMatchesPlaces();
+  });
+
+  test('mekân arama: kısa (baştan), uzun (benzerlik), boş (yakın ya da popüler); kapanan yok', async () => {
+    const me = await signUp({ name: 'Hızlı Arayan' });
+    const names = async (q) => (await rows(me, 'select name from search_places($1, null, null, 10)', [q])).map((r) => r.name);
+    assert.ok((await names('ç')).every((n) => /^[çc]/i.test(n)), 'tek harf: adın başı');
+    assert.ok((await names('ku')).includes('Kuzguncuk Meze Evi'));
+    assert.equal((await names('kuzgun'))[0], 'Kuzguncuk Meze Evi');
+    assert.ok((await names('meze')).includes('Kuzguncuk Meze Evi'), 'kelime ortası da bulunur');
+    // Boş arama, konumla: en yakın önce (Kadıköy'deyken Moda'daki)
+    const near = await rows(me, 'select name, district from search_places($1, $2, $3, 5)', ['', KADIKOY.lat, KADIKOY.lng]);
+    assert.equal(near[0].district, 'Kadıköy');
+    // Konumsuz boş arama: puanlanan/paylaşılan mekânlar
+    const popular = await rows(me, `select id from search_places('', null, null, 50)`);
+    assert.ok(popular.length > 0);
+    const counted = await rows(
+      me,
+      'select id from places p where exists (select 1 from rankings r where r.place_id = p.id) or exists (select 1 from posts x where x.place_id = p.id)',
+    );
+    assert.ok(popular.every((p) => counted.some((c) => c.id === p.id)));
+
+    const closed = (await rows(me, `select id from search_places('kuzgun', null, null, 1)`))[0].id;
+    try {
+      await db.query('update places set closed_at = now() where id = $1', [closed]);
+      assert.ok(!(await names('kuzgun')).includes('Kuzguncuk Meze Evi'));
+    } finally {
+      await db.query('update places set closed_at = null where id = $1', [closed]);
+    }
+  });
+});

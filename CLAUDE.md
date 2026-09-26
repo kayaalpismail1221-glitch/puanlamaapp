@@ -95,12 +95,13 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
   beğeni/kaydetme/yorum, şikâyet), RLS + sütun yetkileri, günlük sınırlar, sayaç tetikleyicileri; RPC'ler:
   `rank_place`, `create_post`, `feed_popular` (3→10→30 km, yoksa en yakın şehir), `feed_following`,
   `place_details`, `search_places` (Türkçe katlama + trigram + popülerlik), `search_users`, `suggested_users`,
-  `leaderboard`/`user_rank`, `saved_posts`, `delete_account`. PGlite+PostGIS ile 75 DB testi (`npm run test:db`).
+  `leaderboard`/`user_rank`, `saved_posts`, `delete_account`. PGlite+PostGIS ile 77 DB testi (`npm run test:db`).
 - **Keşfet araması (2026-09-26):** mekân, kişi ve semt/ilçe; her harfte canlı (120 ms gecikme, önceki sonuç yenisi
   gelene kadar kalır, eşleşen kısım `HighlightText` ile vurgulu, Türkçe harfsiz yazım `lib/fold.ts` = `tr_fold`).
   `search_areas` şehir/ilçe/mahalle; semt tam yazılınca oranın en yüksek puanlıları Keşfet'te (5), tümü `bolge`
   ekranında (`area_top_places`: topluluk puanı, segment süzgeci, sayfalı, kapanan mekân yok). Migration
-  `20261007100000_area_search`.
+  `20261007100000_area_search`; hız için `20261007110000_search_speed` (`area_index` tetikleyiciyle güncel sayaç
+  tablosu, `search_places` indeks dostu plpgsql, 1–2 harfte `places_name_fold_idx`).
 - Yorumlar (2026-09-26): yanıt (`comments.parent_id`, yanıtın yanıtı olabilir; ekranda ilk yorumun altında toplanır,
   2'den fazla yanıt "N yanıt daha gör"), yorum beğenme (`comment_likes`, kimin beğendiği gizli, sayaç `like_count`).
   Bildirim türleri `reply` (yanıtlanan yorumun yazarına) ve `comment_like`. Bildirim merkezinde ilk 3 bildirimden sonra
