@@ -564,6 +564,7 @@ const tr = {
     mayKnow: 'TANIYOR OLABİLECEKLERİN',
     noMatch: '“{{query}}” ile eşleşen kimse yok.',
     noSuggestions: 'Şimdilik önerecek kimse yok.',
+    allCaughtUp: 'Önerecek kimse kalmadı. Arkadaşlarını Puanla’ya davet et; katıldıklarında haber veririz.',
     reviews_one: '@{{username}} · {{count}} değerlendirme',
     reviews_other: '@{{username}} · {{count}} değerlendirme',
   },

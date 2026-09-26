@@ -400,7 +400,7 @@ export function useSuggestedUsers(limit = 30) {
  */
 export function usePeopleYouMayKnow(limit = 10) {
   return useQuery({
-    queryKey: keys.peopleYouMayKnow(),
+    queryKey: keys.peopleYouMayKnow(limit),
     queryFn: () => api.fetchPeopleYouMayKnow(limit),
     staleTime: 10 * 60_000,
     refetchOnWindowFocus: false,
@@ -410,12 +410,15 @@ export function usePeopleYouMayKnow(limit = 10) {
 /** ✕: öneri tüm listelerden hemen kalkar, sunucuya arkadan yazılır */
 export function useDismissSuggestion() {
   return (userId: string) => {
-    const pymk = queryClient.getQueryData<PersonSuggestion[]>(keys.peopleYouMayKnow());
+    // Bildirimdeki blok ve "Tümünü gör" listesi farklı limitlerle önbellekte; hepsinden düşer
+    const pymk = queryClient.getQueriesData<PersonSuggestion[]>({ queryKey: keys.peopleYouMayKnow() });
     const suggested = queryClient.getQueryData<UserProfile[]>(keys.suggested());
-    queryClient.setQueryData(keys.peopleYouMayKnow(), pymk?.filter((s) => s.user.id !== userId));
+    queryClient.setQueriesData<PersonSuggestion[]>({ queryKey: keys.peopleYouMayKnow() }, (old) =>
+      old?.filter((s) => s.user.id !== userId),
+    );
     queryClient.setQueryData(keys.suggested(), suggested?.filter((u) => u.id !== userId));
     api.dismissSuggestion(userId).catch((error) => {
-      queryClient.setQueryData(keys.peopleYouMayKnow(), pymk);
+      for (const [key, data] of pymk) queryClient.setQueryData(key, data);
       queryClient.setQueryData(keys.suggested(), suggested);
       showError(error);
     });

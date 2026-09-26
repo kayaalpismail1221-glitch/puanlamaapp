@@ -561,6 +561,7 @@ const en: Translation = {
     mayKnow: 'PEOPLE YOU MAY KNOW',
     noMatch: 'No one matches “{{query}}”.',
     noSuggestions: 'No suggestions right now.',
+    allCaughtUp: 'No one left to suggest. Invite your friends to Puanla — we’ll let you know when they join.',
     reviews_one: '@{{username}} · {{count}} review',
     reviews_other: '@{{username}} · {{count}} reviews',
   },

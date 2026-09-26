@@ -1,4 +1,4 @@
-import { focusManager, QueryClient } from '@tanstack/react-query';
+import { focusManager, QueryClient, type QueryKey } from '@tanstack/react-query';
 import { AppState, Platform } from 'react-native';
 
 import { isNetworkError } from '@/api/errors';
@@ -48,7 +48,9 @@ export const keys = {
   list: (id: string) => ['lists', 'detail', id] as const,
   connections: (userId: string, kind: string) => ['connections', userId, kind] as const,
   suggested: () => ['suggested'] as const,
-  peopleYouMayKnow: () => ['suggested', 'people-you-may-know'] as const,
+  /** Sayısız çağrı tüm limitleri kapsar (geçersiz kılma ve gizleme için) */
+  peopleYouMayKnow: (limit?: number) =>
+    (limit === undefined ? ['suggested', 'people-you-may-know'] : ['suggested', 'people-you-may-know', limit]) as QueryKey,
   contactMatches: () => ['contacts', 'matches'] as const,
   myInvites: () => ['contacts', 'invites'] as const,
   notifications: () => ['notifications'] as const,

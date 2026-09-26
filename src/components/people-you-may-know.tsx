@@ -13,7 +13,7 @@ import { openUserProfile } from '@/lib/navigation';
 import type { PersonSuggestion } from '@/types';
 
 /** "Seni takip ediyor", "Ayşe ve 2 kişi daha takip ediyor"… */
-function useReasonText() {
+export function useReasonText() {
   const { t } = useTranslation();
   return (s: PersonSuggestion) => {
     if (s.reason === 'mutual' && s.mutualName) {
@@ -32,8 +32,6 @@ function useReasonText() {
 export function PeopleYouMayKnow({ max = 5 }: { max?: number }) {
   const { t } = useTranslation();
   const query = usePeopleYouMayKnow();
-  const dismiss = useDismissSuggestion();
-  const reasonText = useReasonText();
   const list = (query.data ?? []).slice(0, max);
   if (!list.length) return null;
 
@@ -48,30 +46,40 @@ export function PeopleYouMayKnow({ max = 5 }: { max?: number }) {
         </PressableScale>
       </View>
       {list.map((s) => (
-        <Animated.View key={s.user.id} exiting={FadeOut.duration(180)} layout={LinearTransition.springify()}>
-          <PressableScale scaleTo={0.98} onPress={() => openUserProfile(s.user.id)} style={styles.row}>
-            <Avatar uri={s.user.avatarUrl} name={s.user.name} size={44} />
-            <View style={styles.info}>
-              <Text variant="subhead" style={styles.bold} numberOfLines={1}>
-                {s.user.name}
-              </Text>
-              <Text variant="footnote" color={colors.textSecondary} numberOfLines={1}>
-                {reasonText(s)}
-              </Text>
-            </View>
-            <FollowButton userId={s.user.id} />
-            <PressableScale
-              onPress={() => {
-                haptics.tap();
-                dismiss(s.user.id);
-              }}
-              hitSlop={hitSlop}
-              accessibilityLabel={t('people.dismiss')}>
-              <SymbolView name="xmark" tintColor={colors.textTertiary} size={14} weight="semibold" />
-            </PressableScale>
-          </PressableScale>
-        </Animated.View>
+        <SuggestionRow key={s.user.id} suggestion={s} />
       ))}
+    </Animated.View>
+  );
+}
+
+/** Öneri satırı: profil, gerekçe, Takip et ve ✕ (gizlenince kayarak çıkar) */
+export function SuggestionRow({ suggestion: s }: { suggestion: PersonSuggestion }) {
+  const { t } = useTranslation();
+  const dismiss = useDismissSuggestion();
+  const reasonText = useReasonText();
+  return (
+    <Animated.View exiting={FadeOut.duration(180)} layout={LinearTransition.springify()}>
+      <PressableScale scaleTo={0.98} onPress={() => openUserProfile(s.user.id)} style={styles.row}>
+        <Avatar uri={s.user.avatarUrl} name={s.user.name} size={44} />
+        <View style={styles.info}>
+          <Text variant="subhead" style={styles.bold} numberOfLines={1}>
+            {s.user.name}
+          </Text>
+          <Text variant="footnote" color={colors.textSecondary} numberOfLines={1}>
+            {reasonText(s)}
+          </Text>
+        </View>
+        <FollowButton userId={s.user.id} />
+        <PressableScale
+          onPress={() => {
+            haptics.tap();
+            dismiss(s.user.id);
+          }}
+          hitSlop={hitSlop}
+          accessibilityLabel={t('people.dismiss')}>
+          <SymbolView name="xmark" tintColor={colors.textTertiary} size={14} weight="semibold" />
+        </PressableScale>
+      </PressableScale>
     </Animated.View>
   );
 }
