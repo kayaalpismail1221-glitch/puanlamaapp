@@ -12,7 +12,7 @@ import type { LeaderboardPeriod, LeaderboardScope } from '@/lib/leaderboard';
 import { keys, queryClient } from '@/lib/query-client';
 import i18n from '@/i18n';
 import { useAppActions, useAppSelector } from '@/store/app-store';
-import type { Comment, FeedArea, PersonSuggestion, Post, UserProfile } from '@/types';
+import type { AreaHit, Comment, FeedArea, PersonSuggestion, Post, Segment, UserProfile } from '@/types';
 
 /**
  * Sunucu verisi kancaları. Hepsi TanStack Query üzerinden önbelleklenir,
@@ -261,8 +261,11 @@ export function useFriendScores(placeIds: string[]) {
   });
 }
 
+/** Arama yazarken: her harfte sonuç gelsin ama her tuş vuruşu istek olmasın */
+const LIVE_SEARCH_DELAY = 120;
+
 export function useSearchPlaces(query: string, coords: Coords | null) {
-  const q = useDebounced(query.trim());
+  const q = useDebounced(query.trim(), LIVE_SEARCH_DELAY);
   const rounded = roundCoords(coords);
   return useQuery({
     queryKey: keys.searchPlaces(q, rounded),
@@ -276,6 +279,31 @@ export function useSearchPlaces(query: string, coords: Coords | null) {
 export function useNearbyPlaceSearch(query: string) {
   const { coords } = useUserLocation(true, false);
   return useSearchPlaces(query, coords);
+}
+
+/** Yazdıkça eşleşen semt ve ilçeler; önceki sonuç yenisi gelene kadar ekranda kalır */
+export function useSearchAreas(query: string) {
+  const q = useDebounced(query.trim(), LIVE_SEARCH_DELAY);
+  return useQuery({
+    queryKey: keys.searchAreas(q),
+    queryFn: () => api.searchAreas(q),
+    enabled: q.length >= 2,
+    placeholderData: (previous) => previous,
+    staleTime: 5 * 60_000,
+  });
+}
+
+/** Bölgenin en yüksek puanlı mekânları (sayfalı); `limit` verilirse tek sayfa (Keşfet önizlemesi) */
+export function useAreaTopPlaces(area: AreaHit | undefined, segment?: Segment) {
+  return useInfiniteQuery({
+    queryKey: keys.areaTop(area && [area.kind, area.city, area.district, area.name], segment),
+    queryFn: ({ pageParam }) => api.fetchAreaTopPlaces(area!, segment, pageParam),
+    initialPageParam: 0,
+    getNextPageParam: (last, pages) => (last.length < api.AREA_PAGE ? undefined : pages.length * api.AREA_PAGE),
+    enabled: !!area,
+    placeholderData: (previous) => previous,
+    staleTime: 60_000,
+  });
 }
 
 export function useAreas() {
@@ -426,7 +454,7 @@ export function useDismissSuggestion() {
 }
 
 export function useSearchUsers(query: string) {
-  const q = useDebounced(query.trim());
+  const q = useDebounced(query.trim(), LIVE_SEARCH_DELAY);
   return useQuery({
     queryKey: keys.searchUsers(q),
     queryFn: () => api.searchUsers(q),

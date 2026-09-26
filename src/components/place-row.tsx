@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
+import { HighlightText } from '@/components/highlight-text';
 import { PlaceImage, PressableScale, Text } from '@/components/ui';
 import { colors, radius, spacing } from '@/constants/theme';
 import type { Place } from '@/types';
@@ -14,9 +15,11 @@ type Props = {
   rank?: number;
   /** Sağ tarafta gösterilecek öğe (puan rozeti, ok vb.) */
   trailing?: ReactNode;
+  /** Aramada yazılan: adın eşleşen kısmı vurgulanır */
+  highlight?: string;
 };
 
-export function PlaceRow({ place, onPress, rank, trailing }: Props) {
+export function PlaceRow({ place, onPress, rank, trailing, highlight }: Props) {
   useTranslation(); // dil değişince mutfak adı güncellensin
   return (
     <PressableScale onPress={onPress} scaleTo={0.98} style={styles.row}>
@@ -27,9 +30,7 @@ export function PlaceRow({ place, onPress, rank, trailing }: Props) {
       )}
       <PlaceImage uri={place.thumbUrl ?? place.photoUrl} style={styles.thumb} />
       <View style={styles.info}>
-        <Text variant="headline" numberOfLines={1}>
-          {place.name}
-        </Text>
+        <HighlightText variant="headline" numberOfLines={1} text={place.name} query={highlight} />
         <Text variant="footnote" color={colors.textSecondary} numberOfLines={1}>
           {placeSubtitle(place)}
         </Text>

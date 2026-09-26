@@ -271,6 +271,22 @@ const tr = {
     discover: 'Keşfet',
     noResults: '“{{query}}” için sonuç bulunamadı.',
     nothingYet: 'Burada henüz keşfedilecek bir şey yok.',
+    areas: 'Semtler ve ilçeler',
+    areaTop: '{{area}} en yüksek puanlıları',
+    seeAll: 'Tümünü gör',
+  },
+
+  region: {
+    kinds: { city: 'Şehir', district: 'İlçe', neighborhood: 'Mahalle' },
+    places_one: '{{formattedCount}} mekân',
+    places_other: '{{formattedCount}} mekân',
+    subtitle: 'En yüksek puanlı mekânlar',
+    all: 'Tümü',
+    noScore: 'Puan yok',
+    ratings_one: '{{count}} kişi',
+    ratings_other: '{{count}} kişi',
+    empty: 'Bu bölgede bu türde mekân yok.',
+    hint: 'Sıra Puanla puanına göre. Az puanlanan mekânlar ortalamaya yakın tutulur; puanlananlar önce gelir.',
   },
 
   list: {

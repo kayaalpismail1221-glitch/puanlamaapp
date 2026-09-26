@@ -1619,3 +1619,68 @@ describe('tanıyor olabileceğin kişiler', () => {
     await rejects(rows(null, 'select * from people_you_may_know(5)'), /42501/);
   });
 });
+
+describe('semt araması ve bölgenin en iyileri', () => {
+  test('yazdıkça ilçe ve mahalleler; tam ve baştan eşleşme önce; en az 2 harf', async () => {
+    const me = await signUp({ name: 'Semt Arayan' });
+    const kadikoy = await rows(me, 'select * from search_areas($1, 10)', ['kadık']);
+    assert.equal(kadikoy[0].kind, 'district');
+    assert.equal(kadikoy[0].name, 'Kadıköy');
+    assert.equal(kadikoy[0].city, 'İstanbul');
+    const expected = await one(
+      me,
+      `select count(*)::int as n from places where city = 'İstanbul' and district = 'Kadıköy' and closed_at is null`,
+    );
+    assert.equal(kadikoy[0].place_count, expected.n);
+
+    const moda = await rows(me, 'select * from search_areas($1)', ['MODA']);
+    assert.equal(moda[0].kind, 'neighborhood');
+    assert.equal(moda[0].name, 'Moda');
+    assert.equal(moda[0].district, 'Kadıköy');
+
+    // Türkçe harfsiz yazım da bulur; tek harf aramaz
+    assert.equal((await rows(me, 'select * from search_areas($1)', ['besiktas']))[0].name, 'Beşiktaş');
+    assert.equal((await rows(me, 'select * from search_areas($1)', ['k'])).length, 0);
+    assert.equal((await rows(me, 'select * from search_areas($1)', ['istanbul']))[0].kind, 'city');
+    await rejects(rows(null, 'select * from search_areas($1)', ['kad']), /42501/);
+  });
+
+  test('bölgenin mekânları topluluk puanına göre; segment süzgeci; kapanan mekân yok', async () => {
+    const me = await signUp({ name: 'Bölge Gezen' });
+    const list = await rows(me, `select * from area_top_places('İstanbul', 'Kadıköy')`);
+    assert.ok(list.length > 0);
+    assert.ok(list.every((p) => p.district === 'Kadıköy' && p.city === 'İstanbul'));
+    const rated = list.filter((p) => p.rating_count > 0);
+    assert.ok(rated.length > 0);
+    assert.deepEqual(
+      list.slice(0, rated.length).map((p) => p.id),
+      rated.map((p) => p.id),
+      'puanlananlar önce',
+    );
+    for (let i = 1; i < rated.length; i++) assert.ok(rated[i - 1].average >= rated[i].average);
+    const first = await one(
+      me,
+      'select community_score(sum(score), count(*)) as a, count(*)::int as n from rankings where place_id = $1',
+      [rated[0].id],
+    );
+    assert.equal(rated[0].average, first.a);
+    assert.equal(rated[0].rating_count, first.n);
+
+    const moda = await rows(me, `select * from area_top_places('İstanbul', 'Kadıköy', 'Moda')`);
+    assert.ok(moda.length > 0 && moda.every((p) => p.neighborhood === 'Moda'));
+    const breakfast = await rows(me, `select * from area_top_places('İstanbul', 'Kadıköy', null, 'breakfast')`);
+    assert.ok(breakfast.length > 0 && breakfast.every((p) => p.cuisine === 'Kahvaltıcı'));
+    assert.equal((await rows(me, `select * from area_top_places('İstanbul', 'Kadıköy', null, null, 1, 1)`)).length, 1);
+
+    const closed = list[0].id;
+    try {
+      await db.query('update places set closed_at = now() where id = $1', [closed]);
+      assert.ok(!(await rows(me, `select id from area_top_places('İstanbul', 'Kadıköy')`)).some((p) => p.id === closed));
+      const after = (await rows(me, 'select * from search_areas($1)', ['kadıköy']))[0];
+      assert.equal(after.place_count, (await one(me, `select count(*)::int as n from places where district = 'Kadıköy' and closed_at is null`)).n);
+    } finally {
+      await db.query('update places set closed_at = null where id = $1', [closed]);
+    }
+    await rejects(rows(null, `select * from area_top_places('İstanbul', 'Kadıköy')`), /42501/);
+  });
+});

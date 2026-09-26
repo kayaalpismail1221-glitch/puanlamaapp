@@ -16,7 +16,17 @@ import type {
   ProfileViewRow,
   TasteMatchJson,
 } from '@/types/database';
-import type { Comment, FeedArea, Meal, PersonSuggestion, Place, Post, UserProfile } from '@/types';
+import type {
+  AreaHit,
+  Comment,
+  FeedArea,
+  Meal,
+  PersonSuggestion,
+  Place,
+  Post,
+  Segment,
+  UserProfile,
+} from '@/types';
 
 /**
  * Paylaşılan içerik: feed, gönderiler, yorumlar, mekânlar, kişiler ve liderlik tablosu.
@@ -288,6 +298,44 @@ export async function fetchMapPlaces(bounds: MapBounds): Promise<RatedPlace[]> {
   );
   const places = ingestPlaces(rows);
   return rows.map((r, i) => ({ place: places[i]!, average: r.average, count: r.rating_count }));
+}
+
+/** Yazdıkça eşleşen şehir, ilçe ve mahalleler (en az 2 harf) */
+export async function searchAreas(query: string): Promise<AreaHit[]> {
+  const rows = unwrap(await supabase.rpc('search_areas', { p_query: query, p_limit: 5 }));
+  return rows.map((r) => ({
+    kind: r.kind,
+    name: r.name,
+    city: r.city,
+    district: r.district ?? undefined,
+    placeCount: r.place_count,
+  }));
+}
+
+export const AREA_PAGE = 30;
+
+/** Bölge listesindeki mekân ve topluluk puanı (puanlanmamışsa `average` yok) */
+export type AreaTopItem = { place: Place; average?: number; count: number };
+
+/** Bölgenin mekânları, topluluk puanına göre (puanlanmamışsa `average` yok) */
+export async function fetchAreaTopPlaces(
+  area: Pick<AreaHit, 'kind' | 'name' | 'city' | 'district'>,
+  segment: Segment | undefined,
+  offset = 0,
+  limit = AREA_PAGE,
+): Promise<AreaTopItem[]> {
+  const rows = unwrap(
+    await supabase.rpc('area_top_places', {
+      p_city: area.city,
+      p_district: area.kind === 'city' ? null : area.district ?? area.name,
+      p_neighborhood: area.kind === 'neighborhood' ? area.name : null,
+      p_segment: segment ?? null,
+      p_limit: limit,
+      p_offset: offset,
+    }),
+  );
+  const places = ingestPlaces(rows);
+  return rows.map((r, i) => ({ place: places[i]!, average: r.average ?? undefined, count: r.rating_count }));
 }
 
 export async function searchPlaces(query: string, coords: Coords | null): Promise<Place[]> {

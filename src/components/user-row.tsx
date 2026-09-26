@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
+import { HighlightText } from '@/components/highlight-text';
 import { Avatar, PressableScale, Text } from '@/components/ui';
 import { colors, radius, spacing } from '@/constants/theme';
 import { openUserProfile } from '@/lib/navigation';
@@ -9,7 +10,8 @@ import { useAppActions, useAppSelector } from '@/store/app-store';
 import type { User } from '@/types';
 
 /** Kişi satırı: dokununca profili açılır, sağda takip butonu */
-export function UserRow({ user, subtitle }: { user: User; subtitle?: string }) {
+/** `highlight`: aramada yazılan; ad ya da kullanıcı adının eşleşen kısmı vurgulanır */
+export function UserRow({ user, subtitle, highlight }: { user: User; subtitle?: string; highlight?: string }) {
   return (
     <PressableScale
       scaleTo={0.98}
@@ -17,12 +19,20 @@ export function UserRow({ user, subtitle }: { user: User; subtitle?: string }) {
       style={styles.row}>
       <Avatar uri={user.avatarUrl} name={user.name} size={44} />
       <View style={styles.info}>
-        <Text variant="headline" numberOfLines={1}>
-          {user.name}
-        </Text>
-        <Text variant="footnote" color={colors.textSecondary} numberOfLines={1}>
-          {subtitle ?? `@${user.username}`}
-        </Text>
+        <HighlightText variant="headline" numberOfLines={1} text={user.name} query={highlight} />
+        {subtitle ? (
+          <Text variant="footnote" color={colors.textSecondary} numberOfLines={1}>
+            {subtitle}
+          </Text>
+        ) : (
+          <HighlightText
+            variant="footnote"
+            color={colors.textSecondary}
+            numberOfLines={1}
+            text={`@${user.username}`}
+            query={highlight}
+          />
+        )}
       </View>
       {!isMe(user.id) && <FollowButton userId={user.id} />}
     </PressableScale>

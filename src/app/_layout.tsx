@@ -98,6 +98,7 @@ function RootNavigator() {
         <Stack.Screen name="dil" options={{ title: t('screens.language') }} />
         <Stack.Screen name="engellenenler" options={{ title: t('screens.blocked') }} />
         <Stack.Screen name="oneriler" options={{ title: t('screens.recs') }} />
+        <Stack.Screen name="bolge" options={{ title: '' }} />
         <Stack.Screen name="uyum/[id]" options={{ title: t('match.title') }} />
         <Stack.Screen name="liste/[id]" options={{ title: '' }} />
         <Stack.Screen name="gonderi-duzenle" options={{ presentation: 'modal', title: t('screens.editPost') }} />

@@ -200,6 +200,16 @@ export type NotificationKind =
   | 'friend_rated'
   | 'friend_joined';
 
+/** Keşfet'te bulunan bölge: şehir, ilçe ya da mahalle */
+export type AreaHit = {
+  kind: 'city' | 'district' | 'neighborhood';
+  name: string;
+  city: string;
+  /** Mahallenin ilçesi; ilçenin kendisi; şehirde yok */
+  district?: string;
+  placeCount: number;
+};
+
 /** Neden önerildiği: en güçlü bağ (bkz. people_you_may_know) */
 export type SuggestionReason = 'follows_you' | 'contact' | 'together' | 'mutual' | 'engaged' | 'school' | 'popular';
 

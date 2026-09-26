@@ -489,6 +489,21 @@ export type Database = {
         Returns: Json;
       };
       place_details: { Args: { p_place_id: string }; Returns: Json };
+      search_areas: {
+        Args: { p_query: string; p_limit?: number };
+        Returns: { kind: 'city' | 'district' | 'neighborhood'; name: string; district: string | null; city: string; place_count: number }[];
+      };
+      area_top_places: {
+        Args: {
+          p_city: string;
+          p_district?: string | null;
+          p_neighborhood?: string | null;
+          p_segment?: Segment | null;
+          p_limit?: number;
+          p_offset?: number;
+        };
+        Returns: (PlaceViewRow & { average: number | null; rating_count: number })[];
+      };
       map_places: {
         Args: { p_south: number; p_west: number; p_north: number; p_east: number; p_limit?: number };
         Returns: (PlaceViewRow & { average: number; rating_count: number })[];

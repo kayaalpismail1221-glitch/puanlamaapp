@@ -268,6 +268,22 @@ const en: Translation = {
     discover: 'Discover',
     noResults: 'No results for “{{query}}”.',
     nothingYet: 'Nothing to discover here yet.',
+    areas: 'Areas',
+    areaTop: 'Top rated in {{area}}',
+    seeAll: 'See all',
+  },
+
+  region: {
+    kinds: { city: 'City', district: 'District', neighborhood: 'Neighborhood' },
+    places_one: '{{formattedCount}} place',
+    places_other: '{{formattedCount}} places',
+    subtitle: 'Top rated places',
+    all: 'All',
+    noScore: 'No score',
+    ratings_one: '{{count}} rating',
+    ratings_other: '{{count}} ratings',
+    empty: 'No places of this kind in this area.',
+    hint: 'Ranked by Puanla score. Places with few ratings stay close to average; rated places come first.',
   },
 
   list: {
