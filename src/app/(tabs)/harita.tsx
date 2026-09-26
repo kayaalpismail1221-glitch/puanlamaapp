@@ -86,6 +86,9 @@ export default function MapScreen() {
   const [focusPlace, setFocusPlace] = useState<Place | null>(null);
   const [focusArea, setFocusArea] = useState<AreaHit | null>(null);
   const [goingToArea, setGoingToArea] = useState(false);
+  // Seçilen sonucun adı (arama kutusunda ✕ ile) ve aramadan önceki görünüm (✕ ile oraya dönülür)
+  const [resultLabel, setResultLabel] = useState<string | null>(null);
+  const returnRegion = useRef<Region | null>(null);
   const trimmed = query.trim();
   const searching = searchFocused && trimmed.length > 0;
   const areaSearch = useSearchAreas(searching ? query : '');
@@ -127,8 +130,28 @@ export default function MapScreen() {
     setQuery('');
   };
 
+  /** Sonuca gitmeden önce: ilk aramada mevcut görünüm saklanır (arka arkaya aramalarda ilk görünüme dönülür) */
+  const rememberView = (label: string) => {
+    if (!returnRegion.current) returnRegion.current = regionRef.current;
+    setResultLabel(label);
+  };
+
+  /** ✕: seçilen mekân/bölge temizlenir, harita aramadan önceki görünüme süzülür */
+  const clearResult = () => {
+    haptics.tap();
+    closeSearch();
+    setResultLabel(null);
+    setFocusPlace(null);
+    setFocusArea(null);
+    setSelectedId(null);
+    const back = returnRegion.current;
+    returnRegion.current = null;
+    if (back) flyTo(back);
+  };
+
   const choosePlace = (place: Place) => {
     haptics.select();
+    rememberView(place.name);
     closeSearch();
     setFocusArea(null);
     setFocusPlace(place);
@@ -138,6 +161,7 @@ export default function MapScreen() {
 
   const chooseArea = async (area: AreaHit) => {
     haptics.select();
+    rememberView(area.name);
     closeSearch();
     setSelectedId(null);
     setFocusPlace(null);
@@ -225,9 +249,13 @@ export default function MapScreen() {
         <GlassSurface interactive style={styles.searchBar}>
           <SymbolView name="magnifyingglass" tintColor={colors.textSecondary} size={17} />
           <TextInput
-            value={query}
+            // Seçilen sonuç kutuda adıyla durur; dokununca aynı metinle düzenlenebilir
+            value={searchFocused ? query : (resultLabel ?? '')}
             onChangeText={setQuery}
-            onFocus={() => setSearchFocused(true)}
+            onFocus={() => {
+              setSearchFocused(true);
+              if (resultLabel && !query) setQuery(resultLabel);
+            }}
             onSubmitEditing={submit}
             placeholder={t('map.searchPlaceholder')}
             placeholderTextColor={colors.textSecondary}
@@ -237,9 +265,12 @@ export default function MapScreen() {
           />
           {goingToArea ? (
             <ActivityIndicator size="small" color={colors.textSecondary} />
-          ) : searchFocused || query ? (
-            <PressableScale onPress={closeSearch} hitSlop={hitSlop} accessibilityLabel={t('map.clearSearch')}>
-              <SymbolView name="xmark.circle.fill" tintColor={colors.textTertiary} size={18} />
+          ) : resultLabel || searchFocused || query ? (
+            <PressableScale
+              onPress={resultLabel ? clearResult : closeSearch}
+              hitSlop={hitSlop}
+              accessibilityLabel={t('map.clearSearch')}>
+              <SymbolView name="xmark.circle.fill" tintColor={colors.textTertiary} size={20} />
             </PressableScale>
           ) : null}
         </GlassSurface>
@@ -344,6 +375,16 @@ export default function MapScreen() {
               )}
             </GlassSurface>
           </PressableScale>
+          {/* Kartı kapat; aramadan gelinen mekânsa aramayı da temizleyip önceki görünüme döner */}
+          <PressableScale
+            onPress={() => (focusPlace?.id === selected.place.id ? clearResult() : setSelectedId(null))}
+            hitSlop={hitSlop}
+            accessibilityLabel={t('common.close')}
+            style={styles.cardClose}>
+            <GlassSurface style={styles.roundButton}>
+              <SymbolView name="xmark" tintColor={colors.textSecondary} size={11} weight="bold" />
+            </GlassSurface>
+          </PressableScale>
         </Animated.View>
       ) : (
         focusArea && (
@@ -364,8 +405,8 @@ export default function MapScreen() {
                 <SymbolView name="chevron.right" tintColor={colors.textSecondary} size={12} weight="semibold" />
               </GlassSurface>
             </PressableScale>
-            <PressableScale onPress={() => setFocusArea(null)} hitSlop={hitSlop} accessibilityLabel={t('common.close')}>
-              <GlassSurface style={styles.areaClose}>
+            <PressableScale onPress={clearResult} hitSlop={hitSlop} accessibilityLabel={t('common.close')}>
+              <GlassSurface style={styles.roundButton}>
                 <SymbolView name="xmark" tintColor={colors.textSecondary} size={12} weight="semibold" />
               </GlassSurface>
             </PressableScale>
@@ -527,9 +568,14 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: radius.full,
   },
-  areaClose: {
-    width: 32,
-    height: 32,
+  cardClose: {
+    position: 'absolute',
+    top: -10,
+    right: -6,
+  },
+  roundButton: {
+    width: 30,
+    height: 30,
     borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
