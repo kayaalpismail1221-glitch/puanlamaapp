@@ -13,6 +13,7 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { BackendSetup } from '@/components/backend-setup';
 import { LaunchSkeleton } from '@/components/skeleton';
 import { ErrorView } from '@/components/ui';
+import { FoodMapShareButton } from '@/components/food-map-header';
 import { ZoomOverlayProvider } from '@/components/zoom-overlay';
 import { colors } from '@/constants/theme';
 import { useLanguageLoaded } from '@/i18n';
@@ -92,7 +93,13 @@ function RootNavigator() {
         <Stack.Screen name="siralama" options={{ title: t('screens.leaderboard') }} />
         <Stack.Screen name="baglantilar/[id]" options={{ title: '' }} />
         <Stack.Screen name="gittiklerim/[id]" options={{ title: t('screens.beenTo') }} />
-        <Stack.Screen name="gittigi-yerler/[id]" options={{ title: '' }} />
+        <Stack.Screen
+          name="gittigi-yerler/[id]"
+          options={({ route }) => ({
+            title: '',
+            headerRight: () => <FoodMapShareButton userId={(route.params as { id: string }).id} />,
+          })}
+        />
         <Stack.Screen name="profil-duzenle" options={{ presentation: 'modal', title: t('screens.editProfile') }} />
         <Stack.Screen name="ayarlar" options={{ title: t('screens.settings') }} />
         <Stack.Screen name="dil" options={{ title: t('screens.language') }} />

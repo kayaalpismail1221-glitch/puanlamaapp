@@ -1,6 +1,6 @@
-import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
@@ -72,24 +72,28 @@ export default function VisitedPlacesScreen() {
 
   const title = mine ? t('tasteMap.mine') : user ? t('foodMap.titleTheirs', { name: user.name.split(' ')[0] }) : '';
 
+  // Başlık yalnızca değişince verilir (paylaş düğmesi rota tanımında sabit); her dokunuşta başlık çubuğunu
+  // yeniden kurmak, yakınlaşma geçişiyle açılan ekranda düğmeleri kaybettiriyordu
+  const navigation = useNavigation();
+  useLayoutEffect(() => {
+    navigation.setOptions({ title });
+  }, [navigation, title]);
+
+  // Ağır harita çizimi açılış geçişi bitince başlar; geçiş boyunca aynı boyutta sade zemin (takılma olmasın)
+  const [mapReady, setMapReady] = useState(false);
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('transitionEnd' as never, () => setMapReady(true));
+    const fallback = setTimeout(() => setMapReady(true), 500);
+    return () => {
+      unsubscribe();
+      clearTimeout(fallback);
+    };
+  }, [navigation]);
+
   if (loading && !items.length) return <MapListSkeleton mapHeight={mapWidth / ASPECT} />;
 
   return (
     <ScrollView style={styles.container} contentInsetAdjustmentBehavior="automatic">
-      <Stack.Screen
-        options={{
-          title,
-          headerRight: () => (
-            <PressableScale
-              onPress={() => router.push({ pathname: '/harita-paylas/[id]', params: { id } })}
-              hitSlop={hitSlop}
-              accessibilityLabel={t('tasteMap.share')}>
-              <SymbolView name="square.and.arrow.up" tintColor={colors.primary} size={20} />
-            </PressableScale>
-          ),
-        }}
-      />
-
       {/* Sayılar tek satıra sıkışmasın: üç ayrı kutu, büyük rakam ve altında etiket */}
       <View style={styles.summary}>
         <SummaryStat value={summary.cities} label={t('foodMap.statCities', { count: summary.cities })} />
@@ -98,16 +102,20 @@ export default function VisitedPlacesScreen() {
       </View>
 
       <View style={[styles.map, { width: mapWidth, height: mapWidth / ASPECT }]}>
-        <WorldMap
-          view={view}
-          width={mapWidth}
-          height={mapWidth / ASPECT}
-          dots={dots}
-          selectedKey={highlightedCity}
-          onDotPress={(city) =>
-            select(selection?.kind === 'city' && selection.key === city ? null : { kind: 'city', key: city })
-          }
-        />
+        {mapReady && (
+          <Animated.View entering={FadeIn.duration(220)}>
+            <WorldMap
+              view={view}
+              width={mapWidth}
+              height={mapWidth / ASPECT}
+              dots={dots}
+              selectedKey={highlightedCity}
+              onDotPress={(city) =>
+                select(selection?.kind === 'city' && selection.key === city ? null : { kind: 'city', key: city })
+              }
+            />
+          </Animated.View>
+        )}
       </View>
 
       {selection && selectedRow ? (
