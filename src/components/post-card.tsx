@@ -7,7 +7,6 @@ import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring } 
 
 import { PhotoCarousel } from '@/components/photo-carousel';
 import { Avatar, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
-import { cuisineLabel } from '@/constants/cuisines';
 import { colors, hitSlop, radius, scoreInk, spacing } from '@/constants/theme';
 import { showError } from '@/api/errors';
 import { getUser, usePlace, usePost, useUser } from '@/data/entities';
@@ -17,6 +16,7 @@ import { formatDistance } from '@/lib/geo';
 import { haptics } from '@/lib/haptics';
 import { openUserProfile } from '@/lib/navigation';
 import { confirmBlock, openReportMenu, showMenu } from '@/lib/moderation';
+import { placeShortArea, placeSubtitle } from '@/lib/place';
 import { sharePost } from '@/lib/share';
 import { highlightLabel, mealLabel } from '@/lib/post-meta';
 import { queryClient } from '@/lib/query-client';
@@ -164,7 +164,7 @@ export const PostCard = memo(function PostCard({ post: initial, expanded, distan
             <Text variant="footnote" color={colors.primary} style={styles.bold} onPress={openPlace}>
               {place.name}
             </Text>
-            {` · ${distanceKm !== undefined ? formatDistance(distanceKm) : place.neighborhood} · ${timeAgo(post.createdAt)}`}
+            {` · ${distanceKm !== undefined ? formatDistance(distanceKm) : placeShortArea(place)} · ${timeAgo(post.createdAt)}`}
           </Text>
         </View>
         {post.score !== undefined && <ScoreBadge score={post.score} />}
@@ -209,7 +209,7 @@ export const PostCard = memo(function PostCard({ post: initial, expanded, distan
               {place.name}
             </Text>
             <Text variant="footnote" color={colors.textSecondary} numberOfLines={1}>
-              {cuisineLabel(place.cuisine)} · {place.neighborhood}
+              {placeSubtitle(place)}
             </Text>
           </View>
           {post.score !== undefined && <ScoreBadge score={post.score} size="lg" />}

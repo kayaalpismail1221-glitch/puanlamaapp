@@ -7,6 +7,7 @@ import { Button, PlaceImage, PressableScale, Text } from '@/components/ui';
 import { SEGMENT_ICONS } from '@/constants/segments';
 import { colors, radius, spacing } from '@/constants/theme';
 import type { RankResult } from '@/hooks/use-rank-flow';
+import { placeArea } from '@/lib/place';
 import { FULL_SPREAD_AT } from '@/lib/ranking';
 import type { Place, Segment, Sentiment } from '@/types';
 
@@ -139,7 +140,7 @@ function CompareCard({ place, onPress, compact }: { place: Place; onPress: () =>
           {place.name}
         </Text>
         <Text variant="footnote" color={colors.textSecondary} numberOfLines={1}>
-          {place.neighborhood}
+          {placeArea(place)}
         </Text>
       </View>
     </PressableScale>

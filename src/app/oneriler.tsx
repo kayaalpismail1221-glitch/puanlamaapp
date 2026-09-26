@@ -6,11 +6,11 @@ import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import type { Recommendation } from '@/api/content';
 import { PlaceRowsSkeleton, SkeletonScreen } from '@/components/skeleton';
 import { Button, Divider, ErrorView, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
-import { cuisineLabel } from '@/constants/cuisines';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
 import { useRecommendations } from '@/hooks/queries';
 import { formatScore } from '@/lib/format';
 import { formatDistance } from '@/lib/geo';
+import { placeSubtitle } from '@/lib/place';
 import { useAppStore } from '@/store/app-store';
 
 /**
@@ -85,7 +85,7 @@ function RecommendationRow({ rec }: { rec: Recommendation }) {
           {place.name}
         </Text>
         <Text variant="footnote" color={colors.textSecondary} numberOfLines={1}>
-          {cuisineLabel(place.cuisine)} · {place.neighborhood || place.district}
+          {placeSubtitle(place)}
           {rec.distanceKm !== undefined ? ` · ${t('recs.distance', { distance: formatDistance(rec.distanceKm) })}` : ''}
         </Text>
         <View style={styles.reason}>

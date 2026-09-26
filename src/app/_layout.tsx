@@ -118,6 +118,7 @@ function RootNavigator() {
       {/* Puanlama, gönderi ve mekân ekleme hem onboarding'de hem uygulama içinde kullanılır */}
       <Stack.Screen name="gonderi-olustur" options={{ presentation: 'modal', title: t('screens.sharePost') }} />
       <Stack.Screen name="mekan-ekle" options={{ presentation: 'modal', title: t('screens.newPlace') }} />
+      <Stack.Screen name="mekan-duzelt/[id]" options={{ presentation: 'modal', title: t('screens.fixPlace') }} />
       <Stack.Screen name="davet-et" options={{ presentation: 'modal', title: t('screens.invite') }} />
       <Stack.Screen name="yasal/[belge]" options={{ presentation: 'modal', title: '' }} />
       <Stack.Screen

@@ -41,6 +41,10 @@ export function toPlace(row: PlaceViewRow): Place {
     city: row.city,
     latitude: row.latitude,
     longitude: row.longitude,
+    address: row.address || undefined,
+    phone: row.phone ?? undefined,
+    website: row.website ?? undefined,
+    closed: !!row.closed_at || undefined,
     photoUrl: mediaUrl('post-photos', row.photo),
     thumbUrl: row.photo ? thumbUrl(row.photo) : undefined,
   };

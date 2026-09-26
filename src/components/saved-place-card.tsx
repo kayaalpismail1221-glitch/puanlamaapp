@@ -7,11 +7,11 @@ import ReanimatedSwipeable, { type SwipeableMethods } from 'react-native-gesture
 
 import type { FriendScore } from '@/api/content';
 import { PlaceImage, PressableScale, Text } from '@/components/ui';
-import { cuisineLabel } from '@/constants/cuisines';
 import { colors, hitSlop, onScoreColor, radius, scoreColor, spacing } from '@/constants/theme';
 import { formatScore, timeAgo } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
 import { linkSource } from '@/lib/links';
+import { placeSubtitle } from '@/lib/place';
 import { useAppActions } from '@/store/app-store';
 import type { Place, SavedPlace } from '@/types';
 
@@ -96,7 +96,7 @@ export function SavedPlaceCard({ entry, place, friends }: { entry: SavedPlace; p
           </View>
 
           <Text variant="footnote" color={colors.textSecondary} numberOfLines={1}>
-            {cuisineLabel(place.cuisine)} · {place.neighborhood}
+            {placeSubtitle(place)}
           </Text>
 
           {entry.note && (

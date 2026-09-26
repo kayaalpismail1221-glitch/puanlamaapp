@@ -452,7 +452,10 @@ as $$
   where exists (select 1 from public.places where id = p_place_id)
 $$;
 
-/** Harita "Puanla" katmanı: görünen bölgede puanlanan mekânlar ve topluluk puanı; en çok puanlananlar önce */
+/**
+ * Harita "Puanla" katmanı: görünen bölgede puanlanan, kapanmamış mekânlar ve topluluk puanı; en çok puanlananlar
+ * önce. Gövde 20261004100000_place_corrections'daki ile aynı, yalnızca ortalama yerine `community_score`.
+ */
 create or replace function public.map_places(
   p_south double precision,
   p_west double precision,
@@ -484,11 +487,13 @@ as $$
     join public.places pl on pl.id = r.place_id
     where pl.latitude between p_south and p_north
       and pl.longitude between p_west and p_east
+      and pl.closed_at is null
     group by r.place_id
     order by count(*) desc, public.community_score(sum(r.score), count(*)) desc
     limit least(greatest(p_limit, 1), 300)
   )
-  select v.*, rated.average, rated.rating_count
+  select v.id, v.name, v.cuisine, v.neighborhood, v.district, v.city, v.price_level, v.latitude, v.longitude,
+    v.photo, rated.average, rated.rating_count
   from rated
   join public.place_view v on v.id = rated.place_id
 $$;
@@ -498,7 +503,8 @@ $$;
  * Arkadaş puanı: ortalama (az kişi, doğrudan tanıdığın insanlar). Topluluk puanı: Bayes ortalaması
  * (`community_score`), ≥ 6,7 olanlar. Sıralama: arkadaş ortalaması varsa o, yoksa topluluk puanı; puan
  * sayısı arttıkça güven artar; en sevdiğin mutfaklara küçük bir bonus; konum verilirse uzaklık cezası
- * (10 km'de 1 puan, en fazla 1,5). Engellediğin/engelleyen kişilerin puanları sayılmaz.
+ * (10 km'de 1 puan, en fazla 1,5). Engellediğin/engelleyen kişilerin puanları ve kapanan mekânlar sayılmaz.
+ * Gövde 20261004100000_place_corrections'daki ile aynı, yalnızca topluluk ortalaması yerine `community_score`.
  */
 create or replace function public.recommended_places(
   p_latitude double precision default null,
@@ -569,6 +575,7 @@ as $$
     cross join origin o
     left join taste t on t.cuisine = pl.cuisine
     where coalesce(s.friend_average, s.community_average) >= 6.7
+      and pl.closed_at is null
   )
   select
     v.id, v.name, v.cuisine, v.neighborhood, v.district, v.city, v.price_level, v.latitude, v.longitude, v.photo,

@@ -2,6 +2,9 @@
  * İstanbul'daki yeme-içme mekânlarını OpenStreetMap'ten (Overpass API) indirir.
  * Veri lisansı: ODbL — uygulamada "© OpenStreetMap katkıcıları" atfı gösterilmeli.
  *
+ * Her kayıt son düzenlenme tarihiyle gelir (`out meta`): yalnızca OSM'de olan, uzun süredir dokunulmamış
+ * kayıtlar build'de ayıklanır.
+ *
  * Overpass tek büyük sorguyu reddettiği için şehir 0,2°'lik karelere bölünür; her kare
  * `scripts/.cache/osm/tiles/` altına yazılır, yarıda kalırsa kaldığı yerden devam eder.
  * İlçe ve mahalle sınırları da aynı klasöre indirilir.
@@ -81,7 +84,7 @@ async function fetchTiles() {
     const path = join(TILES_DIR, `${s}_${w}.json`);
     if (existsSync(path)) continue;
     process.stdout.write(`Kare ${i + 1}/${tiles.length} (${s}, ${w})`);
-    const json = await overpass(`(${PLACE_FILTER.replaceAll(';', `(${s},${w},${n},${e});`)});out center tags;`);
+    const json = await overpass(`(${PLACE_FILTER.replaceAll(';', `(${s},${w},${n},${e});`)});out center meta;`);
     writeFileSync(path, JSON.stringify(json.elements));
     total += json.elements.length;
     console.log(` → ${json.elements.length} mekân`);

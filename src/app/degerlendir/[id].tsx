@@ -7,13 +7,13 @@ import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
 
 import { CompareStep, SentimentChoice, useRankResultText } from '@/components/rank-steps';
 import { Button, LoadingView, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
-import { cuisineLabel } from '@/constants/cuisines';
 import { colors, hitSlop, radius, spacing, typography } from '@/constants/theme';
 import { getPlace, usePlace } from '@/data/entities';
 import { useKeyboardFooterStyle } from '@/hooks/use-keyboard-footer';
 import { useRankFlow } from '@/hooks/use-rank-flow';
 import { currentLanguage } from '@/i18n';
 import { haptics } from '@/lib/haptics';
+import { placeSubtitle } from '@/lib/place';
 import { possessive } from '@/lib/possessive';
 import { useAppStore } from '@/store/app-store';
 
@@ -87,7 +87,7 @@ export default function RateScreen() {
             {place.name}
           </Text>
           <Text variant="footnote" color={colors.textSecondary}>
-            {cuisineLabel(place.cuisine)} · {place.neighborhood}
+            {placeSubtitle(place)}
           </Text>
         </View>
       </View>

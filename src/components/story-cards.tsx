@@ -12,6 +12,7 @@ import { currentLanguage, currentLocale } from '@/i18n';
 import { formatScore, initials, monthYear } from '@/lib/format';
 import { possessive } from '@/lib/possessive';
 import type { ScoredPlace, TasteSlice } from '@/lib/insights';
+import { placeShortArea } from '@/lib/place';
 import { STORY_SIZE, type MonthRecap } from '@/lib/story';
 import type { CityDot, VisitedSummary } from '@/lib/visited';
 import type { ViewBox } from '@/lib/world-projection';
@@ -103,8 +104,8 @@ function Footer({ author, onImageSettled }: Common) {
   );
 }
 
-const placeLine = (place: Place) =>
-  [cuisineLabel(place.cuisine), place.neighborhood || place.district].filter(Boolean).join(' · ');
+/** Kartta dar alan: "Kafe · Caferağa" */
+const placeLine = (place: Place) => `${cuisineLabel(place.cuisine)} · ${placeShortArea(place)}`;
 
 /* ---------- Favori 5 ---------- */
 

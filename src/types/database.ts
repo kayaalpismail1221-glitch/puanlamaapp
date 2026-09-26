@@ -41,9 +41,15 @@ export type PlaceRow = {
   latitude: number;
   longitude: number;
   location: unknown;
+  address: string;
+  phone: string | null;
+  website: string | null;
+  locked_fields: string[];
+  closed_at: string | null;
   photo_url: string | null;
   source: string;
   external_id: string | null;
+  imported_at: string | null;
   created_by: string | null;
   created_at: string;
   search_text: string;
@@ -61,7 +67,16 @@ export type PlaceViewRow = {
   latitude: number;
   longitude: number;
   photo: string | null;
+  /** "Güneşlibahçe Sk. No:48/B"; bilinmiyorsa '' (migration öncesi sunucuda hiç yok) */
+  address?: string;
+  /** E.164 */
+  phone?: string | null;
+  website?: string | null;
+  /** Kullanıcı bildirimleriyle kapandı olarak işaretlendiyse */
+  closed_at?: string | null;
 };
+
+export type CorrectionField = 'phone' | 'address' | 'website' | 'name' | 'location' | 'closed';
 
 export type NotificationType =
   | 'like'
@@ -290,6 +305,7 @@ export type Database = {
           neighborhood?: string;
           district: string;
           city: string;
+          address?: string;
           price_level?: number;
           latitude: number;
           longitude: number;
@@ -480,6 +496,21 @@ export type Database = {
       search_places: {
         Args: { p_query?: string; p_latitude?: number; p_longitude?: number; p_limit?: number };
         Returns: PlaceViewRow[];
+      };
+      suggest_place_correction: {
+        Args: {
+          p_place_id: string;
+          p_field: CorrectionField;
+          p_value?: string | null;
+          p_latitude?: number | null;
+          p_longitude?: number | null;
+        };
+        Returns: 'applied' | 'pending';
+      };
+      /** Koordinattaki il/ilçe/mahalle (sınırları bilinen bölgede; dışında boş) */
+      area_at: {
+        Args: { p_latitude: number; p_longitude: number };
+        Returns: { city: string; district: string; neighborhood: string }[];
       };
       search_users: { Args: { p_query: string; p_limit?: number }; Returns: ProfileViewRow[] };
       suggested_users: { Args: { p_limit?: number }; Returns: ProfileViewRow[] };

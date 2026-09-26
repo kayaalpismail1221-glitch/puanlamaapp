@@ -14,7 +14,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GlassSurface } from '@/components/glass-surface';
 import { SegmentedControl } from '@/components/segmented-control';
 import { Button, PressableScale, Text } from '@/components/ui';
-import { cuisineLabel } from '@/constants/cuisines';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
 import { usePlace } from '@/data/entities';
 import { currentLocale } from '@/i18n';
@@ -38,6 +37,7 @@ import {
 import { distanceKm, formatDistance, type Coords } from '@/lib/geo';
 import { haptics } from '@/lib/haptics';
 import { useUserLocation } from '@/lib/location';
+import { placeSubtitle } from '@/lib/place';
 
 const MODE_ICONS: Record<TravelMode, SFSymbol> = {
   walking: 'figure.walk',
@@ -166,7 +166,7 @@ export default function DirectionsScreen() {
                     {place.name}
                   </Text>
                   <Text variant="footnote" color={colors.textSecondary} numberOfLines={1}>
-                    {cuisineLabel(place.cuisine)} · {place.neighborhood || place.district}
+                    {placeSubtitle(place)}
                   </Text>
                 </View>
               </View>

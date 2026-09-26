@@ -6,14 +6,15 @@ import MapView, { Marker } from 'react-native-maps';
 
 import { PlaceDetailSkeleton, PostGridSkeleton } from '@/components/skeleton';
 import { Avatar, Button, Divider, ErrorView, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
-import { cuisineLabel } from '@/constants/cuisines';
 import { colors, hitSlop, onScoreColor, radius, scoreColor, spacing } from '@/constants/theme';
+import { PlaceInfo } from '@/components/place-info';
 import { PostGrid } from '@/components/post-grid';
 import { usePlace, useUser } from '@/data/entities';
 import { usePlaceDetails, usePlacePosts } from '@/hooks/queries';
 import { formatScore } from '@/lib/format';
 import { linkSource } from '@/lib/links';
 import { haptics } from '@/lib/haptics';
+import { placeSubtitle } from '@/lib/place';
 import { confirmRemoveScore } from '@/lib/remove-score';
 import { highlightLabel } from '@/lib/post-meta';
 import { sharePlace } from '@/lib/share';
@@ -79,8 +80,16 @@ export default function PlaceDetailScreen() {
               {place.name}
             </Text>
             <Text variant="subhead" color={colors.textSecondary}>
-              {cuisineLabel(place.cuisine)} · {place.neighborhood}, {place.city}
+              {placeSubtitle(place)}
             </Text>
+            {place.closed && (
+              <View style={styles.closedBadge}>
+                <SymbolView name="xmark.circle.fill" tintColor={colors.textSecondary} size={14} />
+                <Text variant="footnote" color={colors.textSecondary} style={{ fontWeight: '600' }}>
+                  {t('place.closedBanner')}
+                </Text>
+              </View>
+            )}
           </View>
           {myScore !== undefined && <ScoreBadge score={myScore} size="lg" />}
         </View>
@@ -195,6 +204,8 @@ export default function PlaceDetailScreen() {
 
         <Divider />
 
+        <PlaceInfo place={place} />
+
         <PressableScale
           onPress={() => router.push({ pathname: '/yol-tarifi/[id]', params: { id: place.id } })}
           scaleTo={0.98}
@@ -228,10 +239,19 @@ export default function PlaceDetailScreen() {
           </View>
         </PressableScale>
 
-        {/* ODbL: OpenStreetMap kaynaklı mekân bilgisinin atfı */}
-        <Text variant="caption" color={colors.textTertiary}>
-          {t('place.dataSource')}
-        </Text>
+        <View style={styles.sourceRow}>
+          {/* ODbL (OpenStreetMap) ve Overture Maps lisansları gereği mekân bilgisinin atfı */}
+          <Text variant="caption" color={colors.textTertiary} style={{ flex: 1 }}>
+            {t('place.dataSource')}
+          </Text>
+          <PressableScale
+            onPress={() => router.push({ pathname: '/mekan-duzelt/[id]', params: { id: place.id } })}
+            hitSlop={hitSlop}>
+            <Text variant="caption" color={colors.primary} style={{ fontWeight: '600' }}>
+              {t('place.wrongInfo')}
+            </Text>
+          </PressableScale>
+        </View>
 
         <Text variant="headline">
           {postCount > 0 ? t('place.postsCount', { count: postCount }) : t('place.posts')}
@@ -376,6 +396,22 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: radius.full,
     backgroundColor: colors.primary,
+  },
+  closedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface,
+  },
+  sourceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
   },
   mapWrap: {
     height: 160,

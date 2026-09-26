@@ -2,7 +2,12 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../..');
+/** OSM kareleri ve idari sınırlar */
 export const CACHE_DIR = join(ROOT, 'scripts/.cache/osm');
+/** fetch-overture.py çıktısı */
+export const OVERTURE_FILE = join(ROOT, 'scripts/.cache/overture/places.json');
+/** build.mjs çıktısı, upload.mjs girdisi */
+export const OUTPUT_FILE = join(ROOT, 'scripts/.cache/places.json');
 
 /** İstanbul il sınırını kapsayan kutu (Kocaeli/Tekirdağ taşmaları ilçe listesiyle ayıklanır) */
 export const BBOX = { south: 40.8, west: 27.95, north: 41.6, east: 29.95 };
