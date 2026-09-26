@@ -9,7 +9,11 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
 - Windows PC + iPhone 11 (Mac yok).
 - Test: iPhone'da Expo Go (gerekirse EAS development build).
 - iOS derlemesi: EAS Build (bulutta). Xcode'a veya Mac'e bağımlı adım önerme.
-- Öncelik iOS. Tasarım iOS'a native hissettirmeli; Android sonra gelir.
+- Öncelik iOS. Tasarım iOS'a native hissettirmeli; Android sonra gelir (2026-09-26 kararı: iOS cilası bitince).
+  Android'e geçerken eksikler: `app.json` → `android.package` yok (build başlamaz); react-native-maps için Google
+  Maps API anahtarı; 54 dosyada `SymbolView` (SF Symbols) Android karşılığı yok; Google ile giriş; FCM push;
+  Liquid Glass/SwiftUI yerine Material'a uygun gözden geçirme; hiçbir ekran Android'de denenmedi. Türkiye'de
+  kullanıcıların çoğu Android'de ve davet/masa döngüsü Android'e çıkmaza gidiyor: viral katsayı için önemli.
 
 ## Teknoloji
 - React Native + Expo (en güncel SDK), TypeScript
