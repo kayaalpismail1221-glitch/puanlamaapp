@@ -1,6 +1,7 @@
-import { Alert } from 'react-native';
+
 
 import i18n from '@/i18n';
+import { showAlert } from '@/lib/dialog';
 
 /**
  * Supabase ve ağ hatalarını kullanıcıya gösterilecek, etkin dildeki mesajlara çevirir.
@@ -62,7 +63,7 @@ export function toUserMessage(error: unknown): string {
 /** Hatayı sistem uyarısıyla gösterir */
 export function showError(error: unknown, title = i18n.t('errors.title')) {
   if (__DEV__) console.warn('[puanla]', error);
-  Alert.alert(title, toUserMessage(error));
+  showAlert(title, toUserMessage(error));
 }
 
 /** Supabase yanıtındaki hatayı fırlatır, veriyi döner */

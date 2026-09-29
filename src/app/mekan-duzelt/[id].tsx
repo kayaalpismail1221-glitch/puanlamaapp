@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import MapView, { type Region } from 'react-native-maps';
 import Animated from 'react-native-reanimated';
 import { SymbolView } from 'expo-symbols';
@@ -13,6 +13,7 @@ import { Button, Text } from '@/components/ui';
 import { colors, radius, spacing, typography } from '@/constants/theme';
 import { usePlace } from '@/data/entities';
 import { useKeyboardFooterStyle } from '@/hooks/use-keyboard-footer';
+import { showAlert } from '@/lib/dialog';
 import { distanceKm, type Coords } from '@/lib/geo';
 import { haptics } from '@/lib/haptics';
 import { formatPhone, normalizePhoneInput, normalizeWebsiteInput, websiteLabel } from '@/lib/place';
@@ -87,7 +88,7 @@ export default function FixPlaceScreen() {
     const { value, error } = prepared();
     if (error) {
       haptics.warning();
-      Alert.alert(t('errors.title'), error);
+      showAlert(t('errors.title'), error);
       return;
     }
     setSending(true);
@@ -95,7 +96,7 @@ export default function FixPlaceScreen() {
       const result = await suggestPlaceCorrection(place.id, field, { value, coords });
       haptics.success();
       if (result === 'applied') await queryClient.invalidateQueries({ queryKey: keys.place(place.id) });
-      Alert.alert(
+      showAlert(
         result === 'applied' ? t('fixPlace.appliedTitle') : t('fixPlace.pendingTitle'),
         result === 'applied' ? t('fixPlace.appliedText') : t('fixPlace.pendingText'),
         [{ text: t('common.ok'), onPress: () => router.back() }],

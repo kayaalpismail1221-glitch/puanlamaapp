@@ -3,7 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Modal, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Modal, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import MapView, { type Region } from 'react-native-maps';
 import Animated from 'react-native-reanimated';
 
@@ -15,6 +15,7 @@ import { CUISINES, cuisineLabel } from '@/constants/cuisines';
 import { colors, radius, spacing, typography } from '@/constants/theme';
 import { useKeyboardFooterStyle } from '@/hooks/use-keyboard-footer';
 import { addressFromGeocode, formatStreetAddress, hasHouseNumber } from '@/lib/address';
+import { showAlert } from '@/lib/dialog';
 import { DEFAULT_REGION, distanceKm, formatDistance, type Coords } from '@/lib/geo';
 import { haptics } from '@/lib/haptics';
 import { placeArea, similarPlaceNames } from '@/lib/place';
@@ -202,7 +203,7 @@ export default function AddPlaceScreen() {
       .sort((a, b) => a.km - b.km)[0]!;
     if (nearest.km <= ADDRESS_TOLERANCE_KM) return true;
     haptics.warning();
-    Alert.alert(t('newPlace.mismatchTitle'), t('newPlace.mismatchText', { distance: formatDistance(nearest.km) }), [
+    showAlert(t('newPlace.mismatchTitle'), t('newPlace.mismatchText', { distance: formatDistance(nearest.km) }), [
       { text: t('newPlace.fixAddress'), style: 'cancel', onPress: () => addressInput.current?.focus() },
       { text: t('newPlace.moveToAddress'), onPress: () => placePin(nearest.coords) },
     ]);

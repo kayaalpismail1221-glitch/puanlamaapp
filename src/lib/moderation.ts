@@ -1,9 +1,7 @@
-import { ActionSheetIOS, Alert, Platform } from 'react-native';
-
 import { block, report, type ReportReason } from '@/api/content';
 import { showError } from '@/api/errors';
-import { colors } from '@/constants/theme';
 import i18n from '@/i18n';
+import { showAlert, showMenu } from '@/lib/dialog';
 import { haptics } from '@/lib/haptics';
 
 /**
@@ -11,29 +9,7 @@ import { haptics } from '@/lib/haptics';
  * şikâyet ve engelleme akışı. Şikâyetler `reports` tablosuna düşer ve 24 saat içinde incelenir.
  */
 
-type MenuOption = { label: string; destructive?: boolean; onPress: () => void };
-
-/** iOS'ta sistem menüsü, diğerlerinde uyarı penceresi */
-export function showMenu(title: string | undefined, options: MenuOption[]) {
-  const cancel = i18n.t('common.cancel');
-  if (Platform.OS === 'ios') {
-    ActionSheetIOS.showActionSheetWithOptions(
-      {
-        title,
-        options: [...options.map((o) => o.label), cancel],
-        destructiveButtonIndex: options.flatMap((o, i) => (o.destructive ? [i] : [])),
-        cancelButtonIndex: options.length,
-        tintColor: colors.primary,
-      },
-      (i) => options[i]?.onPress(),
-    );
-  } else {
-    Alert.alert(title ?? '', undefined, [
-      ...options.map((o) => ({ text: o.label, onPress: o.onPress, style: o.destructive ? ('destructive' as const) : undefined })),
-      { text: cancel, style: 'cancel' as const },
-    ]);
-  }
-}
+export { showMenu };
 
 const REASONS: ReportReason[] = ['offensive', 'spam', 'fake', 'other'];
 
@@ -49,7 +25,7 @@ export function openReportMenu(target: ReportTarget) {
         report(target, reason).then(
           () => {
             haptics.success();
-            Alert.alert(i18n.t('common.thanks'), i18n.t('moderation.reported'));
+            showAlert(i18n.t('common.thanks'), i18n.t('moderation.reported'));
           },
           (error) => showError(error, i18n.t('failures.report')),
         ),
@@ -59,7 +35,7 @@ export function openReportMenu(target: ReportTarget) {
 
 /** Onay alıp kişiyi engeller; `onBlocked` ile ekranlar verilerini yeniler */
 export function confirmBlock(user: { id: string; name: string }, onBlocked?: () => void) {
-  Alert.alert(i18n.t('moderation.blockTitle', { name: user.name }), i18n.t('moderation.blockText'), [
+  showAlert(i18n.t('moderation.blockTitle', { name: user.name }), i18n.t('moderation.blockText'), [
     { text: i18n.t('common.cancel'), style: 'cancel' },
     {
       text: i18n.t('moderation.block'),

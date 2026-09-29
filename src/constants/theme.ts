@@ -21,6 +21,8 @@ export const colors = {
 
   // Durumlar
   danger: '#DC2626',
+  /** Silme gibi yıkıcı düğmelerin açık zemini */
+  dangerSoft: '#FDECEC',
   warning: '#D97706',
   like: '#E11D48',
   overlay: 'rgba(15, 30, 61, 0.45)',

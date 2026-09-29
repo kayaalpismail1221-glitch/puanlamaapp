@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring } from 'react-native-reanimated';
 
 import { PhotoCarousel } from '@/components/photo-carousel';
@@ -11,6 +11,7 @@ import { colors, hitSlop, radius, scoreInk, spacing } from '@/constants/theme';
 import { showError } from '@/api/errors';
 import { getUser, usePlace, usePost, useUser } from '@/data/entities';
 import { useDeletePost } from '@/hooks/queries';
+import { showAlert } from '@/lib/dialog';
 import { formatScore, timeAgo } from '@/lib/format';
 import { formatDistance } from '@/lib/geo';
 import { haptics } from '@/lib/haptics';
@@ -102,7 +103,7 @@ export const PostCard = memo(function PostCard({ post: initial, expanded, distan
     });
 
   const confirmDelete = () =>
-    Alert.alert(
+    showAlert(
       t('post.deleteTitle'),
       ranked ? t('post.deleteTextWithScore', { place: place.name }) : t('post.deleteText'),
       ranked
@@ -130,20 +131,20 @@ export const PostCard = memo(function PostCard({ post: initial, expanded, distan
       mine
         ? [
             {
-              label: t('story.shareToStory'),
+              icon: 'photo.on.rectangle', label: t('story.shareToStory'),
               onPress: () => router.push({ pathname: '/hikaye', params: { gonderi: post.id } }),
             },
-            { label: t('common.share'), onPress: () => sharePost(post, place, user.name) },
+            { icon: 'square.and.arrow.up', label: t('common.share'), onPress: () => sharePost(post, place, user.name) },
             {
-              label: t('editPost.edit'),
+              icon: 'pencil', label: t('editPost.edit'),
               onPress: () => router.push({ pathname: '/gonderi-duzenle', params: { id: post.id } }),
             },
-            { label: t('post.deleteTitle'), destructive: true, onPress: confirmDelete },
+            { icon: 'trash', label: t('post.deleteTitle'), destructive: true, onPress: confirmDelete },
           ]
         : [
-            { label: t('common.share'), onPress: () => sharePost(post, place, user.name) },
-            { label: t('moderation.report'), destructive: true, onPress: () => openReportMenu({ postId: post.id }) },
-            { label: t('moderation.blockUser', { name: user.name.split(' ')[0] }), destructive: true, onPress: blockUser },
+            { icon: 'square.and.arrow.up', label: t('common.share'), onPress: () => sharePost(post, place, user.name) },
+            { icon: 'exclamationmark.bubble', label: t('moderation.report'), destructive: true, onPress: () => openReportMenu({ postId: post.id }) },
+            { icon: 'hand.raised', label: t('moderation.blockUser', { name: user.name.split(' ')[0] }), destructive: true, onPress: blockUser },
           ],
     );
 

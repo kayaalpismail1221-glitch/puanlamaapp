@@ -6,7 +6,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { ProfileLists } from '@/components/list-card';
 import { PostGrid } from '@/components/post-grid';
-import { MenuRow, ProfileIdentity, SchoolChip, StatCard, TopThree } from '@/components/profile-parts';
+import { MenuRow, ProfileIdentity, RankStreakCards, SchoolChip } from '@/components/profile-parts';
 import { ProfileStats } from '@/components/profile-stats';
 import { PostGridSkeleton, ProfileSkeleton } from '@/components/skeleton';
 import { Button, Divider, ErrorView, PressableScale, Text } from '@/components/ui';
@@ -14,9 +14,7 @@ import { TasteMatchRow } from '@/components/taste-match';
 import { FollowButton } from '@/components/user-row';
 import { VisitedMap } from '@/components/visited-map';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
-import { getPlace, useEntitiesVersion } from '@/data/entities';
 import { useUserPosts, useUserProfile, useUserRankings } from '@/hooks/queries';
-import type { ScoredPlace } from '@/lib/insights';
 import { confirmBlock, openReportMenu, showMenu } from '@/lib/moderation';
 import { queryClient } from '@/lib/query-client';
 import { shareProfile } from '@/lib/share';
@@ -32,18 +30,8 @@ export default function UserProfileScreen() {
   const profile = useUserProfile(id);
   const postsQuery = useUserPosts(id);
   const rankings = useUserRankings(id);
-  const version = useEntitiesVersion();
 
   const userPosts = useMemo(() => postsQuery.data ?? [], [postsQuery.data]);
-  const beenPlaces = useMemo<ScoredPlace[]>(
-    () =>
-      (rankings.data ?? []).flatMap((r) => {
-        const place = getPlace(r.placeId);
-        return place ? [{ place, score: r.score }] : [];
-      }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rankings.data, version],
-  );
   const streak = weeklyStreak([...userPosts.map((p) => p.createdAt), ...(rankings.data ?? []).map((r) => r.ratedAt)]);
 
   const user = profile.data;
@@ -63,10 +51,10 @@ export default function UserProfileScreen() {
   // Kullanıcı içeriği güvenliği: profilden şikâyet ve engelleme
   const openMenu = () =>
     showMenu(undefined, [
-      { label: t('common.share'), onPress: share },
-      { label: t('moderation.reportUser'), destructive: true, onPress: () => openReportMenu({ userId: user.id }) },
+      { icon: 'square.and.arrow.up', label: t('common.share'), onPress: share },
+      { icon: 'exclamationmark.bubble', label: t('moderation.reportUser'), destructive: true, onPress: () => openReportMenu({ userId: user.id }) },
       {
-        label: t('moderation.blockUser', { name: user.name.split(' ')[0] }),
+        icon: 'hand.raised', label: t('moderation.blockUser', { name: user.name.split(' ')[0] }),
         destructive: true,
         onPress: () =>
           confirmBlock(user, () => {
@@ -141,14 +129,9 @@ export default function UserProfileScreen() {
           <Divider />
         </View>
 
-        <TopThree items={beenPlaces} title={t('user.topThree', { name: user.name.split(' ')[0] })} />
+        <RankStreakCards userId={user.id} streak={streak} />
 
         <ProfileLists userId={user.id} name={user.name} mine={isMe(user.id)} />
-
-        {/* Sıralama üstteki istatistiklerde (Takipçi · Takip · Sıralama); burada yalnızca seri */}
-        <View style={styles.cards}>
-          <StatCard icon="flame" title={t('me.streak')} value={t('me.weeks', { count: streak })} />
-        </View>
 
         <VisitedMap userId={user.id} name={user.name} />
 
@@ -195,12 +178,6 @@ const styles = StyleSheet.create({
   },
   menu: {
     marginTop: spacing.xl,
-  },
-  cards: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
   },
   postsTitle: {
     paddingHorizontal: spacing.lg,

@@ -1852,3 +1852,51 @@ describe('haritada bölgeye gitme', () => {
     await rejects(rows(null, `select * from area_bounds('İstanbul')`), /42501/);
   });
 });
+
+describe('yıllık hedef yarışı', () => {
+  test('sen ve takip ettiklerin; yalnızca o yılın puanları; tamamlanma oranına göre sıra; hedefsizler sonda', async () => {
+    const me = await signUp({ name: 'Hedefçi' });
+    const fast = await signUp({ name: 'Hızlı Gezen' });
+    const slow = await signUp({ name: 'Yavaş Gezen' });
+    const none = await signUp({ name: 'Hedefsiz' });
+    const blocked = await signUp({ name: 'Engellenen Gezen' });
+    const stranger = await signUp({ name: 'Tanımadığım' });
+    for (const id of [fast, slow, none, blocked]) await as(me, `insert into follows (followee_id) values ($1)`, [id]);
+    await as(me, `insert into blocks (blocked_id) values ($1)`, [blocked]);
+
+    await as(me, 'update profiles set year_goal = 10 where id = $1', [me]);
+    await as(fast, 'update profiles set year_goal = 2 where id = $1', [fast]);
+    await as(slow, 'update profiles set year_goal = 100 where id = $1', [slow]);
+    await as(stranger, 'update profiles set year_goal = 5 where id = $1', [stranger]);
+    for (const p of [PLACE(1), PLACE(2)]) {
+      await as(fast, `select rank_place($1, 'liked', 0)`, [p]);
+      await as(slow, `select rank_place($1, 'liked', 0)`, [p]);
+    }
+    await as(none, `select rank_place($1, 'liked', 0)`, [PLACE(3)]);
+    // Geçen yılın puanı bu yılın hedefine sayılmaz
+    await db.query(`update rankings set rated_at = now() - interval '400 days' where user_id = $1 and place_id = $2`, [
+      slow,
+      PLACE(2),
+    ]);
+
+    const list = await rows(me, 'select user_id, goal, done, profile from year_challenge()');
+    assert.deepEqual(
+      list.map((r) => r.user_id),
+      [fast, slow, me, none],
+      'hızlı %100, yavaş %1, ben %0, hedefsiz en sonda; engellenen ve takip etmediğim yok',
+    );
+    assert.deepEqual(
+      list.map((r) => [r.goal, r.done]),
+      [
+        [2, 2],
+        [100, 1],
+        [10, 0],
+        [null, 1],
+      ],
+    );
+    const lastYear = await rows(me, 'select user_id, done from year_challenge(extract(year from now())::integer - 1)');
+    assert.equal(lastYear.find((r) => r.user_id === slow).done, 1);
+    assert.equal(list[0].profile.name, 'Hızlı Gezen');
+    await rejects(rows(null, 'select * from year_challenge()'), /42501/);
+  });
+});

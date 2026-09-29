@@ -2,7 +2,7 @@ import * as Sharing from 'expo-sharing';
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -21,6 +21,7 @@ import { colors, radius, spacing } from '@/constants/theme';
 import { getPlace, useEntitiesVersion, usePlace, usePost } from '@/data/entities';
 import { useListDetails, useUserPosts } from '@/hooks/queries';
 import { useVisitedPlaces } from '@/hooks/use-visited-places';
+import { showAlert } from '@/lib/dialog';
 import { haptics } from '@/lib/haptics';
 import { isMe } from '@/lib/session';
 import type { ScoredPlace } from '@/lib/insights';
@@ -140,7 +141,7 @@ export default function StoryScreen() {
     setBusy(true);
     try {
       if (!(await Sharing.isAvailableAsync())) {
-        Alert.alert(t('story.unavailable'));
+        showAlert(t('story.unavailable'));
         return;
       }
       const uri = await captureRef(cardRef, {
@@ -153,7 +154,7 @@ export default function StoryScreen() {
       await Sharing.shareAsync(uri, { mimeType: 'image/png', UTI: 'public.png', dialogTitle: t('story.share') });
     } catch (error) {
       if (__DEV__) console.warn('[puanla] hikâye kartı', error);
-      Alert.alert(t('story.failed'));
+      showAlert(t('story.failed'));
     } finally {
       setBusy(false);
     }

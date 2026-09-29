@@ -1,18 +1,19 @@
 import { router } from 'expo-router';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { LinearTransition } from 'react-native-reanimated';
 
-import { Avatar, PlaceImage, PressableScale, Text } from '@/components/ui';
-import { colors, hitSlop, radius, spacing } from '@/constants/theme';
+import { Avatar, PressableScale, Text } from '@/components/ui';
+import { colors, fonts, hitSlop, radius, spacing } from '@/constants/theme';
 import { schoolById, schoolLabel } from '@/data/schools';
-import { useLeaderboard } from '@/hooks/queries';
-import { formatScore, monthYear } from '@/lib/format';
+import { useLeaderboard, useUserRank } from '@/hooks/queries';
+import i18n from '@/i18n';
+import { showAlert, showPrompt } from '@/lib/dialog';
+import { monthYear } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
-import { showMenu } from '@/lib/moderation';
-import { confirmRemoveScore } from '@/lib/remove-score';
-import type { Badge, ScoredPlace } from '@/lib/insights';
+import type { Badge } from '@/lib/insights';
 
 /* ---------- Kimlik: avatar, kullanıcı adı, üyelik ---------- */
 
@@ -139,32 +140,62 @@ export function MenuRow({
 
 /* ---------- Bilgi kartı (Sıralama, Seri) ---------- */
 
-export function StatCard({
+/** Profilde yan yana iki kutu: Puanla sıralaması (dokununca lig) ve haftalık seri */
+export function RankStreakCards({ userId, streak }: { userId: string; streak: number }) {
+  const { t } = useTranslation();
+  const rank = useUserRank(userId).data;
+  return (
+    <View style={styles.tiles}>
+      <StatTile
+        icon="trophy.fill"
+        iconColor={colors.primary}
+        label={t('follow.rank')}
+        // İlk değerlendirme paylaşılana kadar sıralama kilitli
+        value={rank ? `#${rank}` : undefined}
+        onPress={() => router.push({ pathname: '/siralama', params: { vurgula: userId } })}
+      />
+      <StatTile
+        icon="flame.fill"
+        iconColor={streak > 0 ? colors.warning : colors.textTertiary}
+        label={t('me.streakLabel')}
+        value={t('me.weeks', { count: streak })}
+      />
+    </View>
+  );
+}
+
+function StatTile({
   icon,
-  title,
+  iconColor,
+  label,
   value,
-  locked,
   onPress,
 }: {
   icon: SFSymbol;
-  title: string;
+  iconColor: string;
+  label: string;
+  /** Yoksa kilit simgesi */
   value?: string;
-  locked?: boolean;
   onPress?: () => void;
 }) {
   return (
-    <PressableScale onPress={onPress} disabled={!onPress} scaleTo={0.97} style={styles.statCard}>
-      <SymbolView name={icon} tintColor={colors.primary} size={24} />
+    <PressableScale
+      onPress={onPress}
+      disabled={!onPress}
+      scaleTo={0.97}
+      style={styles.tile}
+      accessibilityRole={onPress ? 'button' : undefined}>
+      <SymbolView name={icon} tintColor={iconColor} size={24} />
       <View style={{ flex: 1, gap: 2 }}>
-        <Text variant="footnote" color={colors.textSecondary}>
-          {title}
+        <Text variant="footnote" color={colors.textSecondary} numberOfLines={1}>
+          {label}
         </Text>
-        {locked ? (
-          <SymbolView name="lock.fill" tintColor={colors.textSecondary} size={15} style={styles.cardLock} />
-        ) : (
-          <Text variant="headline" color={colors.primary} numberOfLines={1}>
+        {value ? (
+          <Text style={styles.tileValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
             {value}
           </Text>
+        ) : (
+          <SymbolView name="lock.fill" tintColor={colors.textSecondary} size={16} style={styles.tileLock} />
         )}
       </View>
     </PressableScale>
@@ -173,8 +204,43 @@ export function StatCard({
 
 /* ---------- Yıllık hedef ---------- */
 
-const GOAL_PRESETS = [20, 50, 100];
+export const GOAL_PRESETS = [20, 50, 100];
 
+/** Yılın bitmesine kalan gün (hedef kartı ve hedef sayfası) */
+export const daysLeftInYear = (year: number, now: number) =>
+  Math.max(0, Math.ceil((new Date(year + 1, 0, 1).getTime() - now) / 86_400_000));
+
+/** Özel hedef: 1–1000 arası sayı sorar */
+export function askGoal(year: number, onChange: (goal: number) => void) {
+  showPrompt({
+    title: i18n.t('profile.goalTitle', { year }),
+    message: i18n.t('profile.goalQuestion'),
+    placeholder: '30',
+    keyboardType: 'number-pad',
+    submitLabel: i18n.t('common.save'),
+    onSubmit: (text) => {
+      const n = Number.parseInt(text, 10);
+      if (n > 0 && n <= 1000) {
+        haptics.success();
+        onChange(n);
+      }
+    },
+  });
+}
+
+/** Hedefi değiştir ya da kaldır */
+export function editGoal(year: number, goal: number, onChange: (goal: number | undefined) => void) {
+  showAlert(i18n.t('profile.goalTitle', { year }), i18n.t('common.placeCount', { count: goal }), [
+    { text: i18n.t('profile.goalChange'), onPress: () => askGoal(year, onChange) },
+    { text: i18n.t('profile.goalRemove'), style: 'destructive', onPress: () => onChange(undefined) },
+    { text: i18n.t('common.cancel'), style: 'cancel' },
+  ]);
+}
+
+/**
+ * Profildeki yıllık hedef kartı. Hedef yoksa hazır seçenekler; varsa ilerleme. Dokununca hedef sayfası
+ * (arkadaşların hedefleriyle birlikte) açılır.
+ */
 export function GoalCard({
   goal,
   done,
@@ -185,21 +251,19 @@ export function GoalCard({
   onChange: (goal: number | undefined) => void;
 }) {
   const { t } = useTranslation();
-  const year = new Date().getFullYear();
+  const [now] = useState(Date.now);
+  const year = new Date(now).getFullYear();
   const progress = goal ? Math.min(done / goal, 1) : 0;
+  const openChallenge = () => router.push('/hedef');
 
-  const custom = () => {
-    const apply = (text?: string) => {
-      const n = Number.parseInt(text ?? '', 10);
-      if (n > 0 && n <= 1000) {
-        haptics.success();
-        onChange(n);
-      }
-    };
-    if (Platform.OS === 'ios') {
-      Alert.prompt(t('profile.goalTitle', { year }), t('profile.goalQuestion'), apply, 'plain-text', '', 'number-pad');
-    } else apply('30');
-  };
+  const friendsLink = (
+    <PressableScale onPress={openChallenge} haptic={false} hitSlop={hitSlop} style={styles.goalLink}>
+      <Text variant="subhead" color={colors.primary} style={styles.bold}>
+        {t('challenge.friendsLink')}
+      </Text>
+      <SymbolView name="chevron.right" tintColor={colors.primary} size={12} weight="bold" />
+    </PressableScale>
+  );
 
   if (!goal) {
     return (
@@ -228,27 +292,19 @@ export function GoalCard({
               </Text>
             </PressableScale>
           ))}
-          <PressableScale onPress={custom} style={styles.goalChip}>
+          <PressableScale onPress={() => askGoal(year, onChange)} style={styles.goalChip}>
             <Text variant="subhead" style={styles.bold}>
               {t('profile.goalCustom')}
             </Text>
           </PressableScale>
         </View>
+        <View style={[styles.goalFooter, styles.goalFooterEnd]}>{friendsLink}</View>
       </View>
     );
   }
 
   return (
-    <PressableScale
-      scaleTo={0.99}
-      onPress={() =>
-        Alert.alert(t('profile.goalTitle', { year }), t('common.placeCount', { count: goal }), [
-          { text: t('profile.goalChange'), onPress: custom },
-          { text: t('profile.goalRemove'), style: 'destructive', onPress: () => onChange(undefined) },
-          { text: t('common.cancel'), style: 'cancel' },
-        ])
-      }
-      style={styles.goalCard}>
+    <PressableScale scaleTo={0.99} onPress={openChallenge} onLongPress={() => editGoal(year, goal, onChange)} style={styles.goalCard}>
       <View style={styles.goalHeader}>
         <View style={{ flex: 1, gap: spacing.xs }}>
           <Text variant="headline">{t('profile.goalTitle', { year })}</Text>
@@ -263,77 +319,19 @@ export function GoalCard({
       <View style={styles.track}>
         <Animated.View layout={LinearTransition.springify()} style={[styles.fill, { width: `${progress * 100}%` }]} />
       </View>
+      <View style={styles.goalFooter}>
+        <Text variant="subhead" color={colors.textSecondary}>
+          {t('challenge.daysLeft', { count: daysLeftInYear(year, now) })}
+        </Text>
+        {friendsLink}
+      </View>
     </PressableScale>
   );
 }
 
-/* ---------- Top 3 vitrini ---------- */
-
-type TopThreeProps = {
-  items: ScoredPlace[];
-  title: string;
-  /** Yalnızca kendi profilinde: kartın … menüsünden puanı sil (gönderiler kalır) */
-  onRemoveScore?: (placeId: string) => void;
-};
-
-export function TopThree({ items, title, onRemoveScore }: TopThreeProps) {
-  const { t } = useTranslation();
-  if (!items.length) return null;
-  const openPlace = (id: string) => router.push({ pathname: '/mekan/[id]', params: { id } });
-  const showCardMenu = (place: ScoredPlace['place']) =>
-    showMenu(place.name, [
-      { label: t('me.openPlace'), onPress: () => openPlace(place.id) },
-      {
-        label: t('place.removeScore'),
-        destructive: true,
-        onPress: () => confirmRemoveScore(place.name, () => onRemoveScore?.(place.id)),
-      },
-    ]);
-  return (
-    <View style={styles.section}>
-      <Text variant="title3" style={styles.sectionTitle}>
-        {title}
-      </Text>
-      <View style={styles.topRow}>
-        {items.slice(0, 3).map(({ place, score }, i) => (
-          <PressableScale
-            key={place.id}
-            scaleTo={0.96}
-            onPress={() => openPlace(place.id)}
-            onLongPress={onRemoveScore && (() => showCardMenu(place))}
-            style={styles.topCard}>
-            <PlaceImage uri={place.photoUrl} style={StyleSheet.absoluteFill} />
-            <View style={styles.topShade} />
-            <View style={styles.topRank}>
-              <Text variant="caption" color={colors.primary} style={styles.heavy}>
-                {i + 1}
-              </Text>
-            </View>
-            {onRemoveScore && (
-              <PressableScale
-                onPress={() => showCardMenu(place)}
-                hitSlop={hitSlop}
-                style={styles.topMenu}
-                accessibilityLabel={t('me.topThreeMenu', { place: place.name })}>
-                <SymbolView name="ellipsis" tintColor={colors.onPrimary} size={14} weight="bold" />
-              </PressableScale>
-            )}
-            <View style={styles.topInfo}>
-              <Text variant="footnote" color={colors.onPrimary} numberOfLines={2} style={styles.heavy}>
-                {place.name}
-              </Text>
-              <Text variant="caption" color={colors.onPrimary}>
-                {formatScore(score)} · {place.district}
-              </Text>
-            </View>
-          </PressableScale>
-        ))}
-      </View>
-    </View>
-  );
-}
-
 /* ---------- Rozetler ---------- */
+
+/** Şimdilik profilde gösterilmiyor (kullanıcı kararı 2026-09-29); geri açmak için profile `computeBadges` ile eklenir */
 
 export function BadgeStrip({ badges }: { badges: Badge[] }) {
   const { t } = useTranslation();
@@ -352,7 +350,7 @@ export function BadgeStrip({ badges }: { badges: Badge[] }) {
             key={b.id}
             scaleTo={0.95}
             onPress={() =>
-              Alert.alert(
+              showAlert(
                 t(`badges.${b.id}.title`),
                 b.earned
                   ? t('profile.badgeEarned', { description: t(`badges.${b.id}.description`) })
@@ -406,64 +404,12 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     paddingVertical: spacing.xs,
   },
-  sectionTitle: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
-  },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'baseline',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.md,
-  },
-  heavy: {
-    fontWeight: '700',
-  },
-  topRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-  },
-  topCard: {
-    flex: 1,
-    aspectRatio: 0.78,
-    borderRadius: radius.card,
-    overflow: 'hidden',
-    backgroundColor: colors.surface,
-  },
-  topShade: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: colors.overlay,
-  },
-  topMenu: {
-    position: 'absolute',
-    top: spacing.sm,
-    right: spacing.sm,
-    width: 24,
-    height: 24,
-    borderRadius: radius.full,
-    backgroundColor: colors.overlay,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  topRank: {
-    position: 'absolute',
-    top: spacing.sm,
-    left: spacing.sm,
-    width: 24,
-    height: 24,
-    borderRadius: radius.full,
-    backgroundColor: colors.onPrimary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  topInfo: {
-    position: 'absolute',
-    left: spacing.sm,
-    right: spacing.sm,
-    bottom: spacing.sm,
-    gap: 2,
   },
   badgeRow: {
     gap: spacing.sm,
@@ -533,7 +479,13 @@ const styles = StyleSheet.create({
   menuCount: {
     fontVariant: ['tabular-nums'],
   },
-  statCard: {
+  tiles: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
+  },
+  tile: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
@@ -544,9 +496,17 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.background,
   },
-  cardLock: {
-    width: 15,
-    height: 22,
+  tileValue: {
+    fontFamily: fonts.rounded,
+    fontSize: 20,
+    lineHeight: 25,
+    fontWeight: '800',
+    color: colors.primary,
+    fontVariant: ['tabular-nums'],
+  },
+  tileLock: {
+    width: 16,
+    height: 25,
   },
   goalCard: {
     gap: spacing.lg,
@@ -573,6 +533,19 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  goalFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  goalFooterEnd: {
+    justifyContent: 'flex-end',
+  },
+  goalLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   goalValue: {
     fontVariant: ['tabular-nums'],

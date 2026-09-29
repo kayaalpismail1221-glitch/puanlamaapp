@@ -2,12 +2,13 @@ import { router } from 'expo-router';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActionSheetIOS, Alert, Linking, Platform, StyleSheet, View } from 'react-native';
+import { Linking, StyleSheet, View } from 'react-native';
 import ReanimatedSwipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 
 import type { FriendScore } from '@/api/content';
 import { PlaceImage, PressableScale, Text } from '@/components/ui';
 import { colors, hitSlop, onScoreColor, radius, scoreColor, spacing } from '@/constants/theme';
+import { showAlert, showMenu } from '@/lib/dialog';
 import { formatScore, timeAgo } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
 import { linkSource } from '@/lib/links';
@@ -33,7 +34,7 @@ export function SavedPlaceCard({ entry, place, friends }: { entry: SavedPlace; p
     router.push({ pathname: '/degerlendir/[id]', params: { id: place.id } });
   };
   const openLink = () => {
-    if (entry.link) Linking.openURL(entry.link).catch(() => Alert.alert(t('failures.linkOpen')));
+    if (entry.link) Linking.openURL(entry.link).catch(() => showAlert(t('failures.linkOpen')));
   };
   const edit = () =>
     router.push({ pathname: '/listeye-ekle', params: { placeId: place.id, kaynak: entry.origin } });
@@ -44,29 +45,18 @@ export function SavedPlaceCard({ entry, place, friends }: { entry: SavedPlace; p
 
   const showActions = () => {
     haptics.tap();
-    const actions: { label: string; run: () => void; destructive?: boolean }[] = [
-      { label: t('saved.beenRate'), run: rate },
-      ...(source ? [{ label: t('place.openSource', { source: source.label }), run: openLink }] : []),
-      { label: entry.origin === 'social' ? t('saved.editLinkNote') : t('saved.editNote'), run: edit },
-      { label: t('common.removeFromList'), run: remove, destructive: true },
-    ];
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          title: place.name,
-          options: [...actions.map((a) => a.label), t('common.cancel')],
-          destructiveButtonIndex: actions.findIndex((a) => a.destructive),
-          cancelButtonIndex: actions.length,
-          tintColor: colors.primary,
-        },
-        (i) => actions[i]?.run(),
-      );
-    } else {
-      Alert.alert(place.name, undefined, [
-        ...actions.map((a) => ({ text: a.label, onPress: a.run, style: a.destructive ? ('destructive' as const) : undefined })),
-        { text: t('common.cancel'), style: 'cancel' },
-      ]);
-    }
+    showMenu(place.name, [
+      { icon: 'checkmark.circle', label: t('saved.beenRate'), onPress: rate },
+      ...(source
+        ? [{ icon: 'arrow.up.right.square' as const, label: t('place.openSource', { source: source.label }), onPress: openLink }]
+        : []),
+      {
+        icon: 'square.and.pencil',
+        label: entry.origin === 'social' ? t('saved.editLinkNote') : t('saved.editNote'),
+        onPress: edit,
+      },
+      { icon: 'bookmark.slash', label: t('common.removeFromList'), destructive: true, onPress: remove },
+    ]);
   };
 
   return (

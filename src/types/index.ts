@@ -243,3 +243,10 @@ export type AppNotification = {
   /** Bildirimi yapanı takip ediyor musun (takip bildiriminde geri takip düğmesi) */
   following: boolean;
 };
+
+/** Yıllık hedef yarışında bir kişi: hedef (koymadıysa yok) ve bu yıl puanladığı mekân sayısı */
+export type YearChallengeEntry = {
+  userId: string;
+  goal?: number;
+  done: number;
+};

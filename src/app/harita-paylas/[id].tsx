@@ -3,7 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -13,6 +13,7 @@ import { PressableScale, Text } from '@/components/ui';
 import { colors, gradients, hitSlop, radius, scoreColor, spacing } from '@/constants/theme';
 import { useUser } from '@/data/entities';
 import { useVisitedPlaces } from '@/hooks/use-visited-places';
+import { showAlert } from '@/lib/dialog';
 import { haptics } from '@/lib/haptics';
 import { isMe } from '@/lib/session';
 import { shareProfile } from '@/lib/share';
@@ -92,14 +93,14 @@ export default function ShareTasteMapScreen() {
         if (await saveImage(uri)) {
           haptics.success();
           setSaved(true);
-        } else Alert.alert(t('mapShare.savePermission'));
+        } else showAlert(t('mapShare.savePermission'));
       }
       if (action === 'message' && !(await messageImage(uri, t('mapShare.messageBody')))) {
-        Alert.alert(t('mapShare.messageUnavailable'));
+        showAlert(t('mapShare.messageUnavailable'));
       }
     } catch (error) {
       if (__DEV__) console.warn('[puanla] harita paylaşımı', error);
-      Alert.alert(t('story.failed'));
+      showAlert(t('story.failed'));
     } finally {
       setBusy(null);
     }

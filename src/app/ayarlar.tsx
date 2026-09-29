@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { ActivityIndicator, Linking, ScrollView, StyleSheet, Switch, View } from 'react-native';
 
 import { showError } from '@/api/errors';
 import { SettingsGroup, SettingsRow, settingsStyles } from '@/components/settings-list';
@@ -12,6 +12,7 @@ import { SUPPORT_EMAIL } from '@/constants/app';
 import { colors, spacing } from '@/constants/theme';
 import { schoolById, schoolLabel } from '@/data/schools';
 import { useLanguagePreference } from '@/i18n';
+import { showAlert } from '@/lib/dialog';
 import { areaLabel } from '@/lib/feed';
 import { haptics } from '@/lib/haptics';
 import { PHONE_VERIFICATION_ENABLED } from '@/constants/features';
@@ -33,11 +34,11 @@ export default function SettingsScreen() {
 
   const contact = () => {
     const url = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(t('settings.mailSubject'))}`;
-    Linking.openURL(url).catch(() => Alert.alert(t('settings.contact'), t('settings.noMailApp', { email: SUPPORT_EMAIL })));
+    Linking.openURL(url).catch(() => showAlert(t('settings.contact'), t('settings.noMailApp', { email: SUPPORT_EMAIL })));
   };
 
   const logout = () =>
-    Alert.alert(t('settings.logout'), t('settings.logoutText'), [
+    showAlert(t('settings.logout'), t('settings.logoutText'), [
       { text: t('common.cancel'), style: 'cancel' },
       { text: t('settings.logout'), style: 'destructive', onPress: () => actions.signOut() },
     ]);
@@ -54,13 +55,13 @@ export default function SettingsScreen() {
 
   // Geri alınamaz: iki kez onay
   const confirmDelete = () =>
-    Alert.alert(t('settings.deleteTitle'), t('settings.deleteText'), [
+    showAlert(t('settings.deleteTitle'), t('settings.deleteText'), [
       { text: t('common.cancel'), style: 'cancel' },
       {
         text: t('settings.continue'),
         style: 'destructive',
         onPress: () =>
-          Alert.alert(t('settings.sure'), t('settings.sureText'), [
+          showAlert(t('settings.sure'), t('settings.sureText'), [
             { text: t('common.cancel'), style: 'cancel' },
             { text: t('settings.deleteMine'), style: 'destructive', onPress: deleteAccount },
           ]),
@@ -154,7 +155,6 @@ export default function SettingsScreen() {
         <SettingsRow icon="hand.raised.fill" label={t('settings.blocked')} onPress={() => router.push('/engellenenler')} />
         <SettingsRow icon="checkmark.shield.fill" label={t('settings.guidelines')} onPress={() => openLegal('kosullar')} last />
       </SettingsGroup>
-
 
       <SettingsGroup title={t('settings.support')}>
         <SettingsRow icon="envelope.fill" label={t('settings.contact')} value={SUPPORT_EMAIL} onPress={contact} />

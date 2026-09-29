@@ -3,15 +3,7 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  ActionSheetIOS,
-  Alert,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
-} from 'react-native';
+import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
 
 import { PlacePicker } from '@/components/place-picker';
@@ -28,6 +20,7 @@ import { useKeyboardFooterStyle } from '@/hooks/use-keyboard-footer';
 import { useRankFlow } from '@/hooks/use-rank-flow';
 import i18n from '@/i18n';
 import { pickContact, type DeviceContact } from '@/lib/contacts';
+import { showAlert, showMenu } from '@/lib/dialog';
 import { haptics } from '@/lib/haptics';
 import { placeSubtitle } from '@/lib/place';
 import { useAppStore } from '@/store/app-store';
@@ -106,7 +99,7 @@ export default function CreatePostScreen() {
   const addFromCamera = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert(t('compose.cameraPermissionTitle'), t('compose.cameraPermissionText'));
+      showAlert(t('compose.cameraPermissionTitle'), t('compose.cameraPermissionText'));
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
@@ -116,28 +109,19 @@ export default function CreatePostScreen() {
     if (!result.canceled) setPhotos((p) => [...p, toLocalImage(result.assets[0]!)].slice(0, MAX_PHOTOS));
   };
 
-  const addPhoto = () => {
-    if (Platform.OS !== 'ios') return addFromLibrary();
-    ActionSheetIOS.showActionSheetWithOptions(
-      {
-        options: [t('compose.takePhoto'), t('compose.chooseFromLibrary'), t('common.cancel')],
-        cancelButtonIndex: 2,
-        tintColor: colors.primary,
-      },
-      (i) => {
-        if (i === 0) addFromCamera();
-        if (i === 1) addFromLibrary();
-      },
-    );
-  };
+  const addPhoto = () =>
+    showMenu(undefined, [
+      { icon: 'camera', label: t('compose.takePhoto'), onPress: addFromCamera },
+      { icon: 'photo.on.rectangle', label: t('compose.chooseFromLibrary'), onPress: addFromLibrary },
+    ]);
 
   /** Sistem kişi seçicisi: Puanla'daysa etiketlenir, değilse paylaşınca davet edilir */
   const addFromContacts = async () => {
     const picked = await pickContact().catch(() => 'unavailable' as const);
     if (!picked) return;
-    if (picked === 'unavailable') return Alert.alert(t('compose.contactsUnavailable'));
-    if (picked === 'denied') return Alert.alert(t('compose.contactsDeniedTitle'), t('compose.contactsDenied'));
-    if (picked === 'no_mobile') return Alert.alert(t('compose.contactNoMobileTitle'), t('compose.contactNoMobile'));
+    if (picked === 'unavailable') return showAlert(t('compose.contactsUnavailable'));
+    if (picked === 'denied') return showAlert(t('compose.contactsDeniedTitle'), t('compose.contactsDenied'));
+    if (picked === 'no_mobile') return showAlert(t('compose.contactNoMobileTitle'), t('compose.contactNoMobile'));
     haptics.select();
     const match = await matchContacts([picked.phone]).then((m) => m[0], () => undefined);
     if (match) {
@@ -311,7 +295,6 @@ export default function CreatePostScreen() {
           />
         </Section>
 
-
         <Section title={t('compose.meal')}>
           <MealPicker value={meal} onChange={setMeal} />
         </Section>
@@ -395,7 +378,6 @@ const toLocalImage = (asset: ImagePicker.ImagePickerAsset): LocalImage => ({
   width: asset.width,
   height: asset.height,
 });
-
 
 const styles = StyleSheet.create({
   container: {
@@ -492,7 +474,7 @@ const styles = StyleSheet.create({
 
 /** Gönderi paylaşıldıktan sonra Instagram hikâyesi kartını önerir (yayılmanın en doğal anı) */
 function offerStory(postId: string) {
-  Alert.alert(i18n.t('story.postPublished'), i18n.t('story.postPublishedText'), [
+  showAlert(i18n.t('story.postPublished'), i18n.t('story.postPublishedText'), [
     { text: i18n.t('story.later'), style: 'cancel' },
     {
       text: i18n.t('story.shareToStory'),

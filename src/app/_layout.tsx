@@ -11,6 +11,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 import { BackendSetup } from '@/components/backend-setup';
+import { DialogHost } from '@/components/dialog-host';
 import { LaunchSkeleton } from '@/components/skeleton';
 import { ErrorView } from '@/components/ui';
 import { FoodMapShareButton } from '@/components/food-map-header';
@@ -91,6 +92,7 @@ function RootNavigator() {
         <Stack.Screen name="kaydedilen-gonderiler" options={{ title: t('screens.savedPosts') }} />
         <Stack.Screen name="konum-sec" options={{ presentation: 'modal', title: t('screens.chooseLocation') }} />
         <Stack.Screen name="siralama" options={{ title: t('screens.leaderboard') }} />
+        <Stack.Screen name="hedef" options={{ title: t('screens.yearGoal') }} />
         <Stack.Screen name="baglantilar/[id]" options={{ title: '' }} />
         <Stack.Screen name="gittiklerim/[id]" options={{ title: t('screens.beenTo') }} />
         <Stack.Screen
@@ -157,6 +159,8 @@ export default function RootLayout() {
                 <ZoomOverlayProvider>
                   <RootNavigator />
                 </ZoomOverlayProvider>
+                {/* Menü ve uyarı pencereleri (lib/dialog): modal ekranların da üstünde */}
+                <DialogHost />
               </AppStoreProvider>
             </QueryClientProvider>
           </ThemeProvider>

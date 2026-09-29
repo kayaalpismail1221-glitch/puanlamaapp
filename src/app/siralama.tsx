@@ -2,7 +2,7 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, FlatList, StyleSheet, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -18,6 +18,7 @@ import { schoolById, schoolLabel } from '@/data/schools';
 import { useUser } from '@/data/entities';
 import { useLeaderboard } from '@/hooks/queries';
 import { currentLocale } from '@/i18n';
+import { showAlert, showPrompt } from '@/lib/dialog';
 import { haptics } from '@/lib/haptics';
 import type { LeaderboardEntry, LeaderboardPeriod, LeaderboardScope } from '@/lib/leaderboard';
 import { openUserProfile } from '@/lib/navigation';
@@ -73,31 +74,22 @@ export default function LeaderboardScreen() {
   const askInviter = profile && !profile.hasInviter && openedAt - +new Date(profile.joinedAt) < INVITER_DAYS * 86_400_000;
 
   const enterInviter = () =>
-    Alert.prompt(
-      t('leaderboard.inviterTitle'),
-      t('leaderboard.inviterPrompt'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('leaderboard.add'),
-          onPress: async (value?: string) => {
-            if (!value?.trim()) return;
-            try {
-              const inviter = await setInviter(value);
-              haptics.success();
-              Alert.alert(t('leaderboard.inviterTitle'), t('leaderboard.inviterDone', { name: inviter.name }));
-              actions.refresh();
-              queryClient.invalidateQueries({ queryKey: ['leaderboard'] });
-            } catch (error) {
-              showError(error);
-            }
-          },
-        },
-      ],
-      'plain-text',
-      '',
-      'default',
-    );
+    showPrompt({
+      title: t('leaderboard.inviterTitle'),
+      message: t('leaderboard.inviterPrompt'),
+      submitLabel: t('leaderboard.add'),
+      onSubmit: async (value) => {
+        try {
+          const inviter = await setInviter(value);
+          haptics.success();
+          showAlert(t('leaderboard.inviterTitle'), t('leaderboard.inviterDone', { name: inviter.name }));
+          actions.refresh();
+          queryClient.invalidateQueries({ queryKey: ['leaderboard'] });
+        } catch (error) {
+          showError(error);
+        }
+      },
+    });
 
   return (
     <View style={styles.container}>

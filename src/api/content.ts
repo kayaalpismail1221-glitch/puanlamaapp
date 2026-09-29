@@ -27,6 +27,7 @@ import type {
   Segment,
   User,
   UserProfile,
+  YearChallengeEntry,
 } from '@/types';
 
 /**
@@ -622,6 +623,13 @@ export async function fetchLeaderboard(
 export async function setInviter(username: string): Promise<User> {
   const [user] = ingestUsers([unwrap(await supabase.rpc('set_inviter', { p_username: username }))]);
   return user!;
+}
+
+/** Yıllık hedef yarışı: sen ve takip ettiklerin, hedef ve o yıl puanlanan mekân sayısı (sıralı) */
+export async function fetchYearChallenge(year: number): Promise<YearChallengeEntry[]> {
+  const rows = unwrap(await supabase.rpc('year_challenge', { p_year: year }));
+  ingestUsers(rows.map((r) => r.profile));
+  return rows.map((r) => ({ userId: r.user_id, goal: r.goal ?? undefined, done: r.done }));
 }
 
 export async function fetchUserRank(userId: string): Promise<number | null> {

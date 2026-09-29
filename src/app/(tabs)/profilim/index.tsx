@@ -2,29 +2,20 @@ import { router, Stack } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ProfileLists } from '@/components/list-card';
 import { VisitedMap } from '@/components/visited-map';
 import { PostGrid } from '@/components/post-grid';
-import {
-  BadgeStrip,
-  GoalCard,
-  MenuRow,
-  ProfileIdentity,
-  SchoolChip,
-  StatCard,
-  TopThree,
-} from '@/components/profile-parts';
+import { GoalCard, MenuRow, ProfileIdentity, RankStreakCards, SchoolChip } from '@/components/profile-parts';
 import { ProfileStats } from '@/components/profile-stats';
 import { PostGridSkeleton } from '@/components/skeleton';
 import { Button, Divider, PressableScale, Text } from '@/components/ui';
 import { colors, hitSlop, spacing } from '@/constants/theme';
-import { getPlace, useEntitiesVersion } from '@/data/entities';
 import { useUserPosts } from '@/hooks/queries';
+import { showAlert } from '@/lib/dialog';
 import { showMenu } from '@/lib/moderation';
 import { queryClient } from '@/lib/query-client';
-import { computeBadges, type ScoredPlace } from '@/lib/insights';
 import { shareProfile as shareProfileLink } from '@/lib/share';
 import { placesThisYear, weeklyStreak } from '@/lib/stats';
 import { useAppStore } from '@/store/app-store';
@@ -37,19 +28,9 @@ export default function ProfileScreen() {
   const { t } = useTranslation();
   const me = userId ?? '';
   const postsQuery = useUserPosts(me);
-  const version = useEntitiesVersion();
   const [refreshing, setRefreshing] = useState(false);
 
   const myPosts = useMemo(() => postsQuery.data ?? [], [postsQuery.data]);
-  const myPlaces = useMemo<ScoredPlace[]>(
-    () =>
-      scored.flatMap((e) => {
-        const place = getPlace(e.placeId);
-        return place ? [{ place, score: e.score }] : [];
-      }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [scored, version],
-  );
   const allEntries = useMemo(() => Object.values(rankings).flat(), [rankings]);
 
   const refresh = async () => {
@@ -58,21 +39,12 @@ export default function ProfileScreen() {
     setRefreshing(false);
   };
   const streak = weeklyStreak([...allEntries.map((e) => e.ratedAt), ...myPosts.map((p) => p.createdAt)]);
-  const badges = useMemo(
-    () =>
-      computeBadges({
-        places: myPlaces,
-        postCount: myPosts.length,
-        streakWeeks: streak,
-      }),
-    [myPlaces, myPosts.length, streak],
-  );
   const recsLocked = scored.length < RECS_UNLOCK;
 
   const shareProfile = () =>
     showMenu(undefined, [
-      { label: t('me.storyCard'), onPress: () => router.push('/hikaye') },
-      { label: t('me.shareLink'), onPress: () => profile && shareProfileLink(profile) },
+      { icon: 'photo.on.rectangle', label: t('me.storyCard'), onPress: () => router.push('/hikaye') },
+      { icon: 'square.and.arrow.up', label: t('me.shareLink'), onPress: () => profile && shareProfileLink(profile) },
     ]);
 
   return (
@@ -139,23 +111,14 @@ export default function ProfileScreen() {
             locked={recsLocked}
             onPress={() =>
               recsLocked
-                ? Alert.alert(t('me.recs'), t('me.recsLockedText', { count: RECS_UNLOCK - scored.length }))
+                ? showAlert(t('me.recs'), t('me.recsLockedText', { count: RECS_UNLOCK - scored.length }))
                 : router.push('/oneriler')
             }
           />
           <Divider />
         </View>
 
-        <TopThree items={myPlaces} title={t('me.topThree')} onRemoveScore={actions.unrank} />
-
-        <ProfileLists userId={me} name={profile?.name ?? ''} mine />
-
-        {/* Sıralama üstteki istatistiklerde (Takipçi · Takip · Sıralama); burada yalnızca seri */}
-        <View style={styles.cards}>
-          <StatCard icon="flame" title={t('me.streak')} value={t('me.weeks', { count: streak })} />
-        </View>
-
-        <BadgeStrip badges={badges} />
+        <RankStreakCards userId={me} streak={streak} />
 
         <View style={styles.goal}>
           <GoalCard
@@ -164,6 +127,8 @@ export default function ProfileScreen() {
             onChange={(goal) => actions.updateProfile({ yearGoal: goal })}
           />
         </View>
+
+        <ProfileLists userId={me} name={profile?.name ?? ''} mine />
 
         <VisitedMap userId={me} name={profile?.name ?? ''} />
 
@@ -176,11 +141,7 @@ export default function ProfileScreen() {
             </Text>
           </PressableScale>
         </View>
-        {postsQuery.isPending ? (
-          <PostGridSkeleton />
-        ) : (
-          <PostGrid posts={myPosts} emptyText={t('me.noPosts')} />
-        )}
+        {postsQuery.isPending ? <PostGridSkeleton /> : <PostGrid posts={myPosts} emptyText={t('me.noPosts')} />}
         <View style={{ height: spacing.xxl }} />
       </ScrollView>
     </>
@@ -209,15 +170,9 @@ const styles = StyleSheet.create({
   menu: {
     marginTop: spacing.xl,
   },
-  cards: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-  },
   goal: {
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
+    paddingTop: spacing.md,
   },
   postsHeader: {
     flexDirection: 'row',

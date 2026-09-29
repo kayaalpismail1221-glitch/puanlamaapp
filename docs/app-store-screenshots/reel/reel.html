@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>Puanla Reels</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,500&display=block" rel="stylesheet">
+<style>
+/* 432×768 CSS px × 2,5 = 1080×1920. Reels güvenli alanı: üst ~100, alt ~150 CSS px arayüzün altında kalır. */
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:transparent;width:432px;overflow:hidden;font-family:Inter,sans-serif;-webkit-font-smoothing:antialiased}
+.part{display:none;position:relative;width:432px;height:768px}
+.on{display:block}
+#bg{height:880px;background:
+  radial-gradient(120% 60% at 0% 0%, rgba(86,112,174,.6) 0%, rgba(86,112,174,0) 60%),
+  radial-gradient(90% 50% at 100% 100%, rgba(101,179,46,.22) 0%, rgba(101,179,46,0) 60%),
+  linear-gradient(180deg,#132650 0%,#0F1E3D 55%,#0b1730 100%)}
+#bg::after{content:"";position:absolute;inset:0;opacity:.5;background-image:radial-gradient(rgba(255,255,255,.035) 1px,transparent 1px);background-size:14px 14px}
+.h{font-family:Newsreader,serif;font-weight:600;font-size:40px;line-height:1.06;letter-spacing:-.8px;color:#fff;text-align:center}
+.h em{font-style:italic;font-weight:500}
+.top{position:absolute;left:0;right:0;top:118px;padding:0 20px}
+.card{background:#fff;border-radius:18px;box-shadow:0 24px 50px -14px rgba(0,0,0,.6);padding:14px 16px;position:absolute;width:260px;font-size:13px;color:#111827}
+.stars{color:#F2A516;letter-spacing:2px;font-size:15px}
+.anon{display:flex;align-items:center;gap:9px;margin-bottom:7px}
+.anon i{width:30px;height:30px;border-radius:50%;background:#E5E7EB;display:flex;align-items:center;justify-content:center;font-style:normal;color:#9CA3AF;font-weight:700}
+.muted{color:#6B7280}
+.badge{border-radius:50%;border:3px solid;background:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.4px}
+.friend{position:absolute;display:flex;flex-direction:column;align-items:center;gap:8px}
+.friend img{width:104px;height:104px;border-radius:50%;object-fit:cover;border:4px solid #fff;box-shadow:0 20px 40px -10px rgba(0,0,0,.6)}
+.friend .badge{position:absolute;right:-12px;bottom:18px;width:50px;height:50px;font-size:17px}
+.friend span{color:#fff;font-weight:600;font-size:15px}
+.icon{width:150px;height:150px;border-radius:34px;box-shadow:0 30px 70px -10px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.08);display:block;margin:0 auto}
+.wordmark{font-family:Newsreader,serif;font-weight:700;color:#fff;font-size:64px;letter-spacing:-1.2px;display:flex;align-items:flex-end;justify-content:center;gap:5px}
+.wordmark i{width:14px;height:14px;border-radius:50%;background:#65B32E;margin-bottom:15px;box-shadow:0 0 18px rgba(101,179,46,.8)}
+.pill{display:inline-flex;align-items:center;gap:8px;height:48px;padding:0 22px;border-radius:24px;background:#fff;color:#0F1E3D;font-weight:700;font-size:17px;box-shadow:0 18px 40px -12px rgba(0,0,0,.6)}
+</style>
+</head>
+<body>
+
+<!-- Arka plan (yavaş kaydırma için 880 px yüksek) -->
+<div class="part" id="bg"></div>
+
+<!-- Açılış 1: yabancıların yorumları -->
+<div class="part" id="hookA">
+  <div class="top"><h1 class="h">Gitmeden önce<br><em>kime güveniyorsun?</em></h1></div>
+  <div class="card" style="left:30px;top:300px;transform:rotate(-5deg)"><div class="anon"><i>?</i><div><b>Anonim</b><div class="muted" style="font-size:12px">1 yorum</div></div></div><div class="stars">★★★★★</div><div style="margin-top:4px">“Harika! Kesinlikle gidin!!!”</div></div>
+  <div class="card" style="left:140px;top:420px;transform:rotate(4deg)"><div class="anon"><i>?</i><div><b>Kullanıcı 4821</b><div class="muted" style="font-size:12px">3 yorum</div></div></div><div class="stars">★☆☆☆☆</div><div style="margin-top:4px">“Berbat, bir daha asla.”</div></div>
+  <div class="card" style="left:50px;top:540px;transform:rotate(-2deg)"><div class="anon"><i>?</i><div><b>Misafir</b><div class="muted" style="font-size:12px">Yerel rehber</div></div></div><div class="stars">★★★☆☆</div><div style="margin-top:4px">“İdare eder, fiyatlar biraz…”</div></div>
+</div>
+
+<!-- Açılış 2: arkadaşların -->
+<div class="part" id="hookB">
+  <div class="top"><h1 class="h">Yabancılara mı,<br><em>arkadaşlarına mı?</em></h1></div>
+  <div class="friend" style="left:40px;top:340px"><img src="https://i.pravatar.cc/300?img=47"><div class="badge" data-s="9.6"></div><span>Selin</span></div>
+  <div class="friend" style="left:250px;top:380px"><img src="https://i.pravatar.cc/300?img=12"><div class="badge" data-s="9.3"></div><span>Kaan</span></div>
+  <div class="friend" style="left:140px;top:520px"><img src="https://i.pravatar.cc/300?img=44"><div class="badge" data-s="9.4"></div><span>Ece</span></div>
+</div>
+
+<!-- Kapanış -->
+<div class="part" id="cta">
+  <div style="position:absolute;left:0;right:0;top:170px;text-align:center">
+    <img class="icon" src="icon.png">
+    <div class="wordmark" style="margin-top:26px">puanla<i></i></div>
+    <div style="color:rgba(255,255,255,.78);font-size:18px;margin-top:10px">Arkadaşlarınla keşfet, puanla, paylaş.</div>
+    <div style="margin-top:34px"><span class="pill"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0F1E3D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>App Store’da indir</span></div>
+  </div>
+</div>
+
+<script>
+const BANDS=[{min:6.7,max:10,from:'#65B32E',to:'#1E7B3C'},{min:3.4,max:6.6,from:'#F2A516',to:'#F5C518'},{min:0,max:3.3,from:'#B42318',to:'#EF4B3C'}];
+const h2r=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16));
+const r2h=r=>'#'+r.map(c=>Math.round(c).toString(16).padStart(2,'0')).join('');
+const mix=(a,b,t)=>{const x=h2r(a),y=h2r(b);return r2h(x.map((c,i)=>c+(y[i]-c)*t))};
+function scoreColor(s){const b=BANDS.find(b=>s>=b.min)||BANDS[2];const t=Math.min(1,Math.max(0,(s-b.min)/(b.max-b.min)));return mix(b.from,b.to,t)}
+document.querySelectorAll('[data-s]').forEach(e=>{const s=+e.dataset.s;e.textContent=s.toFixed(1).replace('.',',');e.style.borderColor=scoreColor(s);e.style.color=mix(scoreColor(s),'#000000',.2)});
+const part=new URLSearchParams(location.search).get('part')||'hookA';
+document.getElementById(part).classList.add('on');
+</script>
+</body>
+</html>

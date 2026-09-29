@@ -5,10 +5,11 @@ import * as Notifications from 'expo-notifications';
 import { router, type Href } from 'expo-router';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Linking, Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
 
 import { registerPushToken, unregisterPushToken } from '@/api/notifications';
 import i18n, { currentLanguage } from '@/i18n';
+import { showAlert } from '@/lib/dialog';
 import { keys, queryClient } from '@/lib/query-client';
 
 /**
@@ -77,7 +78,7 @@ export async function offerPushPermission() {
   if ((await pushPermission()) !== 'undetermined') return;
   if (await AsyncStorage.getItem(ASKED_KEY).catch(() => null)) return;
   AsyncStorage.setItem(ASKED_KEY, '1').catch(() => {});
-  Alert.alert(i18n.t('notifications.askTitle'), i18n.t('notifications.askText'), [
+  showAlert(i18n.t('notifications.askTitle'), i18n.t('notifications.askText'), [
     { text: i18n.t('notifications.notNow'), style: 'cancel' },
     { text: i18n.t('notifications.allow'), onPress: () => registerDevice(true).catch(() => {}) },
   ]);

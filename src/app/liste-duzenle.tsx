@@ -2,7 +2,7 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, FlatList, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { FlatList, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import { showError } from '@/api/errors';
@@ -14,6 +14,7 @@ import { colors, fonts, radius, spacing, typography } from '@/constants/theme';
 import { getPlace, useEntitiesVersion } from '@/data/entities';
 import { useListDetails, useSaveList } from '@/hooks/queries';
 import { useKeyboardFooterStyle } from '@/hooks/use-keyboard-footer';
+import { showAlert } from '@/lib/dialog';
 import { haptics } from '@/lib/haptics';
 import {
   facets,
@@ -86,7 +87,7 @@ function ListEditor({ id, initial, initialTitle }: { id?: string; initial?: List
       const next = new Map(prev);
       if (next.has(placeId)) next.delete(placeId);
       else if (next.size >= LIST_MAX_PLACES) {
-        Alert.alert(t('lists.editor.max', { max: LIST_MAX_PLACES }));
+        showAlert(t('lists.editor.max', { max: LIST_MAX_PLACES }));
         return prev;
       } else next.set(placeId, '');
       return next;

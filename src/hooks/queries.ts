@@ -328,6 +328,14 @@ export function useUserRank(userId: string | undefined) {
   });
 }
 
+/** Yıllık hedef yarışı (hedef sayfası): sen ve takip ettiklerin */
+export function useYearChallenge(year: number) {
+  return useQuery({
+    queryKey: keys.yearChallenge(year),
+    queryFn: () => api.fetchYearChallenge(year),
+  });
+}
+
 export function useUserRankings(userId: string | undefined) {
   return useQuery({
     queryKey: keys.userRankings(userId ?? ''),

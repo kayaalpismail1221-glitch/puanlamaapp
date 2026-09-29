@@ -2,7 +2,7 @@ import { router, Stack } from 'expo-router';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActionSheetIOS, Alert, FlatList, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { ListStrip } from '@/components/list-card';
@@ -13,6 +13,7 @@ import { colors, hitSlop, radius, spacing } from '@/constants/theme';
 import { getPlace, useEntitiesVersion, usePrefetchPlaces } from '@/data/entities';
 import { useFriendScores, useSavedLists, useSavedPosts } from '@/hooks/queries';
 import { useClipboardHasUrl } from '@/lib/clipboard';
+import { showMenu } from '@/lib/dialog';
 import { formatScore } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
 import { linkSource } from '@/lib/links';
@@ -97,37 +98,17 @@ export default function SavedListScreen() {
     setSource(null);
   };
 
-  const chooseSort = () => {
-    const keys = SORTS;
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          title: t('list.sort.title'),
-          options: [...keys.map((k) => (k === sort ? `✓ ${sortLabel(k)}` : sortLabel(k))), t('common.cancel')],
-          cancelButtonIndex: keys.length,
-          tintColor: colors.primary,
-        },
-        (i) => keys[i] && setSort(keys[i]),
-      );
-    } else {
-      Alert.alert(t('list.sort.title'), undefined, keys.map((k) => ({ text: sortLabel(k), onPress: () => setSort(k) })));
-    }
-  };
-
-  const openAddMenu = () => {
-    if (Platform.OS !== 'ios') return addSocial();
-    ActionSheetIOS.showActionSheetWithOptions(
-      {
-        options: [t('list.addFromSocial'), t('list.searchAndSave'), t('common.cancel')],
-        cancelButtonIndex: 2,
-        tintColor: colors.primary,
-      },
-      (i) => {
-        if (i === 0) addSocial();
-        if (i === 1) addApp();
-      },
+  const chooseSort = () =>
+    showMenu(
+      t('list.sort.title'),
+      SORTS.map((k) => ({ label: sortLabel(k), selected: k === sort, onPress: () => setSort(k) })),
     );
-  };
+
+  const openAddMenu = () =>
+    showMenu(undefined, [
+      { icon: 'link', label: t('list.addFromSocial'), onPress: addSocial },
+      { icon: 'magnifyingglass', label: t('list.searchAndSave'), onPress: addApp },
+    ]);
 
   const filtersActive = !!cuisine || !!source;
 

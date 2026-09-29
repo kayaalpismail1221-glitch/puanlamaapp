@@ -257,6 +257,14 @@ export type TasteMatchJson = {
   places: { place: PlaceViewRow; my_score: number; their_score: number }[];
 };
 
+/** year_challenge: yıllık hedef yarışı satırı */
+export type YearChallengeRow = {
+  user_id: string;
+  profile: PublicProfileJson;
+  goal: number | null;
+  done: number;
+};
+
 export type LeaderboardRow = {
   user_id: string;
   xp: number;
@@ -588,6 +596,7 @@ export type Database = {
         Returns: LeaderboardRow[];
       };
       user_rank: { Args: { p_user_id: string }; Returns: number | null };
+      year_challenge: { Args: { p_year?: number }; Returns: YearChallengeRow[] };
       set_inviter: { Args: { p_username: string }; Returns: PublicProfileJson };
       username_available: { Args: { p_username: string }; Returns: boolean };
       delete_account: { Args: Record<string, never>; Returns: undefined };

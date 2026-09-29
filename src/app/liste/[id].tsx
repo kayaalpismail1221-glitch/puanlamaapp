@@ -1,7 +1,7 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useTranslation } from 'react-i18next';
-import { Alert, FlatList, StyleSheet, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 
 import { showError } from '@/api/errors';
 import { ListCover, newList } from '@/components/list-card';
@@ -10,6 +10,7 @@ import { Avatar, Button, Divider, ErrorView, PlaceImage, PressableScale, ScoreBa
 import { cuisineLabel } from '@/constants/cuisines';
 import { colors, fonts, hitSlop, radius, scoreInk, spacing } from '@/constants/theme';
 import { useDeleteList, useListDetails, useToggleListSaved } from '@/hooks/queries';
+import { showAlert } from '@/lib/dialog';
 import { formatScore } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
 import { confirmBlock, openReportMenu, showMenu } from '@/lib/moderation';
@@ -51,12 +52,12 @@ export default function ListScreen() {
   /** Tek paylaş: görsel hikâye kartı mı, bağlantı mı */
   const share = () =>
     showMenu(t('lists.shareTitle'), [
-      { label: t('lists.shareStory'), onPress: openStory },
-      { label: t('lists.shareLink'), onPress: () => shareList(list) },
+      { icon: 'photo.on.rectangle', label: t('lists.shareStory'), onPress: openStory },
+      { icon: 'link', label: t('lists.shareLink'), onPress: () => shareList(list) },
     ]);
   const edit = () => router.push({ pathname: '/liste-duzenle', params: { id: list.id } });
   const confirmDelete = () =>
-    Alert.alert(t('lists.deleteTitle'), t('lists.deleteText', { title: list.title }), [
+    showAlert(t('lists.deleteTitle'), t('lists.deleteText', { title: list.title }), [
       { text: t('common.cancel'), style: 'cancel' },
       {
         text: t('common.delete'),
@@ -77,13 +78,13 @@ export default function ListScreen() {
       undefined,
       mine
         ? [
-            { label: t('lists.edit'), onPress: edit },
-            { label: t('lists.deleteTitle'), destructive: true, onPress: confirmDelete },
+            { icon: 'pencil', label: t('lists.edit'), onPress: edit },
+            { icon: 'trash', label: t('lists.deleteTitle'), destructive: true, onPress: confirmDelete },
           ]
         : [
-            { label: t('moderation.report'), destructive: true, onPress: () => openReportMenu({ listId: list.id }) },
+            { icon: 'exclamationmark.bubble', label: t('moderation.report'), destructive: true, onPress: () => openReportMenu({ listId: list.id }) },
             {
-              label: t('moderation.blockUser', { name: list.author.name.split(' ')[0] }),
+              icon: 'hand.raised', label: t('moderation.blockUser', { name: list.author.name.split(' ')[0] }),
               destructive: true,
               onPress: () =>
                 confirmBlock(list.author, () => {

@@ -2,7 +2,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, FlatList, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
+import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -13,8 +13,10 @@ import { Avatar, Divider, LoadingView, PressableScale, Text } from '@/components
 import { colors, hitSlop, radius, spacing, typography } from '@/constants/theme';
 import { getUser, usePost, useUser } from '@/data/entities';
 import { useAddComment, useComments, useDeleteComment, useToggleCommentLike } from '@/hooks/queries';
+import { showAlert } from '@/lib/dialog';
 import { timeAgo } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
+import type { MenuOption } from '@/lib/dialog';
 import { confirmBlock, openReportMenu, showMenu } from '@/lib/moderation';
 import { openUserProfile } from '@/lib/navigation';
 import { queryClient } from '@/lib/query-client';
@@ -128,7 +130,7 @@ export default function PostDetailScreen() {
   };
 
   const confirmDelete = (comment: Comment) =>
-    Alert.alert(t('comments.deleteTitle'), t('comments.deleteText'), [
+    showAlert(t('comments.deleteTitle'), t('comments.deleteText'), [
       { text: t('common.cancel'), style: 'cancel' },
       {
         text: t('common.delete'),
@@ -146,15 +148,15 @@ export default function PostDetailScreen() {
    */
   const commentActions = (comment: Comment) => {
     const author = getUser(comment.userId);
-    const options = [];
+    const options: MenuOption[] = [];
     if (isMe(comment.userId) || isMe(post.userId)) {
-      options.push({ label: t('comments.deleteTitle'), destructive: true, onPress: () => confirmDelete(comment) });
+      options.push({ icon: 'trash', label: t('comments.deleteTitle'), destructive: true, onPress: () => confirmDelete(comment) });
     }
     if (!isMe(comment.userId)) {
-      options.push({ label: t('moderation.reportComment'), destructive: true, onPress: () => openReportMenu({ commentId: comment.id }) });
+      options.push({ icon: 'exclamationmark.bubble', label: t('moderation.reportComment'), destructive: true, onPress: () => openReportMenu({ commentId: comment.id }) });
       if (author) {
         options.push({
-          label: t('moderation.blockUser', { name: author.name.split(' ')[0] }),
+          icon: 'hand.raised', label: t('moderation.blockUser', { name: author.name.split(' ')[0] }),
           destructive: true,
           onPress: () =>
             confirmBlock(author, () => {

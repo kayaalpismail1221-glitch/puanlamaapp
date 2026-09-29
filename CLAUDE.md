@@ -308,6 +308,11 @@ Tutunma tarafı: bildirimler ve rehber eşleştirme olmadan ağın ürettiği de
   (`user_rank`). Davet eden: `set_inviter` ("Seni kim davet etti?", ilk 30 gün, bir kez, davet eden daha eski üye;
   `profile_private.invited_by` yalnızca sahibine görünür); davet mesajı kullanıcı adını söyler. İlk girişte 4 adımlı
   tanıtım (`leaderboard-intro`, cihazda bir kez; ⓘ ile tekrar). Migration `20261008100000_xp`.
+- **Yıllık hedef sayfası (2026-09-29, `hedef`):** profildeki hedef kartından (dokun; basılı tut = değiştir/kaldır)
+  açılır. Üstte lacivert kartta kendi hedefin, altında sen + takip ettiklerin tamamlanma oranına göre (`year_challenge`:
+  o yılın `rated_at`'ı, İstanbul yılı, engellenenler yok; kendi satırın cihazdaki `placesThisYear` ile). Hedefsiz
+  arkadaşlar yalnızca sayı olarak; paylaş metni hedef sayfasına bağlanır. Migration `20261009100000_year_challenge`
+  (2026-09-29 canlıda).
 - **Liderlik tablosu sponsoru** (`constants/sponsors.ts`, `components/sponsor-card.tsx`): ilk ortak Culinora (gastronomi
   kursları; kullanıcının kendi uygulaması). Genel · bu ay tablosunun ilk 10'una Culinora Premium %20 indirimli; kart Culinora'nın tasarım dilinde (siyah, turuncu #FE6E00, logo `assets/images/partners`, "Sponsor" etiketi yok), her
   sekmede, uygunluk hep o tabloya göre. Üç durum: kazanan (tebrik, kod varsa kopyala), yakın ("ilk 10'a N değerlendirme

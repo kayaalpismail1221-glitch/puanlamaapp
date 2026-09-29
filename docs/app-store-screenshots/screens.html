@@ -1,0 +1,690 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>Puanla App Store</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,500&display=block" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<script src="region-map.js"></script>
+<style>
+:root{
+  --navy:#0F1E3D; --navy2:#22386A; --navy3:#5670AE;
+  --text:#111827; --text2:#6B7280; --text3:#9CA3AF;
+  --surface:#F5F6F8; --border:#E5E7EB; --like:#E11D48; --green:#65B32E;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#0b1426}
+body{font-family:Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased;font-feature-settings:"cv11","ss03"}
+body.gallery{display:flex;flex-wrap:wrap;gap:24px;padding:24px}
+body.single .slide{display:none}
+body.single .slide.on{display:block}
+
+/* ---------- Slayt ---------- */
+.slide{width:440px;height:956px;position:relative;overflow:hidden;
+  background:
+    radial-gradient(120% 70% at 0% 0%, rgba(86,112,174,.55) 0%, rgba(86,112,174,0) 60%),
+    radial-gradient(90% 55% at 100% 100%, rgba(101,179,46,.20) 0%, rgba(101,179,46,0) 60%),
+    linear-gradient(180deg,#132650 0%,#0F1E3D 55%,#0b1730 100%);}
+.slide.alt{background:
+    radial-gradient(110% 70% at 100% 0%, rgba(86,112,174,.55) 0%, rgba(86,112,174,0) 60%),
+    radial-gradient(90% 55% at 0% 100%, rgba(101,179,46,.18) 0%, rgba(101,179,46,0) 60%),
+    linear-gradient(180deg,#132650 0%,#0F1E3D 55%,#0b1730 100%);}
+.slide::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
+  background-image:radial-gradient(rgba(255,255,255,.035) 1px,transparent 1px);background-size:14px 14px}
+.copy{position:absolute;left:0;right:0;top:58px;padding:0 20px;text-align:center;z-index:5}
+.kicker{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:700;letter-spacing:2.4px;color:rgba(255,255,255,.62);text-transform:uppercase}
+.kicker i{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 12px rgba(101,179,46,.9)}
+.h{font-family:Newsreader,serif;font-weight:600;font-size:39px;line-height:1.06;letter-spacing:-.8px;color:#fff;margin-top:0;white-space:nowrap}
+.h em{font-style:italic;font-weight:500;color:#fff}
+.h b{color:var(--green);font-weight:700}
+.sub{margin:14px auto 0;max-width:390px;font-size:15px;line-height:1.4;color:rgba(255,255,255,.72);font-weight:400;letter-spacing:.05px}
+
+/* ---------- Telefon ---------- */
+.phone{position:absolute;left:50%;top:var(--top,214px);width:424px;height:896px;
+  transform:translateX(-50%) scale(var(--sc,.80)) rotate(var(--rot,0deg));transform-origin:top center;border-radius:69px;padding:11px;z-index:3;
+  background:linear-gradient(150deg,#4a4d53 0%,#232428 22%,#18191b 60%,#3b3e44 100%);
+  box-shadow:0 60px 100px -30px rgba(0,0,0,.75),0 30px 60px -20px rgba(0,0,0,.5),inset 0 0 0 1.6px rgba(255,255,255,.22),inset 0 0 0 5px #0b0b0c}
+.phone::before,.phone::after{content:"";position:absolute;width:4px;border-radius:2px;background:linear-gradient(90deg,#2a2b2f,#4a4c52)}
+.phone::before{left:-3px;top:190px;height:62px;box-shadow:0 84px 0 #33353a}
+.phone::after{right:-3px;top:240px;height:96px}
+.screen{width:402px;height:874px;border-radius:58px;overflow:hidden;position:relative;background:#fff;color:var(--text)}
+.island{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:124px;height:36px;border-radius:20px;background:#000;z-index:50}
+.sb{position:absolute;top:0;left:0;right:0;height:54px;display:flex;align-items:center;justify-content:space-between;padding:4px 34px 0 50px;z-index:40;color:#000}
+.sb.light{color:#fff}
+.sb .t{font-weight:600;font-size:17px;letter-spacing:-.2px}
+.sb .r{display:flex;gap:6px;align-items:center}
+.home{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:140px;height:5px;border-radius:3px;background:#000;z-index:60}
+.home.light{background:#fff}
+
+/* ---------- iOS parçaları ---------- */
+.glass{background:rgba(255,255,255,.66);-webkit-backdrop-filter:blur(16px) saturate(180%);backdrop-filter:blur(16px) saturate(180%);
+  box-shadow:0 8px 28px rgba(15,30,61,.14),0 1px 2px rgba(15,30,61,.08),inset 0 1px 0 rgba(255,255,255,.95),inset 0 0 0 .5px rgba(255,255,255,.7);border:.5px solid rgba(15,30,61,.07)}
+.navrow{position:absolute;top:54px;left:0;right:0;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:20}
+.gbtn{width:44px;height:44px;border-radius:22px;display:flex;align-items:center;justify-content:center;color:var(--navy);position:relative}
+.gbtn svg{width:21px;height:21px;stroke-width:2}
+.navtitle{font-size:17px;font-weight:600;position:absolute;left:0;right:0;text-align:center;pointer-events:none}
+.lt{font-size:34px;font-weight:700;letter-spacing:-.6px;padding:0 16px;color:var(--text)}
+.tabbar{position:absolute;left:22px;right:22px;bottom:22px;height:64px;border-radius:32px;display:flex;align-items:center;padding:0 6px;z-index:30}
+.tab{flex:1;height:54px;border-radius:27px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:#4b5160}
+.tab svg{width:24px;height:24px;stroke-width:1.9}
+.tab span{font-size:10px;font-weight:600;letter-spacing:.1px}
+.tab.on{color:var(--navy);background:rgba(15,30,61,.075)}
+.tab.on svg{fill:currentColor;stroke-width:1.6}
+.tab.on svg.nofill{fill:none;stroke-width:2.4}
+.fill{fill:currentColor}
+.seg{margin:10px 16px 0;height:34px;border-radius:17px;background:#EEEFF2;display:flex;padding:2px;position:relative}
+.seg div{flex:1;display:flex;align-items:center;justify-content:center;font-size:13.5px;font-weight:500;color:#1f2937;border-radius:15px}
+.seg .on{background:#fff;font-weight:600;box-shadow:0 2px 6px rgba(0,0,0,.08),0 0 0 .5px rgba(0,0,0,.04)}
+.sep{height:8px;background:var(--surface)}
+
+/* ---------- Uygulama bileşenleri ---------- */
+.badge{border-radius:50%;border:2px solid;display:inline-flex;align-items:center;justify-content:center;background:#fff;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.3px;flex:none}
+.badge.md{width:40px;height:40px;font-size:15px}
+.badge.sm{width:32px;height:32px;font-size:13px}
+.badge.lg{width:64px;height:64px;font-size:22px;border-width:3px}
+.badge.xl{width:84px;height:84px;font-size:29px;border-width:4px}
+.av{border-radius:50%;object-fit:cover;background:var(--surface);flex:none;display:block}
+.row{display:flex;align-items:center}
+.bold{font-weight:600}
+.pri{color:var(--navy)}
+.muted{color:var(--text2)}
+.f13{font-size:13px}.f15{font-size:15px}.f16{font-size:16px}.f17{font-size:17px}.f12{font-size:12px}
+.card{padding:16px 0;display:flex;flex-direction:column;gap:12px}
+.ph{width:100%;height:100%;object-fit:cover;display:block}
+.pill{height:28px;padding:0 12px;border-radius:14px;background:var(--surface);display:inline-flex;align-items:center;gap:4px;font-size:13px}
+.chip{padding:4px 8px;border-radius:999px;background:var(--surface);font-size:12px;font-weight:500;color:var(--navy)}
+.ico svg{display:block}
+.btn{height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:6px;font-weight:600;font-size:16px}
+.btn.primary{background:var(--navy);color:#fff}
+.btn.outline{border:1.5px solid var(--navy);color:var(--navy)}
+.btn.soft{background:var(--surface);color:var(--navy)}
+
+/* Yüzen öğeler (telefon dışına taşan) */
+.float{position:absolute;z-index:8}
+.notif{border-radius:24px;padding:12px 14px;display:flex;gap:11px;align-items:center;background:rgba(245,247,252,.8);
+  -webkit-backdrop-filter:blur(22px) saturate(180%);backdrop-filter:blur(22px) saturate(180%);
+  box-shadow:0 24px 50px -12px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.9)}
+.appicon{width:38px;height:38px;border-radius:10px;flex:none;background:linear-gradient(180deg,#1f3565,#12203f);position:relative;display:flex;align-items:center;justify-content:center;
+  font-family:Newsreader,serif;font-weight:700;color:#fff;font-size:30px;line-height:1;padding-bottom:6px;overflow:hidden}
+.appicon::after{content:"";position:absolute;width:9px;height:9px;border-radius:50%;background:#65B32E;top:9px;right:6px}
+ .callout{position:absolute;z-index:10;padding:7px 12px 7px 10px;border-radius:999px;font-size:12.5px;font-weight:600;color:var(--navy);display:flex;align-items:center;gap:6px;
+  background:rgba(255,255,255,.94);box-shadow:0 10px 24px -6px rgba(0,0,0,.5),inset 0 0 0 .5px rgba(15,30,61,.08)}
+.callout::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--green)}
+.lchip{height:32px;padding:0 12px;border-radius:16px;background:var(--surface);font-size:13px;font-weight:600;display:inline-flex;align-items:center;color:var(--text)}
+.lchip.on{background:var(--navy);color:#fff}
+.fmstat{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:12px 0;border-radius:16px;background:var(--surface)}
+.fmstat b{font-size:22px;font-weight:700;color:var(--navy);font-variant-numeric:tabular-nums}
+.fmstat span{font-size:13px;color:var(--text2)}
+/* Reels için katman modu: ?s=N&layer=copy|phone|float (şeffaf zemin) */
+body.layer,body.layer .slide{background:transparent!important}
+body.layer .slide::after{display:none}
+body.layer-copy .phone,body.layer-copy .float,body.layer-copy .callout,body.layer-copy svg.leaders{visibility:hidden}
+body.layer-phone .copy,body.layer-phone .float,body.layer-phone .callout,body.layer-phone svg.leaders{visibility:hidden}
+body.layer-float .copy,body.layer-float .phone{visibility:hidden}
+.wordmark{font-family:Newsreader,serif;font-weight:700;letter-spacing:-.5px;display:inline-flex;align-items:flex-end;gap:3px}
+.wordmark i{display:inline-block;border-radius:50%;background:#56A83B}
+</style>
+</head>
+<body>
+
+<!-- ===================== 1 · FEED (vitrin) ===================== -->
+<section class="slide" id="s1">
+  <div class="copy">
+    <h1 class="h">Mekân yorumları<br><em>artık feed’de</em></h1>
+    <p class="sub">Arkadaşlarının ve çevrendeki yorumları hızlıca keşfet.</p>
+  </div>
+  <div class="phone" >
+    <div class="screen">
+      <div class="island"></div>
+      <div class="sb" data-sb></div>
+      <div style="position:absolute;top:0;left:0;right:0;height:112px;z-index:15;background:linear-gradient(180deg,#fff 0%,rgba(255,255,255,.92) 60%,rgba(255,255,255,0) 100%)"></div>
+      <div class="navrow"><span style="width:44px"></span><div class="navtitle">Feed</div><div class="gbtn glass"><i data-lucide="bell"></i><span style="position:absolute;top:6px;right:7px;min-width:16px;height:16px;border-radius:8px;background:var(--navy);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px">3</span></div></div>
+      <div style="position:absolute;top:92px;left:0;right:0">
+        <div class="card">
+          <div class="row" style="gap:12px;padding:0 16px">
+            <img class="av" data-av="12" style="width:40px;height:40px">
+            <div style="flex:1;min-width:0"><div class="f15 bold">Kaan Yılmaz</div><div class="f13 muted"><span class="pri bold">Zübeyir Ocakbaşı</span> · Beyoğlu · 2 sa</div></div>
+            <span class="badge md" data-s="9.3" data-co="score"></span>
+            <i data-lucide="ellipsis" style="width:20px;color:var(--text2)"></i>
+          </div>
+          <div class="row f13 muted" style="gap:8px;padding:0 16px"><i data-lucide="users" class="fill" style="width:15px;height:15px"></i><span data-co="tag"><b style="color:var(--text);font-weight:600">Burak</b>, <b style="color:var(--text);font-weight:600">Ece</b> ile birlikte</span></div>
+          <div style="padding:0 16px"><div style="border-radius:16px;overflow:hidden;aspect-ratio:4/5;position:relative;background:var(--surface)">
+            <img class="ph" data-ph="1555939594-58d7cb561ad1">
+            <div style="position:absolute;top:12px;right:12px;background:rgba(15,30,61,.45);color:#fff;font-size:12px;font-weight:500;border-radius:999px;padding:2px 8px">1/3</div>
+            <div class="row" style="position:absolute;bottom:12px;left:0;right:0;justify-content:center;gap:4px"><i style="width:6px;height:6px;border-radius:3px;background:#fff"></i><i style="width:6px;height:6px;border-radius:3px;background:#fff;opacity:.5"></i><i style="width:6px;height:6px;border-radius:3px;background:#fff;opacity:.5"></i></div>
+          </div></div>
+          <div class="row" style="gap:24px;padding:0 16px">
+            <div class="row" style="gap:8px"><i data-lucide="heart" class="fill" style="width:25px;height:25px;color:var(--like)"></i><span class="f15 bold">128</span></div>
+            <div class="row" style="gap:8px"><i data-lucide="message-circle" style="width:24px;height:24px;transform:scaleX(-1)"></i><span class="f15 bold">14</span></div>
+            <div style="flex:1"></div>
+            <div class="pill" data-co="rate" style="margin-right:-8px"><i data-lucide="plus" style="width:12px;height:12px;stroke-width:3.4;color:var(--navy)"></i><span class="bold pri">Ben de gittim</span></div>
+            <i data-lucide="bookmark" style="width:23px;height:23px"></i>
+          </div>
+          <div class="f16" style="padding:0 16px;line-height:1.35"><b style="font-weight:600">kaanyilmaz</b> Ocakbaşına oturun, ustayı izleyin. Adana ve kaburga efsane, lavaşı közde ısıtıyorlar.</div>
+          <div class="row" style="gap:4px;padding:0 16px"><span class="chip">Akşam</span><span class="chip">Kalabalık gruba uygun</span></div>
+        </div>
+      </div>
+      <div class="tabbar glass" data-tabs="0"></div>
+      <div class="home"></div>
+    </div>
+  </div>
+  <div class="callout" data-for="score" style="right:8px;top:398px">Arkadaşının puanı</div>
+  <div class="callout" data-for="tag" style="left:8px;top:398px">Kiminle gittiği</div>
+  <div class="callout" data-for="rate" style="right:8px;top:700px">Sen de puanla</div>
+  <svg class="leaders" style="position:absolute;inset:0;width:440px;height:956px;z-index:9;pointer-events:none"></svg>
+</section>
+
+<!-- ===================== 9 · BİLDİRİM (yedek; varsayılan sette yok) ===================== -->
+<section class="slide" id="s10">
+  <div class="copy">
+    <h1 class="h">Nerede yiyeceğini<br><em>arkadaşların</em> bilir</h1>
+  </div>
+  <div class="phone" >
+    <div class="screen">
+      <div class="island"></div>
+      <div class="sb" data-sb></div>
+      <div class="navrow"><span></span><div class="gbtn glass"><i data-lucide="bell"></i><span style="position:absolute;top:6px;right:7px;min-width:16px;height:16px;border-radius:8px;background:var(--navy);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px">3</span></div></div>
+      <div style="position:absolute;top:104px;left:0;right:0">
+        <div class="lt">Feed</div>
+        <div class="seg"><div class="on">Popüler</div><div>Takip</div><div>Yakınımda</div></div>
+        <div class="row" style="gap:12px;margin:12px 16px 0;padding:9px 12px;border:1px solid var(--border);border-radius:16px">
+          <div style="width:32px;height:32px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center"><i data-lucide="navigation" class="fill" style="width:14px;height:14px"></i></div>
+          <div style="flex:1"><div class="row bold pri f17" style="gap:5px">Kadıköy <i data-lucide="chevron-down" style="width:14px;height:14px;stroke-width:3"></i></div><div class="f12 muted" style="font-weight:500">3 km çevrendeki popüler gönderiler</div></div>
+          <div class="f13 bold pri">Değiştir</div>
+        </div>
+        <div class="card">
+          <div class="row" style="gap:12px;padding:0 16px">
+            <img class="av" data-av="12" style="width:40px;height:40px">
+            <div style="flex:1;min-width:0"><div class="f15 bold">Kaan Yılmaz</div><div class="f13 muted"><span class="pri bold">Zübeyir Ocakbaşı</span> · Beyoğlu · 2 sa</div></div>
+            <span class="badge md" data-s="9.3"></span>
+            <i data-lucide="ellipsis" style="width:20px;color:var(--text2)"></i>
+          </div>
+          <div class="row f13 muted" style="gap:8px;padding:0 16px"><i data-lucide="users" class="fill" style="width:15px;height:15px"></i><span><b style="color:var(--text);font-weight:600">Burak</b> ile birlikte</span></div>
+          <div style="padding:0 16px"><div style="border-radius:16px;overflow:hidden;aspect-ratio:4/5;position:relative;background:var(--surface)">
+            <img class="ph" data-ph="1555939594-58d7cb561ad1">
+            <div style="position:absolute;top:12px;right:12px;background:rgba(15,30,61,.45);color:#fff;font-size:12px;font-weight:500;border-radius:999px;padding:2px 8px">1/2</div>
+            <div class="row" style="position:absolute;bottom:12px;left:0;right:0;justify-content:center;gap:4px"><i style="width:6px;height:6px;border-radius:3px;background:#fff"></i><i style="width:6px;height:6px;border-radius:3px;background:#fff;opacity:.5"></i></div>
+          </div></div>
+        </div>
+      </div>
+      <div class="tabbar glass" data-tabs="0"></div>
+      <div class="home"></div>
+    </div>
+  </div>
+  <div class="float notif" style="left:18px;right:18px;top:548px">
+    <div class="appicon">p</div>
+    <div style="flex:1;min-width:0">
+      <div class="row" style="justify-content:space-between"><span style="font-size:14px;font-weight:600;color:#111">Puanla</span><span style="font-size:12px;color:#6b7280">şimdi</span></div>
+      <div style="font-size:14px;line-height:1.3;color:#111">Selin, <b style="font-weight:600">Çiya Sofrası</b> için 9,6 verdi. Sen kaç verirdin?</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 2 · KARŞILAŞTIR ===================== -->
+<section class="slide alt" id="s2">
+  <div class="copy">
+    <h1 class="h">Kıyasla, puanın<br><em>kendiliğinden</em> çıksın</h1>
+    <p class="sub">Puan vermek yok: yeni mekânı gittiklerinle karşılaştır.</p>
+  </div>
+  <div class="phone" >
+    <div class="screen">
+      <div class="island"></div>
+      <div class="sb" data-sb></div>
+      <div class="navrow"><div class="gbtn glass"><i data-lucide="x"></i></div><div class="navtitle">Puanla</div><div class="gbtn glass"><i data-lucide="arrow-counter-clockwise" data-alt="undo-2"></i></div></div>
+      <div style="position:absolute;top:118px;left:16px;right:16px;display:flex;flex-direction:column;gap:18px">
+        <div class="row" style="gap:12px">
+          <div style="width:64px;height:64px;border-radius:12px;overflow:hidden"><img class="ph" data-ph="1529006557810-274b9b2fc783" data-w="300"></div>
+          <div style="flex:1"><div style="font-size:22px;font-weight:700;letter-spacing:-.3px" class="pri">Şehzade Cağ Kebap</div><div class="f15 muted">Kebapçı · Hocapaşa, Fatih</div></div>
+        </div>
+        <div class="row" style="gap:8px">
+          <div class="row" style="gap:6px;padding:7px 12px;border-radius:999px;background:var(--navy);color:#fff;font-size:13px;font-weight:600"><i data-lucide="thumbs-up" class="fill" style="width:15px;height:15px"></i>Beğendim</div>
+          
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="row" style="justify-content:space-between;align-items:baseline"><div style="font-size:22px;font-weight:700;letter-spacing:-.3px" class="pri">Hangisi daha iyiydi?</div><div class="f13 muted">2/4</div></div>
+          <div class="row" style="gap:8px;margin-top:-4px">
+            <div class="row" style="gap:4px;padding:3px 8px;border-radius:999px;background:var(--surface);font-size:12px;font-weight:600;color:var(--text2)"><i data-lucide="utensils" style="width:12px;height:12px;stroke-width:2.6"></i>Restoranlar</div>
+            <div class="f12" style="color:var(--text3);font-weight:500">Yalnızca aynı türdeki mekânlarla kıyaslanır</div>
+          </div>
+          <div class="row" style="margin-top:8px">
+            <div class="cmp" style="flex:1;border-radius:16px;border:1px solid var(--border);overflow:hidden;box-shadow:0 0 0 3px rgba(101,179,46,.0)">
+              <div style="aspect-ratio:1"><img class="ph" data-ph="1529006557810-274b9b2fc783" data-w="600"></div>
+              <div style="padding:12px;min-height:76px"><div class="f17 bold">Şehzade Cağ Kebap</div><div class="f13 muted">Hocapaşa, Fatih</div></div>
+            </div>
+            <div style="width:40px;text-align:center" class="f12 muted">veya</div>
+            <div style="flex:1;border-radius:16px;border:1px solid var(--border);overflow:hidden">
+              <div style="aspect-ratio:1"><img class="ph" data-ph="1603133872878-684f208fb84b" data-w="600"></div>
+              <div style="padding:12px;min-height:76px"><div class="f17 bold">Karaköy Lokantası</div><div class="f13 muted">Karaköy, Beyoğlu</div></div>
+            </div>
+          </div>
+          <div class="btn" style="color:var(--navy);margin-top:2px">Emin değilim</div>
+        </div>
+      </div>
+      <div class="home"></div>
+    </div>
+  </div>
+  <div class="float notif" style="left:26px;right:26px;top:770px;padding:14px 16px;gap:14px">
+    <span class="badge lg" data-s="9.4"></span>
+    <div style="flex:1;font-size:14.5px;line-height:1.35;color:#111"><b style="font-weight:600">“Beğendim” listende 24 mekân arasında 2. sırada.</b><div style="color:#6b7280;font-size:13px;margin-top:2px">Şehzade Cağ Kebap · Restoranlar</div></div>
+  </div>
+</section>
+
+<!-- ===================== 3 · LİSTEM ===================== -->
+<section class="slide alt" id="s3">
+  <div class="copy">
+    <h1 class="h">Gitmek istediğin yeri<br><em>artık unutma</em></h1>
+    <p class="sub">Sosyal medyada gördüğün yeri tek dokunuşla kaydet.</p>
+  </div>
+  <div class="phone">
+    <div class="screen">
+      <div class="island"></div>
+      <div class="sb" data-sb></div>
+      <div class="navrow"><div class="gbtn glass"><i data-lucide="map"></i></div><div class="gbtn glass"><i data-lucide="plus" style="stroke-width:2.4"></i></div></div>
+      <div style="position:absolute;top:104px;left:0;right:0">
+        <div class="lt">Listem</div>
+        <div class="row" style="gap:8px;padding:10px 16px 0">
+          <div class="row" style="flex:1;height:44px;border-radius:12px;background:var(--navy);color:#fff;justify-content:center;gap:5px;font-size:14.5px;font-weight:600;white-space:nowrap;letter-spacing:-.2px"><i data-lucide="camera" style="width:17px;height:17px"></i>Sosyal medyadan<span style="min-width:22px;height:20px;padding:0 6px;border-radius:10px;background:#fff;color:var(--navy);font-size:12px;display:flex;align-items:center;justify-content:center">12</span></div>
+          <div class="row" style="flex:1;height:44px;border-radius:12px;background:var(--surface);color:var(--navy);justify-content:center;gap:5px;font-size:14.5px;font-weight:600;white-space:nowrap;letter-spacing:-.2px"><i data-lucide="bookmark" style="width:17px;height:17px"></i>Kaydettiklerim<span style="min-width:22px;height:20px;padding:0 6px;border-radius:10px;background:#fff;color:var(--text2);font-size:12px;display:flex;align-items:center;justify-content:center">23</span></div>
+        </div>
+        <div class="row" style="gap:12px;margin:12px 16px 0;padding:12px;border-radius:16px;background:#EEF2FA;border:1px solid #DCE4F3">
+          <div style="width:36px;height:36px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;flex:none"><i data-lucide="clipboard-paste" style="width:18px;height:18px"></i></div>
+          <div style="flex:1"><div class="f15 bold pri">Panoda bir bağlantı var</div><div class="f13 muted">Kopyaladığın gönderiyi listene ekle</div></div>
+          <i data-lucide="chevron-right" style="width:16px;color:var(--navy);stroke-width:2.6"></i>
+        </div>
+        <div class="row" style="gap:8px;padding:14px 16px 0;white-space:nowrap;overflow:hidden">
+          <span class="lchip on">Instagram 7</span><span class="lchip">TikTok 5</span><span class="lchip">Kahvaltıcı 3</span><span class="lchip">Meyhane 2</span>
+        </div>
+        <div class="row" style="justify-content:space-between;padding:10px 16px 2px"><span class="f13 muted">7 mekân</span><span class="row f13 bold pri" style="gap:4px"><i data-lucide="arrow-up-down" style="width:13px;height:13px;stroke-width:2.4"></i>En yeni</span></div>
+        <div id="savedrows"></div>
+      </div>
+      <div class="tabbar glass" data-tabs="3"></div>
+      <div class="home"></div>
+    </div>
+  </div>
+  <div class="float notif" style="left:20px;right:20px;top:846px;padding:12px 14px;gap:12px">
+    <div style="width:40px;height:40px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;flex:none"><i data-lucide="bookmark-check" style="width:20px;height:20px"></i></div>
+    <div style="flex:1;font-size:14.5px;line-height:1.3;color:#111"><b style="font-weight:600">Listem’e kaydedildi</b><div style="color:#6b7280;font-size:13px">Instagram’dan · Arnavutköy Balıkçısı</div></div>
+  </div>
+</section>
+
+<!-- ===================== 3 · HARİTA ===================== -->
+<section class="slide" id="s4">
+  <div class="copy">
+    <h1 class="h">Şehrin en iyileri,<br><em>haritada</em></h1>
+    <p class="sub">Yakınındaki en iyi mekânlar, puan renkleriyle.</p>
+  </div>
+  <div class="phone" >
+    <div class="screen">
+      <div class="island"></div>
+      <div class="sb" data-sb></div>
+      <div id="map" style="position:absolute;inset:0;overflow:hidden;background:#e9edf2"></div>
+      <div style="position:absolute;top:58px;left:16px;right:16px;z-index:20;display:flex;flex-direction:column;gap:10px">
+        <div class="glass row" style="height:48px;border-radius:24px;padding:0 16px;gap:10px;color:var(--text2)"><i data-lucide="search" style="width:19px;height:19px;stroke-width:2.2"></i><span class="f17" style="color:#8a909c">Mekân, semt, ilçe ara</span></div>
+        <div class="glass" style="height:36px;border-radius:18px;display:flex;padding:3px">
+          <div style="flex:1;border-radius:15px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.1);display:flex;align-items:center;justify-content:center;font-size:13.5px;font-weight:600">Puanla</div>
+          <div style="flex:1;display:flex;align-items:center;justify-content:center;font-size:13.5px;font-weight:500">Gittiklerim</div>
+          <div style="flex:1;display:flex;align-items:center;justify-content:center;font-size:13.5px;font-weight:500">Listem</div>
+        </div>
+      </div>
+      <div id="pins" style="position:absolute;inset:0;z-index:10"></div>
+      <div class="row" style="position:absolute;left:16px;right:16px;bottom:104px;z-index:25;gap:12px;padding:12px;border-radius:22px;background:#fff;box-shadow:0 12px 36px rgba(15,30,61,.22)">
+        <div style="width:64px;height:64px;border-radius:12px;overflow:hidden;flex:none"><img class="ph" data-ph="1540189549336-e6e99c3679fe" data-w="300"></div>
+        <div style="flex:1;min-width:0"><div class="f17 bold">Asmalı Cavit</div><div class="f13 muted">Meyhane · Asmalı Mescit, Beyoğlu</div><div class="f13" style="margin-top:3px;color:var(--text2)">Puanla puanı · 86 kişi</div></div>
+        <span class="badge md" data-s="9.1"></span>
+      </div>
+      <div class="tabbar glass" data-tabs="2"></div>
+      <div class="home"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 4 · MEKÂN ===================== -->
+<section class="slide alt" id="s5">
+  <div class="copy">
+    <h1 class="h">Hangi arkadaşın<br><em>kaç puan</em> verdi?</h1>
+    <p class="sub">Her mekânda arkadaşlarının puanları bir bakışta.</p>
+  </div>
+  <div class="phone" >
+    <div class="screen">
+      <div class="island"></div>
+      <div class="sb light" data-sb></div>
+      <div style="position:absolute;top:0;left:0;right:0;height:300px"><img class="ph" data-ph="1504674900247-0877df9cc836"><div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.35),rgba(0,0,0,0) 30%)"></div></div>
+      <div class="navrow"><div class="gbtn glass"><i data-lucide="chevron-left" style="stroke-width:2.6"></i></div><div class="row" style="gap:10px"><div class="gbtn glass"><i data-lucide="share"></i></div><div class="gbtn glass"><i data-lucide="ellipsis"></i></div></div></div>
+      <div style="position:absolute;top:300px;left:0;right:0;padding:18px 16px 0;display:flex;flex-direction:column;gap:14px">
+        <div class="row" style="gap:12px;align-items:flex-start">
+          <div style="flex:1"><div style="font-size:28px;font-weight:700;letter-spacing:-.4px" class="pri">Çiya Sofrası</div><div class="f15 muted" style="margin-top:2px">Esnaf lokantası · Caferağa, Kadıköy</div></div>
+          <span class="badge lg" data-s="9.4"></span>
+        </div>
+        <div class="f13 muted" style="margin-top:-6px">Sıralamanda 1. sırada</div>
+        <div class="row" style="gap:10px"><div class="btn primary" style="flex:1"><i data-lucide="refresh-cw" style="width:17px;height:17px;stroke-width:2.4"></i>Yeniden puanla</div><div class="btn outline" style="flex:1"><i data-lucide="bookmark" class="fill" style="width:17px;height:17px"></i>Kaydedildi</div></div>
+        <div style="border-radius:16px;background:var(--surface);padding:14px;display:flex;flex-direction:column;gap:12px">
+          <div class="row" style="justify-content:space-between"><div class="f17 bold">Arkadaşların puanı</div><div class="f13 bold pri">Ortalama 9,3</div></div>
+          <div class="row" style="gap:14px" id="friends"></div>
+        </div>
+        <div class="row" style="gap:12px;padding:2px 2px">
+          <span class="badge md" data-s="9.2"></span>
+          <div><div class="f15 bold">Puanla kullanıcılarına göre</div><div class="f13 muted">Puanla puanı 9,2 · 214 kişi</div></div>
+        </div>
+        <div style="font-size:20px;font-weight:600;margin-top:4px">Gönderiler (38)</div>
+        <div id="grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin:-4px -16px 0;"></div>
+      </div>
+      <div class="home"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 5 · DAMAK UYUMU ===================== -->
+<section class="slide" id="s7">
+  <div class="copy">
+    <h1 class="h">Zevkin kiminle<br><em>uyuşuyor</em>?</h1>
+    <p class="sub">Ortak mekânlardaki puanlarınızdan uyum yüzdesi.</p>
+  </div>
+  <div class="phone" >
+    <div class="screen">
+      <div class="island"></div>
+      <div class="sb" data-sb></div>
+      <div class="navrow"><div class="gbtn glass"><i data-lucide="chevron-left" style="stroke-width:2.6"></i></div><div class="navtitle">Damak uyumu</div><span style="width:44px"></span></div>
+      <div style="position:absolute;top:118px;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:12px;padding:0 16px">
+        <div class="row" style="gap:0;margin-top:6px">
+          <img class="av" data-av="68" style="width:64px;height:64px;border:3px solid #fff;box-shadow:0 4px 14px rgba(0,0,0,.12)">
+          <div id="matchdisc" style="margin:0 -8px;z-index:2"></div>
+          <img class="av" data-av="47" style="width:64px;height:64px;border:3px solid #fff;box-shadow:0 4px 14px rgba(0,0,0,.12)">
+        </div>
+        <div style="font-size:20px;font-weight:600;text-align:center">Selin ile damak uyumunuz</div>
+        <div class="f15 muted" style="margin-top:-8px">14 ortak mekânda verdiğiniz puanlara göre</div>
+        <div class="row" style="gap:8px"><div class="btn outline" style="height:34px;font-size:14px;padding:0 14px;border-radius:17px;border-width:1.2px"><i data-lucide="share" style="width:15px;height:15px"></i>Uyumu paylaş</div><div class="btn soft" style="height:34px;font-size:14px;padding:0 14px;border-radius:17px">Gittiklerine bak</div></div>
+      </div>
+      <div style="position:absolute;top:372px;left:0;right:0">
+        <div style="font-size:20px;font-weight:600;padding:0 16px 6px">İkinizin de favorisi</div>
+        <div id="matchrows"></div>
+        <div style="font-size:20px;font-weight:600;padding:14px 16px 6px">Ayrıldığınız yerler</div>
+        <div id="matchrows2"></div>
+      </div>
+      <div class="home"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 6 · PROFİL ===================== -->
+<section class="slide alt" id="s9">
+  <div class="copy">
+    <h1 class="h">Lezzet haritan,<br><em>şehir şehir</em></h1>
+    <p class="sub">Gittiğin şehirler ve mekânlar, tek haritada.</p>
+  </div>
+  <div class="phone">
+    <div class="screen">
+      <div class="island"></div>
+      <div class="sb" data-sb></div>
+      <div class="navrow"><div class="gbtn glass"><i data-lucide="chevron-left" style="stroke-width:2.6"></i></div><div class="navtitle">Lezzet haritası</div><div class="gbtn glass"><i data-lucide="share"></i></div></div>
+      <div style="position:absolute;top:110px;left:0;right:0">
+        <div class="row" style="gap:8px;padding:4px 16px 14px">
+          <div class="fmstat"><b>7</b><span>şehir</span></div>
+          <div class="fmstat"><b>86</b><span>mekân</span></div>
+          <div class="fmstat"><b>41</b><span>gönderi</span></div>
+        </div>
+        <div id="bigmap" style="margin:0 16px;height:285px;border-radius:16px;overflow:hidden;position:relative;background:#DCE7F3"></div>
+        <div class="row" style="gap:12px;padding:14px 16px 12px">
+          <div style="flex:1"><div style="font-size:20px;font-weight:600">İstanbul</div><div class="f13 muted">14 ilçe · 52 mekân · 31 gönderi</div></div>
+          <span class="badge md" data-s="8.9"></span>
+          <div style="width:30px;height:30px;border-radius:50%;background:var(--surface);display:flex;align-items:center;justify-content:center;color:var(--navy)"><i data-lucide="x" style="width:14px;height:14px;stroke-width:3"></i></div>
+        </div>
+        <div id="fmgrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:2px"></div>
+      </div>
+      <div class="tabbar glass" data-tabs="4"></div>
+      <div class="home"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 7 · HİKÂYE ===================== -->
+<section class="slide" id="s6">
+  <div class="copy">
+    <h1 class="h">Favori listeni oluştur,<br><em>arkadaşların görsün</em></h1>
+    <p class="sub">Listelerin profilinde; istersen hikâyende de paylaş.</p>
+  </div>
+  <div class="phone">
+    <div class="screen">
+      <div class="island"></div>
+      <div class="sb" data-sb></div>
+      <div class="navrow"><div class="gbtn glass"><i data-lucide="chevron-left" style="stroke-width:2.6"></i></div><div class="gbtn glass"><i data-lucide="ellipsis"></i></div></div>
+      <div style="position:absolute;top:108px;left:0;right:0">
+        <div style="padding:0 16px;display:flex;flex-direction:column;gap:12px">
+          <div style="height:172px;border-radius:16px;overflow:hidden;display:flex;gap:3px">
+            <div style="flex:2"><img class="ph" data-ph="1540189549336-e6e99c3679fe" data-w="700"></div>
+            <div style="flex:1;display:flex;flex-direction:column;gap:3px"><div style="flex:1"><img class="ph" data-ph="1555939594-58d7cb561ad1" data-w="400"></div><div style="flex:1"><img class="ph" data-ph="1565299624946-b28f40a0ae38" data-w="400"></div></div>
+          </div>
+          <div style="font-family:Newsreader,serif;font-size:29px;line-height:1.12;font-weight:700;color:var(--navy);letter-spacing:-.3px">Beyoğlu’nda akşam yemeği</div>
+          <div class="f16 muted" style="margin-top:-4px;line-height:1.35">Hepsine en az iki kez gittim, gönül rahatlığıyla.</div>
+          <div class="row" style="gap:8px"><img class="av" data-av="32" style="width:28px;height:28px"><span class="f15 bold">Defne Aydın</span><span class="f15 muted">· 5 mekân · 214 kişi kaydetti</span></div>
+          <div class="row" style="gap:8px"><div class="btn primary" style="flex:1;height:46px"><i data-lucide="bookmark" style="width:17px;height:17px"></i>Listeyi kaydet</div><div class="btn outline" style="flex:1;height:46px"><i data-lucide="share" style="width:17px;height:17px"></i>Paylaş</div></div>
+        </div>
+        <div id="listrows" style="margin-top:6px"></div>
+      </div>
+      <div class="tabbar glass" data-tabs="0"></div>
+      <div class="home"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 8 · LİG ===================== -->
+<section class="slide alt" id="s8">
+  <div class="copy">
+    <h1 class="h">Puanla, XP kazan,<br><em>zirveye</em> çık</h1>
+    <p class="sub">Arkadaşlarınla yarış; her davete +100 XP.</p>
+  </div>
+  <div class="phone" >
+    <div class="screen">
+      <div class="island"></div>
+      <div class="sb" data-sb></div>
+      <div class="navrow"><div class="gbtn glass"><i data-lucide="chevron-left" style="stroke-width:2.6"></i></div><div class="navtitle">Puanla Ligi</div><div class="gbtn glass"><i data-lucide="user-plus"></i></div></div>
+      <div style="position:absolute;top:112px;left:0;right:0">
+        <div class="seg" style="margin-top:0"><div class="on">Bu ay</div><div>Tüm zamanlar</div></div>
+        <div class="row" style="gap:8px;padding:12px 16px 0">
+          <div class="chip" style="font-size:13px;padding:6px 12px">Genel</div>
+          <div class="chip" style="font-size:13px;padding:6px 12px;background:var(--navy);color:#fff;font-weight:600">Arkadaşlar</div>
+          <div class="chip" style="font-size:13px;padding:6px 12px">Okulum</div>
+        </div>
+        <div id="podium" class="row" style="justify-content:center;align-items:flex-end;gap:10px;padding:22px 16px 6px"></div>
+        <div id="league"></div>
+      </div>
+      <div class="glass row" style="position:absolute;left:16px;right:16px;bottom:34px;height:62px;border-radius:31px;padding:0 10px 0 10px;gap:10px;z-index:20">
+        <img class="av" data-av="68" style="width:42px;height:42px">
+        <div style="flex:1"><div class="f15 bold">Sıran: #5</div><div class="f13 muted">#4 için 40 XP daha</div></div>
+        <div class="btn primary" style="height:40px;border-radius:20px;padding:0 16px;font-size:14px">Davet et</div>
+      </div>
+      <div class="home"></div>
+    </div>
+  </div>
+</section>
+
+<script>
+/* ---------- Puan renkleri (src/constants/theme.ts ile birebir) ---------- */
+const BANDS=[{min:6.7,max:10,from:'#65B32E',to:'#1E7B3C'},{min:3.4,max:6.6,from:'#F2A516',to:'#F5C518'},{min:0,max:3.3,from:'#B42318',to:'#EF4B3C'}];
+const h2r=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16));
+const r2h=r=>'#'+r.map(c=>Math.round(c).toString(16).padStart(2,'0')).join('');
+const mix=(a,b,t)=>{const x=h2r(a),y=h2r(b);return r2h(x.map((c,i)=>c+(y[i]-c)*t))};
+function scoreColor(s){const b=BANDS.find(b=>s>=b.min)||BANDS[2];const t=Math.min(1,Math.max(0,(s-b.min)/(b.max-b.min)));return mix(b.from,b.to,t)}
+function scoreInk(s){return mix(scoreColor(s),'#000000',s>=3.4&&s<6.7?.38:.2)}
+function onScore(s){const [r,g,b]=h2r(scoreColor(s)).map(c=>{c/=255;return c<=.03928?c/12.92:((c+.055)/1.055)**2.4});return .2126*r+.7152*g+.0722*b>.3?'#111827':'#fff'}
+const fmt=s=>s.toFixed(1).replace('.',',');
+const badge=(s,size='md')=>`<span class="badge ${size}" data-s="${s}"></span>`;
+const ph=(id,w=1000)=>`https://images.unsplash.com/photo-${id}?w=${w}&q=80&auto=format&fit=crop`;
+const av=n=>`https://i.pravatar.cc/300?img=${n}`;
+const P={kahvalti:'1533089860892-a7c6f0a88666',kahve:'1509042239860-f550ce710b93',kebap:'1555939594-58d7cb561ad1',doner:'1529006557810-274b9b2fc783',izgara:'1544025162-d76694265947',meze:'1540189549336-e6e99c3679fe',restoran:'1414235077428-338989a2e8c0',balik:'1519708227418-c8fd9a32b7a2',esnaf:'1504674900247-0877df9cc836',tatli:'1488477181946-6428a0291777',pilav:'1603133872878-684f208fb84b',pizza:'1565299624946-b28f40a0ae38'};
+
+/* ---------- Durum çubuğu ve sekme çubuğu ---------- */
+const SB=`<span class="t">9:41</span><span class="r">
+<svg width="19" height="12" viewBox="0 0 19 12" fill="currentColor"><rect x="0" y="8" width="3.2" height="4" rx="1"/><rect x="5" y="5.5" width="3.2" height="6.5" rx="1"/><rect x="10" y="3" width="3.2" height="9" rx="1"/><rect x="15" y="0" width="3.2" height="12" rx="1"/></svg>
+<svg width="17" height="12" viewBox="0 0 17 12" fill="currentColor"><path d="M8.5 2.3c2.4 0 4.6.9 6.2 2.5l1.2-1.2C14 1.7 11.4.6 8.5.6S3 1.7 1.1 3.6l1.2 1.2C3.9 3.2 6.1 2.3 8.5 2.3zm0 3.4c1.5 0 2.8.6 3.8 1.5l1.2-1.2C12.2 4.8 10.4 4 8.5 4S4.8 4.8 3.5 6l1.2 1.2c1-.9 2.3-1.5 3.8-1.5zm0 3.4c.6 0 1.1.2 1.5.6L8.5 11.2 7 9.7c.4-.4.9-.6 1.5-.6z"/></svg>
+<svg width="28" height="13" viewBox="0 0 28 13"><rect x=".5" y=".5" width="24" height="12" rx="3.8" fill="none" stroke="currentColor" opacity=".4"/><rect x="2.3" y="2.3" width="20.4" height="8.4" rx="2.3" fill="currentColor"/><path d="M26 4.4v4.2c.8-.3 1.4-1.1 1.4-2.1s-.6-1.8-1.4-2.1z" fill="currentColor" opacity=".45"/></svg></span>`;
+document.querySelectorAll('[data-sb]').forEach(e=>e.innerHTML=SB);
+const TABS=[['house','Feed'],['search','Ara'],['map','Harita'],['bookmark','Listem'],['user','Profilim']];
+document.querySelectorAll('[data-tabs]').forEach(e=>{const on=+e.dataset.tabs;
+  e.innerHTML=TABS.map(([ic,l],i)=>`<div class="tab ${i===on?'on':''}"><i data-lucide="${ic}" ${ic==='search'&&i===on?'class="nofill"':''}></i><span>${l}</span></div>`).join('')});
+
+/* ---------- Harita (OSM karoları, Beyoğlu–Karaköy) ---------- */
+(function(){
+  const box=document.getElementById('map');const W=402,H=874,Z=16,TS=128; // z16 karoları yarım boyutta: keskin ve sade
+  const lat=41.0300,lon=28.9810;
+  const n=2**Z, xt=(lon+180)/360*n, yt=(1-Math.log(Math.tan(lat*Math.PI/180)+1/Math.cos(lat*Math.PI/180))/Math.PI)/2*n;
+  const px0=xt*TS-W/2, py0=yt*TS-H/2+40;
+  window.MAPPROJ=(la,lo)=>{const x=(lo+180)/360*n*TS-px0;const y=(1-Math.log(Math.tan(la*Math.PI/180)+1/Math.cos(la*Math.PI/180))/Math.PI)/2*n*TS-py0;return[x,y]};
+  const layer=document.createElement('div');layer.style.cssText='position:absolute;inset:0;filter:saturate(.55) brightness(1.06) contrast(.88)';
+  for(let tx=Math.floor(px0/TS);tx*TS<px0+W;tx++)for(let ty=Math.floor(py0/TS);ty*TS<py0+H;ty++){
+    const i=document.createElement('img');i.src=`https://tile.openstreetmap.org/${Z}/${tx}/${ty}.png`;
+    i.style.cssText=`position:absolute;left:${tx*TS-px0}px;top:${ty*TS-py0}px;width:${TS+.5}px;height:${TS+.5}px`;layer.appendChild(i)}
+  box.appendChild(layer);
+  const att=document.createElement('div');att.textContent='© OpenStreetMap';att.style.cssText='position:absolute;right:30px;bottom:92px;font-size:9px;color:#6b7280;z-index:2';box.appendChild(att);
+  const pins=[ // [enlem, boylam, puan, seçili]
+    [41.03190,28.97535,9.1,1],[41.02475,28.97860,8.5],[41.03185,28.98300,8.4],[41.03330,28.97950,8.7],[41.03580,28.98180,8.9],
+    [41.02860,28.97480,9.5],[41.03430,28.97660,7.2],[41.02680,28.98250,8.8],[41.02960,28.97960,9.0],[41.02350,28.97420,8.1],
+    [41.02660,28.97680,5.8],[41.03060,28.98560,9.3],[41.03750,28.98520,7.8],[41.03880,28.97950,8.6],[41.02900,28.98800,8.2],
+    [41.03520,28.98840,9.4],[41.02150,28.97760,9.2],[41.03960,28.98320,7.5],[41.03300,28.98620,8.0],[41.03720,28.97620,9.0]];
+  const pl=document.getElementById('pins');
+  pins.forEach(([a,o,s,act])=>{const[x,y]=MAPPROJ(a,o);if(y<150||y>700)return;const c=scoreColor(s);const d=document.createElement('div');
+    d.textContent=fmt(s);d.style.cssText=`position:absolute;left:${x}px;top:${y}px;transform:translate(-50%,-50%) scale(${act?1.28:1});min-width:38px;height:28px;padding:0 8px;border-radius:14px;border:2px solid #fff;background:${c};color:${onScore(s)};font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(15,30,61,.3);font-variant-numeric:tabular-nums;${act?'z-index:3;box-shadow:0 0 0 6px rgba(101,179,46,.25),0 4px 10px rgba(15,30,61,.35)':''}`;pl.appendChild(d)});
+  // Mavi konum noktası
+  const [ux,uy]=MAPPROJ(41.0288,28.9772);const me=document.createElement('div');me.style.cssText=`position:absolute;left:${ux}px;top:${uy}px;transform:translate(-50%,-50%);width:18px;height:18px;border-radius:50%;background:#0A84FF;border:3px solid #fff;box-shadow:0 0 0 14px rgba(10,132,255,.14),0 2px 6px rgba(0,0,0,.25)`;pl.appendChild(me);
+})();
+
+/* ---------- Mekân: arkadaş puanları ---------- */
+document.getElementById('friends').innerHTML=[['Selin',47,9.6],['Melis',49,9.2],['Ece',44,9.4],['Kaan',12,9.0]].map(([n,a,s])=>
+  `<div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:62px"><div style="position:relative"><img class="av" src="${av(a)}" style="width:52px;height:52px"><div style="position:absolute;right:-8px;bottom:-6px">${badge(s,'sm')}</div></div><div class="f13 bold" style="margin-top:2px">${n}</div></div>`).join('');
+
+document.getElementById('grid').innerHTML=[P.meze,P.pilav,P.kebap,P.izgara,P.tatli,P.kahvalti].map(i=>`<div style="aspect-ratio:1"><img class="ph" src="${ph(i,400)}"></div>`).join('');
+
+/* ---------- Damak uyumu ---------- */
+(function(){const p=87,c=scoreColor(p/10);
+  document.getElementById('matchdisc').innerHTML=`<div style="width:92px;height:92px;border-radius:50%;border:4px solid ${c};background:#fff;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;letter-spacing:-.6px;color:${scoreInk(p/10)};box-shadow:0 8px 24px rgba(30,123,60,.22)">%${p}</div>`;
+  const row=(img,name,area,m,t)=>`<div class="row" style="gap:12px;padding:9px 16px"><div style="width:52px;height:52px;border-radius:12px;overflow:hidden;flex:none"><img class="ph" src="${ph(img,300)}"></div><div style="flex:1;min-width:0"><div class="f16 bold">${name}</div><div class="f13 muted">${area}</div></div><div class="row" style="gap:10px"><div style="display:flex;flex-direction:column;align-items:center;gap:2px"><span class="f12 muted" style="font-weight:500">Sen</span>${badge(m,'sm')}</div><div style="display:flex;flex-direction:column;align-items:center;gap:2px"><span class="f12 muted" style="font-weight:500">Selin</span>${badge(t,'sm')}</div></div></div>`;
+  document.getElementById('matchrows').innerHTML=row(P.esnaf,'Çiya Sofrası','Caferağa, Kadıköy',9.4,9.6)+row(P.kahvalti,'Van Kahvaltı Evi','Kılıçali Paşa, Beyoğlu',9.1,9.0)+row(P.meze,'Yare Meyhane','Asmalı Mescit, Beyoğlu',8.9,8.6)+row(P.pilav,'Karaköy Lokantası','Kemankeş, Beyoğlu',8.8,9.1);
+  document.getElementById('matchrows2').innerHTML=row(P.kahve,'Petra Roasting','Bebek, Beşiktaş',7.1,8.8);
+})();
+
+/* ---------- Profil: lezzet haritası + Top 3 ---------- */
+(function(){
+  const K=1000/(2*Math.PI),rad=d=>d*Math.PI/180,miller=l=>1.25*Math.log(Math.tan(Math.PI/4+.4*rad(l))),TOP=K*miller(84);
+  const pr=(la,lo)=>[(lo+180)/360*1000,TOP-K*miller(la)];
+  const cities=[['İstanbul',41.01,28.97,52],['İzmir',38.42,27.14,11],['Ankara',39.93,32.86,8],['Bursa',40.19,29.06,5],['Antalya',36.89,30.70,4],['Roma',41.90,12.49,3],['Atina',37.98,23.73,3]];
+  const w=370,h=176; // görünüm Türkiye + Yunanistan + İtalya
+  const [x0,y0]=pr(46.2,11.5),[x1]=pr(46.2,38.5);const vw=x1-x0,vh=vw*h/w;
+  const u=vw/w;
+  let dots='',labels='';
+  const LBL={'İstanbul':1,'İzmir':1,'Ankara':1,'Roma':1,'Atina':1};
+  cities.forEach(([n,la,lo,c])=>{const[x,y]=pr(la,lo);const r=(5+Math.min(3,Math.sqrt(c)/1.6))*u;
+    dots+=`<circle cx="${x}" cy="${y}" r="${r*1.9}" fill="#0F1E3D" opacity=".18"/><circle cx="${x}" cy="${y}" r="${r}" fill="#0F1E3D" stroke="#fff" stroke-width="${2*u}"/>`;
+    if(LBL[n])labels+=`<div style="position:absolute;white-space:nowrap;left:${(x-x0)/u+10}px;top:${(y-y0)/u-(n==='İstanbul'?16:8)}px;font-size:11px;font-weight:600;color:#0F1E3D;text-shadow:0 0 3px #fff,0 0 3px #fff">${n}${c>1?' · '+c:''}</div>`});
+  const fmEl=document.getElementById('foodmap');if(fmEl)fmEl.innerHTML=`<svg viewBox="${x0} ${y0} ${vw} ${vh}" width="${w}" height="${h}" style="position:absolute;inset:0;width:100%;height:100%" preserveAspectRatio="xMidYMid slice">
+    <path d="${REGION_LAND}" fill="rgba(15,30,61,.10)" transform="translate(0 ${1.6*u})"/>
+    <path d="${REGION_LAND}" fill="#FBFCFE" stroke="#AFC0D4" stroke-width="${.9*u}" stroke-linejoin="round"/>
+    <path d="${REGION_BORDERS}" fill="none" stroke="#D9E1EB" stroke-width="${.8*u}"/>${dots}</svg>${labels}`;
+  const t3=[[P.esnaf,'Çiya Sofrası','Esnaf lokantası · Kadıköy',9.8],[P.meze,'Asmalı Cavit','Meyhane · Beyoğlu',9.5],[P.kahvalti,'Van Kahvaltı Evi','Kahvaltıcı · Beyoğlu',9.3]];
+  const t3El=document.getElementById('top3');if(t3El)t3El.innerHTML=t3.map(([img,n,s,sc],i)=>`<div class="row" style="gap:12px;padding:6px 0"><div style="width:18px;font-family:Newsreader,serif;font-size:22px;font-weight:700;color:#9CA3AF">${i+1}</div><div style="width:46px;height:46px;border-radius:11px;overflow:hidden;flex:none"><img class="ph" src="${ph(img,300)}"></div><div style="flex:1"><div class="f16 bold">${n}</div><div class="f13 muted">${s}</div></div>${badge(sc,'sm')}</div>`).join('');
+})();
+
+/* ---------- Hikâye kartı (story-cards.tsx Favori 5) ---------- */
+(function(){
+  const rows=[['Çiya Sofrası','Esnaf lokantası · Kadıköy',9.8],['Asmalı Cavit','Meyhane · Beyoğlu',9.5],['Van Kahvaltı Evi','Kahvaltıcı · Beyoğlu',9.3],['Zübeyir Ocakbaşı','Kebapçı · Beyoğlu',9.1],['Karaköy Lokantası','Restoran · Karaköy',8.9]];
+  const disc=s=>`<div style="width:40px;height:40px;border-radius:50%;background:${scoreColor(s)};color:${onScore(s)};display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex:none">${fmt(s)}</div>`;
+  const sc=document.getElementById('storycard');if(sc)sc.innerHTML=`<div style="position:absolute;inset:0;background:linear-gradient(160deg,#0F1E3D 0%,#22386A 55%,#5670AE 100%)"></div>
+  <div style="position:absolute;inset:0;padding:30px 22px 22px;color:#fff;display:flex;flex-direction:column">
+    <div class="wordmark" style="font-size:22px">puanla<i style="width:6px;height:6px;margin-bottom:6px"></i></div>
+    <div style="margin-top:24px;font-size:10px;font-weight:700;letter-spacing:1.8px;color:rgba(255,255,255,.7)">EN İYİ MEKÂNLARIM</div>
+    <div style="font-family:Newsreader,serif;font-weight:700;font-size:33px;line-height:1.05;letter-spacing:-.5px;margin-top:6px;white-space:nowrap">Favori 5 mekânım</div>
+    <div style="margin-top:14px">${rows.map(([n,s,sc],i)=>`<div class="row" style="gap:12px;padding:12px 0;${i?'border-top:1px solid rgba(255,255,255,.14)':''}"><div style="width:20px;font-family:Newsreader,serif;font-size:24px;font-weight:700;color:rgba(255,255,255,.4)">${i+1}</div><div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:700">${n}</div><div style="font-size:11.5px;color:rgba(255,255,255,.7);margin-top:1px">${s}</div></div>${disc(sc)}</div>`).join('')}</div>
+    <div style="flex:1"></div>
+    <div class="row" style="gap:10px;padding-top:12px;border-top:1px solid rgba(255,255,255,.14)"><img class="av" src="${av(32)}" style="width:32px;height:32px;border:1.5px solid rgba(255,255,255,.7)"><div><div style="font-size:13px;font-weight:700">@defneaydin</div><div style="font-size:11px;color:rgba(255,255,255,.7)">Puanla’da beni takip et</div></div></div>
+  </div>`;
+})();
+
+/* ---------- Lig ---------- */
+(function(){
+  const pod=[['Kaan',12,2,'2.140'],['Selin',47,1,'2.860'],['Burak',15,3,'1.975']];
+  document.getElementById('podium').innerHTML=pod.map(([n,a,r,xp])=>{const big=r===1,col=['#E8B931','#AEB6C2','#C98A55'][r-1];return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px">
+    ${big?'<i data-lucide="crown" class="fill" style="width:22px;height:22px;color:#E8B931;margin-bottom:-2px"></i>':''}
+    <div style="position:relative"><img class="av" src="${av(a)}" style="width:${big?76:60}px;height:${big?76:60}px;border:3px solid ${col}"><div style="position:absolute;left:50%;bottom:-8px;transform:translateX(-50%);width:22px;height:22px;border-radius:50%;background:${col};color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;border:2px solid #fff">${r}</div></div>
+    <div class="f15 bold" style="margin-top:6px">${n}</div><div class="f13 bold" style="color:var(--navy)">${xp} XP</div>
+    <div style="width:100%;height:${big?70:r===2?48:34}px;border-radius:14px 14px 0 0;background:linear-gradient(180deg,${col}55,${col}10);display:flex;align-items:flex-start;justify-content:center;padding-top:6px;font-family:Newsreader,serif;font-weight:700;font-size:22px;color:${col}">${r}</div></div>`}).join('');
+  const rows=[[4,'Ece Koç',44,'1.720',0],[5,'Sen',68,'1.680',1],[6,'Defne Aydın',32,'1.540',0],[7,'Onur Polat',53,'1.310',0],[8,'Melis Güneş',49,'1.185',0],[9,'Arda Şen',59,'960',0]];
+  document.getElementById('league').innerHTML=rows.map(([r,n,a,xp,me])=>`<div class="row" style="gap:12px;padding:9px 16px;${me?'background:rgba(101,179,46,.10)':''}"><div style="width:22px;text-align:center" class="f15 bold muted">${r}</div><img class="av" src="${av(a)}" style="width:40px;height:40px"><div style="flex:1" class="f16 bold">${me?'<span style="color:#1E7B3C">Sen</span>':n}</div><div class="f15 bold pri" style="font-variant-numeric:tabular-nums">${xp} XP</div></div>`).join('');
+})();
+
+/* ---------- Listem (saved-place-card.tsx) ---------- */
+(function(){
+  const src={ig:['camera','Instagram'],tt:['music','TikTok']};
+  const rows=[[P.balik,'Arnavutköy Balıkçısı','Balıkçı · Arnavutköy, Beşiktaş','ig',8.4,'şimdi',null],
+    [P.kahvalti,'Van Kahvaltı Evi','Kahvaltıcı · Kılıçali Paşa, Beyoğlu','ig',9.0,'2 g','Pazar sabahı, erken gidilecek'],
+    [P.tatli,'Baylan Pastanesi','Tatlıcı · Caferağa, Kadıköy','ig',8.7,'5 g',null],
+    [P.restoran,'Pandeli','Restoran · Rüstempaşa, Fatih','ig',8.6,'1 hf',null]];
+  document.getElementById('savedrows').innerHTML=rows.map(([img,n,sub,s,f,t,note],i)=>`<div style="position:relative">
+    ${i?'<div style="position:absolute;top:0;left:116px;right:0;border-top:.5px solid var(--border)"></div>':''}
+    <div class="row" style="gap:12px;padding:12px 16px;align-items:flex-start">
+    <div style="width:88px;height:88px;border-radius:12px;overflow:hidden;flex:none"><img class="ph" src="${ph(img,300)}"></div>
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><div class="row" style="justify-content:space-between"><span class="f17 bold">${n}</span><i data-lucide="ellipsis" style="width:16px;color:var(--text2)"></i></div>
+    <div class="f13 muted">${sub}</div>${note?`<div class="f15" style="margin-top:2px">“${note}”</div>`:''}
+    <div class="row" style="gap:8px;margin-top:6px"><span class="row" style="gap:4px;height:22px;padding:0 8px;border-radius:11px;background:var(--surface);color:var(--navy);font-size:12px;font-weight:500"><i data-lucide="${src[s][0]}" style="width:12px;height:12px"></i>${src[s][1]}<i data-lucide="arrow-up-right" style="width:10px;height:10px;stroke-width:3"></i></span>
+    <span class="row" style="gap:4px;height:22px;padding:0 8px;border-radius:11px;background:${scoreColor(f)};color:${onScore(f)};font-size:12px;font-weight:500;font-variant-numeric:tabular-nums"><i data-lucide="users" class="fill" style="width:11px;height:11px"></i>${fmt(f)}</span>
+    <span class="f12" style="color:var(--text3);font-weight:500">${t}</span></div></div></div></div>`).join('');
+})();
+
+/* ---------- Liste sayfası (liste/[id].tsx) ---------- */
+(function(){
+  const rows=[[P.meze,'Asmalı Cavit','Meyhane · Asmalı Mescit',9.5,'Ciğer tava mutlaka',9.2],
+    [P.kebap,'Zübeyir Ocakbaşı','Kebapçı · Şehit Muhtar',9.2,null,9.3],
+    [P.restoran,'Yare Meyhane','Meyhane · Asmalı Mescit',9.0,null,null],
+    [P.pilav,'Karaköy Lokantası','Esnaf lokantası · Kemankeş',8.8,null,null]];
+  document.getElementById('listrows').innerHTML=rows.map(([img,n,sub,sc,note,me],i)=>`<div style="position:relative">
+    ${i?'<div style="position:absolute;top:0;left:112px;right:0;border-top:.5px solid var(--border)"></div>':''}
+    <div class="row" style="gap:12px;padding:11px 16px">
+    <div style="width:28px;text-align:center;font-family:Newsreader,serif;font-size:22px;font-weight:700;color:var(--text3)">${i+1}</div>
+    <div style="width:56px;height:56px;border-radius:12px;overflow:hidden;flex:none"><img class="ph" src="${ph(img,300)}"></div>
+    <div style="flex:1;min-width:0"><div class="f17 bold">${n}</div><div class="f13 muted">${sub}</div>${note?`<div class="f15" style="margin-top:2px">“${note}”</div>`:''}${me?`<div class="f13 muted">Sen <b style="color:${scoreInk(me)}">${fmt(me)}</b></div>`:''}</div>
+    ${badge(sc)}</div></div>`).join('');
+})();
+
+/* ---------- Büyük lezzet haritası (gittigi-yerler/[id].tsx + world-map.tsx) ---------- */
+(function(){
+  const box=document.getElementById('bigmap');if(!box)return;
+  const K=1000/(2*Math.PI),rad=d=>d*Math.PI/180,miller=l=>1.25*Math.log(Math.tan(Math.PI/4+.4*rad(l))),TOP=K*miller(84);
+  const pr=(la,lo)=>[(lo+180)/360*1000,TOP-K*miller(la)];
+  const W=370,H=285;
+  const [x0]=pr(0,24.4),[x1]=pr(0,42.0);const vw=x1-x0,vh=vw*H/W;
+  const [,yc]=pr(39.3,0);const y0=yc-vh/2;const u=vw/W;
+  const cities=[['İstanbul',41.01,28.97,52,1],['İzmir',38.42,27.14,11],['Ankara',39.93,32.86,8],['Bursa',40.19,29.06,5],['Antalya',36.89,30.70,4],['Gaziantep',37.07,37.38,3],['Trabzon',41.00,39.72,3]];
+  const lblPos={'İstanbul':[14,-26],'İzmir':[14,-9],'Ankara':[14,-9],'Antalya':[14,-4],'Gaziantep':[-34,12],'Trabzon':[-34,-28],'Bursa':[14,-2]};
+  let dots='',labels='';
+  cities.forEach(([n,la,lo,c,sel])=>{const[x,y]=pr(la,lo);const r=(sel?8:5+Math.min(3,Math.sqrt(c)/1.6))*u;
+    dots+=`<circle cx="${x}" cy="${y}" r="${r*(sel?2.2:1.9)}" fill="#0F1E3D" opacity="${sel?.28:.18}"/><circle cx="${x}" cy="${y}" r="${r}" fill="#0F1E3D" stroke="#fff" stroke-width="${2*u}"/>`;
+    const lp=lblPos[n];if(lp)labels+=`<div style="position:absolute;white-space:nowrap;left:${(x-x0)/u+lp[0]}px;top:${(y-y0)/u+lp[1]}px;font-size:${sel?13:11.5}px;font-weight:${sel?700:600};color:#0F1E3D;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff">${n} · ${c}</div>`});
+  box.innerHTML=`<svg viewBox="${x0} ${y0} ${vw} ${vh}" style="position:absolute;inset:0;width:100%;height:100%">
+    <path d="${REGION_LAND}" fill="rgba(15,30,61,.10)" transform="translate(0 ${1.6*u})"/>
+    <path d="${REGION_LAND}" fill="#FBFCFE" stroke="#AFC0D4" stroke-width="${.9*u}" stroke-linejoin="round"/>
+    <path d="${REGION_BORDERS}" fill="none" stroke="#D9E1EB" stroke-width="${.8*u}"/>${dots}</svg>${labels}`;
+  const tiles=[[P.kebap,9.3],[P.meze,9.5],[P.esnaf,9.4],[P.kahvalti,9.0],[P.balik,8.4],[P.tatli,8.7]];
+  document.getElementById('fmgrid').innerHTML=tiles.map(([img,sc])=>`<div style="aspect-ratio:1;position:relative"><img class="ph" src="${ph(img,400)}"><div style="position:absolute;left:6px;bottom:6px;height:22px;padding:0 7px;border-radius:11px;background:${scoreColor(sc)};color:${onScore(sc)};font-size:12px;font-weight:700;display:flex;align-items:center;font-variant-numeric:tabular-nums;border:1.5px solid #fff">${fmt(sc)}</div></div>`).join('');
+})();
+
+/* ---------- Ortak doldurma ---------- */
+document.querySelectorAll('[data-s]').forEach(e=>{const s=+e.dataset.s;e.textContent=fmt(s);e.style.borderColor=scoreColor(s);e.style.color=scoreInk(s)});
+document.querySelectorAll('img[data-ph]').forEach(e=>e.src=ph(e.dataset.ph,e.dataset.w||1000));
+document.querySelectorAll('img[data-av]').forEach(e=>e.src=av(e.dataset.av));
+document.querySelectorAll('[data-alt]').forEach(e=>e.setAttribute('data-lucide',e.dataset.alt));
+lucide.createIcons();
+
+const q=new URLSearchParams(location.search).get('s');
+function drawLeaders(){document.querySelectorAll('.slide').forEach(sl=>{const svg=sl.querySelector('svg.leaders');if(!svg)return;const o=sl.getBoundingClientRect();let h='';
+  sl.querySelectorAll('.callout').forEach(c=>{const t=sl.querySelector(`[data-co="${c.dataset.for}"]`);if(!t)return;const a=c.getBoundingClientRect(),b=t.getBoundingClientRect();
+    const below=a.top>b.bottom; // etiket hedefin altında mı
+    const tx=b.left+b.width/2-o.left, ty=(below?b.bottom+3:b.top-3)-o.top;
+    const cx=Math.max(a.left+18,Math.min(a.right-18,tx+o.left))-o.left, cy=(below?a.top:a.bottom)-o.top;
+    const my=(cy+ty)/2;
+    h+=`<path d="M${cx} ${cy} C ${cx} ${my}, ${tx} ${my}, ${tx} ${ty}" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/><circle cx="${tx}" cy="${ty}" r="3.6" fill="#65B32E" stroke="#fff" stroke-width="1.6"/>`});
+  svg.innerHTML=h})}
+const layer=new URLSearchParams(location.search).get('layer');
+if(layer){document.documentElement.style.background='transparent';document.body.classList.add('layer','layer-'+layer)}
+if(q){document.body.classList.add('single');document.getElementById('s'+q).classList.add('on')}else document.body.classList.add('gallery');
+document.fonts.ready.then(()=>requestAnimationFrame(drawLeaders));
+</script>
+</body>
+</html>

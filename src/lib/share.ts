@@ -69,6 +69,11 @@ export function shareTasteMatch(other: { username: string }, percent: number, co
   );
 }
 
+/** Yıllık hedef: "2026'da 50 mekân hedefliyorum, 31'ine gittim"; bağlantı hedef sayfası, alan kişi kendi hedefini koysun */
+export function shareYearGoal(year: number, goal: number, done: number) {
+  return share(i18n.t('challenge.shareText', { year, goal, done }), 'hedef');
+}
+
 /** Genel davet: indirme bağlantısıyla (yoksa App Store'da aratma önerisiyle) */
 /**
  * Uygulamaya davet mesajı. Kullanıcı adı verilirse davetliye "Seni kim davet etti?" alanına ne yazacağı söylenir
