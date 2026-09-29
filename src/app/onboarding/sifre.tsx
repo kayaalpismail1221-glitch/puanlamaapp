@@ -1,8 +1,8 @@
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/symbol';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, type ColorValue } from 'react-native';
 import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
 
 import { signUp } from '@/api/auth';
@@ -124,7 +124,7 @@ export default function PasswordStep() {
 }
 
 /** Güç çubuğu parçası: dolunca soldan yaylı şekilde dolar */
-function StrengthBar({ filled, color }: { filled: boolean; color: string }) {
+function StrengthBar({ filled, color }: { filled: boolean; color: ColorValue }) {
   const fill = useAnimatedStyle(() => ({
     transform: [{ scaleX: withSpring(filled ? 1 : 0, { damping: 18, stiffness: 200 }) }],
   }));

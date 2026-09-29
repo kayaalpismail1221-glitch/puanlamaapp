@@ -12,11 +12,11 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/symbol';
 
 import { PlaceImage, Text } from '@/components/ui';
 import { useZoomOverlay } from '@/components/zoom-overlay';
-import { colors, radius, spacing } from '@/constants/theme';
+import { colors, fixed, radius, spacing } from '@/constants/theme';
 
 /** Yakınlaştırma sınırı ve bırakınca yerine dönüş yayı */
 const MAX_ZOOM = 4;
@@ -141,13 +141,13 @@ export function PhotoCarousel({ photos, thumbs, onDoubleTap, onPress, aspectRati
         />
 
         <Animated.View pointerEvents="none" style={[styles.heart, heartStyle]}>
-          <SymbolView name="heart.fill" tintColor={colors.onPrimary} size={88} />
+          <SymbolView name="heart.fill" tintColor={fixed.white} size={88} />
         </Animated.View>
 
         {photos.length > 1 && (
           <>
             <View style={styles.counter}>
-              <Text variant="caption" color={colors.onPrimary}>
+              <Text variant="caption" color={fixed.white}>
                 {index + 1}/{photos.length}
               </Text>
             </View>
@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors.primary,
+    shadowColor: fixed.navy,
     shadowOpacity: 0.3,
     shadowRadius: 12,
   },
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: radius.full,
-    backgroundColor: colors.onPrimary,
+    backgroundColor: fixed.white,
     opacity: 0.5,
   },
   dotActive: {

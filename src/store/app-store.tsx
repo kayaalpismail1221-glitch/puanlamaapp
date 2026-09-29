@@ -298,6 +298,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   const stateRef = useRef(state);
   // Sunucuya yazılmakta olan puanlamalar
   const pendingRanks = useRef(new Map<string, Promise<void>>());
+  const requestQueues = useRef(new Map<string, Promise<unknown>>());
   const listeners = useRef(new Set<() => void>());
   useLayoutEffect(() => {
     if (stateRef.current === state) return;
@@ -403,6 +404,22 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     const me = () => stateRef.current.userId!;
 
     /**
+     * Aynı öğeye giden istekler sırayla gönderilir: hızlı art arda dokunuşta (beğen → vazgeç) istekler
+     * sunucuya ters sırada ulaşıp ekranla sunucu farklı kalmasın.
+     */
+    const serial = <T,>(key: string, call: () => Promise<T>): Promise<T> => {
+      const queues = requestQueues.current;
+      const next = (queues.get(key) ?? Promise.resolve()).catch(() => {}).then(call);
+      queues.set(key, next);
+      next
+        .finally(() => {
+          if (queues.get(key) === next) queues.delete(key);
+        })
+        .catch(() => {});
+      return next;
+    };
+
+    /**
      * İyimser güncelleme: önce ekrana uygula, sonra sunucuya yaz.
      * Başarısız olursa önceki hâline döndür ve kullanıcıya bildir.
      */
@@ -441,7 +458,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       optimistic(
         { type: 'savePlace', entry },
         { saved: stateRef.current.saved },
-        () => meApi.savePlace(entry),
+        () => serial(`place:${entry.placeId}`, () => meApi.savePlace(entry)),
         i18n.t('failures.listAdd'),
       );
 
@@ -449,7 +466,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       optimistic(
         { type: 'unsavePlace', placeId },
         { saved: stateRef.current.saved },
-        () => meApi.unsavePlace(placeId),
+        () => serial(`place:${placeId}`, () => meApi.unsavePlace(placeId)),
         i18n.t('failures.listRemove'),
       );
 
@@ -459,7 +476,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     const setLike = (post: Post, liked: boolean) => {
       const previous = stateRef.current.likeOverrides[post.id];
       dispatch({ type: 'setLiked', postId: post.id, liked });
-      contentApi.setLiked(post.id, liked).then(
+      serial(`like:${post.id}`, () => contentApi.setLiked(post.id, liked)).then(
         () => queryClient.invalidateQueries({ queryKey: ['leaderboard'] }),
         (error) => {
           dispatch({ type: 'setLiked', postId: post.id, liked: previous });
@@ -484,6 +501,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         if (patch.username !== undefined) local.username = patch.username;
         if ('schoolId' in patch) local.schoolId = patch.schoolId;
         if ('yearGoal' in patch) local.yearGoal = patch.yearGoal;
+        if (patch.favoritePlaces) local.favoritePlaces = patch.favoritePlaces;
         dispatch({ type: 'updateProfile', patch: local });
         try {
           await meApi.updateMyProfile(me(), patch);
@@ -544,13 +562,13 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         }
       },
 
-      rank: (placeId, { sentiment, index, segment }, note) => {
+      rank: (placeId, { sentiment, index, segment, tied }, note) => {
         const { rankings, saved } = stateRef.current;
         const entry = { placeId, segment, note: note?.trim() || undefined, ratedAt: new Date().toISOString() };
         const write = optimistic(
-          { type: 'rank', placement: { sentiment, index }, entry },
+          { type: 'rank', placement: { sentiment, index, tied }, entry },
           { rankings, saved },
-          () => meApi.rankPlace(placeId, sentiment, index, entry.note),
+          () => serial(`rank:${placeId}`, () => meApi.rankPlace(placeId, sentiment, index, entry.note, tied)),
           i18n.t('failures.rankSave'),
           () => {
             queryClient.invalidateQueries({ queryKey: keys.place(placeId) });
@@ -574,7 +592,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         optimistic(
           { type: 'unrank', placeId },
           { rankings: stateRef.current.rankings },
-          () => meApi.unrankPlace(placeId),
+          () => serial(`rank:${placeId}`, () => meApi.unrankPlace(placeId)),
           i18n.t('failures.rankDelete'),
           () => {
             queryClient.invalidateQueries({ queryKey: keys.place(placeId) });
@@ -597,7 +615,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         optimistic(
           { type: 'setFollowing', userId, following: next },
           { following: stateRef.current.following },
-          () => (next ? meApi.follow(userId) : meApi.unfollow(me(), userId)),
+          () => serial(`follow:${userId}`, () => (next ? meApi.follow(userId) : meApi.unfollow(me(), userId))),
           next ? i18n.t('failures.follow') : i18n.t('failures.unfollow'),
           () => invalidateSocial(userId),
         );
@@ -612,7 +630,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         const saved = !effectiveSaved(post);
         const previous = stateRef.current.saveOverrides[post.id];
         dispatch({ type: 'setPostSaved', postId: post.id, saved });
-        contentApi.setPostSaved(post.id, saved).then(
+        serial(`postSave:${post.id}`, () => contentApi.setPostSaved(post.id, saved)).then(
           () => queryClient.invalidateQueries({ queryKey: keys.savedPosts() }),
           (error) => {
             dispatch({ type: 'setPostSaved', postId: post.id, saved: previous });

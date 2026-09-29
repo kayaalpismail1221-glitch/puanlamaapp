@@ -1,4 +1,4 @@
-import { SymbolView, type SFSymbol } from 'expo-symbols';
+import { SymbolView, type SFSymbol } from '@/components/symbol';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown, FadeOut } from 'react-native-reanimated';
@@ -6,7 +6,9 @@ import Animated, { FadeIn, FadeInDown, FadeOut } from 'react-native-reanimated';
 import { Button, PlaceImage, PressableScale, Text } from '@/components/ui';
 import { SEGMENT_ICONS } from '@/constants/segments';
 import { colors, radius, spacing } from '@/constants/theme';
+import { getPlace } from '@/data/entities';
 import type { RankResult } from '@/hooks/use-rank-flow';
+import { formatScore } from '@/lib/format';
 import { placeArea } from '@/lib/place';
 import { FULL_SPREAD_AT } from '@/lib/ranking';
 import type { Place, Segment, Sentiment } from '@/types';
@@ -81,17 +83,18 @@ export function CompareStep({
   step,
   total,
   onPick,
-  onSkip,
+  onTie,
   compact,
 }: {
   place: Place;
-  /** Karşılaştırılan mekân önbellekte yoksa (çok nadir) "Emin değilim" gibi davranılır */
+  /** Karşılaştırılan mekân önbellekte yoksa (çok nadir) boş kart; "İkisi aynı" yine seçilebilir */
   other: Place | undefined;
   segment: Segment;
   step: number;
   total: number;
   onPick: (newIsBetter: boolean) => void;
-  onSkip: () => void;
+  /** İkisi aynı iyi (ya da karar verilemedi): eşit puan */
+  onTie: () => void;
   compact?: boolean;
 }) {
   const { t } = useTranslation();
@@ -126,7 +129,7 @@ export function CompareStep({
           <View style={styles.compareCard} />
         )}
       </View>
-      <Button title={t('rate.notSure')} variant="ghost" size={compact ? 'sm' : 'md'} onPress={onSkip} />
+      <Button title={t('rate.same')} variant="ghost" size={compact ? 'sm' : 'md'} onPress={onTie} />
     </Animated.View>
   );
 }
@@ -148,18 +151,26 @@ function CompareCard({ place, onPress, compact }: { place: Place; onPress: () =>
 }
 
 /**
- * 3) "“Beğendim” listende 5 mekân arasında 2. sırada." (liste = aynı segment)
+ * 3) "“Beğendim” listende 5 mekân arasında 2. sırada." (liste = aynı segment; eşitler aynı sırada)
+ * Eşitse söylenir; yeni favori eski favoriyi indirdiyse o da söylenir (puan neden değişti?).
  * Liste kısayken puanın henüz kesinleşmediği de söylenir.
  */
 export function useRankResultText() {
   const { t } = useTranslation();
   return (result: RankResult) => {
     const list = t(`sentiments.${result.sentiment}`);
-    const text =
+    const lines = [
       result.total === 1
         ? t('rate.firstInList', { list })
-        : t('rate.position', { list, total: result.total, rank: result.index + 1 });
-    return result.total < FULL_SPREAD_AT ? `${text}\n${t('rate.provisional')}` : text;
+        : t('rate.position', { list, total: result.total, rank: result.rank }),
+    ];
+    if (result.tied) lines.push(t('rate.tiedNote'));
+    const displacedPlace = result.displaced && getPlace(result.displaced.placeId);
+    if (result.displaced && displacedPlace) {
+      lines.push(t('rate.displaced', { place: displacedPlace.name, score: formatScore(result.displaced.to) }));
+    }
+    if (result.total < FULL_SPREAD_AT) lines.push(t('rate.provisional'));
+    return lines.join('\n');
   };
 }
 

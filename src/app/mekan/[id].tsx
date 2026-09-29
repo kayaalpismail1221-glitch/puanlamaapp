@@ -1,5 +1,5 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/symbol';
 import { useTranslation } from 'react-i18next';
 import { Linking, ScrollView, StyleSheet, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
@@ -8,6 +8,7 @@ import { PlaceDetailSkeleton, PostGridSkeleton } from '@/components/skeleton';
 import { Avatar, Button, Divider, ErrorView, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { colors, hitSlop, onScoreColor, radius, scoreColor, spacing } from '@/constants/theme';
 import { PlaceInfo } from '@/components/place-info';
+import { ScoringGuide, ScoringGuideLink, useScoringGuide } from '@/components/scoring-guide';
 import { PostGrid } from '@/components/post-grid';
 import { usePlace, useUser } from '@/data/entities';
 import { usePlaceDetails, usePlacePosts } from '@/hooks/queries';
@@ -15,6 +16,7 @@ import { formatScore } from '@/lib/format';
 import { linkSource } from '@/lib/links';
 import { haptics } from '@/lib/haptics';
 import { placeSubtitle } from '@/lib/place';
+import { segmentStanding } from '@/lib/ranking';
 import { confirmRemoveScore } from '@/lib/remove-score';
 import { highlightLabel } from '@/lib/post-meta';
 import { sharePlace } from '@/lib/share';
@@ -25,7 +27,8 @@ export default function PlaceDetailScreen() {
   const cached = usePlace(id);
   const details = usePlaceDetails(id);
   const placePosts = usePlacePosts(id);
-  const { scoreOf, scored, isSaved, saved: savedPlaces, actions } = useAppStore();
+  const { scoreOf, scored, rankings, isSaved, saved: savedPlaces, actions } = useAppStore();
+  const guide = useScoringGuide();
   const { t } = useTranslation();
   const place = cached ?? details.data?.place;
 
@@ -41,6 +44,8 @@ export default function PlaceDetailScreen() {
 
   const myScore = scoreOf(place.id);
   const myEntry = scored.find((e) => e.placeId === place.id);
+  // Puanın bağlamı: kendi türündeki listende kaçıncı (eşitler aynı sırada)
+  const standing = myEntry ? segmentStanding(rankings, place.id) : undefined;
   // Puan sıralamadan ve Top 3'ten çıkar; paylaşılan gönderiler kalır
   const confirmUnrank = () => confirmRemoveScore(place.name, () => actions.unrank(place.id));
   const saved = isSaved(place.id);
@@ -96,7 +101,14 @@ export default function PlaceDetailScreen() {
 
         {myEntry && (
           <Text variant="footnote" color={colors.textSecondary}>
-            {t('place.yourRank', { rank: myEntry.rank })}
+            {standing &&
+              (standing.total === 1
+                ? t('place.segmentFirst', { segment: t(`segments.${standing.segment}`) })
+                : t('place.segmentStanding', {
+                    segment: t(`segments.${standing.segment}`),
+                    rank: standing.rank,
+                    total: standing.total,
+                  }))}
             {myEntry.note ? ` · “${myEntry.note}”` : ''}
             {'  '}
             <Text variant="footnote" color={colors.primary} style={{ fontWeight: '600' }} onPress={confirmUnrank}>
@@ -201,6 +213,8 @@ export default function PlaceDetailScreen() {
             {details.data.rating.count < 5 && `\n${t('place.communityHint')}`}
           </Text>
         )}
+        <ScoringGuideLink onPress={guide.open} />
+        <ScoringGuide visible={guide.visible} onClose={guide.close} />
 
         <Divider />
 
@@ -300,7 +314,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: radius.full,
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    backgroundColor: colors.floating,
     alignItems: 'center',
     justifyContent: 'center',
   },

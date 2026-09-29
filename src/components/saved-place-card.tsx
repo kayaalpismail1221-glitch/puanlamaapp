@@ -1,13 +1,13 @@
 import { router } from 'expo-router';
-import { SymbolView, type SFSymbol } from 'expo-symbols';
+import { SymbolView, type SFSymbol } from '@/components/symbol';
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Linking, StyleSheet, View } from 'react-native';
+import { Linking, StyleSheet, View, type ColorValue } from 'react-native';
 import ReanimatedSwipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 
 import type { FriendScore } from '@/api/content';
 import { PlaceImage, PressableScale, Text } from '@/components/ui';
-import { colors, hitSlop, onScoreColor, radius, scoreColor, spacing } from '@/constants/theme';
+import { colors, fixed, hitSlop, onScoreColor, radius, scoreColor, spacing } from '@/constants/theme';
 import { showAlert, showMenu } from '@/lib/dialog';
 import { formatScore, timeAgo } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
@@ -69,7 +69,7 @@ export function SavedPlaceCard({ entry, place, friends }: { entry: SavedPlace; p
       renderRightActions={() => (
         <View style={styles.actions}>
           <SwipeAction icon="checkmark.circle.fill" label={t('saved.been')} color={colors.primary} onPress={rate} />
-          <SwipeAction icon="trash.fill" label={t('common.delete')} color={colors.danger} onPress={remove} />
+          <SwipeAction icon="trash.fill" label={t('common.delete')} color={colors.danger} ink={fixed.white} onPress={remove} />
         </View>
       )}>
       <PressableScale scaleTo={0.98} haptic={false} onPress={openPlace} onLongPress={showActions} style={styles.card}>
@@ -127,17 +127,20 @@ function SwipeAction({
   icon,
   label,
   color,
+  ink = colors.onPrimary,
   onPress,
 }: {
   icon: SFSymbol;
   label: string;
-  color: string;
+  color: ColorValue;
+  /** Yazı ve simge rengi (kırmızı zeminde sabit beyaz) */
+  ink?: ColorValue;
   onPress: () => void;
 }) {
   return (
     <PressableScale onPress={onPress} style={[styles.action, { backgroundColor: color }]} accessibilityLabel={label}>
-      <SymbolView name={icon} tintColor={colors.onPrimary} size={22} />
-      <Text variant="caption" color={colors.onPrimary}>
+      <SymbolView name={icon} tintColor={ink} size={22} />
+      <Text variant="caption" color={ink}>
         {label}
       </Text>
     </PressableScale>

@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { SymbolView, type SFSymbol } from 'expo-symbols';
+import { SymbolView, type SFSymbol } from '@/components/symbol';
 import { useState, type ComponentProps, type ReactNode } from 'react';
 import {
   ActivityIndicator,
@@ -12,6 +12,7 @@ import {
   type StyleProp,
   type TextProps,
   type TextStyle,
+  type ColorValue,
   type ViewStyle,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -25,7 +26,7 @@ import { haptics } from '@/lib/haptics';
 
 type AppTextProps = TextProps & {
   variant?: TypographyVariant;
-  color?: string;
+  color?: ColorValue;
   align?: TextStyle['textAlign'];
 };
 

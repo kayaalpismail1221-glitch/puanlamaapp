@@ -28,7 +28,7 @@ export function GlassSurface({
     );
   }
   return (
-    <BlurView intensity={80} tint="systemChromeMaterialLight" style={[styles.base, styles.clip, style]}>
+    <BlurView intensity={80} tint="systemChromeMaterial" style={[styles.base, styles.clip, style]}>
       {children}
     </BlurView>
   );

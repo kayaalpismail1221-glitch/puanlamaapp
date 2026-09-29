@@ -547,6 +547,42 @@ describe('sıralama', () => {
     assert.equal((await rows(me, 'select * from saved_places')).length, 0);
   });
 
+  test('"İkisi aynı": eşit puan; listenin başına eşitlik konmaz; eşit olan silinince sıradaki devralır', async () => {
+    const me = await signUp({ name: 'Kararsız' });
+    const [a, b, c] = places;
+    await as(me, `select rank_place($1, 'liked', 0)`, [a]);
+    await as(me, `select rank_place($1, 'liked', 1, null, true)`, [b]);
+    await as(me, `select rank_place($1, 'liked', 2)`, [c]);
+    const scores = async () =>
+      Object.fromEntries(
+        (await rows(me, 'select place_id, score::float as score, tied from rankings where user_id = $1', [me])).map((r) => [
+          r.place_id,
+          r.score,
+        ]),
+      );
+    let now = await scores();
+    assert.equal(now[a], 10);
+    assert.equal(now[b], 10, 'eşit');
+    assert.equal(now[c], scoreAt('liked', 1, 2), 'iki seviye: 10 ve bir alt');
+    // Başa eşitlik istense de eşitlik konmaz
+    await as(me, `select rank_place($1, 'liked', 0, null, true)`, [c]);
+    assert.equal((await one(me, 'select tied from rankings where user_id = $1 and place_id = $2', [me, c])).tied, false);
+    now = await scores();
+    assert.equal(now[c], 10);
+    assert.equal(now[a], scoreAt('liked', 1, 2));
+    assert.equal(now[b], now[a], 'eşitlik korunur');
+    // Uygulama tarafı aynı sonucu verir
+    const { rows: list } = await db.query(
+      `select place_id as "placeId", segment, tied from rankings where user_id = $1 and sentiment = 'liked' order by position`,
+      [me],
+    );
+    const { flattenRankings } = await import('../../src/lib/ranking.ts');
+    const client = Object.fromEntries(
+      flattenRankings({ liked: list, fine: [], disliked: [] }).map((e) => [e.placeId, e.score]),
+    );
+    assert.deepEqual(client, now);
+  });
+
   test('puan formülü uygulamayla birebir aynı', async () => {
     for (const sentiment of ['liked', 'fine', 'disliked']) {
       for (let count = 1; count <= 25; count++) {
@@ -559,11 +595,15 @@ describe('sıralama', () => {
     }
   });
 
-  test('az mekânla uç puan yok; liste büyüyünce tüm aralık kullanılır; gruplar örtüşmez', () => {
-    assert.equal(scoreAt('liked', 0, 1), 8.4);
-    assert.ok(scoreAt('liked', 1, 2) > 7.5);
-    assert.equal(scoreAt('liked', 0, 5), 10);
-    assert.equal(scoreAt('liked', 4, 5), 6.7);
+  test('segmentteki favorin hep 10; az mekânla alt sınıra inilmez; liste büyüyünce tüm aralık; gruplar örtüşmez', () => {
+    for (let count = 1; count <= 30; count++) assert.equal(scoreAt('liked', 0, count), 10);
+    assert.equal(scoreAt('fine', 0, 1), 6.6);
+    assert.equal(scoreAt('disliked', 0, 1), 3.3);
+    assert.equal(scoreAt('liked', 1, 2), 9.8);
+    // Eğri: üst taraf yüksek kalır, düşüş sona doğru hızlanır
+    assert.deepEqual([0, 1, 2, 3, 4].map((i) => scoreAt('liked', i, 5)), [10, 9.8, 9.2, 8.1, 6.7]);
+    assert.ok(scoreAt('liked', 19, 30) > 8.4, 'çok puanlayanın sevdiği yerler yüksek kalır');
+    assert.equal(scoreAt('liked', 29, 30), 6.7);
     for (let count = 1; count <= 30; count++) {
       assert.ok(scoreAt('liked', count - 1, count) > scoreAt('fine', 0, 1 + (count % 7)));
       assert.ok(scoreAt('fine', count - 1, count) > scoreAt('disliked', 0, 1 + (count % 5)));
@@ -583,6 +623,53 @@ describe('sıralama', () => {
     assert.ok((await score(1, 1)) > 4.9);
     const many = await score(9 * 50, 50);
     assert.ok(many > 8.9 && many < 9);
+  });
+
+  test('topluluk puanı türün ortalamasından başlar; eski puanlar hafifler', async () => {
+    const priors = (await db.query('select segment::text, mean::float as mean from community_priors')).rows;
+    assert.equal(priors.length, 5, 'her tür için başlangıç değeri');
+    assert.ok(priors.every((p) => p.mean >= 0 && p.mean <= 10));
+    const recency = async (ago) =>
+      Number((await db.query(`select rating_recency(now() - $1::interval) as w`, [ago])).rows[0].w);
+    assert.equal(await recency('1 month'), 1);
+    assert.equal(await recency('18 months'), 0.75);
+    assert.equal(await recency('3 years'), 0.5);
+    // Başlangıç değeri mekânın türünden
+    const cafePrior = priors.find((p) => p.segment === 'cafe').mean;
+    const { rows: [cafe] } = await db.query(
+      `select pl.id from places pl join cuisines c on c.name = pl.cuisine where c.segment = 'cafe' limit 1`,
+    );
+    const s1 = (await db.query('select place_community_score($1, 10, 1) as s', [cafe.id])).rows[0].s;
+    assert.ok(Math.abs(s1 - (2 * cafePrior + 10) / 3) < 1e-9);
+  });
+
+  test('güvenilir topluluk puanı: az puanlayan hesabın puanı az ağırlık taşır', async () => {
+    const weighted = async (total, w) =>
+      (await db.query('select weighted_community_score($1, $2) as s', [total, w])).rows[0].s;
+    // Tam ağırlıkta eski formülle aynı
+    assert.equal(await weighted(10, 1), (await db.query('select community_score(10, 1) as s')).rows[0].s);
+    assert.equal(await weighted(0, 0), null);
+
+    // Beş yeni hesap mekâna 10 verirse eskiden ~9,1; artık her biri 0,2 ağırlıkla
+    const fresh = [];
+    for (let i = 0; i < 5; i++) fresh.push(await signUp({ name: `Yeni ${i}` }));
+    const target = PLACE(18);
+    const before = await one(fresh[0], 'select place_details($1) as d', [target]);
+    for (const id of fresh) await as(id, `select rank_place($1, 'liked', 0)`, [target]);
+    const weightOf = async (id) => Number((await one(id, 'select weight from rankings where user_id = $1 limit 1', [id])).weight);
+    assert.equal(await weightOf(fresh[0]), 0.2);
+    const after = (await one(fresh[0], 'select place_details($1) as d', [target])).d.rating;
+    assert.equal(after.count, (before.d.rating.count ?? 0) + 5, 'sayı ağırlıksız');
+    // Tek bir deneyimli kişinin 10'u kadar sayılır; eskiden ~9,1 olurdu
+    assert.ok(after.average < 8.6, `beş yeni hesap mekânı uca taşıyamaz (${after.average})`);
+
+    // Kişi puanladıkça ağırlığı artar, 5 mekânda tam olur; puan silinince geri düşer
+    const me = fresh[0];
+    for (const n of [1, 2, 3, 4]) await as(me, `select rank_place($1, 'fine', 0)`, [PLACE(n)]);
+    const weights = await rows(me, 'select distinct weight from rankings where user_id = $1', [me]);
+    assert.deepEqual(weights.map((w) => Number(w.weight)), [1]);
+    await as(me, 'select unrank_place($1)', [PLACE(4)]);
+    assert.equal(await weightOf(me), 0.8);
   });
 });
 
@@ -895,7 +982,7 @@ describe('feed ve arama', () => {
     const moda = pins.find((p) => p.id === PLACE(1));
     const expected = await one(
       me,
-      'select community_score(sum(score), count(*)) as a, count(*)::int as c from rankings where place_id = $1',
+      'select place_community_score(place_id, sum(score * weight * rating_recency(rated_at)), sum(weight * rating_recency(rated_at))) as a, count(*)::int as c from rankings where place_id = $1 group by place_id',
       [PLACE(1)],
     );
     assert.equal(moda.rating_count, expected.c);
@@ -1164,8 +1251,8 @@ describe('bildirimler', () => {
         )
       ).rows[0];
     const place = (await db.query('select name from places where id = $1', [PLACE(17)])).rows[0].name;
-    assert.deepEqual(await text('tr'), { t: `Zeynep, ${place} için 8,4 verdi. Sen 5,0 vermiştin.`, p: `mekan/${PLACE(17)}` });
-    assert.equal((await text('en')).t, `Zeynep gave ${place} a 8.4. You gave it 5.0.`);
+    assert.deepEqual(await text('tr'), { t: `Zeynep, ${place} için 10,0 verdi. Sen 6,6 vermiştin.`, p: `mekan/${PLACE(17)}` });
+    assert.equal((await text('en')).t, `Zeynep gave ${place} a 10.0. You gave it 6.6.`);
   });
 });
 
@@ -1737,7 +1824,7 @@ describe('semt araması ve bölgenin en iyileri', () => {
     for (let i = 1; i < rated.length; i++) assert.ok(rated[i - 1].average >= rated[i].average);
     const first = await one(
       me,
-      'select community_score(sum(score), count(*)) as a, count(*)::int as n from rankings where place_id = $1',
+      'select place_community_score(place_id, sum(score * weight * rating_recency(rated_at)), sum(weight * rating_recency(rated_at))) as a, count(*)::int as n from rankings where place_id = $1 group by place_id',
       [rated[0].id],
     );
     assert.equal(rated[0].average, first.a);
@@ -1898,5 +1985,197 @@ describe('yıllık hedef yarışı', () => {
     assert.equal(lastYear.find((r) => r.user_id === slow).done, 1);
     assert.equal(list[0].profile.name, 'Hızlı Gezen');
     await rejects(rows(null, 'select * from year_challenge()'), /42501/);
+  });
+});
+
+describe('ölçek: sayaçlar ve indeksli okumalar', () => {
+  /** Sayaçlar gerçek kayıtlarla birebir aynı mı (tüm tablo) */
+  async function assertCountersConsistent() {
+    const { rows: bad } = await db.query(`
+      select 'place' as kind, pl.id from places pl
+      where pl.rating_count <> (select count(*) from rankings r where r.place_id = pl.id)
+         or pl.post_count <> (select count(*) from posts p where p.place_id = pl.id)
+      union all
+      select 'profile', pr.id from profiles pr
+      where pr.like_total <> coalesce((select sum(p.like_count) from posts p where p.user_id = pr.id), 0)
+         or pr.post_count <> (select count(*) from posts p where p.user_id = pr.id)`);
+    assert.deepEqual(bad, []);
+  }
+
+  test('puan, gönderi, beğeni ve silmelerde sayaçlar tutarlı kalır; istemci yazamaz', async () => {
+    await assertCountersConsistent();
+    const me = await signUp({ name: 'Sayaç Sahibi' });
+    const fan = await signUp({ name: 'Sayaç Hayranı' });
+    await as(me, `select rank_place($1, 'liked', 0)`, [PLACE(4)]);
+    await as(me, `select rank_place($1, 'fine', 0)`, [PLACE(4)]); // yeniden puanlama sayıyı artırmaz
+    await as(fan, `select rank_place($1, 'liked', 0)`, [PLACE(4)]);
+    const postId = randomUUID();
+    await as(me, `select create_post($1, $2)`, [postId, PLACE(4)]);
+    await as(fan, `insert into post_likes (post_id) values ($1)`, [postId]);
+    await as(me, `insert into post_likes (post_id) values ($1)`, [postId]);
+    await assertCountersConsistent();
+    assert.equal((await one(me, 'select like_total from profiles where id = $1', [me])).like_total, 2);
+
+    await as(fan, `delete from post_likes where post_id = $1`, [postId]);
+    await as(fan, `select unrank_place($1)`, [PLACE(4)]);
+    await assertCountersConsistent();
+    // Gönderi silinince beğenileri de gider; toplam beğeni düşer
+    await as(me, `delete from posts where id = $1`, [postId]);
+    await assertCountersConsistent();
+    assert.equal((await one(me, 'select like_total from profiles where id = $1', [me])).like_total, 0);
+
+    await rejects(as(me, `update profiles set like_total = 999 where id = $1`, [me]), /42501/);
+    await rejects(as(me, `update places set rating_count = 999 where id = $1`, [PLACE(4)]), /42501/);
+    await rejects(as(me, `update posts set hot = 999 where user_id = $1`, [me]), /42501|428C9/);
+  });
+
+  test('popüler feed sıcaklığa göre sıralı ve eksiksiz; yoğun ve seyrek bölgede aynı sonuç', async () => {
+    const me = await signUp({ name: 'Sıcaklık' });
+    for (const [lat, lng] of [
+      [KADIKOY.lat, KADIKOY.lng],
+      [41.04, 29.0],
+    ]) {
+      const feed = (await one(me, 'select feed_popular($1, $2, p_limit => 50) as f', [lat, lng])).f;
+      const { rows: expected } = await db.query(
+        `select p.id from posts p join places pl on pl.id = p.place_id
+         where extensions.st_dwithin(pl.location, extensions.st_setsrid(extensions.st_makepoint($2, $1), 4326)::extensions.geography, $3 * 1000)
+         order by p.hot desc limit 50`,
+        [lat, lng, feed.radius_km],
+      );
+      assert.deepEqual(feed.entries.map((e) => e.post.id), expected.map((r) => r.id));
+      // Küçük sayfa: bölge toplanmadan sıcaklık indeksinden okunur; aynı sıra
+      const page = (await one(me, 'select feed_popular($1, $2, p_offset => 1, p_limit => 2) as f', [lat, lng])).f;
+      assert.deepEqual(page.entries.map((e) => e.post.id), expected.slice(1, 3).map((r) => r.id));
+    }
+    const city = (await one(me, `select feed_popular(p_city => 'İstanbul', p_limit => 50) as f`)).f;
+    const { rows: cityExpected } = await db.query(
+      `select p.id from posts p join places pl on pl.id = p.place_id where pl.city = 'İstanbul' order by p.hot desc limit 50`,
+    );
+    assert.deepEqual(city.entries.map((e) => e.post.id), cityExpected.map((r) => r.id));
+
+    // Etkileşim sıcaklığı artırır; aynı yaşta daha çok etkileşim alan önde
+    const hot = async (id) => (await db.query('select hot from posts where id = $1', [id])).rows[0].hot;
+    const last = city.entries.at(-1).post.id;
+    const before = await hot(last);
+    const fan = await signUp({ name: 'Beğenen' });
+    await as(fan, `insert into post_likes (post_id) values ($1)`, [last]);
+    await as(fan, `insert into comments (post_id, body) values ($1, 'Harika')`, [last]);
+    assert.ok((await hot(last)) > before);
+    const { rows: same } = await db.query(
+      `select hot_rank(10, 0, now()) > hot_rank(0, 0, now()) as a,
+              hot_rank(0, 0, now()) > hot_rank(0, 0, now() - interval '1 hour') as b,
+              abs(hot_rank(2, 0, now() - interval '14 days') - hot_rank(0, 0, now())) < 1e-9 as c`,
+    );
+    assert.deepEqual(same[0], { a: true, b: true, c: true }, 'üç kat etkileşim iki hafta yeniliğe denk');
+    // Bölgede popüler olan önde; feed yine de haftalar içinde tazelenir
+    const { rows: order } = await db.query(
+      `select hot_rank(100, 0, now() - interval '5 days') > hot_rank(0, 0, now()) as five_days,
+              hot_rank(30, 0, now() - interval '14 days') > hot_rank(3, 0, now()) as two_weeks,
+              hot_rank(10, 0, now()) > hot_rank(100, 0, now() - interval '30 days') as month,
+              hot_rank(0, 5, now()) = hot_rank(10, 0, now()) as comment_weight`,
+    );
+    assert.deepEqual(order[0], { five_days: true, two_weeks: true, month: true, comment_weight: true });
+  });
+
+  test('aynı anda aynı kullanıcı adıyla kayıt: ikincisi düşmez, sıradaki boş ad verilir', async () => {
+    // Yarışı taklit: ilk denemede kullanıcı adı üretici, bu arada başkasının aldığı adı döndürür
+    const id = randomUUID();
+    await db
+      .transaction(async (tx) => {
+        await tx.exec(`
+          create temp sequence username_calls;
+          alter function public.unique_username(text) rename to unique_username_real;
+          create function public.unique_username(base text) returns text language sql as $$
+            select case when nextval('pg_temp.username_calls') = 1 then 'zeynepyer' else public.unique_username_real(base) end
+          $$;`);
+        await tx.query(`insert into auth.users (id, email, raw_user_meta_data) values ($1, $2, $3)`, [
+          id,
+          `${id}@test.dev`,
+          { name: 'Zeynep Yarış', username: 'zeynepyer' },
+        ]);
+        const { rows: created } = await tx.query('select username from profiles where id = $1', [id]);
+        assert.match(created[0].username, /^zeynepyer\d+$/);
+        await tx.rollback();
+      })
+      .catch((error) => {
+        if (!/rollback/i.test(String(error?.message))) throw error;
+      });
+    assert.equal((await db.query('select 1 from profiles where id = $1', [id])).rows.length, 0);
+  });
+
+  test('aramada % ve _ harfiyen aranır', async () => {
+    const me = await signUp({ name: 'Joker' });
+    assert.equal((await rows(me, `select id from search_places('%')`)).length, 0);
+    assert.equal((await rows(me, `select id from search_places('_')`)).length, 0);
+    assert.equal((await rows(me, `select id from search_users('%')`)).length, 0);
+  });
+});
+
+describe('büyüme ölçümü', () => {
+  test('paylaşım kaydı yalnızca log_share ile; özet yalnızca yöneticiye', async () => {
+    const inviter = await signUp({ name: 'Paylaşımcı' });
+    const invitee = await signUp({ name: 'Davetli Ölçüm' });
+    await as(inviter, `select log_share('story', 'favorites', 'sheet', true)`);
+    await as(inviter, `select log_share('post', $1)`, [randomUUID()]);
+    await rejects(as(inviter, `select log_share('reklam')`), /23514/);
+    await rejects(as(inviter, `insert into share_events (kind) values ('post')`), /42501/);
+    await rejects(rows(inviter, 'select * from share_events'), /42501/);
+    await rejects(as(null, `select log_share('post')`), /42501/);
+
+    // Davetle gelen ve ilk puanını veren kişi K'ya sayılır
+    await db.query(`update profiles set created_at = now() - interval '40 days' where id = $1`, [inviter]);
+    await as(inviter, `select rank_place($1, 'liked', 0)`, [PLACE(2)]);
+    await as(invitee, 'select set_inviter($1)', [(await one(inviter, 'select username from profiles where id = $1', [inviter])).username]);
+    await as(invitee, `select rank_place($1, 'liked', 0)`, [PLACE(2)]);
+
+    await rejects(as(inviter, 'select growth_stats(30)'), /42501/);
+    const admin = await signUp({ name: 'Ölçen' });
+    await db.query(`update profiles set is_admin = true where id = $1`, [admin]);
+    const stats = (await one(admin, 'select growth_stats(30) as s')).s;
+    assert.ok(stats.shares >= 2 && stats.shares_completed >= 1 && stats.sharers >= 1);
+    assert.ok(stats.shares_by_kind.story >= 1);
+    assert.ok(stats.invited_joins >= 1);
+    assert.ok(stats.k > 0 && stats.active_users >= 2);
+  });
+});
+
+// Dosyadaki tüm testlerden sonra çalışır: beğeni, silme, davet, hesap silme dahil her olay sayaçlara yansımış olmalı
+describe('XP sayaçları', () => {
+  const COLS = 'ratings, posts, photo_posts, likes, invites, welcome';
+  const nonZero = 'ratings + posts + photo_posts + likes + invites + welcome';
+
+  test('sayaçlar baştan hesaplanan XP ile birebir aynı (tüm zamanlar ve bu ay)', async () => {
+    const all = async (sql) => (await db.query(sql)).rows;
+    assert.deepEqual(
+      await all(`select user_id, ${COLS} from xp_all where ${nonZero} <> 0 order by user_id`),
+      await all(`select user_id, ${COLS} from xp_totals(null) where ${nonZero} > 0 order by user_id`),
+    );
+    assert.deepEqual(
+      await all(`select user_id, ${COLS} from xp_monthly where month = xp_month_of(now()) and ${nonZero} <> 0 order by user_id`),
+      await all(`select user_id, ${COLS} from xp_totals(month_start()) where ${nonZero} > 0 order by user_id`),
+    );
+  });
+
+  test('günde 20 puanlama sayılır; silinen gönderinin fotoğraf ve beğeni XP’si düşer', async () => {
+    const me = await signUp({ name: 'Çalışkan' });
+    const fan = await signUp({ name: 'Hayran' });
+    const { rows: places } = await db.query('select id from places order by id limit 22');
+    for (const p of places) await as(me, `select rank_place($1, 'fine', 0)`, [p.id]);
+    const xpOf = async () => (await one(me, 'select * from leaderboard($1)', ['friends'])).xp;
+    assert.equal(await xpOf(), 200);
+
+    const id = randomUUID();
+    await as(
+      me,
+      `select * from create_post($1, $2, 'Güzel', null, null, array[]::text[], array[]::text[], array[]::uuid[], $3)`,
+      [id, places[0].id, JSON.stringify([{ path: `${me}/${id}/0.jpg`, width: 1440, height: 1800 }])],
+    );
+    await as(fan, 'insert into post_likes (post_id) values ($1)', [id]);
+    assert.equal(await xpOf(), 200 + 20 + 20 + 2);
+    await as(me, 'delete from posts where id = $1', [id]);
+    assert.equal(await xpOf(), 200);
+    // Profildeki sıra genel tablodaki kendi satırınla aynı
+    const own = (await rows(me, 'select * from leaderboard()')).find((e) => e.user_id === me);
+    assert.equal((await one(me, 'select user_rank($1) as r', [me])).r, own.rank);
   });
 });

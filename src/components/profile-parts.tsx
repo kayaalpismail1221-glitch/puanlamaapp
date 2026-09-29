@@ -1,8 +1,8 @@
 import { router } from 'expo-router';
-import { SymbolView, type SFSymbol } from 'expo-symbols';
+import { SymbolView, type SFSymbol } from '@/components/symbol';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View, type ColorValue } from 'react-native';
 import Animated, { LinearTransition } from 'react-native-reanimated';
 
 import { Avatar, PressableScale, Text } from '@/components/ui';
@@ -172,7 +172,7 @@ function StatTile({
   onPress,
 }: {
   icon: SFSymbol;
-  iconColor: string;
+  iconColor: ColorValue;
   label: string;
   /** Yoksa kilit simgesi */
   value?: string;

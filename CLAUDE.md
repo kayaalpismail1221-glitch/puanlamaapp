@@ -12,7 +12,7 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
 - Öncelik iOS. Tasarım iOS'a native hissettirmeli; Android sonra gelir (2026-09-26 kararı: iOS cilası bitince).
   Android'e geçerken eksikler: `app.json` → `android.package` yok (build başlamaz); react-native-maps için Google
   Maps API anahtarı; 54 dosyada `SymbolView` (SF Symbols) Android karşılığı yok; Google ile giriş; FCM push;
-  Liquid Glass/SwiftUI yerine Material'a uygun gözden geçirme; hiçbir ekran Android'de denenmedi. Türkiye'de
+  Liquid Glass/SwiftUI yerine Material'a uygun gözden geçirme; karanlık mod (`DynamicColorIOS` yalnız iOS); hiçbir ekran Android'de denenmedi. Türkiye'de
   kullanıcıların çoğu Android'de ve davet/masa döngüsü Android'e çıkmaza gidiyor: viral katsayı için önemli.
 
 ## Teknoloji
@@ -59,6 +59,21 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
 - Güvenlik veritabanında: her tabloda RLS, türetilmiş alanlar (sayaçlar, puanlar) sütun yetkileriyle korunur.
   Uygulamadaki kontroller yalnızca kullanıcı deneyimi içindir.
 - Karmaşık okumalar görünüm/fonksiyon (`post_view`, `feed_popular`, `place_details`…) ile tek istekte yapılır.
+- **Ölçek:** sık çağrılan okuma tüm tabloyu taramaz (aynı anda binlerce kullanıcı). Toplamlar sayaçtan
+  (`places.rating_count/post_count`, `profiles.like_total/post_count/follower_count`, tetikleyicilerle), sıralama
+  indeksten (`posts.hot`), ağır hesap yalnızca aday kümesinde; `place_view` gibi pahalı görünümler sıralayıp kestikten
+  sonra birleştirilir (`materialized` CTE). Yabancı anahtarın indeksi olur (cascade silmeler taramasın). Yeni RPC
+  `npm run bench:db`'ye eklenir (PGlite'ta 20 bin kullanıcı/60 bin gönderi; süre veri büyüdükçe artmamalı).
+  Migration `20261010100000_scale` (başka bir oturumun `claude/friendly-albattani-ymieij` dalındaki eski `main`'den
+  yazılmış `20261004100000_scale`'inin bu dala taşınmışı; o dosya canlıya **uygulanmamalı**; 2026-09-29 canlıda, sayaçlar doğrulandı).
+  **XP sayaçları** (migration `20261013110000_xp_counters`): XP bileşenleri olay anında tetikleyicilerle `xp_all` /
+  `xp_monthly` (İstanbul ayı) sayaçlarına yazılır (günlük 20 puan sınırı `xp_rating_days`, davetler
+  `xp_invite_credits`/`xp_welcome_credits`, fotoğraflar komut düzeyinde tetikleyiciyle: tek komutta çok fotoğraf).
+  `leaderboard`/`user_rank` indeksten okur (benchte lig 1,1 sn → 44 ms, sıra 1,75 sn → 2 ms). `xp_totals` doğruluk
+  referansı olarak kalır; test dosyasının sonundaki "XP sayaçları" testi tüm olaylardan sonra sayaçların onunla
+  birebir tuttuğunu denetler — XP kuralı değişirse tetikleyici, `xp_totals`, `lib/xp.ts` birlikte değişir.
+  Bench verisi tetikleyiciler kapalıyken yüklenir (ertelenebilir benzersizlik denetlenmez): sıralar ve XP sayaçları
+  yükten sonra yeniden hesaplanır.
 - İstemci katmanları: `src/api/*` (Supabase çağrıları) → `data/entities` (ortak önbellek) ve `hooks/queries`
   (TanStack Query) → ekranlar. Kullanıcının kendi verisi `store/app-store` içinde iyimser güncellenir.
 - Ekranlar Supabase'i doğrudan çağırmaz; `src/api` üzerinden gider. `src/types/database.ts` şemayla aynı tutulur.
@@ -121,9 +136,25 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
   segmente ayrılır (`constants/segments.ts` = `cuisines.segment`): restoran, sokak lezzeti, kahvaltı, kafe/tatlı,
   meyhane/bar. Karşılaştırma ve puan yalnızca segment + izlenim listesi içinde; `rankings.segment` mekânın
   kategorisinden tetikleyiciyle gelir, kategori segment değiştirirse mekân yeni listenin sonuna taşınır.
-  Kısa listede uç puan yok: tek "Beğendim" 8,4, liste 5 mekâna ulaşınca (`FULL_SPREAD_AT`) tüm aralık (10–6,7).
-  Topluluk puanı (mekân sayfası, harita, öneriler) ham ortalama değil Bayes ortalaması `community_score`
-  (m = 7,0, C = 2); arkadaş puanı düz ortalama kalır. Segment/formül değişirse iki taraf ve testler birlikte değişir.
+  Segmentteki favorin her zaman grubun üst sınırı (Beğendim 10,0 · İdare eder 6,6 · Beğenmedim 3,3; kullanıcı kararı
+  2026-09-30: 8,4 görünen favori paylaşılmıyordu). Puan **seviyeden** ve **eğriyle**: iniş = (üst − alt) ×
+  (seviye / max(seviye sayısı − 1, 4))²; 5 seviye 10 · 9,8 · 9,2 · 8,1 · 6,7, 30 seviyede ilk 20'si 8,4 üstü (çok
+  puanlayan dezavantajlı kalmasın). **"İkisi aynı"** (eski "Emin değilim" yerine, aşağı yanlılık yoktu olsun):
+  `rankings.tied` = listede bir üsttekiyle aynı seviye, puan eşit; başa eşitlik konmaz, kayan kayıt bayrağını korur
+  (`rank_place(…, p_tie)`, istemci `tieComparison`/`insertEntry`). Sonuç ekranı eşitliği ve eski favorinin yeni puanını
+  söyler (`RankResult.displaced`); mekân sayfasında "Kahvaltıcılar: 12 mekân arasında 2." (`segmentStanding`) ve
+  "Puanlar nasıl hesaplanır?". **Puanlama rehberi** (`components/scoring-guide`): 4 kısa görsel sayfa (his aralığı →
+  kıyasla/"İkisi aynı" → favorin 10 merdiveni → Puanla puanı neden güvenilir); ilk puanlamada (`degerlendir`,
+  gönderi ekranı) cihazda bir kez kendiliğinden, sonra ?/mekân sayfası/Ayarlar'dan; son sayfada "Tüm ayrıntılar"
+  → `app/puanlama`. Migration'lar `20261013130000_top_anchored_scores`,
+  `20261013140000_score_curve_ties` (gönderi puanları her ölçek değişiminde bir kez güncel puana eşitlendi).
+  Topluluk puanı (mekân sayfası, harita, bölge, öneriler) ham ortalama değil **ağırlıklı** Bayes ortalaması
+  `place_community_score(mekân, Σ ağırlık×puan, Σ ağırlık)` (C = 2, m = mekânın türünün ağırlıklı ortalaması:
+  `community_priors`, saatte bir tazelenir; türde < 30 puan varsa tüm puanlarınki, o da yoksa 7,5). Ağırlık = deneyim ×
+  tazelik (`rating_recency`: son 1 yıl 1, 1–2 yıl 0,75, daha eski 0,5). Ağırlık (`rankings.weight`,
+  tetikleyiciyle) puanlayanın puanladığı mekân sayısından: min(n, 5)/5 — yeni/sahte hesaplar ve herkesin otomatik
+  8,4'lük ilk puanı ortalamayı oynatamaz (migration `20261013100000_trusted_community_score`). Arkadaş puanı düz
+  ortalama kalır. Segment/formül değişirse iki taraf ve testler birlikte değişir.
 - Puanlama Beli tarzı kalır (kullanıcı kararı 2026-09-25; direkt 0–10 kaydırıcı denendi, vazgeçildi). Akış mantığı
   `hooks/use-rank-flow.ts`, görünüm `components/rank-steps.tsx` (`compact`). `degerlendir` tam ekran; gönderi ekranında
   aynı akış "Puanın" bölümüne gömülü ve zorunlu (puanlıysa rozet + "Değiştir"); yeni puan paylaşırken kaydedilir.
@@ -161,8 +192,11 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
    uygulama içinde (profil + hikâye kartı).
    + Universal Links (`appLink` https'e geçer) + App Store `ct` kampanya parametresi. Aynı alan adıyla Resend SMTP →
    e-posta doğrulama/şifre sıfırlama; yasal sayfalar HTML.
-2. **Birinci taraf ölçüm:** `events` tablosu, paylaşımlarda davet kodu/`sharer_id`, telefonla davet eşleştirme,
-   uzak özellik bayrakları (A/B için). Gizlilik metnini güncelle.
+2. **Birinci taraf ölçüm:** paylaşımlar kaydediliyor (`share_events` + `log_share`, istemci `api/growth.ts` →
+   `lib/share.ts`, hikâye, harita, davet; migration `20261013120000_share_events`), yönetim özeti
+   `growth_stats(gün)`: aktif/yeni, 7 günde aktivasyon, paylaşım (türe göre), telefon daveti, davetle gelen ve
+   K = davetle gelen / aktif. Kalan: paylaşım linkinde davet kodu/`sharer_id` (alan adı gelince), uzak özellik
+   bayrakları (A/B), gizlilik metnine paylaşım ölçümü satırı.
 3. **Masa döngüsü canlıya:** 1.0.1 build'i al, `APP_STORE_URL`'i doldur. Sonra: davet web sayfası (`/d/<davet>`),
    ayrı karşılaştırma ekranı. SMS doğrulaması ertelendi (aşağıdaki not).
 4. Bildirimler: ölü jeton temizliği (Expo yanıtı `DeviceNotRegistered`).
@@ -248,6 +282,17 @@ Tutunma tarafı: bildirimler ve rehber eşleştirme olmadan ağın ürettiği de
 - Köşe yarıçapları: kartlar 16, butonlar 12, avatarlar tam yuvarlak
 - Boşluklar 4'ün katları (4, 8, 12, 16, 24, 32)
 - Renkleri ve ölçüleri tek bir `theme.ts` dosyasında token olarak tut. Bileşenlerde sabit renk yazma.
+- Açık/koyu görünüm (2026-09-29): `colors` iOS'ta `DynamicColorIOS`; Ayarlar → Görünüm değişince yeniden çizim
+  olmadan uyum sağlar. Varsayılan AÇIK (kullanıcı kararı: telefon koyu olsa da uygulama beyaz açılır; "Cihazla aynı"
+  yalnızca seçilirse); açılış ekranı her zaman beyaz. Koyuda `primary` açık mavi-beyaz, `onPrimary` lacivert olur (dolu düğmeler
+  tersine döner). Fotoğraf, degrade ya da renkli (puan/kırmızı/beğeni) zemin üstündeki beyaz yazı/simge için
+  `fixed.white`; görünümden bağımsız lacivert için `fixed.navy`. Dinamik renk almayan yerlerde (SVG, gezinme teması
+  ve başlık seçenekleri, `@expo/ui` seedColor, harita çizgisi, degrade) `usePalette()` düz değerleri. Paylaşılan
+  görseller (hikâye kartları) her zaman açık paletle (`palettes.light`) çizilir. Android şimdilik yalnızca açık.
+  Koyu palet iOS'un nötr katmanlarıyla uyumlu (zemin #0B0B0D, bir kat yukarısı #1C1C1E). Katmanlar: gruplu liste
+  ekranı `grouped` + satırlar `card`; açılır pencere/alttan panel `card`; kart üstündeki düğme/alan `fill`.
+  Gölge rengi `fixed.navy` (koyuda beyaz parlama olmasın). Açma/kapama için RN `Switch` değil `components/toggle`
+  (iOS'ta SwiftUI Toggle; RN Switch iOS 26'da satırda yukarı kayıyordu).
 - Dokunmalarda hafif haptik geri bildirim, geçişler akıcı olmalı
 - Veri yüklenirken spinner değil, ekranın düzenini taklit eden iskelet (`components/skeleton.tsx`). Spinner yalnızca
   buton içi işlemler, sayfa sonu yükleme ve açılışta kullanılır. Yeni liste/ekran eklenirse iskeleti de eklenir.
@@ -281,7 +326,12 @@ Tutunma tarafı: bildirimler ve rehber eşleştirme olmadan ağın ürettiği de
   ve kullanıcının gönderileri. Gönderi = mekân + fotoğraflar (en fazla 5) + yorum
   + birlikte gidilen arkadaş etiketleri + puan. Beğenilir (çift dokunuş dahil), yorum yapılır, kaydedilir.
   Mekân sayfasında o mekânın gönderileri "Gönderiler" ızgarasında listelenir.
-  Gönderide yapılandırılmış bilgiler (hepsi isteğe bağlı): öğün, öne çıkanlar (fiyat/performans, öğrenci dostu…).
+  Gönderide yapılandırılmış bilgi: öne çıkanlar (en fazla 3), `lib/post-meta.ts` → `HIGHLIGHTS`. Restoran yorumu
+  araştırmalarındaki en sık başlıklara göre 5 grup (Lezzet ve değer · Hizmet · Ortam · Kimle, ne için · Bilmen
+  gerekenler) ve mekânın türüne göre (kahvaltıcıda "Kahvaltısı dopdolu", kafede "Laptopla çalışılır", meyhanede
+  "Mezeleri iyi"…; `highlightsFor(segment)`). Genel lezzet puanla söylendiği için etiketler puanın söylemediğini anlatır.
+  Saklanan değer değişmez (mekân özeti sayar), etiket i18n'de (eski "Porsiyon büyük" → "Porsiyon doyurucu").
+  Öğün artık sorulmuyor (eski gönderilerde gösterilir).
   Mekân sayfası öne çıkanlardan "Puanla kullanıcılarına göre" özetini çıkarır.
   **Ürün kararı:** fiyat hiçbir yerde yok — mekânda ₺/$ fiyat seviyesi gösterilmez, kişi başı hesap ve
   "ne yedin" sorulmaz (Beli'deki statü/gösteriş eleştirisine karşı; kimse hesap vermek zorunda kalmasın).
@@ -319,7 +369,8 @@ Tutunma tarafı: bildirimler ve rehber eşleştirme olmadan ağın ürettiği de
   kaldı"), duyuru. "Culinora'ya git" platformun mağazasını açar. `promoCode` boşken indirim yalnızca duyuru; kapatmak
   için `LEADERBOARD_SPONSOR = null`. **2026-09-27'den beri kapalı** (kullanıcı kararı); açmak için `= CULINORA`.
 - **Sana özel öneriler** (`oneriler`, profilde 10 puandan sonra açılır): `recommended_places` — gitmediğin, arkadaş
-  (öncelikli) ya da topluluk ortalaması ≥ 6,7 mekânlar; sevdiğin mutfağa bonus, konum varsa uzaklık cezası.
+  (öncelikli) ya da topluluk ortalaması ≥ 6,7 mekânlar; sevdiğin mutfağa bonus, konum varsa uzaklık cezası. Adaylar:
+  arkadaşların en beğendiği 200 mekân + en çok puanlanan 100 (genel) + 150 (~15 km); puanlar yalnızca onlar için toplanır.
 - **Paylaşım** `lib/share.ts`: profil, gönderi (… menüsü), mekân (sağ üst) → metin + `appLink()` (`puanla://…`,
   Expo Router rotalarını doğrudan açar). Alan adı gelince `constants/app.ts` → `appLink` https evrensel bağlantıya çevrilir.
 - **Bildirimler** (migration `20260930100000_notifications`): `notifications` tablosunu yalnızca tetikleyiciler yazar
@@ -333,8 +384,14 @@ Tutunma tarafı: bildirimler ve rehber eşleştirme olmadan ağın ürettiği de
   Feed'de zil + okunmamış rozeti. APNs anahtarı EAS build sırasında kurulur; yeni build gerekir.
 - **Feed mekaniği (akıcılık):** FlashList (`getItemType` foto/fotosuz), `PostCard` memo ve yalnızca kendi beğeni/kaydetme
   durumunu dinler (`useAppSelector` / `useAppActions`; uzun listelerde `useAppStore` kullanma, her değişimde yeniden çizer).
-  Popüler feed sabit anda sıralanır (`feed_popular(..., p_as_of)`, migration `20261001100000_feed_as_of`; yanıttaki `as_of`
-  sonraki sayfalarda geri yollanır), istemci ayrıca tekrarları ayıklar. Yenileme yalnızca ilk sayfayı çeker (`restart`).
+  Popüler sıra `posts.hot` (üretilen sütun, `hot_rank`: ln(1 + beğeni + 2×yorum) + yaş; etkileşim 3 katına çıkınca
+  gönderi 2 hafta daha yeni sayılır — kullanıcı kararı 2026-09-29: "o konumdaki en popüler gönderiler önce"; migration
+  `20261011100000_feed_popularity`; zamandan bağımsız olduğu için indeksli, sayfalar kaymaz). Bölge yoğunsa indeksten
+  okunur, seyrekse bölge toplanıp sıralanır (migration `20261010100000_scale`). `p_as_of` sonradan paylaşılanları o
+  oturumun sayfalarından uzak tutar (yanıttaki `as_of` geri yollanır), istemci ayrıca tekrarları ayıklar. Yenileme
+  yalnızca ilk sayfayı çeker (`restart`); feed'ler 2 dk taze sayılır (ön plana her dönüşte tüm sayfalar çekilmez).
+  Beğeni/kaydetme/takip/puan istekleri öğe başına sırayla gider (`serial`, app-store): hızlı art arda dokunuşta ters
+  sırayla sunucuya ulaşmaz.
   Fotoğraf: küçük kopya `placeholder`, `recyclingKey`, yeni sayfanın görselleri diske önceden indirilir; karusel genişliği
   ekrandan. Açılışta açılış görseli yalnızca oturum/tercih okunana kadar; veri beklenirken `LaunchSkeleton`.
 - **Masa döngüsü ve rehber** (migration `20261002100000_table_loop`, `app.json` 1.0.1: `expo-contacts` yeni build ister):
@@ -373,7 +430,9 @@ Tutunma tarafı: bildirimler ve rehber eşleştirme olmadan ağın ürettiği de
   Bağlantı. Dışa aktarma `lib/story-export.ts`; `expo-media-library` ve `expo-sms` yalnızca düğmeye basınca yüklenir
   (yerel modül yoksa dosya yüklenirken hata veriyor). Beli'den esinli, birebir kopya değil (App Store 4.1/4.3);
   Instagram/TikTok logoları kullanılmaz.
-- **Hikâye kartları** (`hikaye`, 1080×1920 PNG, `react-native-view-shot` + `expo-sharing`): Favori 5, Lezzet haritası,
+- **Hikâye kartları** (`hikaye`, 1080×1920 PNG, `react-native-view-shot` + `expo-sharing`): altta "App Store'da
+  Puanla" rozeti (uygulaması olmayan izleyici için); `APP_STORE_URL` doluysa paylaşırken bağlantı panoya kopyalanır
+  ve Instagram'ın Bağlantı çıkartması önerilir. Kartlar: Favori 4, En iyi 5, Lezzet haritası,
   Bu ay (aylık özet; bu ay boşsa geçen ay), tek gönderi. Kartlar `components/story-cards.tsx` (540×960 çizilir,
   Instagram güvenli alanı içinde), veri `lib/story.ts`. Giriş: Profil → Paylaş menüsü, kendi gönderisinin … menüsü,
   lezzet haritası paylaş ikonu, gönderi paylaşıldıktan sonra öneri (onboarding hariç).
@@ -396,6 +455,15 @@ Tutunma tarafı: bildirimler ve rehber eşleştirme olmadan ağın ürettiği de
   başkasının listesinde her mekânda senin puanın + "Sen de liste yap". `liste-duzenle`: puanladıklarından seçim,
   mutfak/ilçe çipleri, "Görünenleri seç", mekân başına not (mantık `lib/lists.ts`). Hikâye kartı `hikaye?liste=<id>`.
   Paylaşım `shareList` diğer paylaşımlar gibi `appLink('liste/<id>')`.
+- **Gönderi oluşturma** (`gonderi-olustur`, 2026-09-30 yeniden düzen): mekân → puan kartı (gri kart, büyük rozet,
+  tür bağlamı, ? rehber) → fotoğraf (boşken tek dokunuşla Çek / Galeriden, ilki büyük "Kapak") → "Nasıldı?" →
+  "Kimlerle gittin?" (masa döngüsü açıklamalı) → öne çıkanlar (açıkta). Kullanıcı kararı: alanlar "isteğe bağlı" diye
+  etiketlenmez (görülsün, doldurulsun), öğün sorulmaz (açıklamaya yazılır; eski gönderilerin öğünü korunur).
+  Paylaş düğmesi puan yokken "Önce puanını ver". Mekân sayfasında rehber düğmesi `ScoringGuideLink`.
+  **Kırpma** (`components/photo-cropper.tsx`): çekilen/seçilen her fotoğraf önce siyah tam ekran kırpma ekranına gider;
+  akıştaki 4:5 çerçeve (`POST_PHOTO_ASPECT` = PhotoCarousel), sıkıştır-yakınlaştır/sürükle (fotoğraf çerçeveyi hep
+  kaplar), sürüklerken 3×3 ızgara, çift dokunuş sıfırlar, çoklu seçimde İleri/Bitti + küçük resimler. Kesim
+  `cropImage` (expo-image-manipulator, orijinal çözünürlük); karoya dokununca orijinal üzerinden yeniden kırpılır.
 - **Gönderi düzenleme** (`gonderi-duzenle`, kendi gönderinde … → Düzenle): açıklama, öğün, öne çıkanlar;
   fotoğraf ve puan değişmez. Öğün/öne çıkan seçicileri `components/post-fields.tsx` (oluşturma ile ortak).
 

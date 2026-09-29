@@ -533,6 +533,12 @@ export async function fetchUserProfile(userId: string): Promise<UserProfile | nu
   return ingestProfiles(unwrap(await supabase.from('profile_view').select('*').eq('id', userId)))[0] ?? null;
 }
 
+/** Favori 4'ün mekân kimlikleri, seçilen sırayla (mekânlar kişinin sıralamasından çözülür) */
+export async function fetchUserFavorites(userId: string): Promise<string[]> {
+  const row = unwrap(await supabase.from('profiles').select('favorite_places').eq('id', userId).maybeSingle());
+  return row?.favorite_places ?? [];
+}
+
 export async function searchUsers(query: string): Promise<UserProfile[]> {
   return ingestProfiles(unwrap(await supabase.rpc('search_users', { p_query: query, p_limit: 30 })));
 }

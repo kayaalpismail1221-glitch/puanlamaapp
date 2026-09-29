@@ -1,4 +1,4 @@
-import type { SFSymbol } from 'expo-symbols';
+import type { SFSymbol } from '@/components/symbol';
 
 /**
  * XP kuralları ve seviyeler. Sunucudaki `xp_totals` ile aynı değerler: XP ayrıca saklanmaz, mekân puanları,

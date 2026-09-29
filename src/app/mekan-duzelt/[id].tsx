@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import MapView, { type Region } from 'react-native-maps';
 import Animated from 'react-native-reanimated';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/symbol';
 
 import { suggestPlaceCorrection } from '@/api/content';
 import { showError } from '@/api/errors';

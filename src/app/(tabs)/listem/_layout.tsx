@@ -1,12 +1,13 @@
 import { Stack } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
-import { largeTitleStackOptions } from '@/constants/navigation';
+import { useLargeTitleStackOptions } from '@/constants/navigation';
 
 export default function SavedListLayout() {
   const { t } = useTranslation();
+  const screenOptions = useLargeTitleStackOptions();
   return (
-    <Stack screenOptions={largeTitleStackOptions}>
+    <Stack screenOptions={screenOptions}>
       <Stack.Screen name="index" options={{ title: t('tabs.list') }} />
     </Stack>
   );

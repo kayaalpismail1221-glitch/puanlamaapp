@@ -1,4 +1,4 @@
-import { SymbolView, type SFSymbol } from 'expo-symbols';
+import { SymbolView, type SFSymbol } from '@/components/symbol';
 import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -80,7 +80,7 @@ export function SettingsRow({
 export const settingsStyles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.grouped,
   },
   content: {
     padding: spacing.lg,
@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
   },
   groupBody: {
     borderRadius: radius.card,
-    backgroundColor: colors.background,
+    backgroundColor: colors.card,
     overflow: 'hidden',
   },
   row: {
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
     paddingLeft: spacing.lg,
-    backgroundColor: colors.background,
+    backgroundColor: colors.card,
   },
   rowNoIcon: {
     gap: 0,

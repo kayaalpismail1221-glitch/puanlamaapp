@@ -1,13 +1,13 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, Stack } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/symbol';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 
 import { askGoal, daysLeftInYear, editGoal, GOAL_PRESETS } from '@/components/profile-parts';
 import { Avatar, Button, ErrorView, LoadingView, PressableScale, Text } from '@/components/ui';
-import { colors, fonts, gradients, hitSlop, radius, spacing } from '@/constants/theme';
+import { colors, fixed, fonts, gradients, hitSlop, radius, spacing } from '@/constants/theme';
 import { useUser } from '@/data/entities';
 import { useYearChallenge } from '@/hooks/queries';
 import { currentLanguage } from '@/i18n';
@@ -104,7 +104,7 @@ export default function YearGoalScreen() {
                 </Text>
               </View>
               <PressableScale onPress={() => editGoal(year, goal, setGoal)} style={styles.heroButton}>
-                <Text variant="subhead" color={colors.onPrimary} style={styles.bold}>
+                <Text variant="subhead" color={fixed.white} style={styles.bold}>
                   {t('challenge.change')}
                 </Text>
               </PressableScale>
@@ -125,13 +125,13 @@ export default function YearGoalScreen() {
                       setGoal(n);
                     }}
                     style={styles.chip}>
-                    <Text variant="headline" color={colors.primary}>
+                    <Text variant="headline" color={fixed.navy}>
                       {n}
                     </Text>
                   </PressableScale>
                 ))}
                 <PressableScale onPress={() => askGoal(year, setGoal)} style={styles.chip}>
-                  <Text variant="headline" color={colors.primary}>
+                  <Text variant="headline" color={fixed.navy}>
                     {t('profile.goalCustom')}
                   </Text>
                 </PressableScale>
@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
     fontSize: 52,
     lineHeight: 58,
     fontWeight: '800',
-    color: colors.onPrimary,
+    color: fixed.white,
     fontVariant: ['tabular-nums'],
   },
   ofGoal: {
@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
   heroFill: {
     height: '100%',
     borderRadius: radius.full,
-    backgroundColor: colors.onPrimary,
+    backgroundColor: fixed.white,
   },
   heroMeta: {
     flexDirection: 'row',
@@ -274,7 +274,7 @@ const styles = StyleSheet.create({
     fontSize: 30,
     lineHeight: 36,
     fontWeight: '700',
-    color: colors.onPrimary,
+    color: fixed.white,
   },
   chips: {
     flexDirection: 'row',
@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 44,
     borderRadius: radius.full,
-    backgroundColor: colors.onPrimary,
+    backgroundColor: fixed.white,
     alignItems: 'center',
     justifyContent: 'center',
   },

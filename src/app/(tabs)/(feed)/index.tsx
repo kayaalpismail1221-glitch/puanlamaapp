@@ -1,5 +1,5 @@
 import { router, Stack } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/symbol';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlashList } from '@shopify/flash-list';
@@ -10,7 +10,7 @@ import { SegmentedControl } from '@/components/segmented-control';
 import type { FeedEntry } from '@/api/content';
 import { PostCardsSkeleton } from '@/components/skeleton';
 import { Avatar, Button, Divider, ErrorView, PressableScale, Text } from '@/components/ui';
-import { colors, hitSlop, radius, spacing } from '@/constants/theme';
+import { colors, fixed, hitSlop, radius, spacing } from '@/constants/theme';
 import { useFollowingFeed, usePopularFeed, useUnreadNotifications } from '@/hooks/queries';
 import { areaLabel } from '@/lib/feed';
 import { useUserLocation } from '@/lib/location';
@@ -198,7 +198,7 @@ function NotificationBell() {
       <SymbolView name="bell" tintColor={colors.primary} size={21} />
       {unread > 0 && (
         <View style={styles.bellBadge}>
-          <Text variant="caption" color={colors.onPrimary} style={styles.bellBadgeText}>
+          <Text variant="caption" color={fixed.white} style={styles.bellBadgeText}>
             {unread > 9 ? '9+' : unread}
           </Text>
         </View>

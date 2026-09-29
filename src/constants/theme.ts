@@ -1,18 +1,33 @@
-import { Platform } from 'react-native';
+import { DynamicColorIOS, Platform, type ColorValue } from 'react-native';
 
 /**
  * Tasarım token'ları. Bileşenlerde sabit renk/ölçü yazma; hepsini buradan al.
+ *
+ * Açık ve koyu görünüm: `colors` iOS'ta `DynamicColorIOS` değerleridir; sistem (ya da Ayarlar → Görünüm)
+ * değişince her ekran yeniden çizilmeden anında uyum sağlar. Renk metni gereken yerlerde (SVG, gezinme
+ * teması, degrade) `usePalette()` ile o anki paletin düz değerleri alınır. Görünümden bağımsız kalması
+ * gerekenler (fotoğraf üstü yazı, paylaşım kartları) `fixed` kullanır.
  */
 
-export const colors = {
+const light = {
   // Yüzeyler
   background: '#FFFFFF',
   surface: '#F5F6F8',
   border: '#E5E7EB',
+  /** Harita ve fotoğraf üstünde yüzen yarı saydam düğme/etiket zemini */
+  floating: 'rgba(255, 255, 255, 0.92)',
+  /** Gruplu liste ekranının zemini (Ayarlar gibi); satırlar `card` */
+  grouped: '#F5F6F8',
+  /** Zeminden bir kat yukarıdaki yüzey: gruplu satırlar, açılır pencere, alttan çıkan panel */
+  card: '#FFFFFF',
+  /** `card` üstündeki düğme/alan dolgusu */
+  fill: '#F2F3F6',
 
-  // Marka
+  // Marka: açıkta lacivert mürekkep, koyuda beyaza yakın; dolu düğmelerde yazı onPrimary
   primary: '#0F1E3D',
   onPrimary: '#FFFFFF',
+  /** Açık anahtar (Toggle) rengi */
+  toggle: '#0F1E3D',
 
   // Metin
   text: '#111827',
@@ -27,13 +42,75 @@ export const colors = {
   like: '#E11D48',
   overlay: 'rgba(15, 30, 61, 0.45)',
 
-
   // Çizim tarzı dünya haritası (profildeki lezzet haritası): kâğıt tonunda kara, yumuşak mavi deniz
   mapWater: '#DCE7F3',
   mapLand: '#FBFCFE',
   mapCoast: '#AFC0D4',
   mapBorder: '#D9E1EB',
   mapShadow: 'rgba(15, 30, 61, 0.10)',
+};
+
+export type Palette = Record<keyof typeof light, string>;
+
+/**
+ * Koyu görünüm: iOS'un koyu katmanlarıyla (sekme çubuğu, arama alanı, segment, anahtar) aynı nötr tonlar;
+ * zemin siyaha yakın, bir kat yukarısı #1C1C1E. Marka mürekkebi beyaza yakın, anahtarlar puan yeşili.
+ */
+const dark: Palette = {
+  background: '#0B0B0D',
+  surface: '#1C1C1E',
+  border: '#2E2E32',
+  floating: 'rgba(28, 28, 30, 0.9)',
+  grouped: '#000000',
+  card: '#1C1C1E',
+  fill: '#2C2C2F',
+
+  primary: '#F2F4F8',
+  onPrimary: '#0F1E3D',
+  toggle: '#3BA55C',
+
+  text: '#F5F5F7',
+  textSecondary: '#A1A1A8',
+  textTertiary: '#6D6D74',
+
+  danger: '#FF6B6B',
+  dangerSoft: '#3A1719',
+  warning: '#FFB840',
+  like: '#FF4F6F',
+  overlay: 'rgba(0, 0, 0, 0.62)',
+
+  mapWater: '#18212E',
+  mapLand: '#2A3039',
+  mapCoast: '#46505F',
+  mapBorder: '#3A414C',
+  mapShadow: 'rgba(0, 0, 0, 0.45)',
+};
+
+export const palettes = { light, dark } as const;
+export type Scheme = keyof typeof palettes;
+
+/** iOS'ta görünüme göre değişen renk; Android ve web şimdilik açık görünümde */
+export function dynamicColor(lightValue: string, darkValue: string): ColorValue {
+  return Platform.OS === 'ios' ? DynamicColorIOS({ light: lightValue, dark: darkValue }) : lightValue;
+}
+
+export const colors = Object.fromEntries(
+  Object.keys(light).map((key) => [key, dynamicColor(light[key as keyof Palette], dark[key as keyof Palette])]),
+) as Record<keyof Palette, ColorValue>;
+
+/** Görünümden bağımsız renkler: fotoğraf ve renkli zemin üstü yazı, paylaşım kartları */
+export const fixed = {
+  white: '#FFFFFF',
+  navy: '#0F1E3D',
+  ink: '#111827',
+  /** Paylaşım kartlarındaki (hikâye, harita) çizim haritası: her zaman açık */
+  map: {
+    water: light.mapWater,
+    land: light.mapLand,
+    coast: light.mapCoast,
+    border: light.mapBorder,
+    shadow: light.mapShadow,
+  },
 } as const;
 
 /** Paylaşım kartlarının zemini: marka lacivertinden açık maviye */
@@ -93,6 +170,8 @@ const SCORE_BANDS: { min: number; max: number; from: string; to: string }[] = [
 ];
 
 const hexToRgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+/** "#RRGGBB" → yarı saydam "rgba(…)" (degradelerde zemine erime için) */
+export const withAlpha = (hex: string, alpha: number) => `rgba(${hexToRgb(hex).join(', ')}, ${alpha})`;
 const rgbToHex = (rgb: number[]) => `#${rgb.map((c) => Math.round(c).toString(16).padStart(2, '0')).join('')}`;
 const mix = (a: string, b: string, t: number) => {
   const [x, y] = [hexToRgb(a), hexToRgb(b)];
@@ -106,9 +185,15 @@ export function scoreColor(score: number): string {
   return mix(band.from, band.to, t);
 }
 
-/** Beyaz zemin üstünde okunaklı puan yazısı (sarı tonlar koyulaştırılır) */
-export function scoreInk(score: number): string {
-  return mix(scoreColor(score), '#000000', score >= 3.4 && score < 6.7 ? 0.38 : 0.2);
+/**
+ * Zemin üstünde okunaklı puan yazısı: açık görünümde koyulaştırılır (sarı tonlar daha çok),
+ * koyu görünümde biraz açılır.
+ */
+export function scoreInk(score: number): ColorValue {
+  return dynamicColor(
+    mix(scoreColor(score), '#000000', score >= 3.4 && score < 6.7 ? 0.38 : 0.2),
+    mix(scoreColor(score), '#FFFFFF', 0.12),
+  );
 }
 
 /** Puan rengiyle dolu yüzeyin (pin) üstündeki yazı rengi: açık tonlarda koyu, diğerlerinde beyaz */
@@ -118,5 +203,5 @@ export function onScoreColor(score: number): string {
     return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
   });
   const luminance = 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
-  return luminance > 0.3 ? colors.text : colors.onPrimary;
+  return luminance > 0.3 ? fixed.ink : fixed.white;
 }

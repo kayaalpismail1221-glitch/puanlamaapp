@@ -1,4 +1,4 @@
-import type { SFSymbol } from 'expo-symbols';
+import type { SFSymbol } from '@/components/symbol';
 
 import type { Cuisine, Place } from '@/types';
 

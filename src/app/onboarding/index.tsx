@@ -16,7 +16,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LegalConsent } from '@/components/legal-consent';
 import { Button, PressableScale, Text } from '@/components/ui';
-import { colors, fonts, onScoreColor, radius, scoreColor, spacing } from '@/constants/theme';
+import { colors, fixed, fonts, onScoreColor, radius, scoreColor, spacing, withAlpha } from '@/constants/theme';
+import { usePalette } from '@/hooks/use-palette';
 import { formatScore } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
 import { PHONE_VERIFICATION_ENABLED } from '@/constants/features';
@@ -59,6 +60,7 @@ export default function WelcomeRoute() {
 
 function WelcomeScreen() {
   const insets = useSafeAreaInsets();
+  const palette = usePalette();
   const { width, height } = useWindowDimensions();
   const [page, setPage] = useState(0);
   const { t } = useTranslation();
@@ -91,7 +93,13 @@ function WelcomeScreen() {
           ))}
         </MapView>
         <LinearGradient
-          colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.35)', 'rgba(255,255,255,0.85)', colors.background]}
+          // Harita alttaki zemine erir (açık ve koyu görünümde)
+          colors={[
+            withAlpha(palette.background, 0),
+            withAlpha(palette.background, 0.35),
+            withAlpha(palette.background, 0.85),
+            palette.background,
+          ]}
           locations={[0.3, 0.55, 0.8, 1]}
           style={StyleSheet.absoluteFill}
         />
@@ -179,7 +187,7 @@ const styles = StyleSheet.create({
   },
   pinWrap: {
     alignItems: 'center',
-    shadowColor: colors.primary,
+    shadowColor: fixed.navy,
     shadowOpacity: 0.25,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },

@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "puanla",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "backgroundColor": "#FFFFFF",
     "ios": {
       "bundleIdentifier": "app.puanla",
@@ -118,6 +118,8 @@
       }
     },
     "android": {
+      "package": "app.puanla",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -127,7 +129,9 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ],
+      "blockedPermissions": [
         "android.permission.RECORD_AUDIO"
       ]
     },
@@ -137,6 +141,19 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-font",
+        {
+          "android": {
+            "fonts": [
+              "./assets/fonts/PuanlaSymbols.ttf",
+              "./assets/fonts/PuanlaSymbolsFill.ttf",
+              "./assets/fonts/PuanlaSymbolsBold.ttf",
+              "./assets/fonts/PuanlaSymbolsBoldFill.ttf"
+            ]
+          }
+        }
+      ],
       "expo-apple-authentication",
       [
         "expo-location",

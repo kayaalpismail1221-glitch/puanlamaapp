@@ -1,7 +1,7 @@
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/symbol';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, Platform, Pressable, StyleSheet, TextInput, View, type ViewStyle } from 'react-native';
+import { Modal, Platform, Pressable, StyleSheet, TextInput, View, type ColorValue, type ViewStyle } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
   Easing,
@@ -17,7 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FullWindowOverlay } from 'react-native-screens';
 
 import { Text } from '@/components/ui';
-import { colors, radius, spacing, typography } from '@/constants/theme';
+import { colors, fixed, radius, spacing, typography } from '@/constants/theme';
 import { dialogClosed, subscribeDialogs, type DialogButton, type DialogRequest } from '@/lib/dialog';
 
 /**
@@ -265,11 +265,11 @@ function orderButtons(buttons: DialogButton[]): { button: DialogButton; kind: Bu
   ];
 }
 
-const BUTTON_STYLES: Record<ButtonKind, { box: ViewStyle; text: string }> = {
+const BUTTON_STYLES: Record<ButtonKind, { box: ViewStyle; text: ColorValue }> = {
   primary: { box: { backgroundColor: colors.primary }, text: colors.onPrimary },
-  secondary: { box: { backgroundColor: colors.surface }, text: colors.primary },
+  secondary: { box: { backgroundColor: colors.fill }, text: colors.primary },
   destructive: { box: { backgroundColor: colors.dangerSoft }, text: colors.danger },
-  cancel: { box: { backgroundColor: colors.surface }, text: colors.text },
+  cancel: { box: { backgroundColor: colors.fill }, text: colors.text },
 };
 
 function SheetButton({
@@ -305,11 +305,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: spacing.sm + 2,
     right: spacing.sm + 2,
-    backgroundColor: colors.background,
+    backgroundColor: colors.card,
     borderRadius: 32,
     borderCurve: 'continuous',
     paddingBottom: spacing.lg,
-    shadowColor: colors.primary,
+    shadowColor: fixed.navy,
     shadowOpacity: 0.22,
     shadowRadius: 30,
     shadowOffset: { width: 0, height: 12 },
@@ -349,7 +349,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   pressed: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.fill,
   },
   buttons: {
     gap: spacing.sm + 2,
@@ -381,7 +381,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     borderRadius: 18,
     borderCurve: 'continuous',
-    backgroundColor: colors.surface,
+    backgroundColor: colors.fill,
     color: colors.text,
   },
 });

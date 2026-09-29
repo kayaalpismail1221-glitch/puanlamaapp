@@ -1,16 +1,19 @@
 import * as ImagePicker from 'expo-image-picker';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView, type SFSymbol } from '@/components/symbol';
 import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown, LinearTransition, ZoomIn } from 'react-native-reanimated';
 
+import { PhotoCropper, type CroppedPhoto, type CropItem } from '@/components/photo-cropper';
 import { PlacePicker } from '@/components/place-picker';
 import { CompareStep, SentimentChoice, useRankResultText } from '@/components/rank-steps';
-import { FormSection as Section, HighlightPicker, MAX_HIGHLIGHTS, MealPicker, postFieldStyles } from '@/components/post-fields';
+import { HighlightPicker, MAX_HIGHLIGHTS, postFieldStyles } from '@/components/post-fields';
+import { segmentOf } from '@/constants/segments';
+import { ScoringGuide, useScoringGuide } from '@/components/scoring-guide';
 import { Avatar, Button, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
-import { colors, hitSlop, radius, spacing, typography } from '@/constants/theme';
+import { colors, fixed, hitSlop, radius, spacing, typography } from '@/constants/theme';
 import { createInvites, matchContacts } from '@/api/contacts';
 import { showError } from '@/api/errors';
 import type { LocalImage } from '@/api/storage';
@@ -20,11 +23,12 @@ import { useKeyboardFooterStyle } from '@/hooks/use-keyboard-footer';
 import { useRankFlow } from '@/hooks/use-rank-flow';
 import i18n from '@/i18n';
 import { pickContact, type DeviceContact } from '@/lib/contacts';
-import { showAlert, showMenu } from '@/lib/dialog';
+import { showAlert } from '@/lib/dialog';
 import { haptics } from '@/lib/haptics';
 import { placeSubtitle } from '@/lib/place';
+import { segmentStanding } from '@/lib/ranking';
 import { useAppStore } from '@/store/app-store';
-import type { Meal, User } from '@/types';
+import type { User } from '@/types';
 
 const MAX_PHOTOS = 5;
 /** Tek gönderide davet edilebilecek en fazla kişi (sunucuyla aynı) */
@@ -37,13 +41,15 @@ type Params = {
 };
 
 /**
- * Gönderi paylaş: mekân + puan (Beli tarzı akış ekranın içinde; zorunlu) + (isteğe bağlı) fotoğraf ve yorum
- * + isteğe bağlı bilgiler: öğün, öne çıkanlar, kimlerle gidildi.
+ * Gönderi paylaş. Sıra Puanla'nın özünü izler: mekân → puanın (zorunlu, Beli tarzı akış ekranın içinde; sonuç
+ * büyük rozetle) → fotoğraf (tek dokunuşla çek/seç) → "Nasıldı?" → "Kimlerle gittin?" (masa döngüsü: etiketlenene
+ * "Sen kaç verirdin?" sorulur, Puanla'da olmayana davet gider) → öne çıkanlar. Alanlar "isteğe bağlı" diye
+ * etiketlenmez (kullanıcı kararı: görülsün, doldurulsun); yalnızca puan zorunlu. Öğün sorulmaz, açıklamaya yazılır.
  * Fiyat ve ne yenildiği bilerek sorulmaz: paylaşım hafif kalsın, kimse hesap vermek zorunda hissetmesin.
  */
 export default function CreatePostScreen() {
   const params = useLocalSearchParams<Params>();
-  const { following, scored, actions } = useAppStore();
+  const { following, scored, rankings, actions } = useAppStore();
   const createPost = useCreatePost();
   const onboarding = params.akis === 'onboarding';
   const { t } = useTranslation();
@@ -53,9 +59,10 @@ export default function CreatePostScreen() {
   const captionY = useRef(0);
 
   const [placeId, setPlaceId] = useState(params.placeId);
-  const [photos, setPhotos] = useState<LocalImage[]>([]);
+  const [photos, setPhotos] = useState<CroppedPhoto[]>([]);
+  /** Kırpma ekranındaki fotoğraflar; `replace` verilirse o sıradaki fotoğraf yeniden kırpılıyor */
+  const [cropping, setCropping] = useState<{ items: CropItem[]; replace?: number }>({ items: [] });
   const [caption, setCaption] = useState('');
-  const [meal, setMeal] = useState<Meal>();
   const [highlights, setHighlights] = useState<string[]>([]);
   const [tagged, setTagged] = useState<string[]>([]);
   /** Rehberden eklenen, Puanla'da olan kişiler (takip edilmese de etiketlenebilir) */
@@ -77,14 +84,18 @@ export default function CreatePostScreen() {
   );
 
   const place = usePlace(placeId);
+  const existing = place ? scored.find((e) => e.placeId === place.id) : undefined;
+  // Puanlanmamış mekânda (ya da "Değiştir" denince) puanlama akışı ekranın içinde açılır
+  const rating = !!place && (!existing || rerating);
+  // İlk puanlamada puanlama rehberi bir kez kendiliğinden açılır
+  const guide = useScoringGuide({ auto: rating });
+
   if (!place) {
     return <PlacePicker title={t('compose.whereDidYouEat')} onSelect={(p) => setPlaceId(p.id)} />;
   }
 
-  const existing = scored.find((e) => e.placeId === place.id);
-  // Puanlanmamış mekânda (ya da "Değiştir" denince) puanlama akışı ekranın içinde açılır
-  const rating = !existing || rerating;
-  const score = rating ? flow.result?.score : existing.score;
+  const score = rating ? flow.result?.score : existing?.score;
+  const standing = existing && !rating ? segmentStanding(rankings, place.id) : undefined;
 
   const addFromLibrary = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -93,7 +104,8 @@ export default function CreatePostScreen() {
       selectionLimit: MAX_PHOTOS - photos.length,
       quality: 0.8,
     });
-    if (!result.canceled) setPhotos((p) => [...p, ...result.assets.map(toLocalImage)].slice(0, MAX_PHOTOS));
+    // Seçilenler önce kırpma ekranına (akıştaki 4:5 çerçeve)
+    if (!result.canceled) setCropping({ items: result.assets.map((a) => ({ original: toLocalImage(a) })) });
   };
 
   const addFromCamera = async () => {
@@ -102,18 +114,9 @@ export default function CreatePostScreen() {
       showAlert(t('compose.cameraPermissionTitle'), t('compose.cameraPermissionText'));
       return;
     }
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ['images'],
-      quality: 0.8,
-    });
-    if (!result.canceled) setPhotos((p) => [...p, toLocalImage(result.assets[0]!)].slice(0, MAX_PHOTOS));
+    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 });
+    if (!result.canceled) setCropping({ items: [{ original: toLocalImage(result.assets[0]!) }] });
   };
-
-  const addPhoto = () =>
-    showMenu(undefined, [
-      { icon: 'camera', label: t('compose.takePhoto'), onPress: addFromCamera },
-      { icon: 'photo.on.rectangle', label: t('compose.chooseFromLibrary'), onPress: addFromLibrary },
-    ]);
 
   /** Sistem kişi seçicisi: Puanla'daysa etiketlenir, değilse paylaşınca davet edilir */
   const addFromContacts = async () => {
@@ -132,8 +135,7 @@ export default function CreatePostScreen() {
     setInvitees((list) => (list.some((c) => c.phone === picked.phone) ? list : [...list, picked].slice(0, MAX_INVITEES)));
   };
 
-  const toggle = <T,>(list: T[], item: T, max = Infinity) =>
-    list.includes(item) ? list.filter((x) => x !== item) : list.length < max ? [...list, item] : list;
+  const toggle = <T,>(list: T[], item: T) => (list.includes(item) ? list.filter((x) => x !== item) : [...list, item]);
 
   const share = () => {
     if (score === undefined) return;
@@ -142,10 +144,9 @@ export default function CreatePostScreen() {
     createPost.mutate(
       {
         placeId: place.id,
-        photos,
+        photos: photos.map((p) => p.image),
         caption: caption.trim() || undefined,
         taggedUserIds: tagged,
-        meal,
         highlights,
       },
       {
@@ -163,55 +164,93 @@ export default function CreatePostScreen() {
     );
   };
 
+  const shareTitle = createPost.isPending
+    ? photos.length
+      ? t('compose.uploading', { percent: Math.round(createPost.progress * 100) })
+      : t('compose.sharing')
+    : score === undefined
+      ? t('compose.rateFirst')
+      : t('common.share');
+
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ title: onboarding ? t('screens.firstPost') : t('screens.sharePost') }} />
-      <ScrollView ref={scrollRef} contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        ref={scrollRef}
+        contentContainerStyle={styles.form}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive">
         {onboarding && (
           <Text variant="subhead" color={colors.textSecondary}>
             {t('compose.onboardingHint')}
           </Text>
         )}
 
-        {/* Mekân ve puan */}
-        <Animated.View entering={FadeIn} style={styles.placeCard}>
+        {/* Mekân */}
+        <Animated.View entering={FadeIn}>
           <PressableScale
             onPress={() => !params.placeId && setPlaceId(undefined)}
             disabled={!!params.placeId}
             scaleTo={0.98}
-            style={styles.placeInfo}>
+            style={styles.placeRow}>
             <PlaceImage uri={place.photoUrl} style={styles.placeImage} />
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text variant="headline" numberOfLines={1}>
+            <View style={styles.flex}>
+              <Text variant="title3" numberOfLines={1}>
                 {place.name}
               </Text>
-              <Text variant="footnote" color={colors.textSecondary}>
-                {params.placeId ? placeSubtitle(place) : t('compose.tapToChange')}
+              <Text variant="footnote" color={colors.textSecondary} numberOfLines={1}>
+                {placeSubtitle(place)}
               </Text>
             </View>
+            {!params.placeId && (
+              <Text variant="subhead" color={colors.primary} style={styles.bold}>
+                {t('common.change')}
+              </Text>
+            )}
           </PressableScale>
         </Animated.View>
 
-        <Section title={t('compose.yourScore')}>
-          {!rating ? (
-            <View style={styles.scoreRow}>
-              <ScoreBadge score={existing.score} />
-              <Text variant="subhead" color={colors.textSecondary} style={styles.flex}>
-                {t('place.yourRank', { rank: existing.rank })}
-              </Text>
-              <PressableScale
-                onPress={() => {
-                  flow.reset();
-                  setRerating(true);
-                }}
-                hitSlop={hitSlop}>
-                <Text variant="subhead" color={colors.primary} style={styles.bold}>
-                  {t('common.change')}
-                </Text>
-              </PressableScale>
+        {/* Puanın: gönderinin kalbi */}
+        <Animated.View entering={FadeInDown.springify()} layout={LinearTransition} style={styles.scoreCard}>
+          <View style={styles.cardHeader}>
+            <Text variant="headline">{t('compose.yourScore')}</Text>
+            <PressableScale onPress={guide.open} hitSlop={hitSlop} accessibilityLabel={t('scoringGuide.open')}>
+              <SymbolView name="questionmark.circle" tintColor={colors.textSecondary} size={20} />
+            </PressableScale>
+          </View>
+
+          {!rating && existing ? (
+            <View style={styles.scoreResult}>
+              <ScoreBadge score={existing.score} size="lg" />
+              <View style={styles.flex}>
+                {standing && (
+                  <Text variant="subhead" color={colors.textSecondary}>
+                    {standing.total === 1
+                      ? t('place.segmentFirst', { segment: t(`segments.${standing.segment}`) })
+                      : t('place.segmentStanding', {
+                          segment: t(`segments.${standing.segment}`),
+                          rank: standing.rank,
+                          total: standing.total,
+                        })}
+                  </Text>
+                )}
+                <PressableScale
+                  onPress={() => {
+                    flow.reset();
+                    setRerating(true);
+                  }}
+                  hitSlop={hitSlop}>
+                  <Text variant="subhead" color={colors.primary} style={styles.bold}>
+                    {t('compose.rerate')}
+                  </Text>
+                </PressableScale>
+              </View>
             </View>
           ) : flow.phase === 'sentiment' ? (
             <View style={styles.rateStep}>
+              <Text variant="subhead" color={colors.textSecondary}>
+                {t('compose.howWasIt')}
+              </Text>
               <SentimentChoice compact onChoose={flow.choose} />
               {existing && (
                 <Button title={t('common.cancel')} variant="ghost" size="sm" onPress={() => setRerating(false)} />
@@ -227,61 +266,94 @@ export default function CreatePostScreen() {
               step={flow.step}
               total={flow.totalSteps}
               onPick={flow.answer}
-              onSkip={flow.skip}
+              onTie={flow.tie}
             />
           ) : flow.result ? (
-            <Animated.View entering={FadeIn} style={styles.scoreRow}>
-              <ScoreBadge score={flow.result.score} />
-              <Text variant="subhead" color={colors.textSecondary} style={styles.flex}>
-                {resultText(flow.result)}
-              </Text>
-              <PressableScale onPress={flow.undo} hitSlop={hitSlop}>
-                <Text variant="subhead" color={colors.primary} style={styles.bold}>
-                  {t('rate.undo')}
-                </Text>
-              </PressableScale>
-            </Animated.View>
-          ) : null}
-        </Section>
-
-        <Section title={t('compose.photos')} hint={t('compose.photosHint', { count: photos.length, max: MAX_PHOTOS })}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoRow}>
-            {photos.map((photo, i) => (
-              <Animated.View
-                key={`${photo.uri}-${i}`}
-                entering={FadeIn}
-                layout={LinearTransition}
-                style={styles.photoTile}>
-                <PlaceImage uri={photo.uri} style={StyleSheet.absoluteFill} />
-                <PressableScale
-                  onPress={() => setPhotos((p) => p.filter((_, j) => j !== i))}
-                  hitSlop={hitSlop}
-                  style={styles.removePhoto}
-                  accessibilityLabel={t('compose.removePhoto')}>
-                  <SymbolView name="xmark" tintColor={colors.onPrimary} size={11} weight="bold" />
-                </PressableScale>
+            <View style={styles.scoreResult}>
+              <Animated.View entering={ZoomIn.springify()}>
+                <ScoreBadge score={flow.result.score} size="lg" />
               </Animated.View>
-            ))}
-            {photos.length < MAX_PHOTOS && (
-              <PressableScale
-                onPress={addPhoto}
-                style={[styles.photoTile, styles.addPhoto]}
-                accessibilityLabel={t('compose.addPhoto')}>
-                <SymbolView name="camera" tintColor={colors.primary} size={24} />
-                <Text variant="caption" color={colors.primary}>
-                  {t('compose.add')}
+              <View style={styles.flex}>
+                <Text variant="subhead" color={colors.textSecondary}>
+                  {resultText(flow.result)}
                 </Text>
-              </PressableScale>
-            )}
-          </ScrollView>
-        </Section>
+                <PressableScale onPress={flow.undo} hitSlop={hitSlop}>
+                  <Text variant="subhead" color={colors.primary} style={styles.bold}>
+                    {t('rate.undo')}
+                  </Text>
+                </PressableScale>
+              </View>
+            </View>
+          ) : null}
+        </Animated.View>
 
-        <Section
-          title={t('compose.caption')}
-          hint={t('common.optional')}
-          onLayout={(y) => {
-            captionY.current = y;
+        {/* Fotoğraflar: boşken tek dokunuşla çek ya da seç */}
+        <View style={styles.section}>
+          <SectionTitle
+            title={t('compose.photos')}
+            hint={photos.length ? t('compose.photosHint', { count: photos.length, max: MAX_PHOTOS }) : undefined}
+          />
+          {photos.length === 0 ? (
+            <View style={styles.photoActions}>
+              <PhotoAction icon="camera.fill" label={t('compose.takePhoto')} onPress={addFromCamera} />
+              <PhotoAction icon="photo.on.rectangle.angled" label={t('compose.chooseFromLibrary')} onPress={addFromLibrary} />
+            </View>
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoRow}>
+              {photos.map((photo, i) => (
+                <Animated.View
+                  key={`${photo.image.uri}-${i}`}
+                  entering={FadeIn}
+                  layout={LinearTransition}
+                  style={[styles.photoTile, i === 0 && styles.coverTile]}>
+                  {/* Dokununca yeniden kırp (orijinal üzerinden) */}
+                  <PressableScale
+                    onPress={() => setCropping({ items: [{ original: photo.original, transform: photo.transform }], replace: i })}
+                    scaleTo={0.97}
+                    style={StyleSheet.absoluteFill}
+                    accessibilityLabel={t('crop.edit')}>
+                    <PlaceImage uri={photo.image.uri} style={StyleSheet.absoluteFill} />
+                  </PressableScale>
+                  {i === 0 && photos.length > 1 && (
+                    <View style={styles.coverLabel}>
+                      <Text variant="caption" color={fixed.white} style={styles.bold}>
+                        {t('compose.cover')}
+                      </Text>
+                    </View>
+                  )}
+                  <PressableScale
+                    onPress={() => setPhotos((p) => p.filter((_, j) => j !== i))}
+                    hitSlop={hitSlop}
+                    style={styles.removePhoto}
+                    accessibilityLabel={t('compose.removePhoto')}>
+                    <SymbolView name="xmark" tintColor={fixed.white} size={11} weight="bold" />
+                  </PressableScale>
+                </Animated.View>
+              ))}
+              {photos.length < MAX_PHOTOS && (
+                <View style={styles.addColumn}>
+                  <PressableScale onPress={addFromCamera} style={styles.addSmall} accessibilityLabel={t('compose.takePhoto')}>
+                    <SymbolView name="camera" tintColor={colors.primary} size={20} />
+                  </PressableScale>
+                  <PressableScale
+                    onPress={addFromLibrary}
+                    style={styles.addSmall}
+                    accessibilityLabel={t('compose.chooseFromLibrary')}>
+                    <SymbolView name="photo.on.rectangle" tintColor={colors.primary} size={20} />
+                  </PressableScale>
+                </View>
+              )}
+            </ScrollView>
+          )}
+        </View>
+
+        {/* Nasıldı? */}
+        <View
+          style={styles.section}
+          onLayout={(e) => {
+            captionY.current = e.nativeEvent.layout.y;
           }}>
+          <SectionTitle title={t('compose.caption')} />
           <TextInput
             value={caption}
             onChangeText={setCaption}
@@ -293,17 +365,14 @@ export default function CreatePostScreen() {
             maxLength={500}
             style={[typography.body, styles.caption]}
           />
-        </Section>
+        </View>
 
-        <Section title={t('compose.meal')}>
-          <MealPicker value={meal} onChange={setMeal} />
-        </Section>
-
-        <Section title={t('compose.highlights')} hint={t('compose.highlightsHint', { max: MAX_HIGHLIGHTS })}>
-          <HighlightPicker value={highlights} onChange={setHighlights} />
-        </Section>
-
-        <Section title={t('compose.withWhom')} hint={invitees.length ? t('compose.inviteHint') : undefined}>
+        {/* Kimlerle gittin? — masa döngüsü */}
+        <View style={styles.section}>
+          <SectionTitle title={t('compose.withWhom')} />
+          <Text variant="footnote" color={colors.textSecondary}>
+            {invitees.length ? t('compose.inviteHint') : t('compose.withWhomHint')}
+          </Text>
           <View style={postFieldStyles.chips}>
             <PressableScale
               haptic={false}
@@ -350,26 +419,61 @@ export default function CreatePostScreen() {
               );
             })}
           </View>
-        </Section>
+        </View>
+
+        {/* Öne çıkanlar: açıkta, tek dokunuşla */}
+        <View style={styles.section}>
+          <SectionTitle title={t('compose.highlights')} hint={t('compose.highlightsHint', { max: MAX_HIGHLIGHTS })} />
+          <HighlightPicker value={highlights} onChange={setHighlights} segment={segmentOf(place.cuisine)} />
+        </View>
       </ScrollView>
 
       <Animated.View style={[styles.footer, footerStyle]}>
-        <Button
-          title={
-            createPost.isPending
-              ? photos.length
-                ? t('compose.uploading', { percent: Math.round(createPost.progress * 100) })
-                : t('compose.sharing')
-              : t('common.share')
-          }
-          onPress={share}
-          disabled={score === undefined || createPost.isPending}
-        />
+        <Button title={shareTitle} onPress={share} disabled={score === undefined || createPost.isPending} />
         {onboarding && !createPost.isPending && (
           <Button title={t('compose.skip')} variant="ghost" onPress={() => router.back()} />
         )}
       </Animated.View>
+
+      <ScoringGuide visible={guide.visible} onClose={guide.close} />
+      <PhotoCropper
+        items={cropping.items}
+        onCancel={() => setCropping({ items: [] })}
+        onDone={(cropped) => {
+          const at = cropping.replace;
+          setPhotos((list) =>
+            at !== undefined
+              ? list.map((p, i) => (i === at ? cropped[0]! : p))
+              : [...list, ...cropped].slice(0, MAX_PHOTOS),
+          );
+          setCropping({ items: [] });
+        }}
+      />
     </View>
+  );
+}
+
+function SectionTitle({ title, hint }: { title: string; hint?: string }) {
+  return (
+    <View style={styles.sectionTitle}>
+      <Text variant="headline">{title}</Text>
+      {hint && (
+        <Text variant="footnote" color={colors.textTertiary}>
+          {hint}
+        </Text>
+      )}
+    </View>
+  );
+}
+
+function PhotoAction({ icon, label, onPress }: { icon: SFSymbol; label: string; onPress: () => void }) {
+  return (
+    <PressableScale onPress={onPress} scaleTo={0.97} style={styles.photoAction} accessibilityRole="button">
+      <SymbolView name={icon} tintColor={colors.primary} size={26} />
+      <Text variant="subhead" color={colors.primary} style={styles.bold}>
+        {label}
+      </Text>
+    </PressableScale>
   );
 }
 
@@ -387,32 +491,16 @@ const styles = StyleSheet.create({
   form: {
     padding: spacing.lg,
     gap: spacing.xl,
+    paddingBottom: spacing.xxl,
+  },
+  flex: {
+    flex: 1,
+    gap: 2,
   },
   bold: {
     fontWeight: '600',
   },
-  scoreRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  rateStep: {
-    gap: spacing.xs,
-  },
-  flex: {
-    flex: 1,
-  },
-  placeCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  placeInfo: {
-    flex: 1,
+  placeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
@@ -422,23 +510,84 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: radius.button,
   },
-  photoRow: {
+  scoreCard: {
+    gap: spacing.md,
+    padding: spacing.lg,
+    borderRadius: radius.card,
+    backgroundColor: colors.surface,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  scoreResult: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.lg,
+  },
+  rateStep: {
     gap: spacing.sm,
   },
+  section: {
+    gap: spacing.sm,
+  },
+  sectionTitle: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+  },
+  photoActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  photoAction: {
+    flex: 1,
+    height: 104,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    borderRadius: radius.card,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: colors.border,
+  },
+  photoRow: {
+    gap: spacing.sm,
+    alignItems: 'center',
+  },
   photoTile: {
-    width: 96,
-    height: 120,
+    width: 104,
+    height: 130,
     borderRadius: radius.button,
     overflow: 'hidden',
     backgroundColor: colors.surface,
   },
-  addPhoto: {
+  coverTile: {
+    width: 132,
+    height: 165,
+  },
+  coverLabel: {
+    position: 'absolute',
+    left: spacing.xs,
+    bottom: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radius.full,
+    backgroundColor: colors.overlay,
+  },
+  addColumn: {
+    gap: spacing.sm,
+  },
+  addSmall: {
+    width: 64,
+    height: 64,
+    borderRadius: radius.button,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.xs,
     borderWidth: 1,
-    borderColor: colors.border,
     borderStyle: 'dashed',
+    borderColor: colors.border,
   },
   removePhoto: {
     position: 'absolute',
@@ -469,6 +618,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
+    backgroundColor: colors.background,
   },
 });
 

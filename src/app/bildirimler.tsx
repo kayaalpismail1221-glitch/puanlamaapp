@@ -1,5 +1,5 @@
 import { router, Stack, useFocusEffect } from 'expo-router';
-import { SymbolView, type SFSymbol } from 'expo-symbols';
+import { SymbolView, type SFSymbol } from '@/components/symbol';
 import { Image } from 'expo-image';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -10,7 +10,7 @@ import { PeopleYouMayKnow } from '@/components/people-you-may-know';
 import { UserRowsSkeleton } from '@/components/skeleton';
 import { Avatar, Button, Divider, ErrorView, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { FollowButton } from '@/components/user-row';
-import { colors, hitSlop, radius, spacing } from '@/constants/theme';
+import { colors, fixed, hitSlop, radius, spacing } from '@/constants/theme';
 import { useNotifications } from '@/hooks/queries';
 import { formatScore, timeAgo } from '@/lib/format';
 import { clearBadge, enablePush, pushPermission, type PushPermission } from '@/lib/notifications';
@@ -203,7 +203,7 @@ function NotificationRow({ item }: { item: AppNotification }) {
       <PressableScale onPress={() => openUserProfile(item.actor.id)} haptic={false}>
         <Avatar uri={item.actor.avatarUrl} name={item.actor.name} size={44} />
         <View style={[styles.kind, (item.kind === 'like' || item.kind === 'comment_like') && styles.kindLike]}>
-          <SymbolView name={ICONS[item.kind]} tintColor={colors.onPrimary} size={10} />
+          <SymbolView name={ICONS[item.kind]} tintColor={item.kind === 'like' || item.kind === 'comment_like' ? fixed.white : colors.onPrimary} size={10} />
         </View>
       </PressableScale>
 

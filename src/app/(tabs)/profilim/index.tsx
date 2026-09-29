@@ -1,9 +1,10 @@
 import { router, Stack } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/symbol';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 
+import { FavoritePlaces } from '@/components/favorite-places';
 import { ProfileLists } from '@/components/list-card';
 import { VisitedMap } from '@/components/visited-map';
 import { PostGrid } from '@/components/post-grid';
@@ -117,6 +118,8 @@ export default function ProfileScreen() {
           />
           <Divider />
         </View>
+
+        <FavoritePlaces userId={me} name={profile?.name ?? ''} mine />
 
         <RankStreakCards userId={me} streak={streak} />
 

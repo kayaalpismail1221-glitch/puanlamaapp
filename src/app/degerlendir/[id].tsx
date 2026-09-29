@@ -1,11 +1,12 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/symbol';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Keyboard, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
 
 import { CompareStep, SentimentChoice, useRankResultText } from '@/components/rank-steps';
+import { ScoringGuide, useScoringGuide } from '@/components/scoring-guide';
 import { Button, LoadingView, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { colors, hitSlop, radius, spacing, typography } from '@/constants/theme';
 import { getPlace, usePlace } from '@/data/entities';
@@ -41,6 +42,8 @@ export default function RateScreen() {
   const flow = useRankFlow(id);
   const resultText = useRankResultText();
   const scrollRef = useRef<ScrollView>(null);
+  // İlk puanlamada puanlama rehberi bir kez kendiliğinden açılır; sonra ? ile
+  const guide = useScoringGuide({ auto: true });
 
   // Not yazarken klavye alttaki butonları yukarı iter; içerik kayar ve not alanı butonların üstünde görünür kalır
   useEffect(() => {
@@ -80,11 +83,16 @@ export default function RateScreen() {
         <PressableScale onPress={() => router.back()} hitSlop={hitSlop} style={styles.iconButton} accessibilityLabel={t('rate.close')}>
           <SymbolView name="xmark" tintColor={colors.primary} size={16} weight="semibold" />
         </PressableScale>
-        {flow.phase !== 'sentiment' && (
-          <PressableScale onPress={flow.undo} hitSlop={hitSlop} style={styles.iconButton} accessibilityLabel={t('rate.undo')}>
-            <SymbolView name="arrow.uturn.backward" tintColor={colors.primary} size={16} weight="semibold" />
+        <View style={styles.topRight}>
+          {flow.phase !== 'sentiment' && (
+            <PressableScale onPress={flow.undo} hitSlop={hitSlop} style={styles.iconButton} accessibilityLabel={t('rate.undo')}>
+              <SymbolView name="arrow.uturn.backward" tintColor={colors.primary} size={16} weight="semibold" />
+            </PressableScale>
+          )}
+          <PressableScale onPress={guide.open} hitSlop={hitSlop} style={styles.iconButton} accessibilityLabel={t('scoringGuide.open')}>
+            <SymbolView name="questionmark" tintColor={colors.primary} size={15} weight="semibold" />
           </PressableScale>
-        )}
+        </View>
       </View>
 
       <View style={styles.placeHeader}>
@@ -116,7 +124,7 @@ export default function RateScreen() {
             step={flow.step}
             total={flow.totalSteps}
             onPick={flow.answer}
-            onSkip={flow.skip}
+            onTie={flow.tie}
           />
         )}
 
@@ -158,6 +166,7 @@ export default function RateScreen() {
           )}
         </Animated.View>
       )}
+      <ScoringGuide visible={guide.visible} onClose={guide.close} />
     </View>
   );
 }
@@ -176,6 +185,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
+  },
+  topRight: {
+    flexDirection: 'row',
+    gap: spacing.sm,
   },
   iconButton: {
     width: 32,

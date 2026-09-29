@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useShareIntentContext } from 'expo-share-intent';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/symbol';
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';

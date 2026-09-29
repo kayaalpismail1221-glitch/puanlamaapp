@@ -7,7 +7,7 @@ import { StyleSheet, View } from 'react-native';
 import { Text } from '@/components/ui';
 import { WorldMap } from '@/components/world-map';
 import { cuisineLabel } from '@/constants/cuisines';
-import { colors, fonts, gradients, onScoreColor, scoreColor } from '@/constants/theme';
+import { fonts, gradients, onScoreColor, palettes, scoreColor } from '@/constants/theme';
 import { currentLanguage, currentLocale } from '@/i18n';
 import { formatScore, initials, monthYear } from '@/lib/format';
 import { possessive } from '@/lib/possessive';
@@ -31,6 +31,9 @@ import type { Place, PlaceList, PlaceListItem, Post } from '@/types';
 export type StoryAuthor = { name: string; username: string; avatarUri?: string; hint?: string };
 
 type Common = { author: StoryAuthor; onImageSettled?: (uri: string) => void };
+
+/** Paylaşılan görsel görünümden bağımsızdır: kartlar her zaman açık paletle çizilir */
+const colors = palettes.light;
 
 const PAD = 40;
 const SAFE_TOP = 112;
@@ -100,6 +103,11 @@ function Footer({ author, onImageSettled }: Common) {
           {author.hint ?? t('story.followHint')}
         </Text>
       </View>
+      {/* Uygulaması olmayan izleyici için indirme yolu (Instagram'da tıklanır bağlantı yok) */}
+      <View style={styles.getApp}>
+        <Text style={styles.getAppSmall}>{t('story.getAppKicker')}</Text>
+        <Text style={styles.getAppBig}>{t('story.getApp')}</Text>
+      </View>
     </View>
   );
 }
@@ -135,6 +143,60 @@ export const TopFiveCard = forwardRef<View, Common & { items: ScoredPlace[] }>(f
               </Text>
             </View>
             <ScoreDisc score={score} size={60} />
+          </View>
+        ))}
+      </View>
+      <View style={styles.spacer} />
+      <Footer {...common} />
+    </Frame>
+  );
+});
+
+/* ---------- Favori 4 ---------- */
+
+/** 2×2 afiş ızgarası (içerik genişliği: kenar boşlukları düşülmüş) */
+const FAV_GAP = 16;
+const FAV_WIDTH = (STORY_SIZE.width - PAD * 2 - FAV_GAP) / 2;
+const FAV_HEIGHT = 176;
+
+/** Profilde seçilen Favori 4: fotoğraflı afişler, köşede puan, altında ad ve semt */
+export const FavoritesStoryCard = forwardRef<View, Common & { items: ScoredPlace[] }>(function FavoritesStoryCard(
+  { items, ...common },
+  ref,
+) {
+  const { t } = useTranslation();
+  const shown = items.slice(0, 4);
+  return (
+    <Frame ref={ref}>
+      <Wordmark />
+      <View style={styles.titleBlock}>
+        <Text style={styles.title}>{t(shown.length === 4 ? 'story.favoritesTitleFull' : 'story.favoritesTitle')}</Text>
+      </View>
+      <View style={styles.favGrid}>
+        {shown.map(({ place, score }) => (
+          <View key={place.id} style={styles.favItem}>
+            <View style={styles.favPoster}>
+              {place.photoUrl ? (
+                <Image
+                  source={{ uri: place.photoUrl }}
+                  style={StyleSheet.absoluteFill}
+                  contentFit="cover"
+                  onLoad={() => common.onImageSettled?.(place.photoUrl!)}
+                  onError={() => common.onImageSettled?.(place.photoUrl!)}
+                />
+              ) : (
+                <Text style={styles.favInitial}>{place.name.charAt(0).toLocaleUpperCase(currentLocale())}</Text>
+              )}
+              <View style={styles.favDisc}>
+                <ScoreDisc score={score} size={54} />
+              </View>
+            </View>
+            <Text style={styles.favName} numberOfLines={1}>
+              {place.name}
+            </Text>
+            <Text style={styles.favSub} numberOfLines={1}>
+              {placeLine(place)}
+            </Text>
           </View>
         ))}
       </View>
@@ -272,7 +334,7 @@ export const MapStoryCard = forwardRef<View, MapStoryProps>(function MapStoryCar
           <InkWordmark />
         </View>
         <View style={styles.map}>
-          <WorldMap view={view} width={MAP_WIDTH} height={MAP_WIDTH / STORY_MAP_ASPECT} dots={dots} dotScale={1.4} />
+          <WorldMap view={view} width={MAP_WIDTH} height={MAP_WIDTH / STORY_MAP_ASPECT} dots={dots} dotScale={1.4} scheme="light" />
         </View>
       </View>
       <View style={styles.spacer} />
@@ -610,6 +672,48 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     backgroundColor: INK_FAINT,
   },
+  favGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: FAV_GAP,
+    marginTop: 32,
+  },
+  favItem: {
+    width: FAV_WIDTH,
+  },
+  favPoster: {
+    height: FAV_HEIGHT,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 20,
+    overflow: 'hidden',
+    backgroundColor: INK_FAINT,
+  },
+  favInitial: {
+    fontFamily: fonts.serif,
+    fontSize: 72,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.35)',
+  },
+  favDisc: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    borderRadius: 999,
+    borderWidth: 3,
+    borderColor: colors.primary,
+  },
+  favName: {
+    marginTop: 10,
+    fontSize: 20,
+    fontWeight: '700',
+    color: INK,
+  },
+  favSub: {
+    marginTop: 2,
+    fontSize: 14,
+    color: INK_SOFT,
+  },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -641,5 +745,23 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontSize: 15,
     color: INK_SOFT,
+  },
+  getApp: {
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: INK_FAINT,
+  },
+  getAppSmall: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: INK_SOFT,
+  },
+  getAppBig: {
+    marginTop: 1,
+    fontSize: 16,
+    fontWeight: '800',
+    color: INK,
   },
 });

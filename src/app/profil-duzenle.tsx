@@ -1,6 +1,6 @@
 import * as ImagePicker from 'expo-image-picker';
 import { router, Stack } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/symbol';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
@@ -149,7 +149,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.grouped,
   },
   form: {
     padding: spacing.lg,
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
   },
   group: {
     borderRadius: radius.card,
-    backgroundColor: colors.background,
+    backgroundColor: colors.card,
     overflow: 'hidden',
   },
   field: {

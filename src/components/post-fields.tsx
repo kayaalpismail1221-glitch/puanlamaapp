@@ -1,14 +1,15 @@
-import { SymbolView } from 'expo-symbols';
 import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { PressableScale, Text } from '@/components/ui';
 import { colors, radius, spacing } from '@/constants/theme';
 import { haptics } from '@/lib/haptics';
-import { HIGHLIGHTS, highlightLabel, mealLabel, MEALS } from '@/lib/post-meta';
-import type { Meal } from '@/types';
+import { useTranslation } from 'react-i18next';
 
-/** Gönderi oluşturma ve düzenleme ekranlarında ortak alanlar: bölüm başlığı, öğün ve öne çıkanlar */
+import { highlightLabel, highlightsFor } from '@/lib/post-meta';
+import type { Segment } from '@/types';
+
+/** Gönderi oluşturma ve düzenleme ekranlarında ortak alanlar: bölüm başlığı ve öne çıkanlar (öğün sorulmaz, açıklamaya yazılır) */
 
 export const MAX_HIGHLIGHTS = 3;
 
@@ -56,42 +57,46 @@ export function Chip({ label, active, onPress }: { label: string; active: boolea
   );
 }
 
-/** Öğün seçimi; seçili öğüne tekrar dokununca kaldırılır */
-export function MealPicker({ value, onChange }: { value?: Meal; onChange: (meal: Meal | undefined) => void }) {
-  return (
-    <View style={styles.mealRow}>
-      {MEALS.map((m) => {
-        const active = value === m.key;
-        return (
-          <PressableScale
-            key={m.key}
-            haptic={false}
-            onPress={() => {
-              haptics.select();
-              onChange(active ? undefined : m.key);
-            }}
-            accessibilityState={{ selected: active }}
-            style={[styles.meal, active && styles.chipActive]}>
-            <SymbolView name={m.icon} tintColor={active ? colors.onPrimary : colors.primary} size={20} />
-            <Text variant="caption" color={active ? colors.onPrimary : colors.text} style={styles.bold}>
-              {mealLabel(m.key)}
-            </Text>
-          </PressableScale>
-        );
-      })}
-    </View>
-  );
-}
-
-/** Öne çıkanlar (en fazla MAX_HIGHLIGHTS); değerler veritabanında Türkçe saklanır */
-export function HighlightPicker({ value, onChange }: { value: string[]; onChange: (next: string[]) => void }) {
+/**
+ * Öne çıkanlar (en fazla MAX_HIGHLIGHTS), gruplu ve mekânın türüne göre (kahvaltıcıda kahvaltı, kafede laptop…).
+ * Değerler veritabanında Türkçe saklanır. Seçili ama bu türün listesinde olmayan (eski) etiket de gösterilir.
+ */
+export function HighlightPicker({
+  value,
+  onChange,
+  segment,
+}: {
+  value: string[];
+  onChange: (next: string[]) => void;
+  segment?: Segment;
+}) {
+  const { t } = useTranslation();
+  const groups = highlightsFor(segment);
+  const listed = new Set<string>(groups.flatMap((g) => g.values));
+  const extra = value.filter((v) => !listed.has(v));
   const toggle = (h: string) =>
     onChange(value.includes(h) ? value.filter((x) => x !== h) : value.length < MAX_HIGHLIGHTS ? [...value, h] : value);
   return (
-    <View style={styles.chips}>
-      {HIGHLIGHTS.map((h) => (
-        <Chip key={h} label={highlightLabel(h)} active={value.includes(h)} onPress={() => toggle(h)} />
+    <View style={styles.groups}>
+      {groups.map(({ group, values }) => (
+        <View key={group} style={styles.group}>
+          <Text variant="caption" color={colors.textSecondary} style={styles.groupTitle}>
+            {t(`highlightGroups.${group}`)}
+          </Text>
+          <View style={styles.chips}>
+            {values.map((h) => (
+              <Chip key={h} label={highlightLabel(h)} active={value.includes(h)} onPress={() => toggle(h)} />
+            ))}
+          </View>
+        </View>
       ))}
+      {extra.length > 0 && (
+        <View style={styles.chips}>
+          {extra.map((h) => (
+            <Chip key={h} label={highlightLabel(h)} active onPress={() => toggle(h)} />
+          ))}
+        </View>
+      )}
     </View>
   );
 }
@@ -121,24 +126,19 @@ const styles = StyleSheet.create({
   section: {
     gap: spacing.md,
   },
+  groups: {
+    gap: spacing.lg,
+  },
+  group: {
+    gap: spacing.sm,
+  },
+  groupTitle: {
+    fontWeight: '700',
+    letterSpacing: 0.4,
+  },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'baseline',
     justifyContent: 'space-between',
-  },
-  bold: {
-    fontWeight: '600',
-  },
-  mealRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  meal: {
-    flex: 1,
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingVertical: spacing.md,
-    borderRadius: radius.button,
-    backgroundColor: colors.surface,
   },
 });

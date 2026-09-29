@@ -1,18 +1,19 @@
 import { Stack } from 'expo-router';
 
-import { colors } from '@/constants/theme';
+import { usePalette } from '@/hooks/use-palette';
 
 export default function OnboardingLayout() {
+  const palette = usePalette();
   return (
     <Stack
       screenOptions={{
         headerTitle: '',
         headerTransparent: true,
-        headerTintColor: colors.primary,
+        headerTintColor: palette.primary,
         headerBackButtonDisplayMode: 'minimal',
         // Ekranın her yerinden sağa kaydırarak geri dönülebilir
         fullScreenGestureEnabled: true,
-        contentStyle: { backgroundColor: colors.background },
+        contentStyle: { backgroundColor: palette.background },
       }}>
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="telefon" />

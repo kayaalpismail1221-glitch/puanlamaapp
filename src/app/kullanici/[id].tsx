@@ -1,9 +1,10 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/symbol';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { FavoritePlaces } from '@/components/favorite-places';
 import { ProfileLists } from '@/components/list-card';
 import { PostGrid } from '@/components/post-grid';
 import { MenuRow, ProfileIdentity, RankStreakCards, SchoolChip } from '@/components/profile-parts';
@@ -128,6 +129,8 @@ export default function UserProfileScreen() {
           />
           <Divider />
         </View>
+
+        <FavoritePlaces userId={user.id} name={user.name} mine={isMe(user.id)} />
 
         <RankStreakCards userId={user.id} streak={streak} />
 

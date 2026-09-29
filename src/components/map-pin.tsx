@@ -1,8 +1,8 @@
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/symbol';
 import { StyleSheet, View } from 'react-native';
 
 import { Text } from '@/components/ui';
-import { colors, onScoreColor, radius, scoreColor, spacing } from '@/constants/theme';
+import { colors, fixed, onScoreColor, radius, scoreColor, spacing } from '@/constants/theme';
 import { formatScore } from '@/lib/format';
 
 /** Puana göre renklenen pin; puansızsa "gitmek istiyorum" pini */
@@ -38,7 +38,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors.primary,
+    shadowColor: fixed.navy,
     shadowOpacity: 0.25,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },

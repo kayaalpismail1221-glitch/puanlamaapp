@@ -7,11 +7,12 @@ import {
   answerComparison,
   comparisonPivot,
   expectedSteps,
+  insertEntry,
   isComparisonDone,
-  scoreAt,
+  scoreInRankings,
   segmentEntries,
-  skipComparison,
   startComparison,
+  tieComparison,
   type Comparison,
 } from '@/lib/ranking';
 import { useAppStore } from '@/store/app-store';
@@ -19,8 +20,21 @@ import type { Segment, Sentiment } from '@/types';
 
 export type RankPhase = 'sentiment' | 'compare' | 'result';
 
-/** Akışın sonucu: hangi grup ve segment, o listedeki kaçıncı sıra ve bunun puanı */
-export type RankResult = { sentiment: Sentiment; segment: Segment; index: number; score: number; total: number };
+/**
+ * Akışın sonucu: hangi grup ve segment, listeye giriş sırası (`index`), bir üsttekiyle eşit mi (`tied`),
+ * puan, listedeki yer (`rank`, eşitler aynı sırada) ve mekân sayısı (`total`). Yeni favori eski favoriyi
+ * 10'dan indirdiyse `displaced`: kullanıcı puanın neden değiştiğini görsün.
+ */
+export type RankResult = {
+  sentiment: Sentiment;
+  segment: Segment;
+  index: number;
+  tied?: boolean;
+  score: number;
+  rank: number;
+  total: number;
+  displaced?: { placeId: string; from: number; to: number };
+};
 
 /**
  * Beli tarzı puanlama akışı (ekrandan bağımsız):
@@ -67,16 +81,23 @@ export function useRankFlow(placeId: string | undefined) {
     setHistory([]);
   };
 
-  const result: RankResult | undefined =
-    phase === 'result' && sentiment && comparison
-      ? {
-          sentiment,
-          segment,
-          index: comparison.low,
-          score: scoreAt(sentiment, comparison.low, candidates.length + 1),
-          total: candidates.length + 1,
-        }
-      : undefined;
+  const result = useMemo<RankResult | undefined>(() => {
+    if (phase !== 'result' || !sentiment || !comparison || !placeId) return undefined;
+    const placement = { sentiment, index: comparison.low, tied: comparison.tied };
+    // Sonucu, kaydedildiğinde oluşacak sıralamanın aynısı üzerinden hesapla (eşitlikler dahil)
+    const after = insertEntry(rankings, placement, { placeId, segment, ratedAt: new Date().toISOString() });
+    const score = scoreInRankings(after, placeId)!;
+    const peers = segmentEntries(after[sentiment], segment);
+    const rank = 1 + peers.filter((e) => scoreInRankings(after, e.placeId)! > score).length;
+    const previousTop = candidates[0];
+    let displaced: RankResult['displaced'];
+    if (previousTop && comparison.low === 0 && !comparison.tied) {
+      const from = scoreInRankings(rankings, previousTop.placeId);
+      const to = scoreInRankings(after, previousTop.placeId);
+      if (from !== undefined && to !== undefined && to < from) displaced = { placeId: previousTop.placeId, from, to };
+    }
+    return { ...placement, segment, score, rank, total: peers.length, displaced };
+  }, [phase, sentiment, comparison, placeId, rankings, segment, candidates]);
 
   return {
     phase,
@@ -89,7 +110,8 @@ export function useRankFlow(placeId: string | undefined) {
     totalSteps: expectedSteps(candidates.length),
     choose,
     answer: (newIsBetter: boolean) => comparison && push(answerComparison(comparison, newIsBetter)),
-    skip: () => comparison && push(skipComparison(comparison)),
+    /** "İkisi aynı": karşılaştırılan mekânla eşit puan */
+    tie: () => comparison && push(tieComparison(comparison)),
     undo,
     reset,
   };

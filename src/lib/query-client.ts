@@ -45,6 +45,7 @@ export const keys = {
   userRank: (userId: string) => ['user-rank', userId] as const,
   yearChallenge: (year: number) => ['year-challenge', year] as const,
   userRankings: (userId: string) => ['rankings', userId] as const,
+  favorites: (userId: string) => ['favorites', userId] as const,
   tasteMatch: (userId: string) => ['taste-match', userId] as const,
   userLists: (userId: string) => ['lists', 'user', userId] as const,
   savedLists: () => ['lists', 'saved'] as const,

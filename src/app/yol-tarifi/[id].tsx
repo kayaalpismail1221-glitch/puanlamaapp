@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import * as Location from 'expo-location';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Speech from 'expo-speech';
-import { SymbolView, type SFSymbol } from 'expo-symbols';
+import { SymbolView, type SFSymbol } from '@/components/symbol';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -37,6 +37,7 @@ import {
 import { distanceKm, formatDistance, type Coords } from '@/lib/geo';
 import { haptics } from '@/lib/haptics';
 import { useUserLocation } from '@/lib/location';
+import { usePalette } from '@/hooks/use-palette';
 import { placeSubtitle } from '@/lib/place';
 
 const MODE_ICONS: Record<TravelMode, SFSymbol> = {
@@ -58,6 +59,7 @@ export default function DirectionsScreen() {
   const place = usePlace(id);
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const palette = usePalette();
   const mapRef = useRef<MapView>(null);
 
   const location = useUserLocation(true);
@@ -122,7 +124,7 @@ export default function DirectionsScreen() {
         {route.data && mode !== 'transit' && (
           <Polyline
             coordinates={route.data.coordinates}
-            strokeColor={colors.primary}
+            strokeColor={palette.primary}
             strokeWidth={6}
             lineCap="round"
             lineJoin="round"

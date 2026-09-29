@@ -20,11 +20,15 @@ export type ProfileRow = {
   avatar_path: string | null;
   school_id: string | null;
   year_goal: number | null;
+  /** Favori 4: seçilen sırayla en fazla dört mekân kimliği */
+  favorite_places: string[];
   onboarded_at: string | null;
   is_admin: boolean;
   follower_count: number;
   following_count: number;
   post_count: number;
+  /** Gönderilerinin aldığı toplam beğeni (tetikleyiciyle) */
+  like_total: number;
   created_at: string;
   updated_at: string;
   search_text: string;
@@ -53,6 +57,9 @@ export type PlaceRow = {
   created_by: string | null;
   created_at: string;
   search_text: string;
+  /** Sayaçlar (tetikleyicilerle) */
+  rating_count: number;
+  post_count: number;
 };
 
 /** place_view satırı (görünümlerde gömülü `place` alanı da bu biçimde) */
@@ -175,6 +182,7 @@ export type RankingViewRow = {
   rated_at: string;
   place: PlaceViewRow;
   segment: Segment;
+  tied: boolean;
 };
 
 export type SavedPlaceViewRow = {
@@ -295,7 +303,9 @@ export type Database = {
       profiles: Table<
         ProfileRow,
         never,
-        Partial<Pick<ProfileRow, 'name' | 'username' | 'avatar_path' | 'school_id' | 'year_goal' | 'onboarded_at'>>
+        Partial<
+          Pick<ProfileRow, 'name' | 'username' | 'avatar_path' | 'school_id' | 'year_goal' | 'favorite_places' | 'onboarded_at'>
+        >
       >;
       profile_private: Table<
         {
@@ -380,6 +390,8 @@ export type Database = {
           comment_count: number;
           created_at: string;
           updated_at: string;
+          /** Sıcaklık (üretilen sütun, popüler feed sırası) */
+          hot: number;
         },
         never,
         {
@@ -462,7 +474,7 @@ export type Database = {
     };
     Functions: {
       rank_place: {
-        Args: { p_place_id: string; p_sentiment: Sentiment; p_index: number; p_note?: string | null };
+        Args: { p_place_id: string; p_sentiment: Sentiment; p_index: number; p_note?: string | null; p_tie?: boolean };
         Returns: number;
       };
       unrank_place: { Args: { p_place_id: string }; Returns: undefined };
@@ -598,6 +610,11 @@ export type Database = {
       user_rank: { Args: { p_user_id: string }; Returns: number | null };
       year_challenge: { Args: { p_year?: number }; Returns: YearChallengeRow[] };
       set_inviter: { Args: { p_username: string }; Returns: PublicProfileJson };
+      log_share: {
+        Args: { p_kind: string; p_target?: string | null; p_channel?: string; p_completed?: boolean | null };
+        Returns: undefined;
+      };
+      growth_stats: { Args: { p_days?: number }; Returns: Json };
       username_available: { Args: { p_username: string }; Returns: boolean };
       delete_account: { Args: Record<string, never>; Returns: undefined };
       my_notifications: { Args: { p_before?: string | null; p_limit?: number }; Returns: NotificationRow[] };

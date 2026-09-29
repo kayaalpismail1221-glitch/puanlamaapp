@@ -1,16 +1,17 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
-import { SymbolView, type SFSymbol } from 'expo-symbols';
+import { SymbolView, type SFSymbol } from '@/components/symbol';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { logShare } from '@/api/growth';
 import { GlassSurface } from '@/components/glass-surface';
 import { MapStoryCard, STORY_MAP_ASPECT, type StoryAuthor } from '@/components/story-cards';
 import { PressableScale, Text } from '@/components/ui';
-import { colors, gradients, hitSlop, radius, scoreColor, spacing } from '@/constants/theme';
+import { colors, fixed, gradients, hitSlop, radius, scoreColor, spacing } from '@/constants/theme';
 import { useUser } from '@/data/entities';
 import { useVisitedPlaces } from '@/hooks/use-visited-places';
 import { showAlert } from '@/lib/dialog';
@@ -88,15 +89,20 @@ export default function ShareTasteMapScreen() {
     setBusy(action);
     try {
       const uri = await exportCard(cardRef);
-      if (action === 'share') await shareImage(uri, t('mapShare.title'));
+      if (action === 'share') {
+        await shareImage(uri, t('mapShare.title'));
+        logShare('map', { target: id });
+      }
       if (action === 'save') {
         if (await saveImage(uri)) {
           haptics.success();
           setSaved(true);
+          logShare('map', { target: id, channel: 'save', completed: true });
         } else showAlert(t('mapShare.savePermission'));
       }
-      if (action === 'message' && !(await messageImage(uri, t('mapShare.messageBody')))) {
-        showAlert(t('mapShare.messageUnavailable'));
+      if (action === 'message') {
+        if (await messageImage(uri, t('mapShare.messageBody'))) logShare('map', { target: id, channel: 'messages' });
+        else showAlert(t('mapShare.messageUnavailable'));
       }
     } catch (error) {
       if (__DEV__) console.warn('[puanla] harita paylaşımı', error);
@@ -116,13 +122,13 @@ export default function ShareTasteMapScreen() {
         style={[styles.close, { top: insets.top + spacing.sm }]}
         accessibilityLabel={t('rate.close')}>
         <GlassSurface interactive style={styles.closeGlass}>
-          <SymbolView name="xmark" tintColor={colors.onPrimary} size={16} weight="semibold" />
+          <SymbolView name="xmark" tintColor={fixed.white} size={16} weight="semibold" />
         </GlassSurface>
       </PressableScale>
 
       <View style={[styles.stage, { marginTop: insets.top + 56 }]} onLayout={(e) => setBox(e.nativeEvent.layout)}>
         {loading || !author ? (
-          <ActivityIndicator color={colors.onPrimary} />
+          <ActivityIndicator color={fixed.white} />
         ) : (
           scale > 0 && (
             <View style={[styles.preview, { width: STORY_SIZE.width * scale, height: STORY_SIZE.height * scale }]}>
@@ -156,7 +162,7 @@ export default function ShareTasteMapScreen() {
                   {busy === key ? (
                     <ActivityIndicator color={colors.onPrimary} />
                   ) : (
-                    <SymbolView name={done ? 'checkmark' : icon} tintColor={colors.onPrimary} size={22} weight="semibold" />
+                    <SymbolView name={done ? 'checkmark' : icon} tintColor={done ? fixed.white : colors.onPrimary} size={22} weight="semibold" />
                   )}
                 </View>
                 <Text variant="caption" color={colors.text} numberOfLines={1}>
@@ -177,7 +183,7 @@ export default function ShareTasteMapScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.primary,
+    backgroundColor: fixed.navy,
   },
   close: {
     position: 'absolute',
@@ -218,7 +224,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    backgroundColor: colors.background,
+    backgroundColor: colors.card,
   },
   actions: {
     flexDirection: 'row',

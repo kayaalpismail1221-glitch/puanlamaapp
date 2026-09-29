@@ -1,16 +1,17 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import { useTranslation } from 'react-i18next';
 
-import { colors } from '@/constants/theme';
+import { usePalette } from '@/hooks/use-palette';
 
 /** Alt bar: iOS'ta sistem sekme çubuğu (native tabs) */
 export default function TabsLayout() {
   const { t } = useTranslation();
+  const palette = usePalette();
   return (
     <NativeTabs
-      tintColor={colors.primary}
-      iconColor={colors.textSecondary}
-      labelStyle={{ color: colors.textSecondary }}>
+      tintColor={palette.primary}
+      iconColor={palette.textSecondary}
+      labelStyle={{ color: palette.textSecondary }}>
       <NativeTabs.Trigger name="(feed)">
         <NativeTabs.Trigger.Label>{t('tabs.feed')}</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf={{ default: 'house', selected: 'house.fill' }} md="home" />

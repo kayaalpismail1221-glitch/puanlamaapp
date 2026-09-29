@@ -1,6 +1,7 @@
 import type * as ContactsModule from 'expo-contacts';
 import { Linking, Platform, Share } from 'react-native';
 
+import { logShare } from '@/api/growth';
 import { inviteLink } from '@/constants/app';
 import i18n from '@/i18n';
 import { formatScore } from '@/lib/format';
@@ -94,6 +95,7 @@ export async function sendInvite(phone: string, text: string, via: 'whatsapp' | 
     const url = `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(text)}`;
     try {
       await Linking.openURL(url);
+      logShare('invite', { channel: 'whatsapp' });
       return;
     } catch {
       // WhatsApp açılamadı; SMS'e düş
@@ -102,11 +104,13 @@ export async function sendInvite(phone: string, text: string, via: 'whatsapp' | 
   try {
     const SMS = await import('expo-sms');
     if (await SMS.isAvailableAsync()) {
-      await SMS.sendSMSAsync([phone], text);
+      const { result } = await SMS.sendSMSAsync([phone], text);
+      logShare('invite', { channel: 'sms', completed: result === 'sent' ? true : result === 'cancelled' ? false : undefined });
       return;
     }
   } catch {
     // Yerel modül yok (web); paylaşım menüsüne düş
   }
-  await Share.share({ message: text }).catch(() => {});
+  const shared = await Share.share({ message: text }).catch(() => null);
+  if (shared) logShare('invite', { completed: shared.action === Share.sharedAction });
 }

@@ -26,6 +26,17 @@ export async function prepareImage(image: LocalImage, maxSize: number, quality =
   return { uri: result.uri, width: result.width, height: result.height };
 }
 
+/** Görselin piksel cinsinden bir dikdörtgenini kesip JPEG kaydeder (gönderi kırpma ekranı) */
+export async function cropImage(
+  image: LocalImage,
+  rect: { originX: number; originY: number; width: number; height: number },
+  quality = 0.92,
+): Promise<LocalImage> {
+  const rendered = await ImageManipulator.manipulate(image.uri).crop(rect).renderAsync();
+  const result = await rendered.saveAsync({ compress: quality, format: SaveFormat.JPEG });
+  return { uri: result.uri, width: result.width, height: result.height };
+}
+
 export async function uploadImage(bucket: Bucket, path: string, localUri: string): Promise<void> {
   const bytes = await new File(localUri).arrayBuffer();
   const { error } = await supabase.storage.from(bucket).upload(path, bytes, {

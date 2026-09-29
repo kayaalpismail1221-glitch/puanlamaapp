@@ -107,7 +107,13 @@ export function toComment(row: CommentViewRow): Comment {
 }
 
 export function toRankedEntry(row: RankingViewRow): RankedEntry {
-  return { placeId: row.place_id, segment: row.segment, note: row.note ?? undefined, ratedAt: row.rated_at };
+  return {
+    placeId: row.place_id,
+    segment: row.segment,
+    note: row.note ?? undefined,
+    ratedAt: row.rated_at,
+    tied: row.tied || undefined,
+  };
 }
 
 export function toSavedPlace(row: SavedPlaceViewRow): SavedPlace {

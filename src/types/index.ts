@@ -59,6 +59,8 @@ export type RankedEntry = {
   segment: Segment;
   note?: string;
   ratedAt: string; // ISO tarih
+  /** Listede bir üstteki mekânla aynı seviyede ("İkisi aynı"): puanları eşit */
+  tied?: boolean;
 };
 
 /**
@@ -111,6 +113,8 @@ export type Profile = {
   email?: string;
   schoolId?: string;
   yearGoal?: number;
+  /** Favori 4: profilde ve hikâyede gösterilen, seçilen sırayla en fazla dört mekân (eski önbellekte yok) */
+  favoritePlaces?: string[];
   joinedAt: string;
   onboardedAt?: string;
   /** Telefonu SMS ile doğrulandı (rehber eşleştirme için gerekli) */

@@ -1,5 +1,5 @@
 import { router, Stack } from 'expo-router';
-import { SymbolView, type SFSymbol } from 'expo-symbols';
+import { SymbolView, type SFSymbol } from '@/components/symbol';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
@@ -9,7 +9,7 @@ import { ListStrip } from '@/components/list-card';
 import { SavedPlaceCard } from '@/components/saved-place-card';
 import { Button, Divider, PlaceImage, PressableScale, Text } from '@/components/ui';
 import { cuisineLabel } from '@/constants/cuisines';
-import { colors, hitSlop, radius, spacing } from '@/constants/theme';
+import { colors, fixed, hitSlop, radius, spacing } from '@/constants/theme';
 import { getPlace, useEntitiesVersion, usePrefetchPlaces } from '@/data/entities';
 import { useFriendScores, useSavedLists, useSavedPosts } from '@/hooks/queries';
 import { useClipboardHasUrl } from '@/lib/clipboard';
@@ -211,11 +211,11 @@ export default function SavedListScreen() {
                         style={styles.postTile}>
                         <PlaceImage uri={p.thumbs[0] ?? place?.thumbUrl} style={StyleSheet.absoluteFill} />
                         <View style={styles.postShade}>
-                          <Text variant="caption" color={colors.onPrimary} numberOfLines={1} style={styles.bold}>
+                          <Text variant="caption" color={fixed.white} numberOfLines={1} style={styles.bold}>
                             {place?.name}
                           </Text>
                           {p.score !== undefined && (
-                            <Text variant="caption" color={colors.onPrimary}>
+                            <Text variant="caption" color={fixed.white}>
                               {formatScore(p.score)}
                             </Text>
                           )}

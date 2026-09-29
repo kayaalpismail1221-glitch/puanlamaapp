@@ -1,3 +1,4 @@
+import * as Clipboard from 'expo-clipboard';
 import * as Sharing from 'expo-sharing';
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
@@ -8,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SegmentedControl } from '@/components/segmented-control';
 import {
+  FavoritesStoryCard,
   ListStoryCard,
   MapStoryCard,
   PostStoryCard,
@@ -16,10 +18,13 @@ import {
   TopFiveCard,
   type StoryAuthor,
 } from '@/components/story-cards';
+import { logShare } from '@/api/growth';
 import { Button, LoadingView, Text } from '@/components/ui';
+import { inviteLink } from '@/constants/app';
 import { colors, radius, spacing } from '@/constants/theme';
 import { getPlace, useEntitiesVersion, usePlace, usePost } from '@/data/entities';
 import { useListDetails, useUserPosts } from '@/hooks/queries';
+import { useFavoritePlaces } from '@/hooks/use-favorite-places';
 import { useVisitedPlaces } from '@/hooks/use-visited-places';
 import { showAlert } from '@/lib/dialog';
 import { haptics } from '@/lib/haptics';
@@ -35,7 +40,7 @@ type Params = { tur?: StoryKind; gonderi?: string; liste?: string };
 /**
  * Instagram hikâyesi kartı oluşturma: kartı seç, önizle, 1080×1920 görsel olarak paylaş.
  * `gonderi` verilirse yalnızca o gönderinin kartı, `liste` verilirse o listenin kartı;
- * yoksa profil kartları (Favori 5, Lezzet haritası, Bu ay).
+ * yoksa profil kartları (Favori 4, En iyi 5, Lezzet haritası, Bu ay).
  * Paylaşım sistem menüsüyle yapılır; Instagram orada "Hikâye" seçeneğini sunar.
  */
 export default function StoryScreen() {
@@ -52,6 +57,7 @@ export default function StoryScreen() {
   const listQuery = useListDetails(params.liste);
   const listDetails = listQuery.data;
   const visited = useVisitedPlaces(me);
+  const favorites = useFavoritePlaces(me).items;
 
   const author: StoryAuthor = {
     name: profile?.name ?? '',
@@ -70,7 +76,12 @@ export default function StoryScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [scored, version],
   );
-  const top: ScoredPlace[] = dated;
+  const top = useMemo<ScoredPlace[]>(() => {
+    const sizes = new Map<string, number>();
+    for (const e of scored) sizes.set(e.segment, (sizes.get(e.segment) ?? 0) + 1);
+    const segmentSize = (placeId: string) => sizes.get(scored.find((e) => e.placeId === placeId)?.segment ?? '') ?? 0;
+    return [...dated].sort((a, b) => b.score - a.score || segmentSize(b.place.id) - segmentSize(a.place.id));
+  }, [dated, scored]);
 
   const map = useMemo(() => {
     const dots = cityDots(visited.items);
@@ -94,11 +105,12 @@ export default function StoryScreen() {
     if (params.gonderi) return ['post'];
     if (params.liste) return listDetails ? ['list'] : [];
     return [
+      ...(favorites.length ? (['favorites'] as const) : []),
       ...(top.length ? (['top5'] as const) : []),
       ...(visited.items.length ? (['map'] as const) : []),
       ...(recap ? (['recap'] as const) : []),
     ];
-  }, [params.gonderi, params.liste, listDetails, top.length, visited.items.length, recap]);
+  }, [params.gonderi, params.liste, listDetails, favorites.length, top.length, visited.items.length, recap]);
 
   const [picked, setPicked] = useState<StoryKind | undefined>(params.tur);
   const kind = picked && kinds.includes(picked) ? picked : kinds[0];
@@ -121,9 +133,11 @@ export default function StoryScreen() {
         }
       : undefined;
   const cardAuthor = listAuthor ?? author;
-  const expected = [cardAuthor.avatarUri, kind === 'post' ? post?.photos[0] : undefined].filter(
-    (u): u is string => !!u,
-  );
+  const expected = [
+    cardAuthor.avatarUri,
+    kind === 'post' ? post?.photos[0] : undefined,
+    ...(kind === 'favorites' ? favorites.map((f) => f.place.photoUrl) : []),
+  ].filter((u): u is string => !!u);
   const imagesReady = expected.every((u) => settled.has(u));
 
   /* ---------- Önizleme ölçeği ---------- */
@@ -135,6 +149,7 @@ export default function StoryScreen() {
 
   const cardRef = useRef<View>(null);
   const [busy, setBusy] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const share = async () => {
     if (!cardRef.current) return;
@@ -151,7 +166,14 @@ export default function StoryScreen() {
         result: 'tmpfile',
       });
       haptics.success();
+      const link = inviteLink();
+      if (link) {
+        await Clipboard.setStringAsync(link).catch(() => {});
+        setLinkCopied(true);
+      }
       await Sharing.shareAsync(uri, { mimeType: 'image/png', UTI: 'public.png', dialogTitle: t('story.share') });
+      // Menü sonucu bildirmez: paylaşılan kartın türü kaydedilir
+      logShare('story', { target: kind });
     } catch (error) {
       if (__DEV__) console.warn('[puanla] hikâye kartı', error);
       showAlert(t('story.failed'));
@@ -186,6 +208,8 @@ export default function StoryScreen() {
   const card =
     kind === 'post' && post && postPlace ? (
       <PostStoryCard {...common} post={post} place={postPlace} />
+    ) : kind === 'favorites' ? (
+      <FavoritesStoryCard {...common} items={favorites} />
     ) : kind === 'top5' ? (
       <TopFiveCard {...common} items={top} />
     ) : kind === 'map' ? (
@@ -231,7 +255,7 @@ export default function StoryScreen() {
           disabled={!imagesReady}
         />
         <Text variant="footnote" color={colors.textSecondary} align="center">
-          {t('story.hint')}
+          {linkCopied ? t('story.linkCopied') : t('story.hint')}
         </Text>
       </View>
     </View>

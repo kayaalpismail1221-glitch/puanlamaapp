@@ -59,7 +59,7 @@ export default function ProfilePhotoScreen() {
     <GestureDetector gesture={pan}>
       <View style={styles.container}>
         <Animated.View style={[StyleSheet.absoluteFill, backdropStyle]}>
-          <BlurView intensity={60} tint="systemThickMaterialLight" style={StyleSheet.absoluteFill} />
+          <BlurView intensity={60} tint="systemThickMaterial" style={StyleSheet.absoluteFill} />
         </Animated.View>
         <Pressable
           style={styles.center}

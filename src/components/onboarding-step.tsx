@@ -1,6 +1,6 @@
 import { useNavigation, type NativeStackNavigationProp } from 'expo-router';
 import type { ParamListBase } from 'expo-router/react-navigation';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/symbol';
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type ReactNode } from 'react';
 import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 import { KeyboardStickyView } from 'react-native-keyboard-controller';

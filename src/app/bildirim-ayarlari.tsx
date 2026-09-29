@@ -1,13 +1,13 @@
 import { useFocusEffect } from 'expo-router';
-import type { SFSymbol } from 'expo-symbols';
+import type { SFSymbol } from '@/components/symbol';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, Switch } from 'react-native';
+import { ScrollView } from 'react-native';
 
 import { showError } from '@/api/errors';
 import { setMutedKinds } from '@/api/notifications';
+import { Toggle } from '@/components/toggle';
 import { SettingsGroup, SettingsRow, settingsStyles } from '@/components/settings-list';
-import { colors } from '@/constants/theme';
 import { useMutedNotifications } from '@/hooks/queries';
 import { haptics } from '@/lib/haptics';
 import { enablePush, pushPermission, type PushPermission } from '@/lib/notifications';
@@ -87,11 +87,10 @@ export default function NotificationSettingsScreen() {
             label={t(`notifications.kinds.${kind}`)}
             last={i === KINDS.length - 1}
             accessory={
-              <Switch
+              <Toggle
                 value={!(muted.data ?? []).includes(kind)}
                 onValueChange={(on) => toggle(kind, on)}
                 disabled={!muted.data || !allowed}
-                trackColor={{ true: colors.primary }}
               />
             }
           />
