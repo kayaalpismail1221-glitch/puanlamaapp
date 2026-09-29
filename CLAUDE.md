@@ -31,6 +31,11 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
 - Güvenlik veritabanında: her tabloda RLS, türetilmiş alanlar (sayaçlar, puanlar) sütun yetkileriyle korunur.
   Uygulamadaki kontroller yalnızca kullanıcı deneyimi içindir.
 - Karmaşık okumalar görünüm/fonksiyon (`post_view`, `feed_popular`, `place_details`…) ile tek istekte yapılır.
+- **Ölçek:** sık çağrılan okuma tüm tabloyu taramaz (aynı anda binlerce kullanıcı). Toplamlar sayaçtan
+  (`places.rating_count/post_count`, `profiles.like_total/post_count/follower_count`, tetikleyicilerle), sıralama
+  indeksten (`posts.hot`), ağır hesap yalnızca aday kümesinde; `place_view` gibi pahalı görünümler sıralayıp kestikten
+  sonra birleştirilir (`materialized` CTE). Yabancı anahtarın indeksi olur (cascade silmeler taramasın). Yeni RPC
+  `npm run bench:db`'ye eklenir (PGlite'ta 20 bin kullanıcı/60 bin gönderi; süre veri büyüdükçe artmamalı).
 - İstemci katmanları: `src/api/*` (Supabase çağrıları) → `data/entities` (ortak önbellek) ve `hooks/queries`
   (TanStack Query) → ekranlar. Kullanıcının kendi verisi `store/app-store` içinde iyimser güncellenir.
 - Ekranlar Supabase'i doğrudan çağırmaz; `src/api` üzerinden gider. `src/types/database.ts` şemayla aynı tutulur.
@@ -46,8 +51,9 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
   `20260928100000_recs_moderation_admin` (telefon o an kapatılmıştı, `is_admin` + şikâyet kuyruğu RPC'leri,
   `recommended_places`), `20260929100000_phone_optional`, `20260930100000_notifications` (bildirimler, 2026-09-25 canlıda doğrulandı).
   `20261002100000_table_loop` (telefon doğrulama, rehber eşleştirme, davetler; 2026-09-25 canlıya uygulandı).
-  **Canlıya henüz uygulanmadı (2026-09-26):** `20261003100000_taste_match` (damak uyumu) ve `20261003110000_lists`
-  (paylaşılabilir listeler, `reports.list_id`). Sırayla SQL Editor'de çalıştırılmalı. Eski demo silindi; canlıda 12.146 OSM
+  **Canlıya henüz uygulanmadı (2026-09-29):** `20261003100000_taste_match` (damak uyumu), `20261003110000_lists`
+  (paylaşılabilir listeler, `reports.list_id`) ve `20261004100000_scale` (ölçek: sayaçlar, `posts.hot`, indeksler,
+  RPC'lerin indeksli hâlleri, eşzamanlı kayıtta kullanıcı adı çakışması). Sırayla SQL Editor'de çalıştırılmalı. Eski demo silindi; canlıda 12.146 OSM
   mekânı ve gerçek mekânlar üzerine yeni demo var (`npm run demo:seed`: 7 `@demo.puanla.app` hesabı, 25 gönderi).
 - Auth: e-posta/şifre açık, **Confirm email kapalı**. SMTP yok (Supabase SMTP'siz şablon düzenletmiyor ve
   varsayılan e-posta kod değil bağlantı gönderiyor). Bu yüzden `src/constants/features.ts` →
@@ -66,7 +72,8 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
   beğeni/kaydetme/yorum, şikâyet), RLS + sütun yetkileri, günlük sınırlar, sayaç tetikleyicileri; RPC'ler:
   `rank_place`, `create_post`, `feed_popular` (3→10→30 km, yoksa en yakın şehir), `feed_following`,
   `place_details`, `search_places` (Türkçe katlama + trigram + popülerlik), `search_users`, `suggested_users`,
-  `leaderboard`/`user_rank`, `saved_posts`, `delete_account`. PGlite+PostGIS ile 56 DB testi (`npm run test:db`).
+  `leaderboard`/`user_rank`, `saved_posts`, `delete_account`. PGlite+PostGIS ile 61 DB testi (`npm run test:db`),
+  yük ölçümü `npm run bench:db`.
 - Puan formülü istemci (`lib/ranking.ts` `scoreAt`) ve sunucu (`sentiment_score`) birebir aynı (tam sayı onda birlik).
 - Puanlama Beli tarzı kalır (kullanıcı kararı 2026-09-25; direkt 0–10 kaydırıcı denendi, vazgeçildi). Akış mantığı
   `hooks/use-rank-flow.ts`, görünüm `components/rank-steps.tsx` (`compact`). `degerlendir` tam ekran; gönderi ekranında
@@ -245,7 +252,9 @@ Tutunma tarafı: bildirimler ve rehber eşleştirme olmadan ağın ürettiği de
 
 ### Diğer ekranlar
 - **Sana özel öneriler** (`oneriler`, profilde 10 puandan sonra açılır): `recommended_places` — gitmediğin, arkadaş
-  (öncelikli) ya da topluluk ortalaması ≥ 6,7 mekânlar; sevdiğin mutfağa bonus, konum varsa uzaklık cezası.
+  (öncelikli) ya da topluluk ortalaması ≥ 6,7 mekânlar; sevdiğin mutfağa bonus, konum varsa uzaklık cezası. Adaylar:
+  arkadaşların en beğendiği 200 mekân + en çok puanlanan 100 (genel) + 150 (~15 km); topluluk ortalaması mekânın en
+  yeni 100 puanından.
 - **Paylaşım** `lib/share.ts`: profil, gönderi (… menüsü), mekân (sağ üst) → metin + `appLink()` (`puanla://…`,
   Expo Router rotalarını doğrudan açar). Alan adı gelince `constants/app.ts` → `appLink` https evrensel bağlantıya çevrilir.
 - **Bildirimler** (migration `20260930100000_notifications`): `notifications` tablosunu yalnızca tetikleyiciler yazar
@@ -259,8 +268,13 @@ Tutunma tarafı: bildirimler ve rehber eşleştirme olmadan ağın ürettiği de
   Feed'de zil + okunmamış rozeti. APNs anahtarı EAS build sırasında kurulur; yeni build gerekir.
 - **Feed mekaniği (akıcılık):** FlashList (`getItemType` foto/fotosuz), `PostCard` memo ve yalnızca kendi beğeni/kaydetme
   durumunu dinler (`useAppSelector` / `useAppActions`; uzun listelerde `useAppStore` kullanma, her değişimde yeniden çizer).
-  Popüler feed sabit anda sıralanır (`feed_popular(..., p_as_of)`, migration `20261001100000_feed_as_of`; yanıttaki `as_of`
-  sonraki sayfalarda geri yollanır), istemci ayrıca tekrarları ayıklar. Yenileme yalnızca ilk sayfayı çeker (`restart`).
+  Popüler sıra `posts.hot` (üretilen sütun, `hot_rank`: ln(1 + beğeni + 2×yorum) + yaş; etkileşim 3 katına çıkınca
+  gönderi 1 gün daha yeni sayılır; zamandan bağımsız olduğu için indeksli, sayfalar kaymaz). Bölge yoğunsa indeksten
+  okunur, seyrekse bölge toplanıp sıralanır (migration `20261004100000_scale`). `p_as_of` sonradan paylaşılanları o
+  oturumun sayfalarından uzak tutar (yanıttaki `as_of` geri yollanır), istemci ayrıca tekrarları ayıklar. Yenileme
+  yalnızca ilk sayfayı çeker (`restart`); feed'ler 2 dk taze sayılır (ön plana her dönüşte tüm sayfalar çekilmez).
+  Beğeni/kaydetme/takip/puan istekleri öğe başına sırayla gider (`serial`, app-store): hızlı art arda dokunuşta ters
+  sırayla sunucuya ulaşmaz.
   Fotoğraf: küçük kopya `placeholder`, `recyclingKey`, yeni sayfanın görselleri diske önceden indirilir; karusel genişliği
   ekrandan. Açılışta açılış görseli yalnızca oturum/tercih okunana kadar; veri beklenirken `LaunchSkeleton`.
 - **Masa döngüsü ve rehber** (migration `20261002100000_table_loop`, `app.json` 1.0.1: `expo-contacts` yeni build ister):
