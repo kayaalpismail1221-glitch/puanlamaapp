@@ -42,6 +42,12 @@ async function restartFeed(queryKey: QueryKey, refetch: () => Promise<unknown>) 
   await refetch();
 }
 
+/**
+ * Feed'ler 2 dakika taze sayılır: uygulamaya her dönüşte yüklenmiş tüm sayfalar yeniden çekilmesin
+ * (binlerce kullanıcıda sunucu yükünü katlıyordu). Aşağı çekince her zaman yenilenir.
+ */
+const FEED_STALE_TIME = 2 * 60_000;
+
 export function usePopularFeed(area: FeedArea, coords: Coords | null, enabled: boolean) {
   // Konum küçük oynamalarda feed'i baştan yüklemesin (~1 km hassasiyet)
   const rounded = roundCoords(coords);
@@ -52,6 +58,7 @@ export function usePopularFeed(area: FeedArea, coords: Coords | null, enabled: b
     initialPageParam: { offset: 0 } as api.PopularCursor,
     getNextPageParam: (last) => last.next,
     enabled: enabled && (area.type === 'area' || !!rounded),
+    staleTime: FEED_STALE_TIME,
   });
   return { ...query, restart: () => restartFeed(queryKey, query.refetch) };
 }
@@ -63,6 +70,7 @@ export function useFollowingFeed(enabled = true) {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => (last.length >= 20 ? last.at(-1)!.createdAt : undefined),
     enabled,
+    staleTime: FEED_STALE_TIME,
   });
   return { ...query, restart: () => restartFeed(keys.feedFollowing(), query.refetch) };
 }
@@ -157,8 +165,8 @@ export function useAddComment(postId: string) {
     mutationFn: (text: string) => api.addComment(postId, text),
     onSuccess: (comment) => {
       queryClient.setQueryData(keys.comments(postId), (old: Comment[] | undefined) => [...(old ?? []), comment]);
+      // Sayaç önbellekte güncellenir; tüm popüler feed sayfalarını yeniden çekmeye gerek yok
       adjustCommentCount(postId, 1);
-      queryClient.invalidateQueries({ queryKey: ['feed', 'popular'] });
     },
   });
 }
@@ -195,6 +203,8 @@ export function useRecommendations(enabled: boolean) {
     queryKey: keys.recommendations(rounded),
     queryFn: () => api.fetchRecommendations(rounded),
     enabled: enabled && settled,
+    // Öneriler yavaş değişir; her ekran açılışında yeniden hesaplanmasın
+    staleTime: 5 * 60_000,
   });
 }
 

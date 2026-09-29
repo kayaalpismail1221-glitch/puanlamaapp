@@ -1128,3 +1128,131 @@ describe('hesap', () => {
     });
   });
 });
+
+describe('ölçek: sayaçlar ve indeksli okumalar', () => {
+  /** Sayaçlar gerçek kayıtlarla birebir aynı mı (tüm tablo) */
+  async function assertCountersConsistent() {
+    const { rows: bad } = await db.query(`
+      select 'place' as kind, pl.id from places pl
+      where pl.rating_count <> (select count(*) from rankings r where r.place_id = pl.id)
+         or pl.post_count <> (select count(*) from posts p where p.place_id = pl.id)
+      union all
+      select 'profile', pr.id from profiles pr
+      where pr.like_total <> coalesce((select sum(p.like_count) from posts p where p.user_id = pr.id), 0)
+         or pr.post_count <> (select count(*) from posts p where p.user_id = pr.id)`);
+    assert.deepEqual(bad, []);
+  }
+
+  test('puan, gönderi, beğeni ve silmelerde sayaçlar tutarlı kalır; istemci yazamaz', async () => {
+    await assertCountersConsistent();
+    const me = await signUp({ name: 'Sayaç Sahibi' });
+    const fan = await signUp({ name: 'Sayaç Hayranı' });
+    await as(me, `select rank_place($1, 'liked', 0)`, [PLACE(4)]);
+    await as(me, `select rank_place($1, 'fine', 0)`, [PLACE(4)]); // yeniden puanlama sayıyı artırmaz
+    await as(fan, `select rank_place($1, 'liked', 0)`, [PLACE(4)]);
+    const postId = randomUUID();
+    await as(me, `select create_post($1, $2)`, [postId, PLACE(4)]);
+    await as(fan, `insert into post_likes (post_id) values ($1)`, [postId]);
+    await as(me, `insert into post_likes (post_id) values ($1)`, [postId]);
+    await assertCountersConsistent();
+    assert.equal((await one(me, 'select like_total from profiles where id = $1', [me])).like_total, 2);
+
+    await as(fan, `delete from post_likes where post_id = $1`, [postId]);
+    await as(fan, `select unrank_place($1)`, [PLACE(4)]);
+    await assertCountersConsistent();
+    // Gönderi silinince beğenileri de gider; toplam beğeni düşer
+    await as(me, `delete from posts where id = $1`, [postId]);
+    await assertCountersConsistent();
+    assert.equal((await one(me, 'select like_total from profiles where id = $1', [me])).like_total, 0);
+
+    await rejects(as(me, `update profiles set like_total = 999 where id = $1`, [me]), /42501/);
+    await rejects(as(me, `update places set rating_count = 999 where id = $1`, [PLACE(4)]), /42501/);
+    await rejects(as(me, `update posts set hot = 999 where user_id = $1`, [me]), /42501|428C9/);
+  });
+
+  test('popüler feed sıcaklığa göre sıralı ve eksiksiz; yoğun ve seyrek bölgede aynı sonuç', async () => {
+    const me = await signUp({ name: 'Sıcaklık' });
+    for (const [lat, lng] of [
+      [KADIKOY.lat, KADIKOY.lng],
+      [41.04, 29.0],
+    ]) {
+      const feed = (await one(me, 'select feed_popular($1, $2, p_limit => 50) as f', [lat, lng])).f;
+      const { rows: expected } = await db.query(
+        `select p.id from posts p join places pl on pl.id = p.place_id
+         where extensions.st_dwithin(pl.location, extensions.st_setsrid(extensions.st_makepoint($2, $1), 4326)::extensions.geography, $3 * 1000)
+         order by p.hot desc limit 50`,
+        [lat, lng, feed.radius_km],
+      );
+      assert.deepEqual(feed.entries.map((e) => e.post.id), expected.map((r) => r.id));
+      // Küçük sayfa: bölge toplanmadan sıcaklık indeksinden okunur; aynı sıra
+      const page = (await one(me, 'select feed_popular($1, $2, p_offset => 1, p_limit => 2) as f', [lat, lng])).f;
+      assert.deepEqual(page.entries.map((e) => e.post.id), expected.slice(1, 3).map((r) => r.id));
+    }
+    const city = (await one(me, `select feed_popular(p_city => 'İstanbul', p_limit => 50) as f`)).f;
+    const { rows: cityExpected } = await db.query(
+      `select p.id from posts p join places pl on pl.id = p.place_id where pl.city = 'İstanbul' order by p.hot desc limit 50`,
+    );
+    assert.deepEqual(city.entries.map((e) => e.post.id), cityExpected.map((r) => r.id));
+
+    // Etkileşim sıcaklığı artırır; aynı yaşta daha çok etkileşim alan önde
+    const hot = async (id) => (await db.query('select hot from posts where id = $1', [id])).rows[0].hot;
+    const last = city.entries.at(-1).post.id;
+    const before = await hot(last);
+    const fan = await signUp({ name: 'Beğenen' });
+    await as(fan, `insert into post_likes (post_id) values ($1)`, [last]);
+    await as(fan, `insert into comments (post_id, body) values ($1, 'Harika')`, [last]);
+    assert.ok((await hot(last)) > before);
+    const { rows: same } = await db.query(
+      `select hot_rank(10, 0, now()) > hot_rank(0, 0, now()) as a,
+              hot_rank(0, 0, now()) > hot_rank(0, 0, now() - interval '1 hour') as b,
+              abs(hot_rank(2, 0, now() - interval '1 day') - hot_rank(0, 0, now())) < 1e-9 as c`,
+    );
+    assert.deepEqual(same[0], { a: true, b: true, c: true });
+  });
+
+  test('aynı anda aynı kullanıcı adıyla kayıt: ikincisi düşmez, sıradaki boş ad verilir', async () => {
+    // Yarışı taklit: ilk denemede kullanıcı adı üretici, bu arada başkasının aldığı adı döndürür
+    const id = randomUUID();
+    await db
+      .transaction(async (tx) => {
+        await tx.exec(`
+          create temp sequence username_calls;
+          alter function public.unique_username(text) rename to unique_username_real;
+          create function public.unique_username(base text) returns text language sql as $$
+            select case when nextval('pg_temp.username_calls') = 1 then 'zeynepyer' else public.unique_username_real(base) end
+          $$;`);
+        await tx.query(`insert into auth.users (id, email, raw_user_meta_data) values ($1, $2, $3)`, [
+          id,
+          `${id}@test.dev`,
+          { name: 'Zeynep Yarış', username: 'zeynepyer' },
+        ]);
+        const { rows: created } = await tx.query('select username from profiles where id = $1', [id]);
+        assert.match(created[0].username, /^zeynepyer\d+$/);
+        await tx.rollback();
+      })
+      .catch((error) => {
+        if (!/rollback/i.test(String(error?.message))) throw error;
+      });
+    assert.equal((await db.query('select 1 from profiles where id = $1', [id])).rows.length, 0);
+  });
+
+  test('aramada % ve _ harfiyen aranır', async () => {
+    const me = await signUp({ name: 'Joker' });
+    assert.equal((await rows(me, `select id from search_places('%')`)).length, 0);
+    assert.equal((await rows(me, `select id from search_places('_')`)).length, 0);
+    assert.equal((await rows(me, `select id from search_users('%')`)).length, 0);
+  });
+
+  test('liderlikte ilk sıralarda olmayan kullanıcının satırı ve sırası', async () => {
+    const me = await signUp({ name: 'Sondaki' });
+    await as(me, `select rank_place($1, 'liked', 0)`, [PLACE(5)]);
+    await as(me, `select create_post($1, $2)`, [randomUUID(), PLACE(5)]);
+    const board = await rows(me, `select * from leaderboard('all', 'all', null, 1)`);
+    const mine = board.find((e) => e.user_id === me);
+    assert.ok(board.length === 2 && mine);
+    assert.equal(mine.reviews, 1);
+    assert.equal(mine.rank, (await one(me, 'select user_rank($1) as r', [me])).r);
+    const full = await rows(me, `select * from leaderboard('all', 'all', null, 500)`);
+    assert.equal(full.find((e) => e.user_id === me).rank, mine.rank);
+  });
+});

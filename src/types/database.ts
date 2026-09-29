@@ -24,6 +24,8 @@ export type ProfileRow = {
   follower_count: number;
   following_count: number;
   post_count: number;
+  /** Gönderilerinin aldığı toplam beğeni (tetikleyiciyle) */
+  like_total: number;
   created_at: string;
   updated_at: string;
   search_text: string;
@@ -46,6 +48,9 @@ export type PlaceRow = {
   created_by: string | null;
   created_at: string;
   search_text: string;
+  /** Sayaçlar (tetikleyicilerle) */
+  rating_count: number;
+  post_count: number;
 };
 
 /** place_view satırı (görünümlerde gömülü `place` alanı da bu biçimde) */
@@ -328,6 +333,8 @@ export type Database = {
           comment_count: number;
           created_at: string;
           updated_at: string;
+          /** Sıcaklık (üretilen sütun, popüler feed sırası) */
+          hot: number;
         },
         never,
         {
