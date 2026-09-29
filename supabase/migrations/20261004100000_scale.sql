@@ -127,9 +127,12 @@ create index posts_hot_idx on public.posts (hot desc);
 create index places_posted_location_idx on public.places using gist (location) where post_count > 0;
 create index places_posted_area_idx on public.places (city, district) where post_count > 0;
 
-drop function public.feed_popular(double precision, double precision, text, text, integer, integer, timestamptz);
-drop function public.hot_score(integer, integer, timestamptz);
-drop function public.hot_score_at(integer, integer, timestamptz, timestamptz);
+-- Eski imzalar (20261001100000_feed_as_of uygulanmamış olsa da çalışsın; iki imza kalırsa API hangisini
+-- çağıracağını seçemez)
+drop function if exists public.feed_popular(double precision, double precision, text, text, integer, integer);
+drop function if exists public.feed_popular(double precision, double precision, text, text, integer, integer, timestamptz);
+drop function if exists public.hot_score(integer, integer, timestamptz);
+drop function if exists public.hot_score_at(integer, integer, timestamptz, timestamptz);
 
 /**
  * Popüler feed (sözleşme aynı).
@@ -697,7 +700,7 @@ $$;
 create index places_rated_coords_idx on public.places (latitude, longitude) where rating_count > 0;
 create index places_rated_count_idx on public.places (rating_count desc) where rating_count > 0;
 create index rankings_place_recent_idx on public.rankings (place_id, rated_at desc);
-drop index public.rankings_place_idx;
+drop index if exists public.rankings_place_idx;
 
 /**
  * Harita "Puanla" katmanı (sözleşme aynı): görünen bölgede en çok puanlanan mekânlar ve topluluk ortalaması.
