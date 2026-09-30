@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { ScrollView } from 'react-native';
 
+import { BottomInsetSpacer } from '@/components/bottom-inset';
 import { SettingsGroup, SettingsRow, settingsStyles } from '@/components/settings-list';
 import { LANGUAGES, setLanguagePreference, systemLanguage, useLanguagePreference, type LanguagePreference } from '@/i18n';
 import { haptics } from '@/lib/haptics';
@@ -45,6 +46,7 @@ export default function LanguageScreen() {
           />
         ))}
       </SettingsGroup>
+      <BottomInsetSpacer />
     </ScrollView>
   );
 }

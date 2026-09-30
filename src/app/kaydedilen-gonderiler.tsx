@@ -1,7 +1,9 @@
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet } from 'react-native';
 
+import { BottomInsetSpacer } from '@/components/bottom-inset';
 import { PostGrid } from '@/components/post-grid';
+import { ErrorView } from '@/components/ui';
 import { colors } from '@/constants/theme';
 import { PostGridSkeleton, SkeletonScreen } from '@/components/skeleton';
 import { useSavedPosts } from '@/hooks/queries';
@@ -14,6 +16,7 @@ export default function SavedPostsScreen() {
   const saved = useSavedPosts();
   const posts = (saved.data ?? []).filter(isPostSaved);
 
+  if (saved.isError) return <ErrorView onRetry={() => saved.refetch()} style={styles.container} />;
   if (saved.isPending) {
     return (
       <SkeletonScreen>
@@ -25,6 +28,7 @@ export default function SavedPostsScreen() {
   return (
     <ScrollView style={styles.container} contentInsetAdjustmentBehavior="automatic">
       <PostGrid posts={posts} emptyText={t('savedPosts.empty')} />
+      <BottomInsetSpacer />
     </ScrollView>
   );
 }

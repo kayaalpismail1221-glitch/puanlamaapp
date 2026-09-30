@@ -1,18 +1,20 @@
 import { router, Stack } from 'expo-router';
-import { SymbolView, type SFSymbol } from 'expo-symbols';
+import { SymbolView, type SFSymbol } from '@/components/symbol';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActionSheetIOS, Alert, FlatList, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { FlatList, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
+import { HeaderIconButton } from '@/components/header-button';
 import { ListStrip } from '@/components/list-card';
 import { SavedPlaceCard } from '@/components/saved-place-card';
 import { Button, Divider, PlaceImage, PressableScale, Text } from '@/components/ui';
 import { cuisineLabel } from '@/constants/cuisines';
-import { colors, hitSlop, radius, spacing } from '@/constants/theme';
+import { colors, fixed, hitSlop, radius, spacing } from '@/constants/theme';
 import { getPlace, useEntitiesVersion, usePrefetchPlaces } from '@/data/entities';
 import { useFriendScores, useSavedLists, useSavedPosts } from '@/hooks/queries';
 import { useClipboardHasUrl } from '@/lib/clipboard';
+import { showMenu } from '@/lib/dialog';
 import { formatScore } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
 import { linkSource } from '@/lib/links';
@@ -97,58 +99,50 @@ export default function SavedListScreen() {
     setSource(null);
   };
 
-  const chooseSort = () => {
-    const keys = SORTS;
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          title: t('list.sort.title'),
-          options: [...keys.map((k) => (k === sort ? `✓ ${sortLabel(k)}` : sortLabel(k))), t('common.cancel')],
-          cancelButtonIndex: keys.length,
-          tintColor: colors.primary,
-        },
-        (i) => keys[i] && setSort(keys[i]),
-      );
-    } else {
-      Alert.alert(t('list.sort.title'), undefined, keys.map((k) => ({ text: sortLabel(k), onPress: () => setSort(k) })));
-    }
-  };
-
-  const openAddMenu = () => {
-    if (Platform.OS !== 'ios') return addSocial();
-    ActionSheetIOS.showActionSheetWithOptions(
-      {
-        options: [t('list.addFromSocial'), t('list.searchAndSave'), t('common.cancel')],
-        cancelButtonIndex: 2,
-        tintColor: colors.primary,
-      },
-      (i) => {
-        if (i === 0) addSocial();
-        if (i === 1) addApp();
-      },
+  const chooseSort = () =>
+    showMenu(
+      t('list.sort.title'),
+      SORTS.map((k) => ({ label: sortLabel(k), selected: k === sort, onPress: () => setSort(k) })),
     );
-  };
+
+  const openAddMenu = () =>
+    showMenu(undefined, [
+      { icon: 'link', label: t('list.addFromSocial'), onPress: addSocial },
+      { icon: 'magnifyingglass', label: t('list.searchAndSave'), onPress: addApp },
+    ]);
 
   const filtersActive = !!cuisine || !!source;
+
+  const showOnMap = () => router.navigate({ pathname: '/harita', params: { filtre: 'want' } });
 
   return (
     <>
       <Stack.Screen
-        options={{
-          headerLeft: () => (
-            <PressableScale
-              onPress={() => router.navigate({ pathname: '/harita', params: { filtre: 'want' } })}
-              hitSlop={hitSlop}
-              accessibilityLabel={t('list.showOnMap')}>
-              <SymbolView name="map" tintColor={colors.primary} size={22} />
-            </PressableScale>
-          ),
-          headerRight: () => (
-            <PressableScale onPress={openAddMenu} hitSlop={hitSlop} accessibilityLabel={t('screens.addToList')}>
-              <SymbolView name="plus" tintColor={colors.primary} size={22} weight="semibold" />
-            </PressableScale>
-          ),
-        }}
+        options={
+          Platform.OS === 'android'
+            ? {
+                // Material üst çubuğu: başlık solda, eylemler sağda
+                headerRight: () => (
+                  <View style={styles.headerActions}>
+                    <HeaderIconButton icon="map" onPress={showOnMap} accessibilityLabel={t('list.showOnMap')} side="inner" />
+                    <HeaderIconButton icon="plus" onPress={openAddMenu} accessibilityLabel={t('screens.addToList')} side="right" />
+                  </View>
+                ),
+              }
+            : {
+                // Harita ve ekleme yan yana sağ üstte (iOS 26'da tek cam grup)
+                headerRight: () => (
+                  <View style={styles.headerActionsIOS}>
+                    <PressableScale onPress={showOnMap} hitSlop={hitSlop} accessibilityLabel={t('list.showOnMap')}>
+                      <SymbolView name="map" tintColor={colors.primary} size={22} />
+                    </PressableScale>
+                    <PressableScale onPress={openAddMenu} hitSlop={hitSlop} accessibilityLabel={t('screens.addToList')}>
+                      <SymbolView name="plus" tintColor={colors.primary} size={22} weight="semibold" />
+                    </PressableScale>
+                  </View>
+                ),
+              }
+        }
       />
       <FlatList
         data={rows}
@@ -230,11 +224,11 @@ export default function SavedListScreen() {
                         style={styles.postTile}>
                         <PlaceImage uri={p.thumbs[0] ?? place?.thumbUrl} style={StyleSheet.absoluteFill} />
                         <View style={styles.postShade}>
-                          <Text variant="caption" color={colors.onPrimary} numberOfLines={1} style={styles.bold}>
+                          <Text variant="caption" color={fixed.white} numberOfLines={1} style={styles.bold}>
                             {place?.name}
                           </Text>
                           {p.score !== undefined && (
-                            <Text variant="caption" color={colors.onPrimary}>
+                            <Text variant="caption" color={fixed.white}>
                               {formatScore(p.score)}
                             </Text>
                           )}
@@ -375,12 +369,12 @@ function FilterChip({ label, active, onPress }: { label: string; active: boolean
   );
 }
 
-/** Sosyal medya bölümü boşken: 3 adımda nasıl kaydedilir */
+/** Sosyal medya bölümü boşken: Instagram/TikTok'tan Paylaş → Puanla ile 3 adımda nasıl kaydedilir */
 function SocialEmpty() {
   const { t } = useTranslation();
   const steps: { icon: SFSymbol; text: string }[] = [
-    { icon: 'camera', text: t('list.socialStep1') },
-    { icon: 'link', text: t('list.socialStep2') },
+    { icon: 'play.rectangle.on.rectangle', text: t(Platform.OS === 'android' ? 'list.socialStep1Android' : 'list.socialStep1') },
+    { icon: 'square.and.arrow.up', text: t('list.socialStep2') },
     { icon: 'bookmark.fill', text: t('list.socialStep3') },
   ];
   return (
@@ -403,7 +397,19 @@ function SocialEmpty() {
           </View>
         ))}
       </View>
-      <Button title={t('list.addFromSocial')} icon="plus" onPress={() => addSocial()} style={styles.emptyButton} />
+      <Text variant="footnote" color={colors.textSecondary} align="center">
+        {t(Platform.OS === 'android' ? 'list.socialTipAndroid' : 'list.socialTip')}
+      </Text>
+      <View style={styles.emptyButtons}>
+        <Button title={t('list.addFromSocial')} icon="plus" onPress={() => addSocial()} />
+        {/* İkincil yol: bağlantı yoksa mekânı arayıp kaydet. iOS'ta gri dolgulu, Android'de Material çerçeveli düğme */}
+        <Button
+          title={t('list.searchAndSave')}
+          icon="magnifyingglass"
+          variant={Platform.OS === 'android' ? 'outline' : 'secondary'}
+          onPress={addApp}
+        />
+      </View>
     </View>
   );
 }
@@ -426,6 +432,16 @@ function AppEmpty() {
 }
 
 const styles = StyleSheet.create({
+  headerActions: {
+    flexDirection: 'row',
+  },
+  // iOS 26 iki düğmeyi tek cam kapsüle alır; kapsül sıkışık durmasın diye aralık ve yan pay geniş
+  headerActionsIOS: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xl,
+    paddingHorizontal: spacing.sm,
+  },
   header: {
     gap: spacing.md,
     paddingBottom: spacing.xs,
@@ -580,6 +596,11 @@ const styles = StyleSheet.create({
   emptyButton: {
     alignSelf: 'stretch',
     marginTop: spacing.sm,
+  },
+  emptyButtons: {
+    alignSelf: 'stretch',
+    marginTop: spacing.sm,
+    gap: spacing.md,
   },
   hint: {
     padding: spacing.xl,

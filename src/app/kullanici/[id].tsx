@@ -1,22 +1,22 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { BottomInsetSpacer } from '@/components/bottom-inset';
+import { HeaderAction } from '@/components/header-button';
+import { FavoritePlaces } from '@/components/favorite-places';
 import { ProfileLists } from '@/components/list-card';
 import { PostGrid } from '@/components/post-grid';
-import { MenuRow, ProfileIdentity, SchoolChip, StatCard, TasteCard, TopThree } from '@/components/profile-parts';
+import { MenuRow, ProfileIdentity, RankStreakCards, SchoolChip } from '@/components/profile-parts';
 import { ProfileStats } from '@/components/profile-stats';
 import { PostGridSkeleton, ProfileSkeleton } from '@/components/skeleton';
-import { Button, Divider, ErrorView, PressableScale, Text } from '@/components/ui';
+import { Button, Divider, ErrorView,  Text } from '@/components/ui';
 import { TasteMatchRow } from '@/components/taste-match';
 import { FollowButton } from '@/components/user-row';
 import { VisitedMap } from '@/components/visited-map';
-import { colors, hitSlop, radius, spacing } from '@/constants/theme';
-import { getPlace, useEntitiesVersion } from '@/data/entities';
-import { useUserPosts, useUserProfile, useUserRank, useUserRankings } from '@/hooks/queries';
-import { tasteProfile, type ScoredPlace } from '@/lib/insights';
+import { colors,  radius, spacing } from '@/constants/theme';
+import { useUserPosts, useUserProfile, useUserRankings } from '@/hooks/queries';
 import { confirmBlock, openReportMenu, showMenu } from '@/lib/moderation';
 import { queryClient } from '@/lib/query-client';
 import { shareProfile } from '@/lib/share';
@@ -32,20 +32,8 @@ export default function UserProfileScreen() {
   const profile = useUserProfile(id);
   const postsQuery = useUserPosts(id);
   const rankings = useUserRankings(id);
-  const rank = useUserRank(id).data;
-  const version = useEntitiesVersion();
 
   const userPosts = useMemo(() => postsQuery.data ?? [], [postsQuery.data]);
-  const beenPlaces = useMemo<ScoredPlace[]>(
-    () =>
-      (rankings.data ?? []).flatMap((r) => {
-        const place = getPlace(r.placeId);
-        return place ? [{ place, score: r.score }] : [];
-      }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rankings.data, version],
-  );
-  const taste = useMemo(() => tasteProfile(beenPlaces), [beenPlaces]);
   const streak = weeklyStreak([...userPosts.map((p) => p.createdAt), ...(rankings.data ?? []).map((r) => r.ratedAt)]);
 
   const user = profile.data;
@@ -65,10 +53,10 @@ export default function UserProfileScreen() {
   // Kullanıcı içeriği güvenliği: profilden şikâyet ve engelleme
   const openMenu = () =>
     showMenu(undefined, [
-      { label: t('common.share'), onPress: share },
-      { label: t('moderation.reportUser'), destructive: true, onPress: () => openReportMenu({ userId: user.id }) },
+      { icon: 'square.and.arrow.up', label: t('common.share'), onPress: share },
+      { icon: 'exclamationmark.bubble', label: t('moderation.reportUser'), destructive: true, onPress: () => openReportMenu({ userId: user.id }) },
       {
-        label: t('moderation.blockUser', { name: user.name.split(' ')[0] }),
+        icon: 'hand.raised', label: t('moderation.blockUser', { name: user.name.split(' ')[0] }),
         destructive: true,
         onPress: () =>
           confirmBlock(user, () => {
@@ -86,9 +74,12 @@ export default function UserProfileScreen() {
           title: '',
           headerRight: () =>
             isMe(user.id) ? null : (
-              <PressableScale onPress={openMenu} hitSlop={hitSlop} accessibilityLabel={t('moderation.options')}>
-                <SymbolView name="ellipsis.circle" tintColor={colors.text} size={22} />
-              </PressableScale>
+              <HeaderAction
+                icon="ellipsis.circle"
+                tintColor={colors.text}
+                onPress={openMenu}
+                accessibilityLabel={t('moderation.options')}
+              />
             ),
         }}
       />
@@ -115,10 +106,19 @@ export default function UserProfileScreen() {
         <ProfileStats userId={user.id} />
 
         <View style={styles.buttons}>
-          <View style={styles.flex}>
-            <FollowButton userId={user.id} large />
-          </View>
-          <Button title={t('common.share')} variant="outline" size="sm" onPress={share} style={styles.share} />
+          {/* Kendi profil bağlantısı açılınca kendini takip et düğmesi çıkmasın */}
+          {!isMe(user.id) && (
+            <View style={styles.flex}>
+              <FollowButton userId={user.id} large />
+            </View>
+          )}
+          <Button
+            title={t('common.share')}
+            variant="outline"
+            size="sm"
+            onPress={share}
+            style={[styles.share, isMe(user.id) && styles.flex]}
+          />
         </View>
 
         <View style={styles.menu}>
@@ -143,27 +143,11 @@ export default function UserProfileScreen() {
           <Divider />
         </View>
 
-        <TopThree items={beenPlaces} title={t('user.topThree', { name: user.name.split(' ')[0] })} />
+        <FavoritePlaces userId={user.id} name={user.name} mine={isMe(user.id)} />
+
+        <RankStreakCards userId={user.id} streak={streak} />
 
         <ProfileLists userId={user.id} name={user.name} mine={isMe(user.id)} />
-
-        <View style={styles.cards}>
-          <StatCard
-            icon="trophy"
-            title={t('me.ranking')}
-            value={rank ? `#${rank}` : undefined}
-            locked={!rank}
-            onPress={() =>
-              router.push({
-                pathname: '/siralama',
-                params: { vurgula: user.id },
-              })
-            }
-          />
-          <StatCard icon="flame" title={t('me.streak')} value={t('me.weeks', { count: streak })} />
-        </View>
-
-        <TasteCard slices={taste} title={t('user.taste')} />
 
         <VisitedMap userId={user.id} name={user.name} />
 
@@ -172,6 +156,7 @@ export default function UserProfileScreen() {
         </Text>
         {postsQuery.isPending ? <PostGridSkeleton count={6} /> : <PostGrid posts={userPosts} emptyText={t('user.noPosts')} />}
         <View style={{ height: spacing.xxl }} />
+        <BottomInsetSpacer />
       </ScrollView>
     </>
   );
@@ -210,12 +195,6 @@ const styles = StyleSheet.create({
   },
   menu: {
     marginTop: spacing.xl,
-  },
-  cards: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
   },
   postsTitle: {
     paddingHorizontal: spacing.lg,

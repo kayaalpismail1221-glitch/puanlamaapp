@@ -3,9 +3,10 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, StyleSheet } from 'react-native';
 
+import { BottomInsetSpacer } from '@/components/bottom-inset';
 import { PlaceRow } from '@/components/place-row';
 import { PlaceRowsSkeleton } from '@/components/skeleton';
-import { Button, Divider, ScoreBadge, Text } from '@/components/ui';
+import { Button, Divider, ErrorView, ScoreBadge, Text } from '@/components/ui';
 import { colors, spacing } from '@/constants/theme';
 import { getPlace, useEntitiesVersion, usePrefetchPlaces, useUser } from '@/data/entities';
 import { useUserRankings } from '@/hooks/queries';
@@ -57,6 +58,8 @@ export default function BeenScreen() {
         ListEmptyComponent={
           !mine && others.isPending ? (
             <PlaceRowsSkeleton />
+          ) : !mine && others.isError ? (
+            <ErrorView onRetry={() => others.refetch()} />
           ) : (
             <Text variant="subhead" color={colors.textSecondary} align="center" style={styles.empty}>
               {t('beenTo.empty')}
@@ -64,15 +67,18 @@ export default function BeenScreen() {
           )
         }
         ListFooterComponent={
-          mine ? (
-            <Button
-              title={t('beenTo.ratePlace')}
-              icon="plus"
-              variant="secondary"
-              onPress={() => router.push('/mekan-puanla')}
-              style={styles.add}
-            />
-          ) : null
+          <>
+            {mine ? (
+              <Button
+                title={t('beenTo.ratePlace')}
+                icon="plus"
+                variant="secondary"
+                onPress={() => router.push('/mekan-puanla')}
+                style={styles.add}
+              />
+            ) : null}
+            <BottomInsetSpacer />
+          </>
         }
         renderItem={({ item, index }) => (
           <PlaceRow

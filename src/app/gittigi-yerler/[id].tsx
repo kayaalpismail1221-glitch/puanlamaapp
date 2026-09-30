@@ -1,17 +1,17 @@
-import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
-import { useMemo, useState } from 'react';
+import { router, useLocalSearchParams, useNavigation } from 'expo-router';
+import { SymbolView } from '@/components/symbol';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
+import { BottomInsetSpacer } from '@/components/bottom-inset';
 import { PlaceRow } from '@/components/place-row';
 import { PostGrid } from '@/components/post-grid';
 import { SegmentedControl } from '@/components/segmented-control';
 import { MapListSkeleton } from '@/components/skeleton';
 import { Divider, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { WorldMap } from '@/components/world-map';
-import { cuisineLabel } from '@/constants/cuisines';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
 import { useUser } from '@/data/entities';
 import { useVisitedPlaces } from '@/hooks/use-visited-places';
@@ -30,13 +30,11 @@ import { fitView, MIN_MAP_VIEW_WIDTH } from '@/lib/world-projection';
 
 const ASPECT = 1.3;
 
-/** Mutfak satırlarında veritabanındaki Türkçe ad etkin dile çevrilir */
-const rowLabel = (kind: BreakdownKind, label: string) => (kind === 'cuisine' ? cuisineLabel(label) : label);
-
 type Selection = { kind: BreakdownKind; key: string };
 
 /**
- * Lezzet haritasının büyük hâli: çizim tarzı harita + mutfak / şehir / ilçe kırılımı.
+ * Lezzet haritasının büyük hâli: üstte şehir · mekân · gönderi sayıları, çizim tarzı harita + şehir / ilçe kırılımı;
+ * sağ üstte paylaş (hikâye kartı, kaydet, mesaj, bağlantı).
  * Bir şehir noktasına ya da satıra dokununca oradaki gönderiler çıkar; gönderiye dokununca açılır.
  */
 export default function VisitedPlacesScreen() {
@@ -44,7 +42,6 @@ export default function VisitedPlacesScreen() {
   const { t } = useTranslation();
   const { width: screenWidth } = useWindowDimensions();
   const kinds: { key: BreakdownKind; label: string }[] = [
-    { key: 'cuisine', label: t('foodMap.cuisines') },
     { key: 'city', label: t('foodMap.cities') },
     { key: 'district', label: t('foodMap.districts') },
   ];
@@ -76,34 +73,57 @@ export default function VisitedPlacesScreen() {
 
   const title = mine ? t('tasteMap.mine') : user ? t('foodMap.titleTheirs', { name: user.name.split(' ')[0] }) : '';
 
+  // Başlık yalnızca değişince verilir (paylaş düğmesi rota tanımında sabit); her dokunuşta başlık çubuğunu
+  // yeniden kurmak, yakınlaşma geçişiyle açılan ekranda düğmeleri kaybettiriyordu
+  const navigation = useNavigation();
+  useLayoutEffect(() => {
+    navigation.setOptions({ title });
+  }, [navigation, title]);
+
+  // Ağır harita çizimi açılış geçişi bitince başlar; geçiş boyunca aynı boyutta sade zemin (takılma olmasın)
+  const [mapReady, setMapReady] = useState(false);
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('transitionEnd' as never, () => setMapReady(true));
+    const fallback = setTimeout(() => setMapReady(true), 500);
+    return () => {
+      unsubscribe();
+      clearTimeout(fallback);
+    };
+  }, [navigation]);
+
   if (loading && !items.length) return <MapListSkeleton mapHeight={mapWidth / ASPECT} />;
 
   return (
     <ScrollView style={styles.container} contentInsetAdjustmentBehavior="automatic">
-      <Stack.Screen options={{ title }} />
-
-      <Text variant="subhead" color={colors.textSecondary} style={styles.summary}>
-        {t('foodMap.summary', { cities: summary.cities, places: summary.places, posts: summary.posts })}
-      </Text>
+      {/* Sayılar tek satıra sıkışmasın: üç ayrı kutu, büyük rakam ve altında etiket */}
+      <View style={styles.summary}>
+        <SummaryStat value={summary.cities} label={t('foodMap.statCities', { count: summary.cities })} />
+        <SummaryStat value={summary.places} label={t('foodMap.statPlaces', { count: summary.places })} />
+        <SummaryStat value={summary.posts} label={t('foodMap.statPosts', { count: summary.posts })} />
+      </View>
 
       <View style={[styles.map, { width: mapWidth, height: mapWidth / ASPECT }]}>
-        <WorldMap
-          view={view}
-          width={mapWidth}
-          height={mapWidth / ASPECT}
-          dots={dots}
-          selectedKey={highlightedCity}
-          onDotPress={(city) =>
-            select(selection?.kind === 'city' && selection.key === city ? null : { kind: 'city', key: city })
-          }
-        />
+        {mapReady && (
+          <Animated.View entering={FadeIn.duration(220)}>
+            <WorldMap
+              view={view}
+              width={mapWidth}
+              height={mapWidth / ASPECT}
+              dots={dots}
+              selectedKey={highlightedCity}
+              onDotPress={(city) =>
+                select(selection?.kind === 'city' && selection.key === city ? null : { kind: 'city', key: city })
+              }
+            />
+          </Animated.View>
+        )}
       </View>
 
       {selection && selectedRow ? (
         <Animated.View key={`${selection.kind}:${selection.key}`} entering={FadeIn.duration(200)}>
           <View style={styles.selectionHeader}>
             <View style={styles.flex}>
-              <Text variant="title3">{rowLabel(selection.kind, selectedRow.label)}</Text>
+              <Text variant="title3">{selectedRow.label}</Text>
               <Text variant="footnote" color={colors.textSecondary}>
                 {selectedRow.sublabel ? `${selectedRow.sublabel} · ` : ''}
                 {t('foodMap.selection', { places: selectedRow.count, posts: selectedPosts.length })}
@@ -154,13 +174,27 @@ export default function VisitedPlacesScreen() {
           {rows.map((row, i) => (
             <View key={row.key}>
               {i > 0 && <Divider inset={spacing.lg} />}
-              <BreakdownItem row={row} label={rowLabel(kind, row.label)} onPress={() => select({ kind, key: row.key })} />
+              <BreakdownItem row={row} label={row.label} onPress={() => select({ kind, key: row.key })} />
             </View>
           ))}
         </>
       )}
       <View style={{ height: spacing.xxl }} />
+      <BottomInsetSpacer />
     </ScrollView>
+  );
+}
+
+function SummaryStat({ value, label }: { value: number; label: string }) {
+  return (
+    <View style={styles.stat}>
+      <Text variant="title2" color={colors.primary} style={styles.statValue}>
+        {value}
+      </Text>
+      <Text variant="footnote" color={colors.textSecondary} numberOfLines={1}>
+        {label}
+      </Text>
+    </View>
   );
 }
 
@@ -187,8 +221,23 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   summary: {
+    flexDirection: 'row',
+    gap: spacing.sm,
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.lg,
+  },
+  stat: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 2,
+    paddingVertical: spacing.md,
+    borderRadius: radius.card,
+    backgroundColor: colors.surface,
+  },
+  statValue: {
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
   },
   map: {
     alignSelf: 'center',

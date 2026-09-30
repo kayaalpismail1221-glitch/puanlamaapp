@@ -1,4 +1,4 @@
-import { focusManager, QueryClient } from '@tanstack/react-query';
+import { focusManager, QueryClient, type QueryKey } from '@tanstack/react-query';
 import { AppState, Platform } from 'react-native';
 
 import { isNetworkError } from '@/api/errors';
@@ -39,15 +39,22 @@ export const keys = {
   searchPlaces: (query: string, coords: unknown) => ['search', 'places', query, coords] as const,
   searchUsers: (query: string) => ['search', 'users', query] as const,
   areas: () => ['areas'] as const,
+  searchAreas: (query: string) => ['search', 'areas', query] as const,
+  areaTop: (area: unknown, segment?: string) => ['area-top', area, segment ?? 'all'] as const,
   profile: (userId: string) => ['profile', userId] as const,
   userRank: (userId: string) => ['user-rank', userId] as const,
+  yearChallenge: (year: number) => ['year-challenge', year] as const,
   userRankings: (userId: string) => ['rankings', userId] as const,
+  favorites: (userId: string) => ['favorites', userId] as const,
   tasteMatch: (userId: string) => ['taste-match', userId] as const,
   userLists: (userId: string) => ['lists', 'user', userId] as const,
   savedLists: () => ['lists', 'saved'] as const,
   list: (id: string) => ['lists', 'detail', id] as const,
   connections: (userId: string, kind: string) => ['connections', userId, kind] as const,
   suggested: () => ['suggested'] as const,
+  /** Sayısız çağrı tüm limitleri kapsar (geçersiz kılma ve gizleme için) */
+  peopleYouMayKnow: (limit?: number) =>
+    (limit === undefined ? ['suggested', 'people-you-may-know'] : ['suggested', 'people-you-may-know', limit]) as QueryKey,
   contactMatches: () => ['contacts', 'matches'] as const,
   myInvites: () => ['contacts', 'invites'] as const,
   notifications: () => ['notifications'] as const,

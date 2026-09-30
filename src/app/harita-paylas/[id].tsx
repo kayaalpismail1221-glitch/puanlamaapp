@@ -1,20 +1,22 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
-import { SymbolView, type SFSymbol } from 'expo-symbols';
+import { StatusBar } from 'expo-status-bar';
+import { SymbolView, type SFSymbol } from '@/components/symbol';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { logShare } from '@/api/growth';
 import { GlassSurface } from '@/components/glass-surface';
 import { MapStoryCard, STORY_MAP_ASPECT, type StoryAuthor } from '@/components/story-cards';
 import { PressableScale, Text } from '@/components/ui';
-import { colors, gradients, hitSlop, radius, scoreColor, spacing } from '@/constants/theme';
+import { colors, fixed, gradients, hitSlop, radius, scoreColor, spacing } from '@/constants/theme';
 import { useUser } from '@/data/entities';
 import { useVisitedPlaces } from '@/hooks/use-visited-places';
+import { showAlert } from '@/lib/dialog';
 import { haptics } from '@/lib/haptics';
-import { tasteProfile } from '@/lib/insights';
 import { isMe } from '@/lib/session';
 import { shareProfile } from '@/lib/share';
 import { STORY_SIZE } from '@/lib/story';
@@ -34,11 +36,14 @@ const ACTIONS: { key: Action; icon: SFSymbol }[] = [
 
 /**
  * Lezzet haritası paylaşımı: kartın önizlemesi ve altta paylaşım yolları. Kart "{Ad}'ın lezzet haritası",
- * şehir ve mekân sayısı, harita ve en çok gidilen mutfakları gösterir; 1080×1920 görsel olarak gider.
+ * şehir ve mekân sayısı ile haritayı gösterir; 1080×1920 görsel olarak gider.
  */
 export default function ShareTasteMapScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t } = useTranslation();
+  // Android'de "Mesajlar" (iMessage) yerine SMS: "Mesaj"
+  const actionLabel = (key: Action) =>
+    key === 'message' && Platform.OS === 'android' ? t('mapShare.messageAndroid') : t(`mapShare.actions.${key}`);
   const insets = useSafeAreaInsets();
   const { profile } = useAppStore();
   const mine = isMe(id);
@@ -61,7 +66,6 @@ export default function ShareTasteMapScreen() {
         MIN_MAP_VIEW_WIDTH,
       ),
       summary: visitedSummary(items),
-      taste: tasteProfile(items.flatMap((i) => (i.score === undefined ? [] : [{ place: i.place, score: i.score }]))),
     };
   }, [items]);
 
@@ -89,41 +93,57 @@ export default function ShareTasteMapScreen() {
     setBusy(action);
     try {
       const uri = await exportCard(cardRef);
-      if (action === 'share') await shareImage(uri, t('mapShare.title'));
+      if (action === 'share') {
+        await shareImage(uri, t('mapShare.title'));
+        logShare('map', { target: id });
+      }
       if (action === 'save') {
         if (await saveImage(uri)) {
           haptics.success();
           setSaved(true);
-        } else Alert.alert(t('mapShare.savePermission'));
+          logShare('map', { target: id, channel: 'save', completed: true });
+        } else showAlert(t(Platform.OS === 'android' ? 'mapShare.savePermissionAndroid' : 'mapShare.savePermission'));
       }
-      if (action === 'message' && !(await messageImage(uri, t('mapShare.messageBody')))) {
-        Alert.alert(t('mapShare.messageUnavailable'));
+      if (action === 'message') {
+        if (await messageImage(uri, t('mapShare.messageBody'))) logShare('map', { target: id, channel: 'messages' });
+        else showAlert(t(Platform.OS === 'android' ? 'mapShare.messageUnavailableAndroid' : 'mapShare.messageUnavailable'));
       }
     } catch (error) {
       if (__DEV__) console.warn('[puanla] harita paylaşımı', error);
-      Alert.alert(t('story.failed'));
+      showAlert(t('story.failed'));
     } finally {
       setBusy(null);
     }
   };
 
+  // iOS'ta sayfa (pageSheet) durum çubuğunun altında açılır; Android'de tam ekran, üst boşluk durum çubuğu kadar
+  const top = Platform.OS === 'android' ? insets.top : 0;
+
   return (
     <View style={styles.container}>
       <LinearGradient colors={gradients.share} locations={gradients.shareStops} style={StyleSheet.absoluteFill} />
+      {Platform.OS === 'android' && <StatusBar style="light" />}
 
       <PressableScale
         onPress={() => router.back()}
         hitSlop={hitSlop}
-        style={[styles.close, { top: insets.top + spacing.sm }]}
+        style={[styles.close, { top: top + spacing.sm }]}
         accessibilityLabel={t('rate.close')}>
-        <GlassSurface interactive style={styles.closeGlass}>
-          <SymbolView name="xmark" tintColor={colors.onPrimary} size={16} weight="semibold" />
-        </GlassSurface>
+        {Platform.OS === 'android' ? (
+          // Android'in opak yüzeyi açık görünümde beyaz: beyaz ✕ görünmezdi
+          <View style={[styles.closeGlass, { backgroundColor: fixed.frostOnDark }]}>
+            <SymbolView name="xmark" tintColor={fixed.white} size={18} weight="semibold" />
+          </View>
+        ) : (
+          <GlassSurface interactive style={styles.closeGlass}>
+            <SymbolView name="xmark" tintColor={fixed.white} size={16} weight="semibold" />
+          </GlassSurface>
+        )}
       </PressableScale>
 
-      <View style={[styles.stage, { marginTop: insets.top + 56 }]} onLayout={(e) => setBox(e.nativeEvent.layout)}>
+      <View style={[styles.stage, { marginTop: top + 56 }]} onLayout={(e) => setBox(e.nativeEvent.layout)}>
         {loading || !author ? (
-          <ActivityIndicator color={colors.onPrimary} />
+          <ActivityIndicator color={fixed.white} />
         ) : (
           scale > 0 && (
             <View style={[styles.preview, { width: STORY_SIZE.width * scale, height: STORY_SIZE.height * scale }]}>
@@ -152,16 +172,16 @@ export default function ShareTasteMapScreen() {
                 disabled={!ready || !!busy}
                 style={styles.action}
                 accessibilityRole="button"
-                accessibilityLabel={t(`mapShare.actions.${key}`)}>
+                accessibilityLabel={actionLabel(key)}>
                 <View style={[styles.actionIcon, done && styles.actionDone]}>
                   {busy === key ? (
                     <ActivityIndicator color={colors.onPrimary} />
                   ) : (
-                    <SymbolView name={done ? 'checkmark' : icon} tintColor={colors.onPrimary} size={22} weight="semibold" />
+                    <SymbolView name={done ? 'checkmark' : icon} tintColor={done ? fixed.white : colors.onPrimary} size={22} weight="semibold" />
                   )}
                 </View>
                 <Text variant="caption" color={colors.text} numberOfLines={1}>
-                  {done ? t('mapShare.saved') : t(`mapShare.actions.${key}`)}
+                  {done ? t('mapShare.saved') : actionLabel(key)}
                 </Text>
               </PressableScale>
             );
@@ -178,7 +198,7 @@ export default function ShareTasteMapScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.primary,
+    backgroundColor: fixed.navy,
   },
   close: {
     position: 'absolute',
@@ -219,7 +239,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    backgroundColor: colors.background,
+    backgroundColor: colors.card,
   },
   actions: {
     flexDirection: 'row',

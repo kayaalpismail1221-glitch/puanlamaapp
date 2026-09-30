@@ -1,15 +1,17 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useTranslation } from 'react-i18next';
-import { Alert, FlatList, StyleSheet, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 
 import { showError } from '@/api/errors';
+import { BottomInsetSpacer } from '@/components/bottom-inset';
+import { HeaderAction } from '@/components/header-button';
 import { ListCover, newList } from '@/components/list-card';
 import { Bone, PlaceRowsSkeleton, Skeleton } from '@/components/skeleton';
 import { Avatar, Button, Divider, ErrorView, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { cuisineLabel } from '@/constants/cuisines';
-import { colors, fonts, hitSlop, radius, scoreInk, spacing } from '@/constants/theme';
+import { colors, fonts,  radius, scoreInk, spacing } from '@/constants/theme';
 import { useDeleteList, useListDetails, useToggleListSaved } from '@/hooks/queries';
+import { showAlert } from '@/lib/dialog';
 import { formatScore } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
 import { confirmBlock, openReportMenu, showMenu } from '@/lib/moderation';
@@ -47,12 +49,16 @@ export default function ListScreen() {
 
   const { list, items } = details;
   const mine = isMe(list.author.id);
-  const share = () => shareList(list);
-
   const openStory = () => router.push({ pathname: '/hikaye', params: { liste: list.id } });
+  /** Tek paylaş: görsel hikâye kartı mı, bağlantı mı */
+  const share = () =>
+    showMenu(t('lists.shareTitle'), [
+      { icon: 'photo.on.rectangle', label: t('lists.shareStory'), onPress: openStory },
+      { icon: 'link', label: t('lists.shareLink'), onPress: () => shareList(list) },
+    ]);
   const edit = () => router.push({ pathname: '/liste-duzenle', params: { id: list.id } });
   const confirmDelete = () =>
-    Alert.alert(t('lists.deleteTitle'), t('lists.deleteText', { title: list.title }), [
+    showAlert(t('lists.deleteTitle'), t('lists.deleteText', { title: list.title }), [
       { text: t('common.cancel'), style: 'cancel' },
       {
         text: t('common.delete'),
@@ -73,15 +79,13 @@ export default function ListScreen() {
       undefined,
       mine
         ? [
-            { label: t('lists.storyCard'), onPress: openStory },
-            { label: t('lists.edit'), onPress: edit },
-            { label: t('lists.deleteTitle'), destructive: true, onPress: confirmDelete },
+            { icon: 'pencil', label: t('lists.edit'), onPress: edit },
+            { icon: 'trash', label: t('lists.deleteTitle'), destructive: true, onPress: confirmDelete },
           ]
         : [
-            { label: t('lists.storyCard'), onPress: openStory },
-            { label: t('moderation.report'), destructive: true, onPress: () => openReportMenu({ listId: list.id }) },
+            { icon: 'exclamationmark.bubble', label: t('moderation.report'), destructive: true, onPress: () => openReportMenu({ listId: list.id }) },
             {
-              label: t('moderation.blockUser', { name: list.author.name.split(' ')[0] }),
+              icon: 'hand.raised', label: t('moderation.blockUser', { name: list.author.name.split(' ')[0] }),
               destructive: true,
               onPress: () =>
                 confirmBlock(list.author, () => {
@@ -110,15 +114,9 @@ export default function ListScreen() {
       <Stack.Screen
         options={{
           title: '',
+          // Paylaşım aşağıdaki tek "Paylaş" düğmesinde; burada yalnızca diğer seçenekler
           headerRight: () => (
-            <View style={styles.headerButtons}>
-              <PressableScale onPress={share} hitSlop={hitSlop} accessibilityLabel={t('common.share')}>
-                <SymbolView name="square.and.arrow.up" tintColor={colors.primary} size={20} />
-              </PressableScale>
-              <PressableScale onPress={openMenu} hitSlop={hitSlop} accessibilityLabel={t('moderation.options')}>
-                <SymbolView name="ellipsis.circle" tintColor={colors.primary} size={22} />
-              </PressableScale>
-            </View>
+            <HeaderAction icon="ellipsis.circle" onPress={openMenu} accessibilityLabel={t('moderation.options')} />
           ),
         }}
       />
@@ -161,7 +159,13 @@ export default function ListScreen() {
                     onPress={toggleSave}
                     style={styles.flex}
                   />
-                  <Button title={t('common.share')} variant="outline" onPress={share} style={styles.flex} />
+                  <Button
+                    title={t('common.share')}
+                    icon="square.and.arrow.up"
+                    variant="outline"
+                    onPress={share}
+                    style={styles.flex}
+                  />
                 </>
               )}
             </View>
@@ -171,19 +175,22 @@ export default function ListScreen() {
           <ItemRow item={item} rank={index + 1} myScore={mine ? undefined : scoreOf(item.place.id)} />
         )}
         ListFooterComponent={
-          mine ? (
-            <View style={styles.footer} />
-          ) : (
-            <View style={[styles.footer, styles.makeOwn]}>
-              <Text variant="headline" align="center">
-                {t('lists.makeYourOwn')}
-              </Text>
-              <Text variant="subhead" color={colors.textSecondary} align="center">
-                {t('lists.makeYourOwnText')}
-              </Text>
-              <Button title={t('lists.newList')} icon="plus" variant="secondary" size="sm" onPress={() => newList()} />
-            </View>
-          )
+          <>
+            {mine ? (
+              <View style={styles.footer} />
+            ) : (
+              <View style={[styles.footer, styles.makeOwn]}>
+                <Text variant="headline" align="center">
+                  {t('lists.makeYourOwn')}
+                </Text>
+                <Text variant="subhead" color={colors.textSecondary} align="center">
+                  {t('lists.makeYourOwnText')}
+                </Text>
+                <Button title={t('lists.newList')} icon="plus" variant="secondary" size="sm" onPress={() => newList()} />
+              </View>
+            )}
+            <BottomInsetSpacer />
+          </>
         }
       />
     </>

@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/symbol';
 import { useTranslation } from 'react-i18next';
 import { Linking, StyleSheet, View } from 'react-native';
 
@@ -21,6 +21,7 @@ import { useAppSelector } from '@/store/app-store';
 export function ContactFriends() {
   const { t } = useTranslation();
   const verified = useAppSelector((s) => !!s.profile?.phoneVerified);
+  const username = useAppSelector((s) => s.profile?.username);
   const contacts = useContactFriends();
   if (!PHONE_VERIFICATION_ENABLED) return null;
 
@@ -58,7 +59,7 @@ export function ContactFriends() {
           <Text variant="subhead" color={colors.textSecondary}>
             {t('contacts.none')}
           </Text>
-          <Button title={t('contacts.inviteFriends')} variant="secondary" size="sm" onPress={shareInvite} />
+          <Button title={t('contacts.inviteFriends')} variant="secondary" size="sm" onPress={() => shareInvite({ username })} />
         </>
       ) : data?.status === 'denied' ? (
         <>

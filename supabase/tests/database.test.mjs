@@ -14,6 +14,7 @@ import { dirname, join } from 'node:path';
 import { after, before, describe, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
+import { SEGMENT_OF } from '../../src/constants/segments.ts';
 import { scoreAt } from '../../src/lib/ranking.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -136,6 +137,273 @@ describe('toplu mekân içe aktarımı', () => {
   });
 });
 
+describe('mekân konumu ve birleşik içe aktarım', () => {
+  /** Kutu biçimli sınır (WKT çizgi, iki parça): batı, güney, doğu, kuzey */
+  const box = (w, s, e, n) => `MULTILINESTRING((${w} ${s}, ${e} ${s}, ${e} ${n}), (${e} ${n}, ${w} ${n}, ${w} ${s}))`;
+
+  /** Testi tek işlemde çalıştırıp geri alır: sınırlar diğer testlerdeki mekânları etkilemesin */
+  async function isolated(fn) {
+    await db.transaction(async (tx) => {
+      await tx.query(`select import_admin_area(1, 6::smallint, 'Kadıköy', 'İstanbul', $1)`, [box(29.0, 40.97, 29.05, 41.0)]);
+      await tx.query(`select import_admin_area(2, 6::smallint, 'Üsküdar', 'İstanbul', $1)`, [box(29.0, 41.0, 29.05, 41.03)]);
+      // Caferağa sınırı ilçe sınırından biraz taşıyor (OSM'deki gibi); Üsküdar tarafında seçilmemeli
+      await tx.query(`select import_admin_area(11, 8::smallint, 'Caferağa', 'İstanbul', $1)`, [box(29.02, 40.98, 29.03, 41.001)]);
+      await tx.query(`select import_admin_area(21, 8::smallint, 'Kuzguncuk', 'İstanbul', $1)`, [box(29.0, 41.0, 29.05, 41.03)]);
+      // Beklenen hatalar işlemi iptal etmesin diye her üye sorgusu kendi kayıt noktasında
+      await fn(tx, async (userId, sql, params = []) => {
+        await tx.exec('savepoint as_user');
+        await tx.query(`select set_config('request.jwt.claims', $1, true)`, [JSON.stringify({ sub: userId, role: 'authenticated' })]);
+        await tx.exec('set local role authenticated');
+        try {
+          const result = (await tx.query(sql, params)).rows;
+          await tx.exec('release savepoint as_user');
+          return result;
+        } catch (error) {
+          await tx.exec('rollback to savepoint as_user');
+          throw error;
+        } finally {
+          await tx.exec('reset role');
+          await tx.query(`select set_config('request.jwt.claims', '', true)`);
+        }
+      });
+      await tx.rollback();
+    });
+  }
+
+  test('ilçe ve mahalle koordinattan yazılır; elle yazılan ilçe düzelir', async () => {
+    const me = await signUp({ name: 'Mekân Ekleyen' });
+    await isolated(async (tx, asUser) => {
+      await tx.query(`select refresh_place_areas()`);
+      assert.equal((await tx.query(`select district from admin_areas where id = 11`)).rows[0].district, 'Kadıköy');
+      // Seed'deki Moda mekânı kutunun içinde: mahallesi sınırdan yeniden hesaplandı
+      assert.equal((await tx.query(`select neighborhood from places where id = $1`, [PLACE(1)])).rows[0].neighborhood, 'Caferağa');
+
+      const [place] = await asUser(
+        me,
+        `insert into places (name, cuisine, district, city, neighborhood, address, latitude, longitude)
+         values ('Yeni Burgerci', 'Burgerci', 'Kadıkoy', 'istanbul', '', 'Moda Cd. No:12', 40.99, 29.025)
+         returning city, district, neighborhood, address`,
+      );
+      assert.deepEqual(place, { city: 'İstanbul', district: 'Kadıköy', neighborhood: 'Caferağa', address: 'Moda Cd. No:12' });
+
+      // Mahalle sınırı taşsa da Üsküdar'daki nokta Kuzguncuk olur
+      const [north] = (await tx.query(`select * from area_at(41.0005, 29.025)`)).rows;
+      assert.deepEqual(north, { city: 'İstanbul', district: 'Üsküdar', neighborhood: 'Kuzguncuk' });
+      // Kıyının hemen dışı (iskele) en yakın ilçeye bağlanır; uzak nokta boş döner
+      assert.equal((await tx.query(`select * from area_at(40.99, 29.053)`)).rows[0].district, 'Kadıköy');
+      assert.equal((await tx.query(`select * from area_at($1, $2)`, [ANTALYA.lat, ANTALYA.lng])).rows.length, 0);
+
+      // Konum İstanbul dışında ama "İstanbul" yazılmışsa reddedilir; başka şehirde girilen değerler kalır
+      await rejects(
+        asUser(me, `insert into places (name, cuisine, district, city, latitude, longitude)
+          values ('Yanlış Yer', 'Kafe', 'Kadıköy', 'İstanbul', 37.82, 36.79)`),
+        /sınırları dışında/,
+      );
+      const [antalya] = await asUser(
+        me,
+        `insert into places (name, cuisine, district, city, latitude, longitude)
+         values ('Sahil Kafe', 'Kafe', 'Muratpaşa', 'Antalya', $1, $2) returning district, city`,
+        [ANTALYA.lat, ANTALYA.lng],
+      );
+      assert.deepEqual(antalya, { district: 'Muratpaşa', city: 'Antalya' });
+
+      // Sınır tabloları ve içe aktarım fonksiyonları üyelere kapalı; konum sorgusu açık
+      await rejects(asUser(me, 'select * from admin_areas'), /42501/);
+      await rejects(asUser(me, 'select * from place_sources'), /42501/);
+      await rejects(asUser(me, `select import_places('[]')`), /42501/);
+      assert.equal((await asUser(me, 'select * from area_at(40.99, 29.025)'))[0].neighborhood, 'Caferağa');
+    });
+  });
+
+  test('içe aktarım kaynak kimliğiyle eşleşir, kimlik korunur; kullanılmayan eski mekân temizlenir', async () => {
+    const me = await signUp({ name: 'Puanlayan' });
+    await isolated(async (tx) => {
+      const row = (sources, name, extra = {}) => ({
+        sources,
+        name,
+        cuisine: 'Kafe',
+        address: 'Moda Cd. No:1',
+        phone: '+902161234567',
+        website: 'https://ornek.com',
+        latitude: 40.99,
+        longitude: 29.025,
+        city: 'İstanbul',
+        district: 'Kadıköy',
+        ...extra,
+      });
+      const importRows = async (list) => (await tx.query(`select import_places($1) as r`, [JSON.stringify(list)])).rows[0].r;
+
+      assert.deepEqual(
+        await importRows([
+          row([{ source: 'osm', external_id: 'node/9001' }], 'Eski Ad'),
+          row([{ source: 'overture', external_id: 'ov-2' }], 'Kapanan Kafe'),
+          row([{ source: 'overture', external_id: 'ov-3' }], 'Puanlı Kafe'),
+        ]),
+        [3, 0],
+      );
+      const first = (await tx.query(`select * from place_view where name = 'Eski Ad'`)).rows[0];
+      assert.equal(first.neighborhood, 'Caferağa');
+      assert.equal(first.address, 'Moda Cd. No:1');
+      assert.equal(first.phone, '+902161234567');
+      const rated = (await tx.query(`select id from places where name = 'Puanlı Kafe'`)).rows[0].id;
+      await tx.query(`insert into saved_places (user_id, place_id) values ($1, $2)`, [me, rated]);
+
+      const cutoff = (await tx.query(`select clock_timestamp() as t`)).rows[0].t;
+      // Aynı mekân ikinci kaynaktan da geldi: yeni satır açılmaz, ad ve adres güncellenir
+      assert.deepEqual(
+        await importRows([
+          row([{ source: 'osm', external_id: 'node/9001' }, { source: 'overture', external_id: 'ov-1' }], 'Yeni Ad', {
+            address: 'Moda Cd. No:3',
+          }),
+        ]),
+        [0, 1],
+      );
+      const again = (await tx.query(`select id, name, address from places where id = $1`, [first.id])).rows[0];
+      assert.deepEqual(again, { id: first.id, name: 'Yeni Ad', address: 'Moda Cd. No:3' });
+      assert.equal((await tx.query(`select count(*)::int as n from place_sources where place_id = $1`, [first.id])).rows[0].n, 2);
+
+      // Bu turda görülmeyen, kullanılmayan mekân silinir; Listem'deki kalır
+      await tx.query(
+        `update places set imported_at = $1::timestamptz - interval '1 minute' where name in ('Kapanan Kafe', 'Puanlı Kafe')`,
+        [cutoff],
+      );
+      assert.equal((await tx.query(`select prune_imported_places($1) as n`, [cutoff])).rows[0].n, 1);
+      const left = (await tx.query(`select name from places where name in ('Kapanan Kafe', 'Puanlı Kafe', 'Yeni Ad') order by name`)).rows;
+      assert.deepEqual(left.map((r) => r.name), ['Puanlı Kafe', 'Yeni Ad']);
+    });
+  });
+});
+
+describe('mekân bilgisi düzeltmeleri', () => {
+  let place;
+  const suggest = (user, field, value = null, lat = null, lng = null) =>
+    one(user, `select suggest_place_correction($1, $2, $3, $4, $5) as r`, [place, field, value, lat, lng]).then((x) => x.r);
+  const current = async () => (await db.query(`select * from places where id = $1`, [place])).rows[0];
+  /** Oyu sayılan hesap: 8 günlük ve 5 mekân puanlamış (düzeltilen mekân hariç) */
+  const trusted = async (meta) => {
+    const user = await signUp(meta);
+    await db.query(`update profiles set created_at = now() - interval '8 days' where id = $1`, [user]);
+    await db.query(
+      `insert into rankings (user_id, place_id, sentiment, position, score)
+       select $1, id, 'liked', 100 + row_number() over (order by id), 8
+       from (select id from places where id <> $2 order by id limit 5) p`,
+      [user, place],
+    );
+    return user;
+  };
+
+  before(async () => {
+    place = (
+      await db.query(`insert into places (name, cuisine, district, city, latitude, longitude, phone, source, external_id)
+        values ('Düzeltme Kafe', 'Kafe', 'Kadıköy', 'İstanbul', 40.99, 29.03, '+902160000000', 'osm', 'node/777') returning id`)
+    ).rows[0].id;
+    await db.query(`insert into place_sources (source, external_id, place_id) values ('osm', 'node/777', $1)`, [place]);
+  });
+  after(() => db.query(`delete from places where id = $1`, [place]));
+
+  test('tek kişinin önerisi bekler; telefonda bağımsız üçüncü güvenilir kişi aynısını söyleyince uygulanır ve kilitlenir', async () => {
+    const a = await trusted({ name: 'Düzelten A' });
+    const b = await trusted({ name: 'Düzelten B' });
+    const d = await trusted({ name: 'Düzelten D' });
+    const c = await trusted({ name: 'Farklı C' });
+    assert.equal(await suggest(a, 'phone', '+902164185115'), 'pending');
+    assert.equal(await suggest(c, 'phone', '+902169999999'), 'pending'); // farklı değer sayılmaz
+    assert.equal((await current()).phone, '+902160000000');
+    // Herkes yalnızca kendi önerisini görür
+    assert.equal((await rows(b, 'select * from place_corrections')).length, 0);
+    assert.equal((await rows(a, 'select * from place_corrections')).length, 1);
+
+    // Telefon (oltalamaya açık) iki kişiyle değişmez
+    assert.equal(await suggest(b, 'phone', '+902164185115'), 'pending');
+    assert.equal(await suggest(d, 'phone', '+902164185115'), 'applied');
+    const after = await current();
+    assert.equal(after.phone, '+902164185115');
+    assert.deepEqual(after.locked_fields, ['phone']);
+    const statuses = await db.query(`select status, count(*)::int as n from place_corrections where place_id = $1 group by status order by status`, [place]);
+    assert.deepEqual(statuses.rows, [{ status: 'applied', n: 3 }, { status: 'pending', n: 1 }]);
+
+    // Adres: yazım farkı (büyük harf, Türkçe karakter) aynı öneri sayılır
+    assert.equal(await suggest(a, 'address', 'Güneşlibahçe Sk. No:43'), 'pending');
+    assert.equal(await suggest(b, 'address', 'GUNESLIBAHCE SK. NO:43'), 'applied');
+    assert.equal((await current()).address, 'GUNESLIBAHCE SK. NO:43');
+  });
+
+  test('içe aktarım kilitli alanı ezmez, diğerlerini günceller', async () => {
+    const rowsJson = JSON.stringify([{
+      sources: [{ source: 'osm', external_id: 'node/777' }],
+      name: 'Düzeltme Kafe Moda', cuisine: 'Kafe', address: 'Eski Sk.', phone: '+902160000000', website: 'https://ornek.com',
+      latitude: 40.99, longitude: 29.03, city: 'İstanbul', district: 'Kadıköy',
+    }]);
+    await db.query(`select import_places($1)`, [rowsJson]);
+    const after = await current();
+    assert.equal(after.phone, '+902164185115');
+    assert.equal(after.address, 'GUNESLIBAHCE SK. NO:43');
+    assert.equal(after.name, 'Düzeltme Kafe Moda');
+    assert.equal(after.website, 'https://ornek.com');
+  });
+
+  test('geçersiz değer ve uzak konum reddedilir', async () => {
+    const a = await signUp({ name: 'Hatalı Öneri' });
+    await rejects(suggest(a, 'phone', '0216 418'), /22023/);
+    await rejects(suggest(a, 'website', 'javascript:alert(1)'), /22023/);
+    await rejects(suggest(a, 'location', null, ANTALYA.lat, ANTALYA.lng), /çok uzak/);
+    await rejects(rows(null, `select suggest_place_correction($1, 'closed')`, [place]), /42501/);
+    await rejects(rows(a, `select apply_place_correction(gen_random_uuid())`), /42501/);
+  });
+
+  test('yeni hesapların oyu kendiliğinden uygulanmaz (yönetici kuyruğunda bekler)', async () => {
+    const fresh = await Promise.all([1, 2, 3, 4].map((n) => signUp({ name: `Yeni Hesap ${n}` })));
+    for (const user of fresh) assert.equal(await suggest(user, 'closed'), 'pending');
+    for (const user of fresh.slice(0, 3)) assert.equal(await suggest(user, 'website', 'https://oltalama.example.com'), 'pending');
+    const now = await current();
+    assert.equal(now.closed_at, null);
+    assert.notEqual(now.website, 'https://oltalama.example.com');
+    // Eski ama hiç puanlamamış hesap da sayılmaz
+    const idle = await signUp({ name: 'Eski Boş' });
+    await db.query(`update profiles set created_at = now() - interval '60 days' where id = $1`, [idle]);
+    assert.equal(await suggest(idle, 'closed'), 'pending');
+    assert.equal((await current()).closed_at, null);
+    await db.query(`delete from place_corrections where place_id = $1 and status = 'pending'`, [place]);
+  });
+
+  test('kapandı: üç bağımsız bildirimle kapanır, arama ve haritadan çıkar', async () => {
+    const [a, b, c] = await Promise.all([trusted({ name: 'K1' }), trusted({ name: 'K2' }), trusted({ name: 'K3' })]);
+    await db.query(`insert into rankings (user_id, place_id, sentiment, position, score) values ($1, $2, 'liked', 0, 8)`, [a, place]);
+    const inSearch = async () => (await rows(a, `select id from search_places('Düzeltme Kafe')`)).some((p) => p.id === place);
+    const onMap = async () => (await rows(a, 'select id from map_places(40.8, 28.5, 41.3, 29.4)')).some((p) => p.id === place);
+    assert.ok(await inSearch());
+    assert.ok(await onMap());
+    assert.equal(await suggest(a, 'closed'), 'pending');
+    assert.equal(await suggest(b, 'closed'), 'pending');
+    assert.equal(await suggest(c, 'closed'), 'applied');
+    assert.ok((await current()).closed_at);
+    assert.equal(await inSearch(), false);
+    assert.equal(await onMap(), false);
+    // Mekân sayfası ve geçmiş durur
+    assert.ok((await one(a, 'select closed_at from place_view where id = $1', [place])).closed_at);
+    await db.query(`update places set closed_at = null where id = $1`, [place]);
+  });
+
+  test('yönetici kuyruğu: yalnızca yönetici görür, onaylar ya da reddeder', async () => {
+    const [user, admin] = await Promise.all([signUp({ name: 'Önerici' }), signUp({ name: 'Yönetici Düzeltme' })]);
+    await db.query(`update profiles set is_admin = true where id = $1`, [admin]);
+    assert.equal(await suggest(user, 'website', 'https://ciya.com.tr'), 'pending');
+    assert.equal(await suggest(user, 'name', 'Çiya'), 'pending');
+    await rejects(rows(user, 'select * from admin_place_corrections()'), /42501/);
+    const queue = await rows(admin, 'select * from admin_place_corrections()');
+    const website = queue.find((q) => q.field === 'website');
+    const name = queue.find((q) => q.field === 'name');
+    assert.equal(website.current_value, 'https://ornek.com');
+    assert.equal(website.supporters, 1);
+    await as(admin, 'select admin_resolve_correction($1, true)', [website.id]);
+    await as(admin, 'select admin_resolve_correction($1, false)', [name.id]);
+    const after = await current();
+    assert.equal(after.website, 'https://ciya.com.tr');
+    assert.equal(after.name, 'Düzeltme Kafe Moda');
+    assert.ok(after.locked_fields.includes('website'));
+  });
+});
+
 describe('erişim kuralları', () => {
   test('giriş yapmamış kullanıcı içerik göremez', async () => {
     await rejects(rows(null, 'select * from profiles'), /42501/);
@@ -206,10 +474,16 @@ describe('erişim kuralları', () => {
 });
 
 describe('sıralama', () => {
-  const places = [1, 2, 3, 4, 5].map(PLACE);
+  // Seed'de aynı segmentteki (sokak lezzeti) mekânlar: dürümcü, kokoreççi, ciğerci, burgerci, pideci
+  const places = [3, 4, 5, 9, 11].map(PLACE);
+  const BREAKFAST = [PLACE(1), PLACE(14)];
 
   async function myRankings(me) {
-    return rows(me, `select place_id, sentiment, position, score::float as score from rankings where user_id = $1`, [me]);
+    return rows(
+      me,
+      `select place_id, sentiment, segment::text, position, score::float as score from rankings where user_id = $1`,
+      [me],
+    );
   }
 
   test('ekleme, yer değiştirme ve çıkarma sırayı ve puanları tutarlı tutar', async () => {
@@ -227,6 +501,7 @@ describe('sıralama', () => {
       [places[1], places[0], places[2]],
     );
     liked.forEach((r, i) => assert.equal(r.score, scoreAt('liked', i, 3)));
+    assert.ok(list.every((r) => r.segment === 'street'));
     assert.equal((await one(me, 'select note from rankings where place_id = $1 and user_id = $2', [places[3], me])).note, 'fena değil');
 
     // Ortadaki mekânı "idare eder" grubuna taşı: iki grup da yeniden puanlanır
@@ -243,7 +518,53 @@ describe('sıralama', () => {
     list = await myRankings(me);
     assert.equal(list.length, 3);
     assert.equal(list.find((r) => r.place_id === places[2]).position, 0);
-    assert.equal(list.find((r) => r.place_id === places[2]).score, 10);
+    assert.equal(list.find((r) => r.place_id === places[2]).score, scoreAt('liked', 0, 1));
+  });
+
+  test('segmentler ayrı listeler: kahvaltıcı dürümcüyle kıyaslanmaz, puanı etkilemez', async () => {
+    const me = await signUp({ name: 'Segmentçi' });
+    await as(me, `select rank_place($1, 'liked', 0)`, [places[0]]);
+    await as(me, `select rank_place($1, 'liked', 0)`, [places[1]]);
+    // Kahvaltıcı en üste konsa da sokak lezzetleri listesi değişmez
+    await as(me, `select rank_place($1, 'liked', 0)`, [BREAKFAST[0]]);
+    const byPlace = Object.fromEntries((await myRankings(me)).map((r) => [r.place_id, r]));
+    assert.equal(byPlace[BREAKFAST[0]].segment, 'breakfast');
+    assert.equal(byPlace[BREAKFAST[0]].position, 0);
+    assert.equal(byPlace[BREAKFAST[0]].score, scoreAt('liked', 0, 1));
+    assert.equal(byPlace[places[1]].position, 0);
+    assert.equal(byPlace[places[0]].position, 1);
+    assert.equal(byPlace[places[0]].score, scoreAt('liked', 1, 2));
+
+    // İkinci kahvaltıcı yalnızca kahvaltıcılar arasında yer alır (indeks 1 = ilkinin altı)
+    await as(me, `select rank_place($1, 'liked', 1)`, [BREAKFAST[1]]);
+    const after = Object.fromEntries((await myRankings(me)).map((r) => [r.place_id, r]));
+    assert.equal(after[BREAKFAST[1]].position, 1);
+    assert.equal(after[BREAKFAST[1]].score, scoreAt('liked', 1, 2));
+    assert.equal(after[places[1]].score, scoreAt('liked', 0, 2), 'başka segment değişmez');
+
+    // Görünüm segmenti de döner (uygulama bununla gruplar)
+    const view = await rows(me, 'select place_id, segment::text from ranking_view where user_id = $1', [me]);
+    assert.equal(view.find((r) => r.place_id === BREAKFAST[1]).segment, 'breakfast');
+  });
+
+  test('kategori başka segmente geçerse mekân yeni listenin sonuna taşınır, iki liste de yeniden puanlanır', async () => {
+    const me = await signUp({ name: 'Kategori Değişen' });
+    await as(me, `select rank_place($1, 'liked', 0)`, [places[0]]);
+    await as(me, `select rank_place($1, 'liked', 1)`, [places[4]]);
+    await as(me, `select rank_place($1, 'liked', 0)`, [BREAKFAST[0]]);
+    const original = (await db.query('select cuisine from places where id = $1', [places[4]])).rows[0].cuisine;
+    try {
+      await db.query(`update places set cuisine = 'Kahvaltıcı' where id = $1`, [places[4]]);
+      const byPlace = Object.fromEntries((await myRankings(me)).map((r) => [r.place_id, r]));
+      assert.equal(byPlace[places[4]].segment, 'breakfast');
+      assert.equal(byPlace[places[4]].position, 1);
+      assert.equal(byPlace[places[4]].score, scoreAt('liked', 1, 2));
+      assert.equal(byPlace[BREAKFAST[0]].score, scoreAt('liked', 0, 2));
+      assert.equal(byPlace[places[0]].score, scoreAt('liked', 0, 1));
+    } finally {
+      await db.query('update places set cuisine = $2 where id = $1', [places[4], original]);
+    }
+    assert.equal((await one(me, 'select segment::text from rankings where place_id = $1', [places[4]])).segment, 'street');
   });
 
   test('aşırı indeks gruba sığdırılır, puanlanan mekân Listem’den düşer', async () => {
@@ -252,8 +573,44 @@ describe('sıralama', () => {
     await as(me, `select rank_place($1, 'disliked', 99)`, [places[4]]);
     const r = await one(me, 'select position, score::float as score from rankings where user_id = $1', [me]);
     assert.equal(r.position, 0);
-    assert.equal(r.score, 3.3);
+    assert.equal(r.score, scoreAt('disliked', 0, 1));
     assert.equal((await rows(me, 'select * from saved_places')).length, 0);
+  });
+
+  test('"İkisi aynı": eşit puan; listenin başına eşitlik konmaz; eşit olan silinince sıradaki devralır', async () => {
+    const me = await signUp({ name: 'Kararsız' });
+    const [a, b, c] = places;
+    await as(me, `select rank_place($1, 'liked', 0)`, [a]);
+    await as(me, `select rank_place($1, 'liked', 1, null, true)`, [b]);
+    await as(me, `select rank_place($1, 'liked', 2)`, [c]);
+    const scores = async () =>
+      Object.fromEntries(
+        (await rows(me, 'select place_id, score::float as score, tied from rankings where user_id = $1', [me])).map((r) => [
+          r.place_id,
+          r.score,
+        ]),
+      );
+    let now = await scores();
+    assert.equal(now[a], 10);
+    assert.equal(now[b], 10, 'eşit');
+    assert.equal(now[c], scoreAt('liked', 1, 2), 'iki seviye: 10 ve bir alt');
+    // Başa eşitlik istense de eşitlik konmaz
+    await as(me, `select rank_place($1, 'liked', 0, null, true)`, [c]);
+    assert.equal((await one(me, 'select tied from rankings where user_id = $1 and place_id = $2', [me, c])).tied, false);
+    now = await scores();
+    assert.equal(now[c], 10);
+    assert.equal(now[a], scoreAt('liked', 1, 2));
+    assert.equal(now[b], now[a], 'eşitlik korunur');
+    // Uygulama tarafı aynı sonucu verir
+    const { rows: list } = await db.query(
+      `select place_id as "placeId", segment, tied from rankings where user_id = $1 and sentiment = 'liked' order by position`,
+      [me],
+    );
+    const { flattenRankings } = await import('../../src/lib/ranking.ts');
+    const client = Object.fromEntries(
+      flattenRankings({ liked: list, fine: [], disliked: [] }).map((e) => [e.placeId, e.score]),
+    );
+    assert.deepEqual(client, now);
   });
 
   test('puan formülü uygulamayla birebir aynı', async () => {
@@ -266,6 +623,83 @@ describe('sıralama', () => {
         for (const { i, score } of scores) assert.equal(score, scoreAt(sentiment, i, count), `${sentiment} ${i}/${count}`);
       }
     }
+  });
+
+  test('segmentteki favorin hep 10; az mekânla alt sınıra inilmez; liste büyüyünce tüm aralık; gruplar örtüşmez', () => {
+    for (let count = 1; count <= 30; count++) assert.equal(scoreAt('liked', 0, count), 10);
+    assert.equal(scoreAt('fine', 0, 1), 6.6);
+    assert.equal(scoreAt('disliked', 0, 1), 3.3);
+    assert.equal(scoreAt('liked', 1, 2), 9.8);
+    // Eğri: üst taraf yüksek kalır, düşüş sona doğru hızlanır
+    assert.deepEqual([0, 1, 2, 3, 4].map((i) => scoreAt('liked', i, 5)), [10, 9.8, 9.2, 8.1, 6.7]);
+    assert.ok(scoreAt('liked', 19, 30) > 8.4, 'çok puanlayanın sevdiği yerler yüksek kalır');
+    assert.equal(scoreAt('liked', 29, 30), 6.7);
+    for (let count = 1; count <= 30; count++) {
+      assert.ok(scoreAt('liked', count - 1, count) > scoreAt('fine', 0, 1 + (count % 7)));
+      assert.ok(scoreAt('fine', count - 1, count) > scoreAt('disliked', 0, 1 + (count % 5)));
+      for (let i = 1; i < count; i++) assert.ok(scoreAt('liked', i, count) <= scoreAt('liked', i - 1, count));
+    }
+  });
+
+  test('segment eşlemesi veritabanıyla aynı', async () => {
+    const { rows: cuisines } = await db.query('select name, segment::text from cuisines');
+    assert.deepEqual(Object.fromEntries(cuisines.map((c) => [c.name, c.segment])), SEGMENT_OF);
+  });
+
+  test('topluluk puanı: az puanlı mekân uca gitmez, puan sayısı arttıkça ortalamaya yaklaşır', async () => {
+    const score = async (total, n) => (await db.query('select community_score($1, $2) as s', [total, n])).rows[0].s;
+    assert.equal(await score(0, 0), null);
+    assert.ok(Math.abs((await score(10, 1)) - 8) < 1e-9);
+    assert.ok((await score(1, 1)) > 4.9);
+    const many = await score(9 * 50, 50);
+    assert.ok(many > 8.9 && many < 9);
+  });
+
+  test('topluluk puanı türün ortalamasından başlar; eski puanlar hafifler', async () => {
+    const priors = (await db.query('select segment::text, mean::float as mean from community_priors')).rows;
+    assert.equal(priors.length, 5, 'her tür için başlangıç değeri');
+    assert.ok(priors.every((p) => p.mean >= 0 && p.mean <= 10));
+    const recency = async (ago) =>
+      Number((await db.query(`select rating_recency(now() - $1::interval) as w`, [ago])).rows[0].w);
+    assert.equal(await recency('1 month'), 1);
+    assert.equal(await recency('18 months'), 0.75);
+    assert.equal(await recency('3 years'), 0.5);
+    // Başlangıç değeri mekânın türünden
+    const cafePrior = priors.find((p) => p.segment === 'cafe').mean;
+    const { rows: [cafe] } = await db.query(
+      `select pl.id from places pl join cuisines c on c.name = pl.cuisine where c.segment = 'cafe' limit 1`,
+    );
+    const s1 = (await db.query('select place_community_score($1, 10, 1) as s', [cafe.id])).rows[0].s;
+    assert.ok(Math.abs(s1 - (2 * cafePrior + 10) / 3) < 1e-9);
+  });
+
+  test('güvenilir topluluk puanı: az puanlayan hesabın puanı az ağırlık taşır', async () => {
+    const weighted = async (total, w) =>
+      (await db.query('select weighted_community_score($1, $2) as s', [total, w])).rows[0].s;
+    // Tam ağırlıkta eski formülle aynı
+    assert.equal(await weighted(10, 1), (await db.query('select community_score(10, 1) as s')).rows[0].s);
+    assert.equal(await weighted(0, 0), null);
+
+    // Beş yeni hesap mekâna 10 verirse eskiden ~9,1; artık her biri 0,2 ağırlıkla
+    const fresh = [];
+    for (let i = 0; i < 5; i++) fresh.push(await signUp({ name: `Yeni ${i}` }));
+    const target = PLACE(18);
+    const before = await one(fresh[0], 'select place_details($1) as d', [target]);
+    for (const id of fresh) await as(id, `select rank_place($1, 'liked', 0)`, [target]);
+    const weightOf = async (id) => Number((await one(id, 'select weight from rankings where user_id = $1 limit 1', [id])).weight);
+    assert.equal(await weightOf(fresh[0]), 0.2);
+    const after = (await one(fresh[0], 'select place_details($1) as d', [target])).d.rating;
+    assert.equal(after.count, (before.d.rating.count ?? 0) + 5, 'sayı ağırlıksız');
+    // Tek bir deneyimli kişinin 10'u kadar sayılır; eskiden ~9,1 olurdu
+    assert.ok(after.average < 8.6, `beş yeni hesap mekânı uca taşıyamaz (${after.average})`);
+
+    // Kişi puanladıkça ağırlığı artar, 5 mekânda tam olur; puan silinince geri düşer
+    const me = fresh[0];
+    for (const n of [1, 2, 3, 4]) await as(me, `select rank_place($1, 'fine', 0)`, [PLACE(n)]);
+    const weights = await rows(me, 'select distinct weight from rankings where user_id = $1', [me]);
+    assert.deepEqual(weights.map((w) => Number(w.weight)), [1]);
+    await as(me, 'select unrank_place($1)', [PLACE(4)]);
+    assert.equal(await weightOf(me), 0.8);
   });
 });
 
@@ -280,7 +714,7 @@ describe('gönderiler', () => {
       [id, PLACE(15), USER(1), me, JSON.stringify([{ path: `${me}/${id}/0.jpg`, width: 1440, height: 1800 }])],
     );
     assert.equal(post.caption, 'Harika meze');
-    assert.equal(Number(post.score), 10);
+    assert.equal(Number(post.score), scoreAt('liked', 0, 1));
     assert.deepEqual(post.dishes, ['Fava', 'Topik']);
     assert.deepEqual(post.photos, [`${me}/${id}/0.jpg`]);
     assert.deepEqual(post.tagged.map((u) => u.id), [USER(1)]);
@@ -373,6 +807,20 @@ describe('takip ve engelleme', () => {
     await rejects(as(me, `insert into follows (followee_id) values ($1)`, [USER(2)]), /row-level security/);
     // Engellenen de engelleyeni göremez
     assert.equal((await rows(USER(2), 'select * from profile_view where id = $1', [me])).length, 0);
+  });
+
+  test('engelli çiftler birbirinin puanlarını göremez', async () => {
+    const [me, other, third] = await Promise.all([signUp({ name: 'Puan Gizleyen' }), signUp({ name: 'Puan Engellenen' }), signUp({ name: 'Üçüncü' })]);
+    await db.query(`insert into rankings (user_id, place_id, sentiment, position, score) values ($1, $3, 'liked', 0, 9), ($2, $3, 'liked', 0, 8)`, [me, other, PLACE(1)]);
+    const seen = async (viewer, owner) => (await rows(viewer, 'select * from rankings where user_id = $1', [owner])).length;
+    assert.equal(await seen(other, me), 1);
+    await as(me, `insert into blocks (blocked_id) values ($1)`, [other]);
+    assert.equal(await seen(other, me), 0);
+    assert.equal(await seen(me, other), 0);
+    assert.equal((await rows(other, 'select * from ranking_view where user_id = $1', [me])).length, 0);
+    // Kendi puanları ve başkaları etkilenmez
+    assert.equal(await seen(me, me), 1);
+    assert.equal(await seen(third, me), 1);
   });
 });
 
@@ -576,7 +1024,11 @@ describe('feed ve arama', () => {
     assert.ok(pins.length > 0);
     assert.ok(pins.every((p) => p.city === 'İstanbul' && p.rating_count > 0));
     const moda = pins.find((p) => p.id === PLACE(1));
-    const expected = await one(me, 'select avg(score)::float8 as a, count(*)::int as c from rankings where place_id = $1', [PLACE(1)]);
+    const expected = await one(
+      me,
+      'select place_community_score(place_id, sum(score * weight * rating_recency(rated_at)), sum(weight * rating_recency(rated_at))) as a, count(*)::int as c from rankings where place_id = $1 group by place_id',
+      [PLACE(1)],
+    );
     assert.equal(moda.rating_count, expected.c);
     assert.equal(moda.average, expected.a);
     // En çok puanlanan önce, sınır uygulanır
@@ -595,19 +1047,96 @@ describe('feed ve arama', () => {
 });
 
 describe('liderlik tablosu', () => {
-  test('değerlendirme sayısı, eşitlikte beğeni; yarışma usulü sıra', async () => {
+  test("XP sırası, yarışma usulü; genelde XP'si olmayan yok (kendin hariç); user_rank aynı sırayı verir", async () => {
     const me = await signUp({ name: 'Yarışmacı' });
     const board = await rows(me, 'select * from leaderboard()');
     for (let i = 1; i < board.length; i++) {
       const [a, b] = [board[i - 1], board[i]];
-      assert.ok(a.reviews > b.reviews || (a.reviews === b.reviews && a.likes >= b.likes));
-      assert.ok(b.rank >= a.rank);
+      assert.ok(a.xp >= b.xp);
+      assert.ok(a.xp > b.xp ? b.rank > a.rank : b.rank === a.rank);
     }
-    // Genel tabloda değerlendirmesi olmayan listelenmez; kullanıcının kendisi hariç
-    assert.ok(board.filter((e) => e.reviews === 0).every((e) => e.user_id === me));
+    assert.ok(board.filter((e) => e.xp === 0).every((e) => e.user_id === me));
+    // Kırılım XP'yi verir
+    for (const e of board) {
+      assert.equal(e.xp, e.ratings * 10 + e.posts * 20 + e.photo_posts * 20 + e.likes * 2 + e.invites * 100 + e.welcome * 50);
+    }
     const top = board[0];
     assert.equal((await one(me, 'select user_rank($1) as r', [top.user_id])).r, top.rank);
     assert.equal((await one(me, 'select user_rank($1) as r', [me])).r, null);
+    await rejects(rows(null, 'select * from leaderboard()'), /42501/);
+  });
+
+  test('XP kuralları: puan +10, gönderi +20, fotoğraf +20, beğeni +2 (kendi beğenin değil); silinince düşer', async () => {
+    const me = await signUp({ name: 'XP Toplayan' });
+    const fan = await signUp({ name: 'XP Hayranı' });
+    const mine = async () => (await rows(me, `select * from leaderboard('friends')`)).find((e) => e.user_id === me);
+    assert.equal((await mine()).xp, 0);
+
+    await as(me, `select rank_place($1, 'liked', 0)`, [PLACE(3)]);
+    assert.equal((await mine()).xp, 10);
+    const plain = randomUUID();
+    await as(me, `select create_post($1, $2, 'x', null, null, '{}', '{}', '{}', '[]')`, [plain, PLACE(3)]);
+    assert.equal((await mine()).xp, 30);
+    await as(me, `select rank_place($1, 'liked', 0)`, [PLACE(4)]);
+    const photo = randomUUID();
+    await as(me, `select create_post($1, $2, 'x', null, null, '{}', '{}', '{}', $3)`, [
+      photo,
+      PLACE(4),
+      JSON.stringify([{ path: `${me}/${photo}/0.jpg` }]),
+    ]);
+    const after = await mine();
+    assert.equal(after.xp, 10 + 20 + 10 + 40);
+    assert.equal(after.photo_posts, 1);
+
+    await as(fan, 'insert into post_likes (post_id) values ($1)', [photo]);
+    await as(me, 'insert into post_likes (post_id) values ($1)', [photo]);
+    assert.equal((await mine()).xp, 82, 'yalnızca başkasının beğenisi');
+    // Bu ayın tablosu da aynı (hepsi bu ay)
+    assert.equal((await rows(me, `select * from leaderboard('friends', 'month')`)).find((e) => e.user_id === me).xp, 82);
+
+    await as(me, 'delete from posts where id = $1', [photo]);
+    assert.equal((await mine()).xp, 10 + 20 + 10);
+  });
+
+  test('günde en fazla 20 puanlama XP getirir', async () => {
+    const me = await signUp({ name: 'Puan Makinesi' });
+    const { rows: many } = await db.query(`select id from places where closed_at is null order by id limit 25`);
+    for (const p of many) await as(me, `select rank_place($1, 'fine', 0)`, [p.id]);
+    const e = (await rows(me, `select * from leaderboard('friends')`)).find((x) => x.user_id === me);
+    assert.equal(e.ratings, 20);
+    assert.equal(e.xp, 200);
+  });
+
+  test('davet: yeni kullanıcı davet edeni bir kez yazar; ilk puanından sonra davet eden +100, davetli +50', async () => {
+    const inviter = await signUp({ name: 'Davet Eden', username: 'davetci' });
+    const invitee = await signUp({ name: 'Davetli' });
+    const xpOf = async (id) => (await rows(id, `select * from leaderboard('friends')`)).find((e) => e.user_id === id);
+
+    const who = await one(invitee, `select set_inviter('@Davetci') as p`);
+    assert.equal(who.p.id, inviter);
+    await rejects(one(invitee, `select set_inviter('davetci')`), /already_set|zaten/);
+    assert.equal((await xpOf(inviter)).invites, 0, 'davetli henüz puan vermedi');
+
+    await as(invitee, `select rank_place($1, 'liked', 0)`, [PLACE(5)]);
+    assert.equal((await xpOf(inviter)).xp, 100);
+    const me = await xpOf(invitee);
+    assert.equal(me.welcome, 1);
+    assert.equal(me.xp, 10 + 50);
+
+    // Kim kimi davet etti başkasına görünmez; sütun doğrudan yazılamaz
+    assert.equal((await rows(inviter, 'select invited_by from profile_private')).every((r) => r.invited_by === null), true);
+    await rejects(as(invitee, 'update profile_private set invited_by = null where user_id = $1', [invitee]), /permission denied/);
+  });
+
+  test('davet eden kuralları: kendisi, bilinmeyen ve senden sonra katılan olamaz', async () => {
+    const early = await signUp({ name: 'Erken' });
+    const late = await signUp({ name: 'Geç', username: 'gecgelen' });
+    const lateName = (await one(late, 'select username from profiles where id = $1', [late])).username;
+    await rejects(one(early, 'select set_inviter($1)', [lateName]), /newer|sonra/);
+    const earlyName = (await one(early, 'select username from profiles where id = $1', [early])).username;
+    await rejects(one(early, 'select set_inviter($1)', [earlyName]), /P0002/);
+    await rejects(one(early, `select set_inviter('yokboylebiri')`), /P0002/);
+    await rejects(rows(null, `select set_inviter('x')`), /42501/);
   });
 
   test('arkadaş ve okul kapsamı', async () => {
@@ -695,8 +1224,8 @@ describe('bildirimler', () => {
     const [n] = await inbox(been);
     assert.equal(n.type, 'friend_rated');
     assert.equal(n.place_id, PLACE(16));
-    assert.equal(Number(n.score), 10);
-    assert.equal(Number(n.my_score), 6.6);
+    assert.equal(Number(n.score), scoreAt('liked', 0, 1));
+    assert.equal(Number(n.my_score), scoreAt('fine', 0, 1));
     assert.equal(n.following, true);
     assert.equal((await inbox(notBeen)).length, 0);
     assert.equal((await inbox(stranger)).length, 0);
@@ -888,7 +1417,7 @@ describe('rehber ve masa döngüsü', () => {
     const [invite] = await rows(guest, 'select * from my_invites()');
     assert.equal(invite.inviter.id, host);
     assert.equal(invite.place.id, PLACE(18));
-    assert.equal(Number(invite.inviter_score), 10);
+    assert.equal(Number(invite.inviter_score), scoreAt('liked', 0, 1));
     assert.equal(invite.my_score, null);
     assert.equal(invite.following, false);
     assert.equal((await rows(stranger, 'select * from my_invites()')).length, 0);
@@ -897,14 +1426,15 @@ describe('rehber ve masa döngüsü', () => {
     await as(guest, `select rank_place($1, 'fine', 0)`, [PLACE(18)]);
     const rated = (await inbox(host)).find((n) => n.type === 'friend_rated');
     assert.equal(rated.actor.id, guest);
-    assert.equal(Number(rated.score), 6.6);
-    assert.equal(Number(rated.my_score), 10);
-    assert.equal(Number((await rows(guest, 'select * from my_invites()'))[0].my_score), 6.6);
+    assert.equal(Number(rated.score), scoreAt('fine', 0, 1));
+    assert.equal(Number(rated.my_score), scoreAt('liked', 0, 1));
+    assert.equal(Number((await rows(guest, 'select * from my_invites()'))[0].my_score), scoreAt('fine', 0, 1));
   });
 });
 
 describe('damak uyumu', () => {
-  const ps = [21, 22, 23, 24].map(PLACE);
+  // Aynı segmentteki (restoran) mekânlar: sıralar birbirini etkilesin
+  const ps = [2, 6, 12, 22].map(PLACE);
   const rankAll = async (userId, placeIds) => {
     for (const [i, id] of placeIds.entries()) await as(userId, `select rank_place($1, 'liked', $2)`, [id, i]);
   };
@@ -926,10 +1456,10 @@ describe('damak uyumu', () => {
     assert.ok(same.places.every((p) => p.my_score === p.their_score && p.place.id));
 
     const reversed = await match(a, c);
-    const scores = [10, 8.4, 6.7];
+    const scores = [0, 1, 2].map((i) => scoreAt('liked', i, 3));
     assert.equal(reversed.percent, expected(scores.map((s, i) => [s, scores[2 - i]])));
     assert.ok(reversed.percent < same.percent);
-    // İkisinin de sevdiği önce: en düşük puanı en yüksek olan (ortadaki mekân, 8,4 – 8,4)
+    // İkisinin de sevdiği önce: en düşük puanı en yüksek olan (ortadaki mekân, ikisinde de aynı puan)
     assert.equal(reversed.places[0].place.id, ps[1]);
   });
 
@@ -951,7 +1481,8 @@ describe('damak uyumu', () => {
 });
 
 describe('paylaşılabilir listeler', () => {
-  const ps = [1, 2, 3, 4].map(PLACE);
+  // Aynı segmentteki (sokak lezzeti) mekânlar: sahibin puan sırası tek listeden gelir
+  const ps = [3, 4, 5, 9].map(PLACE);
   const saveList = (userId, args) =>
     one(userId, 'select save_list($1, $2, $3, $4, $5) as id', [
       args.id ?? null,
@@ -964,7 +1495,7 @@ describe('paylaşılabilir listeler', () => {
 
   test('oluşturma, sahibin puanına göre sıra, notlar; güncelleme mekânları değiştirir', async () => {
     const me = await signUp({ name: 'Liste Yapan' });
-    // Puan sırası: p3 (10) > p1 > p2; p4 puanlanmamış
+    // Puan sırası: p3 > p1 (beğendim) > p2 (idare eder); p4 puanlanmamış
     await as(me, `select rank_place($1, 'liked', 0)`, [ps[0]]);
     await as(me, `select rank_place($1, 'liked', 0)`, [ps[2]]);
     await as(me, `select rank_place($1, 'fine', 0)`, [ps[1]]);
@@ -984,7 +1515,7 @@ describe('paylaşılabilir listeler', () => {
       d.items.map((i) => i.place.id),
       [ps[2], ps[0], ps[1], ps[3]],
     );
-    assert.equal(Number(d.items[0].score), 10);
+    assert.equal(Number(d.items[0].score), scoreAt('liked', 0, 2));
     assert.equal(d.items[3].score, null);
     assert.equal(d.items[0].note, 'Acılı iste');
     assert.equal(d.items[2].note, 'Mercimek çorbası');
@@ -1035,7 +1566,7 @@ describe('paylaşılabilir listeler', () => {
     assert.equal(seen.list.author.name, 'Görünür Liste');
     assert.equal(seen.list.saved_by_me, false);
     assert.equal(seen.items[0].note, 'Tavsiye');
-    assert.equal(Number(seen.items[0].score), 10);
+    assert.equal(Number(seen.items[0].score), scoreAt('liked', 0, 1));
     assert.equal(await details(member, randomUUID()), null);
     await rejects(rows(null, 'select list_details($1)', [id]), /42501/);
     await rejects(rows(null, 'select user_lists($1)', [owner]), /42501/);
@@ -1108,6 +1639,24 @@ describe('hesap', () => {
     assert.equal(after.follower_count, followers - 1);
   });
 
+  test('profil fotoğrafı yalnızca kendi klasöründen; dış adres yazılamaz', async () => {
+    const me = await signUp({ name: 'Fotoğraflı' });
+    await as(me, 'update profiles set avatar_path = $2 where id = $1', [me, `${me}/avatar-1.jpg`]);
+    await rejects(as(me, 'update profiles set avatar_path = $2 where id = $1', [me, 'https://izleyici.example.com/p.jpg']), /22023/);
+    await rejects(as(me, 'update profiles set avatar_path = $2 where id = $1', [me, `${USER(1)}/avatar.jpg`]), /22023/);
+    await rejects(as(me, 'update profiles set avatar_path = $2 where id = $1', [me, `${me}/../${USER(1)}/a.jpg`]), /22023/);
+    await as(me, 'update profiles set avatar_path = null where id = $1', [me]);
+    // Başka sütunu güncellemek eski (betikle yazılmış) dış adrese takılmaz
+    await db.query('update profiles set avatar_path = $2 where id = $1', [me, 'https://i.pravatar.cc/200?img=1']);
+    await as(me, 'update profiles set name = $2 where id = $1', [me, 'Fotoğraflı Ad']);
+  });
+
+  test('ağır XP referansı ve puanlama yetkileri', async () => {
+    const me = await signUp({ name: 'Yetki' });
+    await rejects(rows(me, 'select * from xp_totals(null)'), /42501/);
+    await rejects(rows(null, `select rank_place($1, 'liked', 0)`, [PLACE(1)]), /42501/);
+  });
+
   test('günlük mekân ekleme sınırı', async () => {
     const me = await signUp({ name: 'Spamcı' });
     await db.transaction(async (tx) => {
@@ -1126,6 +1675,378 @@ describe('hesap', () => {
         /Günlük mekân ekleme sınırına/,
       );
     });
+  });
+});
+
+describe('yorum yanıtları ve beğeniler', () => {
+  const inbox = (userId) => rows(userId, 'select * from my_notifications()');
+
+  async function postBy(name) {
+    const id = await signUp({ name });
+    await as(id, `select rank_place($1, 'liked', 0)`, [PLACE(13)]);
+    const postId = randomUUID();
+    await as(id, `select create_post($1, $2, 'x', null, null, '{}', '{}', '{}', '[]')`, [postId, PLACE(13)]);
+    return { id, postId };
+  }
+  const comment = async (userId, postId, body, parentId = null) =>
+    (await one(userId, 'insert into comments (post_id, body, parent_id) values ($1, $2, $3) returning id', [postId, body, parentId]))
+      .id;
+
+  test('yanıt: yanıtlanan yoruma "reply", gönderi sahibine "comment"; görünümde parent_id', async () => {
+    const { id: owner, postId } = await postBy('Yanıt Sahibi');
+    const [ayse, mert] = [await signUp({ name: 'Ayşe' }), await signUp({ name: 'Mert' })];
+    const root = await comment(ayse, postId, 'Harika yer');
+    const reply = await comment(mert, postId, 'Katılıyorum!', root);
+
+    const ayseInbox = await inbox(ayse);
+    assert.deepEqual(ayseInbox.map((n) => n.type), ['reply']);
+    assert.equal(ayseInbox[0].comment, 'Katılıyorum!');
+    assert.equal(ayseInbox[0].post_id, postId);
+    assert.deepEqual((await inbox(owner)).map((n) => n.type).sort(), ['comment', 'comment']);
+
+    // Gönderi sahibi bir yorumu yanıtlarsa yorum yazarına yalnızca "reply"; kendine bildirim yok
+    await comment(owner, postId, 'Teşekkürler', reply);
+    assert.deepEqual((await inbox(mert)).map((n) => n.type), ['reply']);
+    // Kendi yorumuna yanıt veren gönderi sahibine iki kez bildirim gitmez
+    const ownRoot = await comment(owner, postId, 'Ek bilgi');
+    await comment(ayse, postId, 'Sağ ol', ownRoot);
+    assert.equal((await inbox(owner)).filter((n) => n.actor.id === ayse).length, 2, 'ilk yorum + yanıt, tekrar yok');
+
+    const view = await rows(ayse, 'select id, parent_id from comment_view where post_id = $1 order by created_at', [postId]);
+    assert.equal(view.find((c) => c.id === reply).parent_id, root);
+    assert.equal(view.find((c) => c.id === root).parent_id, null);
+    assert.equal((await one(ayse, 'select comment_count from posts where id = $1', [postId])).comment_count, 5);
+
+    // Üst yorum silinince yanıtları (yanıtın yanıtı dahil) da silinir, sayaç düşer
+    await as(ayse, 'delete from comments where id = $1', [root]);
+    assert.equal((await rows(ayse, 'select id from comments where id = $1', [reply])).length, 0);
+    assert.equal((await one(ayse, 'select comment_count from posts where id = $1', [postId])).comment_count, 2);
+  });
+
+  test('yanıt başka gönderideki yoruma verilemez; engelli kişiye yanıt yok', async () => {
+    const a = await postBy('Gönderi A');
+    const b = await postBy('Gönderi B');
+    const c = await comment(a.id, a.postId, 'Bizim yorum');
+    await rejects(comment(b.id, b.postId, 'Yanlış yer', c), /P0002/);
+    await rejects(comment(b.id, a.postId, 'Hayali', randomUUID()), /P0002/);
+
+    const troll = await signUp({ name: 'Yanıt Trolü' });
+    const target = await comment(a.id, a.postId, 'Beni rahat bırak');
+    await as(troll, 'insert into post_likes (post_id) values ($1)', [a.postId]);
+    await as(a.id, 'insert into blocks (blocked_id) values ($1)', [troll]);
+    await rejects(comment(troll, a.postId, 'Yine ben', target), /row-level security|42501/);
+  });
+
+  test('yorum beğenme: sayaç, benim beğenim, bildirim; geri alınca hepsi geri; başkasının beğenisi görünmez', async () => {
+    const { id: owner, postId } = await postBy('Beğenilen Yorumcu');
+    const fan = await signUp({ name: 'Yorum Hayranı' });
+    const c1 = await comment(owner, postId, 'Pideyi deneyin');
+    const c2 = await comment(owner, postId, 'Ayranı da');
+
+    await as(fan, 'insert into comment_likes (comment_id) values ($1)', [c1]);
+    await as(fan, 'insert into comment_likes (comment_id) values ($1)', [c2]);
+    const seen = await rows(fan, 'select id, like_count, liked_by_me from comment_view where post_id = $1', [postId]);
+    assert.deepEqual(
+      seen.map((c) => [c.id === c1 ? 'c1' : 'c2', c.like_count, c.liked_by_me]).sort(),
+      [
+        ['c1', 1, true],
+        ['c2', 1, true],
+      ],
+    );
+    assert.equal((await one(owner, 'select liked_by_me from comment_view where id = $1', [c1])).liked_by_me, false);
+    assert.equal((await rows(owner, 'select * from comment_likes')).length, 0, 'kimin beğendiği görünmez');
+
+    // Aynı gönderideki iki yorum iki ayrı bildirim; metin beğenilen yorumu gösterir
+    const likes = (await inbox(owner)).filter((n) => n.type === 'comment_like');
+    assert.equal(likes.length, 2);
+    assert.deepEqual(likes.map((n) => n.comment).sort(), ['Ayranı da', 'Pideyi deneyin']);
+    const text = (
+      await db.query(
+        `select notification_text(n, 'tr') as t from notifications n where user_id = $1 and type = 'comment_like' and comment_id = $2`,
+        [owner, c1],
+      )
+    ).rows[0].t;
+    assert.equal(text, 'Yorum Hayranı yorumunu beğendi: “Pideyi deneyin”');
+
+    await as(fan, 'delete from comment_likes where comment_id = $1', [c1]);
+    assert.equal((await one(fan, 'select like_count from comment_view where id = $1', [c1])).like_count, 0);
+    assert.equal((await inbox(owner)).filter((n) => n.type === 'comment_like').length, 1);
+
+    // Sayaç elle yazılamaz, başkası adına beğenilemez, iki kez beğenilemez
+    await rejects(as(fan, 'update comments set like_count = 99 where id = $1', [c2]), /permission denied/);
+    await rejects(as(fan, 'insert into comment_likes (comment_id, user_id) values ($1, $2)', [c1, owner]), /row-level security/);
+    await rejects(as(fan, 'insert into comment_likes (comment_id) values ($1)', [c2]), /23505|duplicate/);
+    // Kendi yorumunu beğenmek bildirim üretmez
+    await as(owner, 'insert into comment_likes (comment_id) values ($1)', [c2]);
+    assert.equal((await inbox(owner)).filter((n) => n.type === 'comment_like').length, 1);
+  });
+});
+
+describe('tanıyor olabileceğin kişiler', () => {
+  const pymk = (userId, limit = 50) => rows(userId, 'select * from people_you_may_know($1)', [limit]);
+  const find = (list, id) => list.find((s) => s.profile.id === id);
+
+  test('gerekçeler ve sıra: seni takip eden > rehber > birlikte etiketlenen > ortak arkadaş > popüler', async () => {
+    const me = await signUp({ name: 'Öneri Alan' });
+    const [follower, contact, tagged, friend, friendOfFriend, followed] = await Promise.all(
+      ['Takipçi', 'Rehberdeki', 'Etiketleyen', 'Arkadaş', 'Arkadaşın Arkadaşı', 'Zaten Takipte'].map((name) => signUp({ name })),
+    );
+    await as(follower, 'insert into follows (followee_id) values ($1)', [me]);
+    await as(me, 'insert into follows (followee_id) values ($1)', [friend]);
+    await as(me, 'insert into follows (followee_id) values ($1)', [followed]);
+    await as(friend, 'insert into follows (followee_id) values ($1)', [friendOfFriend]);
+
+    // Rehber: numarası doğrulanmış kişi, benim kayıtlı rehberimde
+    await db.query('update auth.users set phone = $2, phone_confirmed_at = now() where id = $1', [contact, '905551112233']);
+    await as(me, 'select * from match_contacts($1, true)', [['0555 111 22 33']]);
+
+    // Beni gönderisinde etiketleyen
+    await as(tagged, `select rank_place($1, 'liked', 0)`, [PLACE(10)]);
+    await as(tagged, `select create_post($1, $2, 'x', null, null, '{}', '{}', array[$3::uuid], '[]')`, [randomUUID(), PLACE(10), me]);
+
+    const list = await pymk(me);
+    const ids = list.map((s) => s.profile.id);
+    assert.equal(find(list, follower).reason, 'follows_you');
+    assert.equal(find(list, contact).reason, 'contact');
+    assert.equal(find(list, tagged).reason, 'together');
+    const fof = find(list, friendOfFriend);
+    assert.equal(fof.reason, 'mutual');
+    assert.equal(fof.mutual_count, 1);
+    assert.equal(fof.mutual_name, 'Arkadaş');
+    assert.ok(ids.indexOf(follower) < ids.indexOf(contact));
+    assert.ok(ids.indexOf(contact) < ids.indexOf(tagged));
+    assert.ok(ids.indexOf(tagged) < ids.indexOf(friendOfFriend));
+    assert.ok(list.slice(ids.indexOf(friendOfFriend) + 1).every((s) => ['popular', 'school', 'engaged'].includes(s.reason)));
+    assert.ok(!ids.includes(me) && !ids.includes(followed) && !ids.includes(friend));
+    assert.ok(list.every((s) => s.profile.name && s.profile.username));
+  });
+
+  test('✕ ile gizlenen ve engelli kişiler hiçbir öneri listesinde çıkmaz; oturumsuz çağrılamaz', async () => {
+    const me = await signUp({ name: 'Gizleyen' });
+    const [hidden, blocked] = [await signUp({ name: 'Gizlenen' }), await signUp({ name: 'Engelli Önerilen' })];
+    await as(hidden, 'insert into follows (followee_id) values ($1)', [me]);
+    await as(blocked, 'insert into follows (followee_id) values ($1)', [me]);
+    assert.ok(find(await pymk(me), hidden));
+
+    await as(me, 'insert into suggestion_dismissals (dismissed_id) values ($1)', [hidden]);
+    await as(me, 'insert into blocks (blocked_id) values ($1)', [blocked]);
+    const list = await pymk(me);
+    assert.equal(find(list, hidden), undefined);
+    assert.equal(find(list, blocked), undefined);
+    const suggested = await rows(me, 'select id from suggested_users(100)');
+    assert.ok(!suggested.some((u) => u.id === hidden));
+
+    // Gizlemeler yalnızca sahibine görünür, başkası adına gizlenemez
+    assert.equal((await rows(hidden, 'select * from suggestion_dismissals')).length, 0);
+    await rejects(
+      as(hidden, 'insert into suggestion_dismissals (user_id, dismissed_id) values ($1, $2)', [me, blocked]),
+      /row-level security/,
+    );
+    await rejects(rows(null, 'select * from people_you_may_know(5)'), /42501/);
+  });
+});
+
+describe('semt araması ve bölgenin en iyileri', () => {
+  test('yazdıkça ilçe ve mahalleler; tam ve baştan eşleşme önce; en az 2 harf', async () => {
+    const me = await signUp({ name: 'Semt Arayan' });
+    const kadikoy = await rows(me, 'select * from search_areas($1, 10)', ['kadık']);
+    assert.equal(kadikoy[0].kind, 'district');
+    assert.equal(kadikoy[0].name, 'Kadıköy');
+    assert.equal(kadikoy[0].city, 'İstanbul');
+    const expected = await one(
+      me,
+      `select count(*)::int as n from places where city = 'İstanbul' and district = 'Kadıköy' and closed_at is null`,
+    );
+    assert.equal(kadikoy[0].place_count, expected.n);
+
+    const moda = await rows(me, 'select * from search_areas($1)', ['MODA']);
+    assert.equal(moda[0].kind, 'neighborhood');
+    assert.equal(moda[0].name, 'Moda');
+    assert.equal(moda[0].district, 'Kadıköy');
+
+    // Türkçe harfsiz yazım da bulur; tek harf aramaz
+    assert.equal((await rows(me, 'select * from search_areas($1)', ['besiktas']))[0].name, 'Beşiktaş');
+    assert.equal((await rows(me, 'select * from search_areas($1)', ['k'])).length, 0);
+    assert.equal((await rows(me, 'select * from search_areas($1)', ['istanbul']))[0].kind, 'city');
+    await rejects(rows(null, 'select * from search_areas($1)', ['kad']), /42501/);
+  });
+
+  test('bölgenin mekânları topluluk puanına göre; segment süzgeci; kapanan mekân yok', async () => {
+    const me = await signUp({ name: 'Bölge Gezen' });
+    const list = await rows(me, `select * from area_top_places('İstanbul', 'Kadıköy')`);
+    assert.ok(list.length > 0);
+    assert.ok(list.every((p) => p.district === 'Kadıköy' && p.city === 'İstanbul'));
+    const rated = list.filter((p) => p.rating_count > 0);
+    assert.ok(rated.length > 0);
+    assert.deepEqual(
+      list.slice(0, rated.length).map((p) => p.id),
+      rated.map((p) => p.id),
+      'puanlananlar önce',
+    );
+    for (let i = 1; i < rated.length; i++) assert.ok(rated[i - 1].average >= rated[i].average);
+    const first = await one(
+      me,
+      'select place_community_score(place_id, sum(score * weight * rating_recency(rated_at)), sum(weight * rating_recency(rated_at))) as a, count(*)::int as n from rankings where place_id = $1 group by place_id',
+      [rated[0].id],
+    );
+    assert.equal(rated[0].average, first.a);
+    assert.equal(rated[0].rating_count, first.n);
+
+    const moda = await rows(me, `select * from area_top_places('İstanbul', 'Kadıköy', 'Moda')`);
+    assert.ok(moda.length > 0 && moda.every((p) => p.neighborhood === 'Moda'));
+    const breakfast = await rows(me, `select * from area_top_places('İstanbul', 'Kadıköy', null, 'breakfast')`);
+    assert.ok(breakfast.length > 0 && breakfast.every((p) => p.cuisine === 'Kahvaltıcı'));
+    assert.equal((await rows(me, `select * from area_top_places('İstanbul', 'Kadıköy', null, null, 1, 1)`)).length, 1);
+
+    const closed = list[0].id;
+    try {
+      await db.query('update places set closed_at = now() where id = $1', [closed]);
+      assert.ok(!(await rows(me, `select id from area_top_places('İstanbul', 'Kadıköy')`)).some((p) => p.id === closed));
+      const after = (await rows(me, 'select * from search_areas($1)', ['kadıköy']))[0];
+      assert.equal(after.place_count, (await one(me, `select count(*)::int as n from places where district = 'Kadıköy' and closed_at is null`)).n);
+    } finally {
+      await db.query('update places set closed_at = null where id = $1', [closed]);
+    }
+    await rejects(rows(null, `select * from area_top_places('İstanbul', 'Kadıköy')`), /42501/);
+  });
+});
+
+describe('arama hızı: bölge dizini ve mekân arama', () => {
+  /** Dizin, mekânlardan baştan sayılmış hâliyle aynı olmalı */
+  async function assertIndexMatchesPlaces() {
+    const { rows: diff } = await db.query(`
+      with fresh as (
+        select 'city' as kind, city, '' as district, city as name, count(*)::int as n
+        from places where closed_at is null and city <> '' group by city
+        union all
+        select 'district', city, district, district, count(*)::int
+        from places where closed_at is null and city <> '' and district <> '' group by city, district
+        union all
+        select 'neighborhood', city, district, neighborhood, count(*)::int
+        from places
+        where closed_at is null and city <> '' and neighborhood <> '' and tr_fold(neighborhood) <> tr_fold(district)
+        group by city, district, neighborhood
+      )
+      select coalesce(f.kind, a.kind) as kind, coalesce(f.name, a.name) as name, f.n, a.place_count
+      from fresh f
+      full join area_index a on a.kind = f.kind and a.city = f.city and a.district = f.district and a.name = f.name
+      where f.n is distinct from a.place_count`);
+    assert.deepEqual(diff, []);
+  }
+
+  test('dizin mekân ekleme, taşıma, kapanma ve silmeyle güncel kalır', async () => {
+    await assertIndexMatchesPlaces();
+    const me = await signUp({ name: 'Dizin Test' });
+    const { id } = await one(
+      me,
+      `insert into places (name, cuisine, neighborhood, district, city, latitude, longitude)
+       values ('Dizin Deneme Kafe', 'Kafe', 'Moda', 'Kadıköy', 'İstanbul', 40.985, 29.026) returning id`,
+    );
+    await assertIndexMatchesPlaces();
+    const moda = async () => (await rows(me, 'select * from search_areas($1)', ['moda']))[0].place_count;
+    const before = await moda();
+    await db.query(`update places set neighborhood = 'Caferağa' where id = $1`, [id]);
+    await assertIndexMatchesPlaces();
+    assert.equal(await moda(), before - 1);
+    await db.query('update places set closed_at = now() where id = $1', [id]);
+    await assertIndexMatchesPlaces();
+    await db.query('update places set closed_at = null where id = $1', [id]);
+    await assertIndexMatchesPlaces();
+    await db.query('delete from places where id = $1', [id]);
+    await assertIndexMatchesPlaces();
+  });
+
+  test('mekân arama: kısa (baştan), uzun (benzerlik), boş (yakın ya da popüler); kapanan yok', async () => {
+    const me = await signUp({ name: 'Hızlı Arayan' });
+    const names = async (q) => (await rows(me, 'select name from search_places($1, null, null, 10)', [q])).map((r) => r.name);
+    assert.ok((await names('ç')).every((n) => /^[çc]/i.test(n)), 'tek harf: adın başı');
+    assert.ok((await names('ku')).includes('Kuzguncuk Meze Evi'));
+    assert.equal((await names('kuzgun'))[0], 'Kuzguncuk Meze Evi');
+    assert.ok((await names('meze')).includes('Kuzguncuk Meze Evi'), 'kelime ortası da bulunur');
+    // Boş arama, konumla: en yakın önce (Kadıköy'deyken Moda'daki)
+    const near = await rows(me, 'select name, district from search_places($1, $2, $3, 5)', ['', KADIKOY.lat, KADIKOY.lng]);
+    assert.equal(near[0].district, 'Kadıköy');
+    // Konumsuz boş arama: puanlanan/paylaşılan mekânlar
+    const popular = await rows(me, `select id from search_places('', null, null, 50)`);
+    assert.ok(popular.length > 0);
+    const counted = await rows(
+      me,
+      'select id from places p where exists (select 1 from rankings r where r.place_id = p.id) or exists (select 1 from posts x where x.place_id = p.id)',
+    );
+    assert.ok(popular.every((p) => counted.some((c) => c.id === p.id)));
+
+    const closed = (await rows(me, `select id from search_places('kuzgun', null, null, 1)`))[0].id;
+    try {
+      await db.query('update places set closed_at = now() where id = $1', [closed]);
+      assert.ok(!(await names('kuzgun')).includes('Kuzguncuk Meze Evi'));
+    } finally {
+      await db.query('update places set closed_at = null where id = $1', [closed]);
+    }
+  });
+});
+
+describe('haritada bölgeye gitme', () => {
+  test('bölge sınırları mekânlarını kapsar; mekânsız bölge boş; oturumsuz çağrılamaz', async () => {
+    const me = await signUp({ name: 'Haritada Gezen' });
+    const b = await one(me, `select * from area_bounds('İstanbul', 'Kadıköy')`);
+    assert.ok(b.south < b.north && b.west < b.east);
+    const inside = await rows(me, `select latitude, longitude from places where district = 'Kadıköy' and closed_at is null`);
+    const within = inside.filter((p) => p.latitude >= b.south && p.latitude <= b.north && p.longitude >= b.west && p.longitude <= b.east);
+    assert.ok(within.length >= inside.length * 0.9);
+    // Kadıköy, İstanbul'un içinde kalır
+    const city = await one(me, `select * from area_bounds('İstanbul')`);
+    assert.ok(city.south <= b.south && city.north >= b.north);
+    assert.ok((await one(me, `select * from area_bounds('İstanbul', 'Kadıköy', 'Moda')`)).north <= b.north);
+    assert.equal((await rows(me, `select * from area_bounds('Hayal Şehir')`)).length, 0);
+    await rejects(rows(null, `select * from area_bounds('İstanbul')`), /42501/);
+  });
+});
+
+describe('yıllık hedef yarışı', () => {
+  test('sen ve takip ettiklerin; yalnızca o yılın puanları; tamamlanma oranına göre sıra; hedefsizler sonda', async () => {
+    const me = await signUp({ name: 'Hedefçi' });
+    const fast = await signUp({ name: 'Hızlı Gezen' });
+    const slow = await signUp({ name: 'Yavaş Gezen' });
+    const none = await signUp({ name: 'Hedefsiz' });
+    const blocked = await signUp({ name: 'Engellenen Gezen' });
+    const stranger = await signUp({ name: 'Tanımadığım' });
+    for (const id of [fast, slow, none, blocked]) await as(me, `insert into follows (followee_id) values ($1)`, [id]);
+    await as(me, `insert into blocks (blocked_id) values ($1)`, [blocked]);
+
+    await as(me, 'update profiles set year_goal = 10 where id = $1', [me]);
+    await as(fast, 'update profiles set year_goal = 2 where id = $1', [fast]);
+    await as(slow, 'update profiles set year_goal = 100 where id = $1', [slow]);
+    await as(stranger, 'update profiles set year_goal = 5 where id = $1', [stranger]);
+    for (const p of [PLACE(1), PLACE(2)]) {
+      await as(fast, `select rank_place($1, 'liked', 0)`, [p]);
+      await as(slow, `select rank_place($1, 'liked', 0)`, [p]);
+    }
+    await as(none, `select rank_place($1, 'liked', 0)`, [PLACE(3)]);
+    // Geçen yılın puanı bu yılın hedefine sayılmaz
+    await db.query(`update rankings set rated_at = now() - interval '400 days' where user_id = $1 and place_id = $2`, [
+      slow,
+      PLACE(2),
+    ]);
+
+    const list = await rows(me, 'select user_id, goal, done, profile from year_challenge()');
+    assert.deepEqual(
+      list.map((r) => r.user_id),
+      [fast, slow, me, none],
+      'hızlı %100, yavaş %1, ben %0, hedefsiz en sonda; engellenen ve takip etmediğim yok',
+    );
+    assert.deepEqual(
+      list.map((r) => [r.goal, r.done]),
+      [
+        [2, 2],
+        [100, 1],
+        [10, 0],
+        [null, 1],
+      ],
+    );
+    const lastYear = await rows(me, 'select user_id, done from year_challenge(extract(year from now())::integer - 1)');
+    assert.equal(lastYear.find((r) => r.user_id === slow).done, 1);
+    assert.equal(list[0].profile.name, 'Hızlı Gezen');
+    await rejects(rows(null, 'select * from year_challenge()'), /42501/);
   });
 });
 
@@ -1205,9 +2126,17 @@ describe('ölçek: sayaçlar ve indeksli okumalar', () => {
     const { rows: same } = await db.query(
       `select hot_rank(10, 0, now()) > hot_rank(0, 0, now()) as a,
               hot_rank(0, 0, now()) > hot_rank(0, 0, now() - interval '1 hour') as b,
-              abs(hot_rank(2, 0, now() - interval '1 day') - hot_rank(0, 0, now())) < 1e-9 as c`,
+              abs(hot_rank(2, 0, now() - interval '14 days') - hot_rank(0, 0, now())) < 1e-9 as c`,
     );
-    assert.deepEqual(same[0], { a: true, b: true, c: true });
+    assert.deepEqual(same[0], { a: true, b: true, c: true }, 'üç kat etkileşim iki hafta yeniliğe denk');
+    // Bölgede popüler olan önde; feed yine de haftalar içinde tazelenir
+    const { rows: order } = await db.query(
+      `select hot_rank(100, 0, now() - interval '5 days') > hot_rank(0, 0, now()) as five_days,
+              hot_rank(30, 0, now() - interval '14 days') > hot_rank(3, 0, now()) as two_weeks,
+              hot_rank(10, 0, now()) > hot_rank(100, 0, now() - interval '30 days') as month,
+              hot_rank(0, 5, now()) = hot_rank(10, 0, now()) as comment_weight`,
+    );
+    assert.deepEqual(order[0], { five_days: true, two_weeks: true, month: true, comment_weight: true });
   });
 
   test('aynı anda aynı kullanıcı adıyla kayıt: ikincisi düşmez, sıradaki boş ad verilir', async () => {
@@ -1242,17 +2171,73 @@ describe('ölçek: sayaçlar ve indeksli okumalar', () => {
     assert.equal((await rows(me, `select id from search_places('_')`)).length, 0);
     assert.equal((await rows(me, `select id from search_users('%')`)).length, 0);
   });
+});
 
-  test('liderlikte ilk sıralarda olmayan kullanıcının satırı ve sırası', async () => {
-    const me = await signUp({ name: 'Sondaki' });
-    await as(me, `select rank_place($1, 'liked', 0)`, [PLACE(5)]);
-    await as(me, `select create_post($1, $2)`, [randomUUID(), PLACE(5)]);
-    const board = await rows(me, `select * from leaderboard('all', 'all', null, 1)`);
-    const mine = board.find((e) => e.user_id === me);
-    assert.ok(board.length === 2 && mine);
-    assert.equal(mine.reviews, 1);
-    assert.equal(mine.rank, (await one(me, 'select user_rank($1) as r', [me])).r);
-    const full = await rows(me, `select * from leaderboard('all', 'all', null, 500)`);
-    assert.equal(full.find((e) => e.user_id === me).rank, mine.rank);
+describe('büyüme ölçümü', () => {
+  test('paylaşım kaydı yalnızca log_share ile; özet yalnızca yöneticiye', async () => {
+    const inviter = await signUp({ name: 'Paylaşımcı' });
+    const invitee = await signUp({ name: 'Davetli Ölçüm' });
+    await as(inviter, `select log_share('story', 'favorites', 'sheet', true)`);
+    await as(inviter, `select log_share('post', $1)`, [randomUUID()]);
+    await rejects(as(inviter, `select log_share('reklam')`), /23514/);
+    await rejects(as(inviter, `insert into share_events (kind) values ('post')`), /42501/);
+    await rejects(rows(inviter, 'select * from share_events'), /42501/);
+    await rejects(as(null, `select log_share('post')`), /42501/);
+
+    // Davetle gelen ve ilk puanını veren kişi K'ya sayılır
+    await db.query(`update profiles set created_at = now() - interval '40 days' where id = $1`, [inviter]);
+    await as(inviter, `select rank_place($1, 'liked', 0)`, [PLACE(2)]);
+    await as(invitee, 'select set_inviter($1)', [(await one(inviter, 'select username from profiles where id = $1', [inviter])).username]);
+    await as(invitee, `select rank_place($1, 'liked', 0)`, [PLACE(2)]);
+
+    await rejects(as(inviter, 'select growth_stats(30)'), /42501/);
+    const admin = await signUp({ name: 'Ölçen' });
+    await db.query(`update profiles set is_admin = true where id = $1`, [admin]);
+    const stats = (await one(admin, 'select growth_stats(30) as s')).s;
+    assert.ok(stats.shares >= 2 && stats.shares_completed >= 1 && stats.sharers >= 1);
+    assert.ok(stats.shares_by_kind.story >= 1);
+    assert.ok(stats.invited_joins >= 1);
+    assert.ok(stats.k > 0 && stats.active_users >= 2);
+  });
+});
+
+// Dosyadaki tüm testlerden sonra çalışır: beğeni, silme, davet, hesap silme dahil her olay sayaçlara yansımış olmalı
+describe('XP sayaçları', () => {
+  const COLS = 'ratings, posts, photo_posts, likes, invites, welcome';
+  const nonZero = 'ratings + posts + photo_posts + likes + invites + welcome';
+
+  test('sayaçlar baştan hesaplanan XP ile birebir aynı (tüm zamanlar ve bu ay)', async () => {
+    const all = async (sql) => (await db.query(sql)).rows;
+    assert.deepEqual(
+      await all(`select user_id, ${COLS} from xp_all where ${nonZero} <> 0 order by user_id`),
+      await all(`select user_id, ${COLS} from xp_totals(null) where ${nonZero} > 0 order by user_id`),
+    );
+    assert.deepEqual(
+      await all(`select user_id, ${COLS} from xp_monthly where month = xp_month_of(now()) and ${nonZero} <> 0 order by user_id`),
+      await all(`select user_id, ${COLS} from xp_totals(month_start()) where ${nonZero} > 0 order by user_id`),
+    );
+  });
+
+  test('günde 20 puanlama sayılır; silinen gönderinin fotoğraf ve beğeni XP’si düşer', async () => {
+    const me = await signUp({ name: 'Çalışkan' });
+    const fan = await signUp({ name: 'Hayran' });
+    const { rows: places } = await db.query('select id from places order by id limit 22');
+    for (const p of places) await as(me, `select rank_place($1, 'fine', 0)`, [p.id]);
+    const xpOf = async () => (await one(me, 'select * from leaderboard($1)', ['friends'])).xp;
+    assert.equal(await xpOf(), 200);
+
+    const id = randomUUID();
+    await as(
+      me,
+      `select * from create_post($1, $2, 'Güzel', null, null, array[]::text[], array[]::text[], array[]::uuid[], $3)`,
+      [id, places[0].id, JSON.stringify([{ path: `${me}/${id}/0.jpg`, width: 1440, height: 1800 }])],
+    );
+    await as(fan, 'insert into post_likes (post_id) values ($1)', [id]);
+    assert.equal(await xpOf(), 200 + 20 + 20 + 2);
+    await as(me, 'delete from posts where id = $1', [id]);
+    assert.equal(await xpOf(), 200);
+    // Profildeki sıra genel tablodaki kendi satırınla aynı
+    const own = (await rows(me, 'select * from leaderboard()')).find((e) => e.user_id === me);
+    assert.equal((await one(me, 'select user_rank($1) as r', [me])).r, own.rank);
   });
 });

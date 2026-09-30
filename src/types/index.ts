@@ -34,6 +34,14 @@ export type Place = {
   city: string;
   latitude: number;
   longitude: number;
+  /** Sokak ve kapı no: "Güneşlibahçe Sk. No:48/B" (mahalle/ilçe ayrı alanlarda) */
+  address?: string;
+  /** E.164: "+902161234567" */
+  phone?: string;
+  /** Mekânın sitesi ya da Instagram'ı */
+  website?: string;
+  /** Kullanıcı bildirimleriyle kalıcı olarak kapandı */
+  closed?: boolean;
   photoUrl?: string;
   /** Listeler için küçük boy kapak fotoğrafı */
   thumbUrl?: string;
@@ -42,14 +50,23 @@ export type Place = {
 /** Beli tarzı ilk izlenim */
 export type Sentiment = 'liked' | 'fine' | 'disliked';
 
-/** Kullanıcının puanladığı bir mekân. Puan, sıralamadaki konumdan hesaplanır. */
+/** Birbiriyle kıyaslanan mekân ailesi (bkz. constants/segments) */
+export type Segment = 'restaurant' | 'street' | 'breakfast' | 'cafe' | 'nightlife';
+
+/** Kullanıcının puanladığı bir mekân. Puan, segmentindeki sıralamadan hesaplanır. */
 export type RankedEntry = {
   placeId: string;
+  segment: Segment;
   note?: string;
   ratedAt: string; // ISO tarih
+  /** Listede bir üstteki mekânla aynı seviyede ("İkisi aynı"): puanları eşit */
+  tied?: boolean;
 };
 
-/** Her grup en iyiden en kötüye sıralı */
+/**
+ * Her izlenim grubu en iyiden en kötüye sıralı. Segmentler aynı dizide karışık durur; bir segmentin
+ * kendi sırası, dizideki o segmente ait kayıtların sırasıdır.
+ */
 export type Rankings = Record<Sentiment, RankedEntry[]>;
 
 /** Kaydın nereden geldiği: sosyal medyada görülen ya da uygulama içinde kaydedilen */
@@ -96,12 +113,16 @@ export type Profile = {
   email?: string;
   schoolId?: string;
   yearGoal?: number;
+  /** Favori 4: profilde ve hikâyede gösterilen, seçilen sırayla en fazla dört mekân (eski önbellekte yok) */
+  favoritePlaces?: string[];
   joinedAt: string;
   onboardedAt?: string;
   /** Telefonu SMS ile doğrulandı (rehber eşleştirme için gerekli) */
   phoneVerified: boolean;
   /** Rehberinde numarası olanlar onu bulabilir */
   discoverable: boolean;
+  /** "Seni kim davet etti?" dolduruldu (XP: davet edene +100, sana +50) */
+  hasInviter?: boolean;
 };
 
 /** Kayıt sırasında hesap açılmadan önce toplanan bilgiler (şifre hariç; şifre cihazda saklanmaz) */
@@ -119,6 +140,10 @@ export type Comment = {
   userId: string;
   text: string;
   createdAt: string;
+  /** Yanıtsa yanıtlanan yorum (o da bir yanıt olabilir; ekranda ilk yorumun altında toplanır) */
+  parentId?: string;
+  likeCount: number;
+  likedByMe: boolean;
 };
 
 export type Meal = 'kahvalti' | 'ogle' | 'aksam' | 'gece';
@@ -171,7 +196,37 @@ export type PlaceListItem = { place: Place; score?: number; note?: string };
 /** Popüler feed'in hangi bölgeyi gösterdiği */
 export type FeedArea = { type: 'near' } | { type: 'area'; city: string; district?: string };
 
-export type NotificationKind = 'like' | 'comment' | 'tag' | 'follow' | 'friend_rated' | 'friend_joined';
+export type NotificationKind =
+  | 'like'
+  | 'comment'
+  | 'reply'
+  | 'comment_like'
+  | 'tag'
+  | 'follow'
+  | 'friend_rated'
+  | 'friend_joined';
+
+/** Keşfet'te bulunan bölge: şehir, ilçe ya da mahalle */
+export type AreaHit = {
+  kind: 'city' | 'district' | 'neighborhood';
+  name: string;
+  city: string;
+  /** Mahallenin ilçesi; ilçenin kendisi; şehirde yok */
+  district?: string;
+  placeCount: number;
+};
+
+/** Neden önerildiği: en güçlü bağ (bkz. people_you_may_know) */
+export type SuggestionReason = 'follows_you' | 'contact' | 'together' | 'mutual' | 'engaged' | 'school' | 'popular';
+
+/** "Tanıyor olabileceğin kişiler" satırı */
+export type PersonSuggestion = {
+  user: User;
+  reason: SuggestionReason;
+  mutualCount: number;
+  /** Ortak arkadaşlardan birinin adı ("Ayşe ve 2 kişi daha takip ediyor") */
+  mutualName?: string;
+};
 
 /** Bildirim merkezindeki bir satır */
 export type AppNotification = {
@@ -191,4 +246,11 @@ export type AppNotification = {
   myScore?: number;
   /** Bildirimi yapanı takip ediyor musun (takip bildiriminde geri takip düğmesi) */
   following: boolean;
+};
+
+/** Yıllık hedef yarışında bir kişi: hedef (koymadıysa yok) ve bu yıl puanladığı mekân sayısı */
+export type YearChallengeEntry = {
+  userId: string;
+  goal?: number;
+  done: number;
 };

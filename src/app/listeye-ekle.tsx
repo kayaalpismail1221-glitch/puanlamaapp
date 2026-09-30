@@ -1,5 +1,5 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/symbol';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
@@ -7,13 +7,14 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { PlacePicker } from '@/components/place-picker';
 import { Button, PlaceImage, PressableScale, Text } from '@/components/ui';
-import { cuisineLabel } from '@/constants/cuisines';
 import { colors, radius, spacing, typography } from '@/constants/theme';
 import { usePlace } from '@/data/entities';
+import { useAndroidBack } from '@/hooks/use-android-back';
 import { useKeyboardFooterStyle } from '@/hooks/use-keyboard-footer';
 import { readClipboardLink, useClipboardHasUrl } from '@/lib/clipboard';
 import { haptics } from '@/lib/haptics';
 import { linkSource, normalizeUrl } from '@/lib/links';
+import { placeSubtitle } from '@/lib/place';
 import { useAppStore } from '@/store/app-store';
 import type { SaveOrigin } from '@/types';
 
@@ -67,6 +68,8 @@ export default function AddToListScreen() {
 
   const title = isSocial ? t('addToList.fromSocialTitle') : t('addToList.savePlaceTitle');
   const place = usePlace(placeId);
+  // Android geri tuşu 2. adımdan mekân seçimine döner (mekân dışarıdan verilmediyse), pencereyi kapatmaz
+  useAndroidBack(place && !params.placeId ? () => setPlaceId(undefined) : null);
 
   // 1. adım: mekân seç
   if (!place) {
@@ -129,7 +132,7 @@ export default function AddToListScreen() {
                 {place.name}
               </Text>
               <Text variant="footnote" color={colors.textSecondary}>
-                {cuisineLabel(place.cuisine)} · {place.neighborhood}
+                {placeSubtitle(place)}
               </Text>
             </View>
             {!params.placeId && (

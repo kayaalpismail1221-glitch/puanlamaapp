@@ -1,16 +1,18 @@
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/symbol';
 import { useTranslation } from 'react-i18next';
-import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 
 import type { Recommendation } from '@/api/content';
+import { BottomInsetSpacer } from '@/components/bottom-inset';
 import { PlaceRowsSkeleton, SkeletonScreen } from '@/components/skeleton';
 import { Button, Divider, ErrorView, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
-import { cuisineLabel } from '@/constants/cuisines';
+import { RefreshControl } from '@/components/refresh-control';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
 import { useRecommendations } from '@/hooks/queries';
 import { formatScore } from '@/lib/format';
 import { formatDistance } from '@/lib/geo';
+import { placeSubtitle } from '@/lib/place';
 import { useAppStore } from '@/store/app-store';
 
 /**
@@ -32,12 +34,13 @@ export default function RecommendationsScreen() {
 
   return (
     <FlatList
+      ListFooterComponent={<BottomInsetSpacer />}
       style={styles.container}
       data={recs.data}
       keyExtractor={(r) => r.place.id}
       contentInsetAdjustmentBehavior="automatic"
       refreshControl={
-        <RefreshControl refreshing={recs.isRefetching} onRefresh={() => recs.refetch()} tintColor={colors.primary} />
+        <RefreshControl refreshing={recs.isRefetching} onRefresh={() => recs.refetch()} />
       }
       ListHeaderComponent={
         <Text variant="subhead" color={colors.textSecondary} style={styles.intro}>
@@ -85,7 +88,7 @@ function RecommendationRow({ rec }: { rec: Recommendation }) {
           {place.name}
         </Text>
         <Text variant="footnote" color={colors.textSecondary} numberOfLines={1}>
-          {cuisineLabel(place.cuisine)} · {place.neighborhood || place.district}
+          {placeSubtitle(place)}
           {rec.distanceKm !== undefined ? ` · ${t('recs.distance', { distance: formatDistance(rec.distanceKm) })}` : ''}
         </Text>
         <View style={styles.reason}>

@@ -2,7 +2,8 @@ import { Host, Picker, Text as SwiftText } from '@expo/ui/swift-ui';
 import { pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { colors, spacing } from '@/constants/theme';
+import { spacing } from '@/constants/theme';
+import { usePalette } from '@/hooks/use-palette';
 import { haptics } from '@/lib/haptics';
 
 type Props<T extends string> = {
@@ -17,9 +18,10 @@ type Props<T extends string> = {
  * görünümünü kendiliğinden alır. Diğer platformlar: segmented-control.tsx
  */
 export function SegmentedControl<T extends string>({ options, value, onChange, style }: Props<T>) {
+  const palette = usePalette();
   return (
     <View style={[styles.wrap, style]}>
-      <Host matchContents={{ vertical: true }} seedColor={colors.primary} style={styles.host}>
+      <Host matchContents={{ vertical: true }} seedColor={palette.primary} style={styles.host}>
         <Picker
           selection={value}
           onSelectionChange={(next: T) => {

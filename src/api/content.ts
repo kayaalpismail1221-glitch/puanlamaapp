@@ -8,8 +8,27 @@ import { ingestPlaces, ingestPosts, ingestUsers, upsertUsers } from '@/data/enti
 import type { Coords } from '@/lib/geo';
 import type { LeaderboardEntry, LeaderboardPeriod, LeaderboardScope } from '@/lib/leaderboard';
 import { supabase } from '@/lib/supabase';
-import type { AreaViewRow, PlaceDetailsJson, PopularFeedJson, ProfileViewRow, TasteMatchJson } from '@/types/database';
-import type { Comment, FeedArea, Meal, Place, Post, UserProfile } from '@/types';
+import type {
+  AreaViewRow,
+  CorrectionField,
+  PlaceDetailsJson,
+  PopularFeedJson,
+  ProfileViewRow,
+  TasteMatchJson,
+} from '@/types/database';
+import type {
+  AreaHit,
+  Comment,
+  FeedArea,
+  Meal,
+  PersonSuggestion,
+  Place,
+  Post,
+  Segment,
+  User,
+  UserProfile,
+  YearChallengeEntry,
+} from '@/types';
 
 /**
  * Paylaşılan içerik: feed, gönderiler, yorumlar, mekânlar, kişiler ve liderlik tablosu.
@@ -196,9 +215,34 @@ export async function fetchComments(postId: string): Promise<Comment[]> {
   return rows.map(toComment);
 }
 
-export async function addComment(postId: string, text: string): Promise<Comment> {
-  const row = unwrap(await supabase.from('comments').insert({ post_id: postId, body: text }).select().single());
-  return { id: row.id, postId: row.post_id, userId: row.user_id, text: row.body, createdAt: row.created_at };
+/** Yorum ya da `parentId` verilirse o yoruma yanıt */
+export async function addComment(postId: string, text: string, parentId?: string): Promise<Comment> {
+  const row = unwrap(
+    await supabase
+      .from('comments')
+      .insert({ post_id: postId, body: text, parent_id: parentId ?? null })
+      .select()
+      .single(),
+  );
+  return {
+    id: row.id,
+    postId: row.post_id,
+    userId: row.user_id,
+    text: row.body,
+    createdAt: row.created_at,
+    parentId: row.parent_id ?? undefined,
+    likeCount: 0,
+    likedByMe: false,
+  };
+}
+
+export async function setCommentLiked(commentId: string, liked: boolean) {
+  if (liked) {
+    const { error } = await supabase.from('comment_likes').insert({ comment_id: commentId });
+    if (error && error.code !== '23505') throw error;
+  } else {
+    unwrap(await supabase.from('comment_likes').delete().eq('comment_id', commentId));
+  }
 }
 
 export async function deleteComment(commentId: string) {
@@ -258,6 +302,56 @@ export async function fetchMapPlaces(bounds: MapBounds): Promise<RatedPlace[]> {
   return rows.map((r, i) => ({ place: places[i]!, average: r.average, count: r.rating_count }));
 }
 
+/** Yazdıkça eşleşen şehir, ilçe ve mahalleler (en az 2 harf) */
+export async function searchAreas(query: string): Promise<AreaHit[]> {
+  const rows = unwrap(await supabase.rpc('search_areas', { p_query: query, p_limit: 5 }));
+  return rows.map((r) => ({
+    kind: r.kind,
+    name: r.name,
+    city: r.city,
+    district: r.district ?? undefined,
+    placeCount: r.place_count,
+  }));
+}
+
+export const AREA_PAGE = 30;
+
+/** Bölge listesindeki mekân ve topluluk puanı (puanlanmamışsa `average` yok) */
+export type AreaTopItem = { place: Place; average?: number; count: number };
+
+/** Bölgenin mekânları, topluluk puanına göre (puanlanmamışsa `average` yok) */
+export async function fetchAreaTopPlaces(
+  area: Pick<AreaHit, 'kind' | 'name' | 'city' | 'district'>,
+  segment: Segment | undefined,
+  offset = 0,
+  limit = AREA_PAGE,
+): Promise<AreaTopItem[]> {
+  const rows = unwrap(
+    await supabase.rpc('area_top_places', {
+      p_city: area.city,
+      p_district: area.kind === 'city' ? null : area.district ?? area.name,
+      p_neighborhood: area.kind === 'neighborhood' ? area.name : null,
+      p_segment: segment ?? null,
+      p_limit: limit,
+      p_offset: offset,
+    }),
+  );
+  const places = ingestPlaces(rows);
+  return rows.map((r, i) => ({ place: places[i]!, average: r.average ?? undefined, count: r.rating_count }));
+}
+
+/** Bölgenin haritadaki alanı (açık mekânlarının kapladığı; mekânı yoksa null) */
+export async function fetchAreaBounds(area: Pick<AreaHit, 'kind' | 'name' | 'city' | 'district'>): Promise<MapBounds | null> {
+  const rows = unwrap(
+    await supabase.rpc('area_bounds', {
+      p_city: area.city,
+      p_district: area.kind === 'city' ? null : (area.district ?? area.name),
+      p_neighborhood: area.kind === 'neighborhood' ? area.name : null,
+    }),
+  );
+  return rows[0] ?? null;
+}
+
 export async function searchPlaces(query: string, coords: Coords | null): Promise<Place[]> {
   const rows = unwrap(
     await supabase.rpc('search_places', {
@@ -270,9 +364,14 @@ export async function searchPlaces(query: string, coords: Coords | null): Promis
   return ingestPlaces(rows);
 }
 
-export type NewPlace = Pick<Place, 'name' | 'cuisine' | 'neighborhood' | 'district' | 'city' | 'latitude' | 'longitude'>;
+export type NewPlace = Pick<Place, 'name' | 'cuisine' | 'neighborhood' | 'district' | 'city' | 'latitude' | 'longitude'> & {
+  address: string;
+};
 
-/** Veritabanında olmayan bir mekânı ekler (günlük sınır veritabanında) */
+/**
+ * Veritabanında olmayan bir mekânı ekler (günlük sınır veritabanında). Sınırları bilinen bölgede
+ * (İstanbul) il/ilçe/mahalleyi veritabanı koordinattan yazar; burada gönderilenler yalnızca dışarısı için.
+ */
 export async function createPlace(input: NewPlace): Promise<Place> {
   const { id } = unwrap(
     await supabase
@@ -283,6 +382,7 @@ export async function createPlace(input: NewPlace): Promise<Place> {
         neighborhood: input.neighborhood.trim(),
         district: input.district.trim(),
         city: input.city.trim(),
+        address: input.address.trim(),
         latitude: input.latitude,
         longitude: input.longitude,
       })
@@ -291,6 +391,34 @@ export async function createPlace(input: NewPlace): Promise<Place> {
   );
   const rows = unwrap(await supabase.from('place_view').select('*').eq('id', id));
   return ingestPlaces(rows)[0]!;
+}
+
+/**
+ * "Bilgi yanlış mı?" önerisi. Tek kişinin önerisi beklemeye alınır; bağımsız bir kişi daha aynısını
+ * söyleyince (kapandı için iki kişi daha) ya da yönetici onaylayınca uygulanır.
+ */
+export async function suggestPlaceCorrection(
+  placeId: string,
+  field: CorrectionField,
+  input: { value?: string; coords?: Coords } = {},
+): Promise<'applied' | 'pending'> {
+  return unwrap(
+    await supabase.rpc('suggest_place_correction', {
+      p_place_id: placeId,
+      p_field: field,
+      p_value: input.value ?? null,
+      p_latitude: input.coords?.latitude ?? null,
+      p_longitude: input.coords?.longitude ?? null,
+    }),
+  );
+}
+
+export type AreaAt = { city: string; district: string; neighborhood: string };
+
+/** Koordinattaki il/ilçe/mahalle; sınırları bilinmeyen bölgede null (o zaman kullanıcı yazar) */
+export async function fetchAreaAt(coords: Coords): Promise<AreaAt | null> {
+  const rows = unwrap(await supabase.rpc('area_at', { p_latitude: coords.latitude, p_longitude: coords.longitude }));
+  return rows[0] ?? null;
 }
 
 export type PlaceDetails = {
@@ -405,12 +533,36 @@ export async function fetchUserProfile(userId: string): Promise<UserProfile | nu
   return ingestProfiles(unwrap(await supabase.from('profile_view').select('*').eq('id', userId)))[0] ?? null;
 }
 
+/** Favori 4'ün mekân kimlikleri, seçilen sırayla (mekânlar kişinin sıralamasından çözülür) */
+export async function fetchUserFavorites(userId: string): Promise<string[]> {
+  const row = unwrap(await supabase.from('profiles').select('favorite_places').eq('id', userId).maybeSingle());
+  return row?.favorite_places ?? [];
+}
+
 export async function searchUsers(query: string): Promise<UserProfile[]> {
   return ingestProfiles(unwrap(await supabase.rpc('search_users', { p_query: query, p_limit: 30 })));
 }
 
 export async function fetchSuggestedUsers(limit = 30): Promise<UserProfile[]> {
   return ingestProfiles(unwrap(await supabase.rpc('suggested_users', { p_limit: limit })));
+}
+
+/** Tanıyor olabileceğin kişiler, gerekçesiyle (bildirim merkezi) */
+export async function fetchPeopleYouMayKnow(limit = 10): Promise<PersonSuggestion[]> {
+  const rows = unwrap(await supabase.rpc('people_you_may_know', { p_limit: limit }));
+  const users = ingestUsers(rows.map((r) => r.profile));
+  return rows.map((r, i) => ({
+    user: users[i]!,
+    reason: r.reason,
+    mutualCount: r.mutual_count,
+    mutualName: r.mutual_name ?? undefined,
+  }));
+}
+
+/** ✕: kişi bir daha öneri listelerinde çıkmaz */
+export async function dismissSuggestion(userId: string) {
+  const { error } = await supabase.from('suggestion_dismissals').insert({ dismissed_id: userId });
+  if (error && error.code !== '23505') throw error;
 }
 
 export async function fetchConnections(userId: string, kind: 'followers' | 'following'): Promise<UserProfile[]> {
@@ -458,7 +610,32 @@ export async function fetchLeaderboard(
     await supabase.rpc('leaderboard', { p_scope: scope, p_period: period, p_school_id: schoolId, p_limit: 100 }),
   );
   ingestUsers(rows.map((r) => r.profile));
-  return rows.map((r) => ({ userId: r.user_id, reviews: r.reviews, likes: r.likes, rank: r.rank }));
+  return rows.map((r) => ({
+    userId: r.user_id,
+    xp: r.xp,
+    rank: r.rank,
+    breakdown: {
+      ratings: r.ratings,
+      posts: r.posts,
+      photoPosts: r.photo_posts,
+      likes: r.likes,
+      invites: r.invites,
+      welcome: r.welcome,
+    },
+  }));
+}
+
+/** "Seni kim davet etti?": davet edeni kaydeder (bir kez, ilk 30 gün); davet edeni döner */
+export async function setInviter(username: string): Promise<User> {
+  const [user] = ingestUsers([unwrap(await supabase.rpc('set_inviter', { p_username: username }))]);
+  return user!;
+}
+
+/** Yıllık hedef yarışı: sen ve takip ettiklerin, hedef ve o yıl puanlanan mekân sayısı (sıralı) */
+export async function fetchYearChallenge(year: number): Promise<YearChallengeEntry[]> {
+  const rows = unwrap(await supabase.rpc('year_challenge', { p_year: year }));
+  ingestUsers(rows.map((r) => r.profile));
+  return rows.map((r) => ({ userId: r.user_id, goal: r.goal ?? undefined, done: r.done }));
 }
 
 export async function fetchUserRank(userId: string): Promise<number | null> {

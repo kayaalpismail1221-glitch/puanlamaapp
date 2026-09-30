@@ -1,6 +1,8 @@
 {
   "CFBundleDisplayName": "Puanla",
   "NSLocationWhenInUseUsageDescription": "Yakınındaki popüler mekânları ve gönderileri gösterebilmek için konumunu kullanıyoruz. Konumun sunucularımızda saklanmaz.",
+  "NSLocationAlwaysAndWhenInUseUsageDescription": "Yakınındaki popüler mekânları ve gönderileri gösterebilmek için konumunu kullanıyoruz. Puanla konumunu arka planda kullanmaz.",
+  "NSLocationAlwaysUsageDescription": "Yakınındaki popüler mekânları ve gönderileri gösterebilmek için konumunu kullanıyoruz. Puanla konumunu arka planda kullanmaz.",
   "NSCameraUsageDescription": "Gönderine yemek fotoğrafı çekebilmen için kamera erişimi gerekiyor.",
   "NSPhotoLibraryUsageDescription": "Profil ve gönderi fotoğrafı seçebilmen için fotoğraflarına erişim gerekiyor. Yalnızca seçtiğin fotoğraflar yüklenir.",
   "NSPhotoLibraryAddUsageDescription": "Paylaşım görsellerini (ör. lezzet haritan) fotoğraflarına kaydedebilmek için izin gerekiyor.",

@@ -1,12 +1,17 @@
-import { SymbolView, type SFSymbol } from 'expo-symbols';
+import { SymbolView, type SFSymbol } from '@/components/symbol';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown, FadeOut } from 'react-native-reanimated';
 
 import { Button, PlaceImage, PressableScale, Text } from '@/components/ui';
+import { SEGMENT_ICONS } from '@/constants/segments';
 import { colors, radius, spacing } from '@/constants/theme';
+import { getPlace } from '@/data/entities';
 import type { RankResult } from '@/hooks/use-rank-flow';
-import type { Place, Sentiment } from '@/types';
+import { formatScore } from '@/lib/format';
+import { placeArea } from '@/lib/place';
+import { FULL_SPREAD_AT } from '@/lib/ranking';
+import type { Place, Segment, Sentiment } from '@/types';
 
 /**
  * Beli tarzı puanlama adımlarının görünümü (mantık: hooks/use-rank-flow).
@@ -57,23 +62,39 @@ export function SentimentChoice({ onChoose, compact }: { onChoose: (s: Sentiment
   );
 }
 
-/** 2) "Hangisi daha iyiydi?" */
+/** Karşılaştırmanın yapıldığı segment: "🔥 Sokak lezzetleri" */
+export function SegmentTag({ segment }: { segment: Segment }) {
+  const { t } = useTranslation();
+  return (
+    <View style={styles.segmentTag}>
+      <SymbolView name={SEGMENT_ICONS[segment]} tintColor={colors.textSecondary} size={12} weight="semibold" />
+      <Text variant="caption" color={colors.textSecondary} style={styles.bold}>
+        {t(`segments.${segment}`)}
+      </Text>
+    </View>
+  );
+}
+
+/** 2) "Hangisi daha iyiydi?" — yalnızca aynı segmentteki mekânlarla */
 export function CompareStep({
   place,
   other,
+  segment,
   step,
   total,
   onPick,
-  onSkip,
+  onTie,
   compact,
 }: {
   place: Place;
-  /** Karşılaştırılan mekân önbellekte yoksa (çok nadir) "Emin değilim" gibi davranılır */
+  /** Karşılaştırılan mekân önbellekte yoksa (çok nadir) boş kart; "İkisi aynı" yine seçilebilir */
   other: Place | undefined;
+  segment: Segment;
   step: number;
   total: number;
   onPick: (newIsBetter: boolean) => void;
-  onSkip: () => void;
+  /** İkisi aynı iyi (ya da karar verilemedi): eşit puan */
+  onTie: () => void;
   compact?: boolean;
 }) {
   const { t } = useTranslation();
@@ -86,6 +107,14 @@ export function CompareStep({
         <Text variant="footnote" color={colors.textSecondary}>
           {Math.min(step, total)}/{total}
         </Text>
+      </View>
+      <View style={styles.compareMeta}>
+        <SegmentTag segment={segment} />
+        {!compact && (
+          <Text variant="caption" color={colors.textTertiary} style={styles.flex} numberOfLines={1}>
+            {t('rate.sameSegmentOnly')}
+          </Text>
+        )}
       </View>
       <View style={styles.compareRow}>
         <CompareCard place={place} onPress={() => onPick(true)} compact={compact} />
@@ -100,7 +129,7 @@ export function CompareStep({
           <View style={styles.compareCard} />
         )}
       </View>
-      <Button title={t('rate.notSure')} variant="ghost" size={compact ? 'sm' : 'md'} onPress={onSkip} />
+      <Button title={t('rate.same')} variant="ghost" size={compact ? 'sm' : 'md'} onPress={onTie} />
     </Animated.View>
   );
 }
@@ -114,20 +143,35 @@ function CompareCard({ place, onPress, compact }: { place: Place; onPress: () =>
           {place.name}
         </Text>
         <Text variant="footnote" color={colors.textSecondary} numberOfLines={1}>
-          {place.neighborhood}
+          {placeArea(place)}
         </Text>
       </View>
     </PressableScale>
   );
 }
 
-/** 3) "“Beğendim” listende 5 mekân arasında 2. sırada." */
+/**
+ * 3) "“Beğendim” listende 5 mekân arasında 2. sırada." (liste = aynı segment; eşitler aynı sırada)
+ * Eşitse söylenir; yeni favori eski favoriyi indirdiyse o da söylenir (puan neden değişti?).
+ * Liste kısayken puanın henüz kesinleşmediği de söylenir.
+ */
 export function useRankResultText() {
   const { t } = useTranslation();
-  return (result: RankResult) =>
-    result.total === 1
-      ? t('rate.firstInList', { list: t(`sentiments.${result.sentiment}`) })
-      : t('rate.position', { list: t(`sentiments.${result.sentiment}`), total: result.total, rank: result.index + 1 });
+  return (result: RankResult) => {
+    const list = t(`sentiments.${result.sentiment}`);
+    const lines = [
+      result.total === 1
+        ? t('rate.firstInList', { list })
+        : t('rate.position', { list, total: result.total, rank: result.rank }),
+    ];
+    if (result.tied) lines.push(t('rate.tiedNote'));
+    const displacedPlace = result.displaced && getPlace(result.displaced.placeId);
+    if (result.displaced && displacedPlace) {
+      lines.push(t('rate.displaced', { place: displacedPlace.name, score: formatScore(result.displaced.to) }));
+    }
+    if (result.total < FULL_SPREAD_AT) lines.push(t('rate.provisional'));
+    return lines.join('\n');
+  };
 }
 
 const styles = StyleSheet.create({
@@ -136,6 +180,24 @@ const styles = StyleSheet.create({
   },
   bold: {
     fontWeight: '600',
+  },
+  flex: {
+    flex: 1,
+  },
+  segmentTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface,
+  },
+  compareMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: -spacing.xs,
   },
   pills: {
     flexDirection: 'row',

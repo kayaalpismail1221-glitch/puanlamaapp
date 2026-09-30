@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/symbol';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
@@ -9,12 +9,12 @@ import { OnboardingStep } from '@/components/onboarding-step';
 import { PlaceSearchList } from '@/components/place-picker';
 import type { Invite } from '@/api/contacts';
 import { Avatar, Button, PlaceImage, ScoreBadge, SearchField, Text } from '@/components/ui';
-import { cuisineLabel } from '@/constants/cuisines';
 import { colors, radius, spacing } from '@/constants/theme';
 import { usePlace } from '@/data/entities';
 import { useUserPosts } from '@/hooks/queries';
 import { useMyInvites } from '@/hooks/use-contact-friends';
 import { formatScore } from '@/lib/format';
+import { placeSubtitle } from '@/lib/place';
 import { useAppStore } from '@/store/app-store';
 
 // Puanlayınca doğrudan gönderi ekranı açılır (fotoğraf isteğe bağlı)
@@ -60,7 +60,7 @@ export default function FirstRatingStep() {
                 {firstPlace.name}
               </Text>
               <Text variant="footnote" color={colors.textSecondary}>
-                {cuisineLabel(firstPlace.cuisine)} · {firstPlace.neighborhood}
+                {placeSubtitle(firstPlace)}
               </Text>
             </View>
             <ScoreBadge score={first.score} />

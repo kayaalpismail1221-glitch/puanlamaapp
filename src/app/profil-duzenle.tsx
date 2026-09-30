@@ -1,12 +1,14 @@
 import * as ImagePicker from 'expo-image-picker';
 import { router, Stack } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/symbol';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
 
 import type { LocalImage } from '@/api/storage';
 import { Avatar, PressableScale, Text } from '@/components/ui';
+import { FormScrollView } from '@/components/form-scroll-view';
+import { ModalCloseButton } from '@/components/header-button';
 import { colors, hitSlop, radius, spacing, typography } from '@/constants/theme';
 import { schoolById, schoolLabel } from '@/data/schools';
 import { toUsername } from '@/lib/format';
@@ -59,13 +61,17 @@ export default function EditProfileScreen() {
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Stack.Screen
         options={{
-          headerLeft: () => (
-            <PressableScale onPress={() => router.back()} hitSlop={hitSlop}>
-              <Text variant="body" color={colors.primary}>
-                {t('common.cancel')}
-              </Text>
-            </PressableScale>
-          ),
+          // iOS: "Vazgeç" metni; Android: Material tam ekran diyaloğundaki gibi ✕
+          headerLeft:
+            Platform.OS === 'ios'
+              ? () => (
+                  <PressableScale onPress={() => router.back()} hitSlop={hitSlop}>
+                    <Text variant="body" color={colors.primary}>
+                      {t('common.cancel')}
+                    </Text>
+                  </PressableScale>
+                )
+              : () => <ModalCloseButton />,
           headerRight: () =>
             saving ? (
               <ActivityIndicator color={colors.primary} />
@@ -78,7 +84,7 @@ export default function EditProfileScreen() {
             ),
         }}
       />
-      <ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
+      <FormScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
         <PressableScale onPress={pickPhoto} style={styles.avatar} accessibilityLabel={t('editProfile.changePhotoLabel')}>
           <Avatar uri={avatarUri} name={name || '?'} size={104} />
           <Text variant="subhead" color={colors.primary} style={styles.bold}>
@@ -130,7 +136,7 @@ export default function EditProfileScreen() {
         <Text variant="footnote" color={colors.textSecondary} style={styles.hint}>
           {t('editProfile.usernameHint')}
         </Text>
-      </ScrollView>
+      </FormScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -149,7 +155,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.grouped,
   },
   form: {
     padding: spacing.lg,
@@ -165,7 +171,7 @@ const styles = StyleSheet.create({
   },
   group: {
     borderRadius: radius.card,
-    backgroundColor: colors.background,
+    backgroundColor: colors.card,
     overflow: 'hidden',
   },
   field: {

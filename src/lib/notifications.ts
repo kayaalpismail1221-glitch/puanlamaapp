@@ -5,10 +5,12 @@ import * as Notifications from 'expo-notifications';
 import { router, type Href } from 'expo-router';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Linking, Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
 
 import { registerPushToken, unregisterPushToken } from '@/api/notifications';
+import { fixed } from '@/constants/theme';
 import i18n, { currentLanguage } from '@/i18n';
+import { showAlert } from '@/lib/dialog';
 import { keys, queryClient } from '@/lib/query-client';
 
 /**
@@ -34,6 +36,21 @@ if (supported) {
 /** Bu cihazın jetonu (çıkışta sunucudan silinir) */
 let deviceToken: string | undefined;
 
+/**
+ * Android 8+ bildirimleri bir kanal üstünden gösterir; Android 13+ izin penceresi de kanal olmadan çıkmaz.
+ * Sunucu `channelId` göndermediği için Expo Push "default" kanalını kullanır.
+ */
+async function ensureAndroidChannel() {
+  if (Platform.OS !== 'android') return;
+  await Notifications.setNotificationChannelAsync('default', {
+    name: i18n.t('notifications.channelName'),
+    importance: Notifications.AndroidImportance.HIGH,
+    vibrationPattern: [0, 180, 120, 180],
+    lightColor: fixed.navy,
+    showBadge: true,
+  });
+}
+
 export type PushPermission = 'granted' | 'denied' | 'undetermined' | 'unsupported';
 
 export async function pushPermission(): Promise<PushPermission> {
@@ -47,8 +64,13 @@ export async function pushPermission(): Promise<PushPermission> {
  */
 export async function registerDevice(ask = false): Promise<boolean> {
   if (!supported || !Device.isDevice) return false;
-  let { status } = await Notifications.getPermissionsAsync();
-  if (status === 'undetermined' && ask) status = (await Notifications.requestPermissionsAsync()).status;
+  await ensureAndroidChannel().catch(() => {});
+  const current = await Notifications.getPermissionsAsync();
+  let { status } = current;
+  // Android 13+'ta kapatılan izin penceresi "denied" görünür ama yeniden sorulabilir (`canAskAgain`)
+  if (ask && status !== 'granted' && (status === 'undetermined' || current.canAskAgain)) {
+    status = (await Notifications.requestPermissionsAsync()).status;
+  }
   if (status !== 'granted') return false;
   const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
   const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
@@ -77,7 +99,7 @@ export async function offerPushPermission() {
   if ((await pushPermission()) !== 'undetermined') return;
   if (await AsyncStorage.getItem(ASKED_KEY).catch(() => null)) return;
   AsyncStorage.setItem(ASKED_KEY, '1').catch(() => {});
-  Alert.alert(i18n.t('notifications.askTitle'), i18n.t('notifications.askText'), [
+  showAlert(i18n.t('notifications.askTitle'), i18n.t('notifications.askText'), [
     { text: i18n.t('notifications.notNow'), style: 'cancel' },
     { text: i18n.t('notifications.allow'), onPress: () => registerDevice(true).catch(() => {}) },
   ]);
@@ -85,8 +107,8 @@ export async function offerPushPermission() {
 
 /** Bildirimler ekranından izin: sorulmadıysa sistem penceresi, reddedildiyse iOS ayarları */
 export async function enablePush(): Promise<boolean> {
-  const status = await pushPermission();
-  if (status === 'denied') {
+  if ((await pushPermission()) === 'denied' && !(await Notifications.getPermissionsAsync()).canAskAgain) {
+    // Sistem artık sormuyor (iOS'ta bir kez reddedilince): izin yalnızca Ayarlar'dan açılır
     Linking.openSettings();
     return false;
   }
@@ -123,12 +145,14 @@ export function usePushNotifications(active: boolean) {
   useEffect(() => {
     if (!active || !supported) return;
     // Uygulama kapalıyken dokunulan bildirim
-    Notifications.getLastNotificationResponseAsync().then((response) => {
-      if (response) {
-        open(response);
-        Notifications.clearLastNotificationResponseAsync().catch(() => {});
-      }
-    });
+    Notifications.getLastNotificationResponseAsync()
+      .then((response) => {
+        if (response) {
+          open(response);
+          Notifications.clearLastNotificationResponseAsync().catch(() => {});
+        }
+      })
+      .catch(() => {});
     const tapped = Notifications.addNotificationResponseReceivedListener((response) => {
       open(response);
       Notifications.clearLastNotificationResponseAsync().catch(() => {});

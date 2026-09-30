@@ -14,6 +14,7 @@
 import { PGlite } from '@electric-sql/pglite';
 import { pg_trgm } from '@electric-sql/pglite/contrib/pg_trgm';
 import { postgis } from '@electric-sql/pglite-postgis';
+import { Buffer } from 'node:buffer';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -67,14 +68,24 @@ if (!cached) {
     `create temp table pl as select id, row_number() over () as n from places`,
     `create index on u (n)`,
     `create index on pl (n)`,
-    `insert into rankings (user_id, place_id, sentiment, position, score)
-       select distinct on (u.id, pl.id) u.id, pl.id, 'liked', 0, round((random() * 10)::numeric, 1)
-       from (select 1 + (g % ${USERS}) a, 1 + floor(random() * ${PLACES})::int b from generate_series(1, ${RANKINGS}) g) s
-       join u on u.n = s.a join pl on pl.n = s.b`,
-    `with numbered as (
-       select user_id, place_id, row_number() over (partition by user_id order by place_id) - 1 as pos from rankings)
-     update rankings r set position = numbered.pos
-     from numbered where numbered.user_id = r.user_id and numbered.place_id = r.place_id`,
+    // Tetikleyiciler kapalı: segment mekânın mutfağından, sıra her (kullanıcı, segment) listesinde 0, 1, 2…
+    `insert into rankings (user_id, place_id, sentiment, position, score, segment)
+       select x.user_id, x.place_id, 'liked',
+         row_number() over (partition by x.user_id, x.segment order by x.place_id) - 1, x.score, x.segment
+       from (
+         select distinct on (u.id, pl.id) u.id as user_id, pl.id as place_id,
+           round((random() * 10)::numeric, 1) as score, c.segment
+         from (select 1 + (g % ${USERS}) a, 1 + floor(random() * ${PLACES})::int b from generate_series(1, ${RANKINGS}) g) s
+         join u on u.n = s.a join pl on pl.n = s.b
+         join places p on p.id = pl.id join cuisines c on c.name = p.cuisine
+       ) x`,
+    // Tetikleyiciler kapalıyken ertelenebilir benzersizlik denetlenmez (random() alt sorgusu birkaç çift sıra
+    // üretebiliyor): sıralar her listede yeniden numaralanır, yoksa rank_place ölçümü çakışmaya düşer
+    `update rankings r set position = n.position
+       from (select user_id, place_id,
+               (row_number() over (partition by user_id, segment, sentiment order by position, place_id) - 1)::int as position
+             from rankings) n
+       where r.user_id = n.user_id and r.place_id = n.place_id and r.position <> n.position`,
     `insert into posts (user_id, place_id, caption, score, like_count, comment_count, created_at)
        select r.user_id, r.place_id, 'harika', r.score, floor(random() * 30), floor(random() * 5),
          now() - random() * interval '180 days'
@@ -117,6 +128,13 @@ if (!cached) {
        rating_count = (select count(*) from rankings where place_id = pl.id),
        post_count = (select count(*) from posts where place_id = pl.id)`,
     `set session_replication_role = origin`,
+    // Tetikleyiciler kapalıyken XP sayaçları dolmadı: migration'daki gibi baştan hesaplanır
+    `truncate xp_all, xp_monthly`,
+    `insert into xp_all (user_id, ratings, posts, photo_posts, likes, invites, welcome)
+       select user_id, ratings, posts, photo_posts, likes, invites, welcome from xp_totals(null)`,
+    `insert into xp_monthly (month, user_id, ratings, posts, photo_posts, likes, invites, welcome)
+       select xp_month_of(now()), user_id, ratings, posts, photo_posts, likes, invites, welcome
+       from xp_totals(month_start())`,
     `analyze`,
   ];
   for (const step of steps) await db.exec(step);
@@ -184,6 +202,8 @@ await measure('map_places (İstanbul)', `select * from map_places(40.9, 28.8, 41
 await measure('map_places (semt)', `select * from map_places(40.98, 29.01, 41.0, 29.04)`);
 await measure('recommended_places', `select * from recommended_places($1, $2)`, KADIKOY);
 await measure('taste_match', `select taste_match($1)`, [popular]);
+await measure('people_you_may_know', `select * from people_you_may_know(20)`);
+await measure('year_challenge', `select * from year_challenge()`);
 await measure('my_notifications', `select * from my_notifications()`);
 await measure('unread_notification_count', `select unread_notification_count()`);
 await measure('area_view', `select * from area_view`);

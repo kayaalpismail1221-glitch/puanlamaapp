@@ -1,13 +1,16 @@
 import { router, Stack } from 'expo-router';
-import { SymbolView, type SFSymbol } from 'expo-symbols';
+import { SymbolView, type SFSymbol } from '@/components/symbol';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FlatList, StyleSheet, View } from 'react-native';
+import { FlatList, Platform, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
+import { BottomInsetSpacer } from '@/components/bottom-inset';
+import { HeaderIconButton, ModalCloseButton } from '@/components/header-button';
 import { TextRowsSkeleton } from '@/components/skeleton';
 import { Divider, ErrorView, PressableScale, SearchField, Text } from '@/components/ui';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
+import { useAndroidBack } from '@/hooks/use-android-back';
 import { useAreas } from '@/hooks/queries';
 import { haptics } from '@/lib/haptics';
 import { useAppStore } from '@/store/app-store';
@@ -28,6 +31,13 @@ export default function PickAreaScreen() {
     router.back();
   };
 
+  const backToCities = () => {
+    setCity(null);
+    setQuery('');
+  };
+  // Android: geri tuşu ilçelerden şehirlere döner, modalı kapatmaz
+  useAndroidBack(city ? backToCities : null);
+
   const q = query.trim().toLocaleLowerCase('tr');
   const selectedCity = allCities.find((c) => c.name === city);
 
@@ -44,24 +54,26 @@ export default function PickAreaScreen() {
         <Stack.Screen
           options={{
             title: selectedCity.name,
-            headerLeft: () => (
-              <PressableScale
-                onPress={() => {
-                  setCity(null);
-                  setQuery('');
-                }}
-                hitSlop={hitSlop}
-                style={styles.back}
-                accessibilityLabel={t('area.cities')}>
-                <SymbolView name="chevron.left" tintColor={colors.primary} size={17} weight="semibold" />
-                <Text variant="body" color={colors.primary}>
-                  {t('area.cities')}
-                </Text>
-              </PressableScale>
-            ),
+            headerLeft:
+              Platform.OS === 'android'
+                ? () => <HeaderIconButton icon="arrow.left" onPress={backToCities} accessibilityLabel={t('area.cities')} />
+                : () => (
+                    <PressableScale
+                      onPress={backToCities}
+                      hitSlop={hitSlop}
+                      style={styles.back}
+                      accessibilityLabel={t('area.cities')}>
+                      <SymbolView name="chevron.left" tintColor={colors.primary} size={17} weight="semibold" />
+                      <Text variant="body" color={colors.primary}>
+                        {t('area.cities')}
+                      </Text>
+                    </PressableScale>
+                  ),
           }}
         />
         <FlatList
+          automaticallyAdjustKeyboardInsets
+          ListFooterComponent={<BottomInsetSpacer />}
           data={districts}
           keyExtractor={(d) => d.name}
           keyboardShouldPersistTaps="handled"
@@ -104,8 +116,16 @@ export default function PickAreaScreen() {
 
   return (
     <View style={styles.container}>
-      <Stack.Screen options={{ title: t('screens.chooseLocation'), headerLeft: undefined }} />
+      <Stack.Screen
+        options={{
+          title: t('screens.chooseLocation'),
+          // İlçelerden dönünce sol düğme modalın kendi kapatma düğmesine döner
+          headerLeft: Platform.OS === 'android' ? () => <ModalCloseButton /> : undefined,
+        }}
+      />
       <FlatList
+        automaticallyAdjustKeyboardInsets
+          ListFooterComponent={<BottomInsetSpacer />}
         data={cities}
         keyExtractor={(c) => c.name}
         keyboardShouldPersistTaps="handled"

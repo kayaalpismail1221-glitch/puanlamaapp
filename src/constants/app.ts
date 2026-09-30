@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 /**
  * Uygulama geneli sabitler. Alan adı alınınca yalnızca buradaki değerler güncellenir.
  */
@@ -29,4 +31,7 @@ export const appLink = (path: string) => `${APP_SCHEME}://${path}`;
  * Alan adı gelince web önizleme sayfasına çevrilir (ör. `https://puanla.app/indir`) — tek yer burası.
  */
 export const APP_STORE_URL = '';
-export const inviteLink = () => APP_STORE_URL;
+/** Google Play sayfası (yayınlanınca: https://play.google.com/store/apps/details?id=app.puanla) */
+export const PLAY_STORE_URL = '';
+/** Davet eden kişinin platformunun mağazası: Android'den gönderilen davetin alıcısı da büyük olasılıkla Android'de */
+export const inviteLink = () => (Platform.OS === 'android' ? PLAY_STORE_URL : APP_STORE_URL);

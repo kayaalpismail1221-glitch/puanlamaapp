@@ -22,7 +22,11 @@ export type MyData = {
 export async function loadMyData(userId: string, email?: string): Promise<MyData> {
   const [profileRes, privateRes, rankingRes, savedRes, followRes] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', userId).single(),
-    supabase.from('profile_private').select('phone_verified_at, discoverable').eq('user_id', userId).maybeSingle(),
+    supabase
+      .from('profile_private')
+      .select('phone_verified_at, discoverable, invited_by')
+      .eq('user_id', userId)
+      .maybeSingle(),
     supabase.from('ranking_view').select('*').eq('user_id', userId).order('position'),
     supabase.from('saved_place_view').select('*').eq('user_id', userId).order('saved_at', { ascending: false }),
     supabase.from('follows').select('followee_id').eq('follower_id', userId).order('created_at', { ascending: false }),
@@ -49,10 +53,12 @@ export async function loadMyData(userId: string, email?: string): Promise<MyData
       email,
       schoolId: row.school_id ?? undefined,
       yearGoal: row.year_goal ?? undefined,
+      favoritePlaces: row.favorite_places ?? [],
       joinedAt: row.created_at,
       onboardedAt: row.onboarded_at ?? undefined,
       phoneVerified: !!privateRow?.phone_verified_at,
       discoverable: privateRow?.discoverable ?? true,
+      hasInviter: !!privateRow?.invited_by,
     },
     rankings,
     saved: savedRows.map(toSavedPlace),
@@ -60,7 +66,7 @@ export async function loadMyData(userId: string, email?: string): Promise<MyData
   };
 }
 
-export type ProfilePatch = Partial<Pick<Profile, 'name' | 'username' | 'schoolId' | 'yearGoal'>> & {
+export type ProfilePatch = Partial<Pick<Profile, 'name' | 'username' | 'schoolId' | 'yearGoal' | 'favoritePlaces'>> & {
   onboarded?: boolean;
 };
 
@@ -70,6 +76,7 @@ export async function updateMyProfile(userId: string, patch: ProfilePatch) {
   if (patch.username !== undefined) update.username = patch.username;
   if ('schoolId' in patch) update.school_id = patch.schoolId ?? null;
   if ('yearGoal' in patch) update.year_goal = patch.yearGoal ?? null;
+  if (patch.favoritePlaces) update.favorite_places = patch.favoritePlaces;
   if (patch.onboarded) update.onboarded_at = new Date().toISOString();
   unwrap(await supabase.from('profiles').update(update).eq('id', userId));
 }
@@ -98,13 +105,15 @@ export async function removeAvatar(userId: string, previousPath?: string) {
 
 /* ---------- Sıralama ve Listem ---------- */
 
-export async function rankPlace(placeId: string, sentiment: Sentiment, index: number, note?: string) {
+/** `tied`: bir üstteki mekânla aynı seviye ("İkisi aynı") */
+export async function rankPlace(placeId: string, sentiment: Sentiment, index: number, note?: string, tied?: boolean) {
   return unwrap(
     await supabase.rpc('rank_place', {
       p_place_id: placeId,
       p_sentiment: sentiment,
       p_index: index,
       p_note: note ?? null,
+      ...(tied ? { p_tie: true } : {}),
     }),
   );
 }

@@ -1,8 +1,8 @@
 import { BlurView } from 'expo-blur';
-import { Image } from 'expo-image';
+import { Image } from '@/components/image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   interpolate,
@@ -59,7 +59,12 @@ export default function ProfilePhotoScreen() {
     <GestureDetector gesture={pan}>
       <View style={styles.container}>
         <Animated.View style={[StyleSheet.absoluteFill, backdropStyle]}>
-          <BlurView intensity={60} tint="systemThickMaterialLight" style={StyleSheet.absoluteFill} />
+          {Platform.OS === 'android' ? (
+            // Android'de arkadaki ekranı bulandırmak ek yöntem ister ve yavaş; düz karartma (koyu görünümde de uyumlu)
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.overlay }]} />
+          ) : (
+            <BlurView intensity={60} tint="systemThickMaterial" style={StyleSheet.absoluteFill} />
+          )}
         </Animated.View>
         <Pressable
           style={styles.center}

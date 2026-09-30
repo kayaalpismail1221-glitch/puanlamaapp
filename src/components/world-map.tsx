@@ -4,7 +4,8 @@ import Svg, { Circle, Defs, G, LinearGradient, Path, Rect, Stop } from 'react-na
 
 import { Text } from '@/components/ui';
 
-import { colors, radius } from '@/constants/theme';
+import { palettes, radius, withAlpha, type Palette, type Scheme } from '@/constants/theme';
+import { useScheme } from '@/hooks/use-palette';
 import { REGION_BORDERS, REGION_BOX, REGION_LAND, WORLD_BORDERS, WORLD_LAND } from '@/constants/world-map';
 import type { CityDot } from '@/lib/visited';
 import type { ViewBox } from '@/lib/world-projection';
@@ -23,6 +24,8 @@ type Props = {
   dotScale?: number;
   /** Şehir adı etiketleri (varsayılan açık; sığmayan etiket çizilmez) */
   labels?: boolean;
+  /** Verilirse görünümden bağımsız (paylaşım kartı her zaman açık); yoksa o anki görünüm */
+  scheme?: Scheme;
 };
 
 /** Görünüm tamamen ayrıntılı bölgenin içindeyse 1:10m şekiller */
@@ -39,15 +42,15 @@ function detailed(view: ViewBox) {
  * Kara: altta hafif kaydırılmış gölge (kâğıt kesiği hissi), üstte kâğıt tonunda dolgu ve kıyı çizgisi,
  * en üstte ince ülke sınırları. Şekiller büyük; görünüm değişmedikçe yeniden çizilmez.
  */
-const Land = memo(function Land({ region, unit }: { region: boolean; unit: number }) {
+const Land = memo(function Land({ region, unit, palette }: { region: boolean; unit: number; palette: Palette }) {
   const land = region ? REGION_LAND : WORLD_LAND;
   return (
     <>
-      <Path d={land} fill={colors.mapShadow} transform={`translate(0 ${1.6 * unit})`} />
+      <Path d={land} fill={palette.mapShadow} transform={`translate(0 ${1.6 * unit})`} />
       <Path
         d={land}
-        fill={colors.mapLand}
-        stroke={colors.mapCoast}
+        fill={palette.mapLand}
+        stroke={palette.mapCoast}
         strokeWidth={0.9}
         strokeLinejoin="round"
         vectorEffect="non-scaling-stroke"
@@ -55,7 +58,7 @@ const Land = memo(function Land({ region, unit }: { region: boolean; unit: numbe
       <Path
         d={region ? REGION_BORDERS : WORLD_BORDERS}
         fill="none"
-        stroke={colors.mapBorder}
+        stroke={palette.mapBorder}
         strokeWidth={0.8}
         strokeLinejoin="round"
         strokeLinecap="round"
@@ -113,7 +116,20 @@ function placeLabels(dots: CityDot[], view: ViewBox, width: number): Label[] {
  * mekân sayısıyla büyür; yanlarında şehir adı ve mekân sayısı. Noktalar ve etiketler yakınlaşmadan
  * bağımsız olarak ekranda aynı boyutta kalır. Görünüm Türkiye–Avrupa bölgesindeyse ayrıntılı kıyılar çizilir.
  */
-export function WorldMap({ view, width, height, dots, selectedKey, onDotPress, dotScale = 1, labels = true }: Props) {
+export function WorldMap({
+  view,
+  width,
+  height,
+  dots,
+  selectedKey,
+  onDotPress,
+  dotScale = 1,
+  labels = true,
+  scheme,
+}: Props) {
+  // SVG dinamik renk almaz: o anki paletin düz değerleri
+  const current = useScheme();
+  const palette = palettes[scheme ?? current];
   // Piksel → harita birimi
   const unit = view.width / width;
   const dotUnit = unit * dotScale;
@@ -125,16 +141,16 @@ export function WorldMap({ view, width, height, dots, selectedKey, onDotPress, d
     <Svg width={width} height={height} viewBox={`${view.x} ${view.y} ${view.width} ${view.height}`}>
       <Defs>
         <LinearGradient id="water" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor={colors.mapWater} stopOpacity={0.75} />
-          <Stop offset="1" stopColor={colors.mapWater} stopOpacity={1} />
+          <Stop offset="0" stopColor={palette.mapWater} stopOpacity={0.75} />
+          <Stop offset="1" stopColor={palette.mapWater} stopOpacity={1} />
         </LinearGradient>
       </Defs>
       <Rect x={view.x} y={view.y} width={view.width} height={view.height} fill="url(#water)" />
-      <Land region={region} unit={unit} />
+      <Land region={region} unit={unit} palette={palette} />
 
       {dots.map((dot) => {
         const selected = dot.key === selectedKey;
-        const fill = colors.primary;
+        const fill = palette.primary;
         // Çok mekân olan şehir biraz daha büyük
         const r = (selected ? 8 : 5 + Math.min(3, Math.sqrt(dot.count) / 1.6)) * dotUnit;
         return (
@@ -147,7 +163,7 @@ export function WorldMap({ view, width, height, dots, selectedKey, onDotPress, d
               cy={dot.point.y}
               r={r}
               fill={fill}
-              stroke={colors.background}
+              stroke={palette.background}
               strokeWidth={2 * dotUnit}
             />
           </G>
@@ -161,10 +177,13 @@ export function WorldMap({ view, width, height, dots, selectedKey, onDotPress, d
         <View
           key={label.key}
           pointerEvents="none"
-          style={[styles.label, { left: label.x, top: label.y - 10, width: label.width }]}>
+          style={[
+            styles.label,
+            { left: label.x, top: label.y - 10, width: label.width, backgroundColor: withAlpha(palette.background, 0.94) },
+          ]}>
           <Text
             variant="caption"
-            color={label.key === selectedKey ? colors.primary : colors.text}
+            color={label.key === selectedKey ? palette.primary : palette.text}
             numberOfLines={1}
             style={styles.labelText}>
             {label.text}
@@ -182,7 +201,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.94)',
     boxShadow: '0 1px 3px rgba(15, 30, 61, 0.12)',
   },
   labelText: {

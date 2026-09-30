@@ -44,3 +44,11 @@ example
 
 # içe aktarma önbelleği (OSM indirmeleri)
 scripts/.cache/
+
+# Reels çıktıları: büyük ve yeniden üretilebilir (reel/render-layers.sh → make_reel.py)
+docs/app-store-screenshots/reel/out/*.mp4
+docs/app-store-screenshots/reel/out/kare-*.png
+docs/app-store-screenshots/reel/layers/
+
+# Ekran görüntüsü klasörüne düşen kişisel belgeler depoya girmesin
+docs/app-store-screenshots/**/*.pdf

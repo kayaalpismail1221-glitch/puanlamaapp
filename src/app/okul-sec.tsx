@@ -1,9 +1,10 @@
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/symbol';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, StyleSheet, View } from 'react-native';
 
+import { BottomInsetSpacer } from '@/components/bottom-inset';
 import { Button, Divider, PressableScale, SearchField, Text } from '@/components/ui';
 import { colors, radius, spacing } from '@/constants/theme';
 import { schoolById, searchSchools, type School } from '@/data/schools';
@@ -48,10 +49,14 @@ export default function PickSchoolScreen() {
             {t('school.noMatch', { query })}
           </Text>
         }
+        automaticallyAdjustKeyboardInsets
         ListFooterComponent={
-          current ? (
-            <Button title={t('school.remove')} variant="ghost" onPress={() => select(undefined)} style={styles.remove} />
-          ) : null
+          <>
+            {current ? (
+              <Button title={t('school.remove')} variant="ghost" onPress={() => select(undefined)} style={styles.remove} />
+            ) : null}
+            <BottomInsetSpacer />
+          </>
         }
         renderItem={({ item }) => {
           const active = item.id === current?.id;

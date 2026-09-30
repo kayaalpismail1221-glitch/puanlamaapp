@@ -23,6 +23,8 @@ const stores = {
 
 /** Sunucuda bulunamayan (silinmiş ya da erişilemeyen) kimlikler */
 const missing: Record<Kind, Set<string>> = { place: new Set(), user: new Set(), post: new Set() };
+/** Son isteği ağ/sunucu hatası veren kimlikler: ekran sonsuz beklemek yerine "Tekrar dene" gösterir */
+const failed: Record<Kind, Set<string>> = { place: new Set(), user: new Set(), post: new Set() };
 
 const listeners = new Set<() => void>();
 let version = 0;
@@ -50,6 +52,7 @@ function upsert<T extends { id: string }>(kind: Kind, items: T[]) {
   for (const item of items) {
     store.set(item.id, item);
     missing[kind].delete(item.id);
+    failed[kind].delete(item.id);
   }
   emit();
 }
@@ -104,6 +107,7 @@ export function clearEntities() {
   for (const kind of Object.keys(stores) as Kind[]) {
     stores[kind].clear();
     missing[kind].clear();
+    failed[kind].clear();
   }
   emit();
 }
@@ -122,6 +126,8 @@ function request(kind: Kind, id: string) {
     return;
   }
   if (stores[kind].has(id) || missing[kind].has(id) || inflight[kind].has(id)) return;
+  // Yeniden deneniyor: hata ekranı yerine yeniden yükleniyor görünsün
+  if (failed[kind].delete(id)) emit();
   pending[kind].add(id);
   if (!flushScheduled) {
     flushScheduled = true;
@@ -169,8 +175,12 @@ function loadBatch(kind: Kind, ids: string[]) {
       for (const id of ids) if (!got.has(id)) missing[kind].add(id);
       emit();
     })
-    // Ağ hatasında "bulunamadı" demeyelim; bir sonraki istekte yeniden denenir
-    .catch((error) => __DEV__ && console.warn('[puanla] önbellek yüklenemedi', kind, error))
+    // Ağ hatasında "bulunamadı" demeyelim: hata olarak işaretlenir, ekran "Tekrar dene" gösterir
+    .catch((error) => {
+      if (__DEV__) console.warn('[puanla] önbellek yüklenemedi', kind, error);
+      ids.forEach((id) => failed[kind].add(id));
+      emit();
+    })
     .finally(() => ids.forEach((id) => inflight[kind].delete(id)));
 }
 
@@ -191,6 +201,15 @@ function useEntity<T>(kind: Kind, id: string | undefined): T | null | undefined 
     if (id && value === undefined) request(kind, id);
   }, [kind, id, value]);
   return value;
+}
+
+/**
+ * Kayıt yüklenemediyse (ağ hatası) yeniden deneme işlevi, değilse null. `usePost` vb. `undefined` döndürürken
+ * yükleniyor mu yoksa takıldı mı ayırmak için: `retry ? <ErrorView onRetry={retry} /> : <LoadingView />`.
+ */
+export function useEntityRetry(kind: Kind, id: string | undefined): (() => void) | null {
+  const isFailed = useSyncExternalStore(subscribe, () => !!id && failed[kind].has(id));
+  return isFailed && id ? () => request(kind, id) : null;
 }
 
 export const usePlace = (id: string | undefined) => useEntity<Place>('place', id);

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, StyleSheet } from 'react-native';
 
+import { BottomInsetSpacer } from '@/components/bottom-inset';
 import { SegmentTabs } from '@/components/segment-tabs';
 import { UserRowsSkeleton } from '@/components/skeleton';
 import { Divider, ErrorView, Text } from '@/components/ui';
@@ -44,6 +45,7 @@ export default function ConnectionsScreen() {
         }}
       />
       <FlatList
+        ListFooterComponent={<BottomInsetSpacer />}
         style={styles.container}
         data={users}
         keyExtractor={(u) => u.id}

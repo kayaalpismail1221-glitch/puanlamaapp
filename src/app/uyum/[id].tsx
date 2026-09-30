@@ -1,14 +1,15 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useMemo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { BottomInsetSpacer } from '@/components/bottom-inset';
+import { HeaderAction } from '@/components/header-button';
 import { PlaceRow } from '@/components/place-row';
 import { Bone, PlaceRowsSkeleton, Skeleton } from '@/components/skeleton';
 import { DualScore, MATCH_MIN_COMMON, MatchDisc } from '@/components/taste-match';
-import { Avatar, Button, ErrorView, PressableScale, Text } from '@/components/ui';
-import { colors, hitSlop, spacing } from '@/constants/theme';
+import { Avatar, Button, ErrorView,  Text } from '@/components/ui';
+import { colors,  spacing } from '@/constants/theme';
 import { useTasteMatch, useUserProfile } from '@/hooks/queries';
 import { tasteMatchSections } from '@/lib/taste-match';
 import { shareTasteMatch } from '@/lib/share';
@@ -52,9 +53,7 @@ export default function TasteMatchScreen() {
           title: t('match.title'),
           headerRight: () =>
             match.percent === undefined ? null : (
-              <PressableScale onPress={share} hitSlop={hitSlop} accessibilityLabel={t('common.share')}>
-                <SymbolView name="square.and.arrow.up" tintColor={colors.primary} size={20} />
-              </PressableScale>
+              <HeaderAction icon="square.and.arrow.up" iosSize={20} onPress={share} accessibilityLabel={t('common.share')} />
             ),
         }}
       />
@@ -96,6 +95,7 @@ export default function TasteMatchScreen() {
         <Text variant="footnote" color={colors.textTertiary} style={styles.explain}>
           {t('match.explain')}
         </Text>
+        <BottomInsetSpacer />
       </ScrollView>
     </>
   );

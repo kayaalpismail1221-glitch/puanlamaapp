@@ -1,19 +1,22 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
-import { useState } from 'react';
+import { SymbolView } from '@/components/symbol';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, TextInput, View } from 'react-native';
+import { Keyboard, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CompareStep, SentimentChoice, useRankResultText } from '@/components/rank-steps';
-import { Button, LoadingView, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
-import { cuisineLabel } from '@/constants/cuisines';
+import { ScoringGuide, useScoringGuide } from '@/components/scoring-guide';
+import { Button, ErrorView, LoadingView, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { colors, hitSlop, radius, spacing, typography } from '@/constants/theme';
-import { getPlace, usePlace } from '@/data/entities';
+import { getPlace, useEntityRetry, usePlace } from '@/data/entities';
+import { useAndroidBack } from '@/hooks/use-android-back';
 import { useKeyboardFooterStyle } from '@/hooks/use-keyboard-footer';
 import { useRankFlow } from '@/hooks/use-rank-flow';
 import { currentLanguage } from '@/i18n';
 import { haptics } from '@/lib/haptics';
+import { placeSubtitle } from '@/lib/place';
 import { possessive } from '@/lib/possessive';
 import { useAppStore } from '@/store/app-store';
 
@@ -35,17 +38,41 @@ export default function RateScreen() {
   }>();
   const theirScore = karsiPuan ? Number(karsiPuan) : NaN;
   const place = usePlace(id);
+  const retryPlace = useEntityRetry('place', id);
   const { rankings, onboarded, actions } = useAppStore();
   const { t } = useTranslation();
   const footerStyle = useKeyboardFooterStyle();
+  const insets = useSafeAreaInsets();
   const flow = useRankFlow(id);
   const resultText = useRankResultText();
+  const scrollRef = useRef<ScrollView>(null);
+  // Kaydet'e hızlı çift dokunuş puanı iki kez yazıp bir ekran fazla geri götürmesin
+  const saved = useRef(false);
+  // İlk puanlamada puanlama rehberi bir kez kendiliğinden açılır; sonra ? ile
+  const guide = useScoringGuide({ auto: true });
+  // Android geri tuşu karşılaştırmanın son adımını geri alır (ilerleme kaybolmasın); his seçiminde ekranı kapatır
+  useAndroidBack(flow.phase !== 'sentiment' ? flow.undo : null);
+
+  // Not yazarken klavye alttaki butonları yukarı iter; içerik kayar ve not alanı butonların üstünde görünür kalır
+  useEffect(() => {
+    const sub = Keyboard.addListener('keyboardDidShow', () => scrollRef.current?.scrollToEnd({ animated: true }));
+    return () => sub.remove();
+  }, []);
 
   const [note, setNote] = useState(
     () => Object.values(rankings).flat().find((e) => e.placeId === id)?.note ?? '',
   );
 
-  if (place === undefined) return <LoadingView style={styles.container} />;
+  if (place === undefined) {
+    if (!retryPlace) return <LoadingView style={styles.container} />;
+    return (
+      <ErrorView
+        onRetry={retryPlace}
+        action={{ title: t('rate.close'), onPress: () => router.back() }}
+        style={styles.container}
+      />
+    );
+  }
   if (!place) {
     return (
       <View style={[styles.container, styles.center]}>
@@ -56,9 +83,10 @@ export default function RateScreen() {
   }
 
   const save = (thenShare = false) => {
-    if (!flow.result) return;
+    if (!flow.result || saved.current) return;
+    saved.current = true;
     haptics.success();
-    actions.rank(place.id, flow.result.sentiment, flow.result.index, note);
+    actions.rank(place.id, flow.result, note);
     if (sonra === 'gonderi') {
       router.replace({ pathname: '/gonderi-olustur', params: { placeId: place.id, akis: 'onboarding' } });
     } else if (thenShare) {
@@ -67,17 +95,23 @@ export default function RateScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: spacing.lg }]}>
+    // iOS'ta sayfa durum çubuğunun altında açılır; Android'de tam ekran, üst boşluk durum çubuğu kadar
+    <View style={[styles.container, { paddingTop: Platform.OS === 'android' ? insets.top + spacing.sm : spacing.lg }]}>
       {/* Üst bar */}
       <View style={styles.topBar}>
         <PressableScale onPress={() => router.back()} hitSlop={hitSlop} style={styles.iconButton} accessibilityLabel={t('rate.close')}>
           <SymbolView name="xmark" tintColor={colors.primary} size={16} weight="semibold" />
         </PressableScale>
-        {flow.phase !== 'sentiment' && (
-          <PressableScale onPress={flow.undo} hitSlop={hitSlop} style={styles.iconButton} accessibilityLabel={t('rate.undo')}>
-            <SymbolView name="arrow.uturn.backward" tintColor={colors.primary} size={16} weight="semibold" />
+        <View style={styles.topRight}>
+          {flow.phase !== 'sentiment' && (
+            <PressableScale onPress={flow.undo} hitSlop={hitSlop} style={styles.iconButton} accessibilityLabel={t('rate.undo')}>
+              <SymbolView name="arrow.uturn.backward" tintColor={colors.primary} size={16} weight="semibold" />
+            </PressableScale>
+          )}
+          <PressableScale onPress={guide.open} hitSlop={hitSlop} style={styles.iconButton} accessibilityLabel={t('scoringGuide.open')}>
+            <SymbolView name="questionmark" tintColor={colors.primary} size={15} weight="semibold" />
           </PressableScale>
-        )}
+        </View>
       </View>
 
       <View style={styles.placeHeader}>
@@ -87,12 +121,17 @@ export default function RateScreen() {
             {place.name}
           </Text>
           <Text variant="footnote" color={colors.textSecondary}>
-            {cuisineLabel(place.cuisine)} · {place.neighborhood}
+            {placeSubtitle(place)}
           </Text>
         </View>
       </View>
 
-      <View style={styles.body}>
+      <ScrollView
+        ref={scrollRef}
+        style={styles.body}
+        contentContainerStyle={styles.bodyContent}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive">
         {flow.phase === 'sentiment' && <SentimentChoice key="sentiment" onChoose={flow.choose} />}
 
         {flow.phase === 'compare' && (
@@ -100,10 +139,11 @@ export default function RateScreen() {
             key={`compare-${flow.step}`}
             place={place}
             other={flow.otherPlaceId ? getPlace(flow.otherPlaceId) : undefined}
+            segment={flow.segment}
             step={flow.step}
             total={flow.totalSteps}
             onPick={flow.answer}
-            onSkip={flow.skip}
+            onTie={flow.tie}
           />
         )}
 
@@ -134,7 +174,7 @@ export default function RateScreen() {
             />
           </Animated.View>
         )}
-      </View>
+      </ScrollView>
 
       {flow.result && (
         <Animated.View style={[styles.footer, footerStyle]}>
@@ -145,6 +185,7 @@ export default function RateScreen() {
           )}
         </Animated.View>
       )}
+      <ScoringGuide visible={guide.visible} onClose={guide.close} />
     </View>
   );
 }
@@ -163,6 +204,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
+  },
+  topRight: {
+    flexDirection: 'row',
+    gap: spacing.sm,
   },
   iconButton: {
     width: 32,
@@ -186,8 +231,11 @@ const styles = StyleSheet.create({
   },
   body: {
     flex: 1,
+  },
+  bodyContent: {
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.xxl,
+    paddingBottom: spacing.lg,
   },
   compare: {
     flexDirection: 'row',

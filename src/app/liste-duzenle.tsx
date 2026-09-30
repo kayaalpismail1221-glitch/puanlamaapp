@@ -1,19 +1,20 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/symbol';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, FlatList, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { FlatList, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import { showError } from '@/api/errors';
 import type { ListDetails } from '@/api/lists';
 import { PlaceRowsSkeleton } from '@/components/skeleton';
-import { Button, Divider, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
+import { Button, Divider, ErrorView, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { cuisineLabel } from '@/constants/cuisines';
 import { colors, fonts, radius, spacing, typography } from '@/constants/theme';
 import { getPlace, useEntitiesVersion } from '@/data/entities';
 import { useListDetails, useSaveList } from '@/hooks/queries';
 import { useKeyboardFooterStyle } from '@/hooks/use-keyboard-footer';
+import { showAlert } from '@/lib/dialog';
 import { haptics } from '@/lib/haptics';
 import {
   facets,
@@ -38,6 +39,7 @@ export default function ListEditorScreen() {
   // `baslik`: yeni listenin hazır başlığı (profildeki "Favori mekânlarını listele")
   const { id, baslik } = useLocalSearchParams<{ id?: string; baslik?: string }>();
   const existing = useListDetails(id);
+  const { t } = useTranslation();
   // Düzenlemede form, mevcut liste yüklenince onun değerleriyle açılır
   if (id && existing.isPending) {
     return (
@@ -45,6 +47,13 @@ export default function ListEditorScreen() {
         <PlaceRowsSkeleton count={8} />
       </View>
     );
+  }
+  // Liste yüklenemezse boş form açılmaz: kaydedince listenin mekânları silinirdi
+  if (id && existing.isError) {
+    return <ErrorView onRetry={() => existing.refetch()} style={styles.container} />;
+  }
+  if (id && !existing.data) {
+    return <ErrorView message={t('lists.notFound')} style={styles.container} />;
   }
   return <ListEditor id={id} initial={existing.data ?? undefined} initialTitle={baslik} />;
 }
@@ -86,7 +95,7 @@ function ListEditor({ id, initial, initialTitle }: { id?: string; initial?: List
       const next = new Map(prev);
       if (next.has(placeId)) next.delete(placeId);
       else if (next.size >= LIST_MAX_PLACES) {
-        Alert.alert(t('lists.editor.max', { max: LIST_MAX_PLACES }));
+        showAlert(t('lists.editor.max', { max: LIST_MAX_PLACES }));
         return prev;
       } else next.set(placeId, '');
       return next;

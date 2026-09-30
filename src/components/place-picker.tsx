@@ -1,14 +1,16 @@
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/symbol';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, StyleSheet, View } from 'react-native';
 
+import { BottomInsetSpacer } from '@/components/bottom-inset';
 import { PlaceRow } from '@/components/place-row';
 import { PlaceRowsSkeleton } from '@/components/skeleton';
 import { Button, Divider, ErrorView, SearchField, Text } from '@/components/ui';
 import { colors, spacing } from '@/constants/theme';
 import { useNearbyPlaceSearch } from '@/hooks/queries';
+import { requestPlaceChoice } from '@/lib/place-choice';
 import type { Place } from '@/types';
 
 type ListProps = {
@@ -21,7 +23,9 @@ type ListProps = {
   header?: React.ReactElement;
 };
 
-const openAddPlace = (name: string) => router.push({ pathname: '/mekan-ekle', params: { ad: name } });
+/** Yeni mekân ekleme; eklenen (ya da "Bunlardan biri mi?" ile seçilen) mekân doğrudan seçilir */
+const openAddPlace = (name: string, onSelect: (place: Place) => void) =>
+  router.push({ pathname: '/mekan-ekle', params: { ad: name, istek: requestPlaceChoice(onSelect) } });
 
 /**
  * Mekân arama sonuçları. Boş aramada yakındaki mekânlar listelenir.
@@ -39,6 +43,8 @@ export function PlaceSearchList({ query, onSelect, trailing, exclude, header }: 
       keyExtractor={(p) => p.id}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
+      // Klavye son sonuçları örtmesin (iOS; Android'de alttaki boşluk)
+      automaticallyAdjustKeyboardInsets
       ListHeaderComponent={header}
       ItemSeparatorComponent={() => <Divider inset={spacing.lg + 52 + spacing.md} />}
       ListEmptyComponent={
@@ -51,19 +57,22 @@ export function PlaceSearchList({ query, onSelect, trailing, exclude, header }: 
             <Text variant="subhead" color={colors.textSecondary} align="center">
               {q ? t('picker.notFound', { query: q }) : t('picker.noneNearby')}
             </Text>
-            <Button title={t('common.addPlace')} icon="plus" variant="secondary" onPress={() => openAddPlace(q)} />
+            <Button title={t('common.addPlace')} icon="plus" variant="secondary" onPress={() => openAddPlace(q, onSelect)} />
           </View>
         )
       }
       ListFooterComponent={
-        results.length > 0 && q ? (
-          <Button
-            title={t('picker.notListed')}
-            variant="ghost"
-            onPress={() => openAddPlace(q)}
-            style={styles.footer}
-          />
-        ) : null
+        <>
+          {results.length > 0 && q ? (
+            <Button
+              title={t('picker.notListed')}
+              variant="ghost"
+              onPress={() => openAddPlace(q, onSelect)}
+              style={styles.footer}
+            />
+          ) : null}
+          <BottomInsetSpacer />
+        </>
       }
       renderItem={({ item }) => (
         <PlaceRow

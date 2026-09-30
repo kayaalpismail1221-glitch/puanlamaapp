@@ -1,17 +1,22 @@
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/symbol';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { ActivityIndicator, Linking, ScrollView, StyleSheet, View } from 'react-native';
 
 import { showError } from '@/api/errors';
+import { BottomInsetSpacer } from '@/components/bottom-inset';
 import { SettingsGroup, SettingsRow, settingsStyles } from '@/components/settings-list';
+import { ScoringGuide, useScoringGuide } from '@/components/scoring-guide';
+import { Toggle } from '@/components/toggle';
 import { Avatar, PressableScale, Text } from '@/components/ui';
 import { SUPPORT_EMAIL } from '@/constants/app';
 import { colors, spacing } from '@/constants/theme';
 import { schoolById, schoolLabel } from '@/data/schools';
 import { useLanguagePreference } from '@/i18n';
+import { appearanceSupported, useAppearancePreference } from '@/lib/appearance';
+import { showAlert } from '@/lib/dialog';
 import { areaLabel } from '@/lib/feed';
 import { haptics } from '@/lib/haptics';
 import { PHONE_VERIFICATION_ENABLED } from '@/constants/features';
@@ -25,6 +30,8 @@ export default function SettingsScreen() {
   const { profile, email, feedArea, hapticsEnabled, actions } = useAppStore();
   const { t } = useTranslation();
   const languagePreference = useLanguagePreference();
+  const appearance = useAppearancePreference();
+  const guide = useScoringGuide();
   const school = schoolById(profile?.schoolId);
   const [deleting, setDeleting] = useState(false);
 
@@ -33,11 +40,11 @@ export default function SettingsScreen() {
 
   const contact = () => {
     const url = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(t('settings.mailSubject'))}`;
-    Linking.openURL(url).catch(() => Alert.alert(t('settings.contact'), t('settings.noMailApp', { email: SUPPORT_EMAIL })));
+    Linking.openURL(url).catch(() => showAlert(t('settings.contact'), t('settings.noMailApp', { email: SUPPORT_EMAIL })));
   };
 
   const logout = () =>
-    Alert.alert(t('settings.logout'), t('settings.logoutText'), [
+    showAlert(t('settings.logout'), t('settings.logoutText'), [
       { text: t('common.cancel'), style: 'cancel' },
       { text: t('settings.logout'), style: 'destructive', onPress: () => actions.signOut() },
     ]);
@@ -54,13 +61,13 @@ export default function SettingsScreen() {
 
   // Geri alınamaz: iki kez onay
   const confirmDelete = () =>
-    Alert.alert(t('settings.deleteTitle'), t('settings.deleteText'), [
+    showAlert(t('settings.deleteTitle'), t('settings.deleteText'), [
       { text: t('common.cancel'), style: 'cancel' },
       {
         text: t('settings.continue'),
         style: 'destructive',
         onPress: () =>
-          Alert.alert(t('settings.sure'), t('settings.sureText'), [
+          showAlert(t('settings.sure'), t('settings.sureText'), [
             { text: t('common.cancel'), style: 'cancel' },
             { text: t('settings.deleteMine'), style: 'destructive', onPress: deleteAccount },
           ]),
@@ -99,6 +106,15 @@ export default function SettingsScreen() {
       <SettingsGroup title={t('settings.preferences')}>
         <SettingsRow icon="bell.fill" label={t('settings.notifications')} onPress={() => router.push('/bildirim-ayarlari')} />
         <SettingsRow icon="globe" label={t('settings.language')} value={languageValue} onPress={() => router.push('/dil')} />
+        {/* Koyu görünüm iOS'ta ve Android derlemesinde (constants/theme → darkModeSupported) */}
+        {appearanceSupported && (
+          <SettingsRow
+            icon="circle.lefthalf.filled"
+            label={t('settings.appearance')}
+            value={t(`appearance.options.${appearance}`)}
+            onPress={() => router.push('/gorunum')}
+          />
+        )}
         <SettingsRow
           icon="location.fill"
           label={t('settings.feedArea')}
@@ -109,13 +125,12 @@ export default function SettingsScreen() {
           icon="iphone.radiowaves.left.and.right"
           label={t('settings.haptics')}
           accessory={
-            <Switch
+            <Toggle
               value={hapticsEnabled}
               onValueChange={(v) => {
                 actions.setHapticsEnabled(v);
                 if (v) haptics.success();
               }}
-              trackColor={{ true: colors.primary }}
             />
           }
         />
@@ -125,10 +140,11 @@ export default function SettingsScreen() {
       <SettingsGroup title={t('settings.community')}>
         <SettingsRow icon="person.badge.plus" label={t('settings.findFriends')} onPress={() => router.push('/arkadas-bul')} />
         <SettingsRow icon="trophy" label={t('settings.leaderboard')} onPress={() => router.push('/siralama')} />
+        <SettingsRow icon="questionmark.circle" label={t('settings.scoring')} onPress={guide.open} />
         <SettingsRow
           icon="square.and.arrow.up"
           label={t('settings.invite')}
-          onPress={shareInvite}
+          onPress={() => shareInvite({ username: profile?.username })}
           last
         />
       </SettingsGroup>
@@ -139,11 +155,7 @@ export default function SettingsScreen() {
             icon="person.crop.circle.badge.checkmark"
             label={t('settings.discoverable')}
             accessory={
-              <Switch
-                value={profile?.discoverable !== false}
-                onValueChange={actions.setDiscoverable}
-                trackColor={{ true: colors.primary }}
-              />
+              <Toggle value={profile?.discoverable !== false} onValueChange={actions.setDiscoverable} />
             }
             last
           />
@@ -155,7 +167,6 @@ export default function SettingsScreen() {
         <SettingsRow icon="checkmark.shield.fill" label={t('settings.guidelines')} onPress={() => openLegal('kosullar')} last />
       </SettingsGroup>
 
-
       <SettingsGroup title={t('settings.support')}>
         <SettingsRow icon="envelope.fill" label={t('settings.contact')} value={SUPPORT_EMAIL} onPress={contact} />
         <SettingsRow icon="doc.text.fill" label={t('settings.terms')} onPress={() => openLegal('kosullar')} />
@@ -164,7 +175,7 @@ export default function SettingsScreen() {
         <SettingsRow
           icon="map"
           label={t('settings.placeData')}
-          value="© OpenStreetMap"
+          value="© OpenStreetMap · Overture"
           onPress={() => Linking.openURL('https://www.openstreetmap.org/copyright')}
           last
         />
@@ -199,6 +210,8 @@ export default function SettingsScreen() {
           )}
         </PressableScale>
       </SettingsGroup>
+      <ScoringGuide visible={guide.visible} onClose={guide.close} />
+      <BottomInsetSpacer />
     </ScrollView>
   );
 }

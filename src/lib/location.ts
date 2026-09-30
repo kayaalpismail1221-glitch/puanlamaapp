@@ -1,9 +1,25 @@
 import * as Location from 'expo-location';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 
 import type { Coords } from '@/lib/geo';
 
 export type LocationStatus = 'loading' | 'granted' | 'denied' | 'undetermined' | 'error';
+
+/**
+ * Güncel konum. Dengeli hassasiyet (Wi-Fi/baz istasyonu) hızlıdır ama bazen konum veremez ("Current location is
+ * unavailable": kapalı alan, Android'de ağ konumu yok); o zaman GPS'le bir kez daha denenir.
+ */
+async function currentPosition() {
+  for (const accuracy of [Location.Accuracy.Balanced, Location.Accuracy.High]) {
+    try {
+      return await Location.getCurrentPositionAsync({ accuracy });
+    } catch (e) {
+      if (__DEV__) console.warn('[location]', accuracy, e);
+    }
+  }
+  return null;
+}
 
 /**
  * Kullanıcının konumu. `enabled` false iken izin istemez.
@@ -14,21 +30,34 @@ export function useUserLocation(enabled: boolean, ask = true) {
   const [status, setStatus] = useState<LocationStatus>('loading');
   const [coords, setCoords] = useState<Coords | null>(null);
 
-  const load = useCallback(async (ask: boolean) => {
+  // Android: kullanıcı bu oturumda izin düğmesine bastı mı (bastıysa ve hâlâ ret varsa Ayarlar gerekir)
+  const askedByUser = useRef(false);
+
+  const load = useCallback(async (ask: boolean, byUser = false) => {
     try {
       let perm = await Location.getForegroundPermissionsAsync();
-      if (perm.status === 'undetermined' && ask) perm = await Location.requestForegroundPermissionsAsync();
+      // Android'de pencere kapatılınca/bir kez reddedilince izin "denied" görünür ama sistem yeniden sorabilir;
+      // Expo'nun `canAskAgain` tahmini bunu ayırt edemiyor. Kullanıcı düğmeye basınca Android'de her zaman istenir:
+      // sistem sorabiliyorsa pencere çıkar, kalıcı retse hemen döner. iOS'ta reddedilen izin sorulamaz (Ayarlar).
+      const askable =
+        perm.status === 'undetermined' || (Platform.OS === 'android' && byUser && perm.status === 'denied');
+      if (askable && ask) perm = await Location.requestForegroundPermissionsAsync();
+      if (byUser) askedByUser.current = true;
       if (perm.status !== 'granted') {
-        setStatus(perm.status === 'denied' ? 'denied' : 'undetermined');
+        const blocked =
+          perm.status === 'denied' && (Platform.OS === 'android' ? askedByUser.current : true);
+        setStatus(blocked ? 'denied' : 'undetermined');
         return;
       }
       setStatus('granted');
       // Önce hızlı olan son bilinen konum, ardından güncel konum
       const last = await Location.getLastKnownPositionAsync();
       if (last) setCoords(last.coords);
-      const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      setCoords(current.coords);
-    } catch {
+      const current = await currentPosition();
+      if (current) setCoords(current.coords);
+      else if (!last) setStatus('error');
+    } catch (e) {
+      if (__DEV__) console.warn('[location]', e);
       setStatus('error');
     }
   }, []);
@@ -45,5 +74,5 @@ export function useUserLocation(enabled: boolean, ask = true) {
     };
   }, [enabled, ask, load]);
 
-  return { status, coords, retry: () => load(true) };
+  return { status, coords, retry: () => load(true, true) };
 }

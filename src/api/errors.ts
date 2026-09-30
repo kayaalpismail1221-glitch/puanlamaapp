@@ -1,6 +1,7 @@
-import { Alert } from 'react-native';
+
 
 import i18n from '@/i18n';
+import { showAlert } from '@/lib/dialog';
 
 /**
  * Supabase ve ağ hatalarını kullanıcıya gösterilecek, etkin dildeki mesajlara çevirir.
@@ -22,12 +23,13 @@ const AUTH_MESSAGES: [RegExp, () => string][] = [
 ];
 
 // Veritabanının günlük sınır mesajındaki Türkçe etiket → i18n anahtarı
-const LIMIT_THINGS: Record<string, 'post' | 'comment' | 'place' | 'report' | 'list'> = {
+const LIMIT_THINGS: Record<string, 'post' | 'comment' | 'place' | 'report' | 'list' | 'correction'> = {
   gönderi: 'post',
   liste: 'list',
   yorum: 'comment',
   mekân: 'place',
   şikâyet: 'report',
+  düzeltme: 'correction',
 };
 
 export function isNetworkError(error: unknown): boolean {
@@ -49,6 +51,8 @@ export function toUserMessage(error: unknown): string {
     return i18n.t('errors.dailyLimit', { thing: i18n.t(`errors.limitThing.${LIMIT_THINGS[label] ?? 'other'}`) });
   }
   if (e.hint === 'objectionable') return i18n.t('errors.objectionable');
+  if (e.hint === 'place_outside_city') return i18n.t('errors.placeOutsideCity');
+  if (e.hint === 'correction_too_far') return i18n.t('errors.correctionTooFar');
   if (e.code === '23505') return /username/.test(message) ? i18n.t('errors.usernameTaken') : i18n.t('errors.duplicate');
   if (e.code === '42501' || e.status === 401 || e.status === 403) return i18n.t('errors.forbidden');
   if (e.code === '23514' || e.code === '22023') return i18n.t('errors.invalid');
@@ -59,7 +63,7 @@ export function toUserMessage(error: unknown): string {
 /** Hatayı sistem uyarısıyla gösterir */
 export function showError(error: unknown, title = i18n.t('errors.title')) {
   if (__DEV__) console.warn('[puanla]', error);
-  Alert.alert(title, toUserMessage(error));
+  showAlert(title, toUserMessage(error));
 }
 
 /** Supabase yanıtındaki hatayı fırlatır, veriyi döner */

@@ -1,6 +1,8 @@
 {
   "CFBundleDisplayName": "Puanla",
   "NSLocationWhenInUseUsageDescription": "Puanla uses your location to show popular places and posts near you. Your location is not stored on our servers.",
+  "NSLocationAlwaysAndWhenInUseUsageDescription": "Puanla uses your location to show popular places and posts near you. Puanla never uses your location in the background.",
+  "NSLocationAlwaysUsageDescription": "Puanla uses your location to show popular places and posts near you. Puanla never uses your location in the background.",
   "NSCameraUsageDescription": "Camera access lets you take food photos for your posts.",
   "NSPhotoLibraryUsageDescription": "Photo access lets you choose profile and post photos. Only the photos you pick are uploaded.",
   "NSPhotoLibraryAddUsageDescription": "Permission lets you save share images (like your food map) to your photos.",

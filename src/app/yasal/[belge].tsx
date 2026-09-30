@@ -1,6 +1,7 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { ScrollView, StyleSheet } from 'react-native';
 
+import { BottomInsetSpacer } from '@/components/bottom-inset';
 import { Text } from '@/components/ui';
 import { SUPPORT_EMAIL } from '@/constants/app';
 import { legalText, type LegalDoc } from '@/constants/legal';
@@ -33,6 +34,7 @@ export default function LegalScreen() {
             {section.paragraphs.join('\n\n')}
           </Text>
         ))}
+        <BottomInsetSpacer />
       </ScrollView>
     </>
   );

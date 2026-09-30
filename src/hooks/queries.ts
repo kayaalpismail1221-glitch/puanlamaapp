@@ -12,7 +12,7 @@ import type { LeaderboardPeriod, LeaderboardScope } from '@/lib/leaderboard';
 import { keys, queryClient } from '@/lib/query-client';
 import i18n from '@/i18n';
 import { useAppActions, useAppSelector } from '@/store/app-store';
-import type { Comment, FeedArea, Post } from '@/types';
+import type { AreaHit, Comment, FeedArea, PersonSuggestion, Post, Segment, UserProfile } from '@/types';
 
 /**
  * Sunucu verisi kancaları. Hepsi TanStack Query üzerinden önbelleklenir,
@@ -162,7 +162,7 @@ export function useUpdatePost() {
 
 export function useAddComment(postId: string) {
   return useMutation({
-    mutationFn: (text: string) => api.addComment(postId, text),
+    mutationFn: ({ text, parentId }: { text: string; parentId?: string }) => api.addComment(postId, text, parentId),
     onSuccess: (comment) => {
       queryClient.setQueryData(keys.comments(postId), (old: Comment[] | undefined) => [...(old ?? []), comment]);
       // Sayaç önbellekte güncellenir; tüm popüler feed sayfalarını yeniden çekmeye gerek yok
@@ -171,16 +171,52 @@ export function useAddComment(postId: string) {
   });
 }
 
+/** Silinen yorumun yanıtları da (sunucuda cascade) listeden ve sayaçtan düşer */
 export function useDeleteComment(postId: string) {
   return useMutation({
     mutationFn: (commentId: string) => api.deleteComment(commentId),
     onSuccess: (_, commentId) => {
-      queryClient.setQueryData(keys.comments(postId), (old: { id: string }[] | undefined) =>
-        old?.filter((c) => c.id !== commentId),
+      const old = queryClient.getQueryData<Comment[]>(keys.comments(postId)) ?? [];
+      const removed = new Set([commentId]);
+      for (let grew = true; grew; ) {
+        grew = false;
+        for (const c of old) {
+          if (c.parentId && removed.has(c.parentId) && !removed.has(c.id)) {
+            removed.add(c.id);
+            grew = true;
+          }
+        }
+      }
+      queryClient.setQueryData(
+        keys.comments(postId),
+        old.filter((c) => !removed.has(c.id)),
       );
-      adjustCommentCount(postId, -1);
+      adjustCommentCount(postId, -removed.size);
     },
   });
+}
+
+/**
+ * Yorum beğenme: kalp ve sayı hemen değişir, sunucuya arkadan yazılır; hata olursa geri alınır.
+ * Hızlı çift dokunuşta son istenen durum kazanır (her dokunuş kendi hedefini yazar).
+ */
+export function useToggleCommentLike(postId: string) {
+  const update = (commentId: string, liked: boolean) =>
+    queryClient.setQueryData(keys.comments(postId), (old: Comment[] | undefined) =>
+      old?.map((c) =>
+        c.id === commentId && c.likedByMe !== liked
+          ? { ...c, likedByMe: liked, likeCount: Math.max(0, c.likeCount + (liked ? 1 : -1)) }
+          : c,
+      ),
+    );
+  return (comment: Comment) => {
+    const liked = !comment.likedByMe;
+    update(comment.id, liked);
+    api.setCommentLiked(comment.id, liked).catch((error) => {
+      update(comment.id, !liked);
+      showError(error, i18n.t('failures.commentLike'));
+    });
+  };
 }
 
 /* ---------- Mekânlar ---------- */
@@ -235,8 +271,11 @@ export function useFriendScores(placeIds: string[]) {
   });
 }
 
+/** Arama yazarken: her harfte sonuç gelsin ama her tuş vuruşu istek olmasın */
+const LIVE_SEARCH_DELAY = 120;
+
 export function useSearchPlaces(query: string, coords: Coords | null) {
-  const q = useDebounced(query.trim());
+  const q = useDebounced(query.trim(), LIVE_SEARCH_DELAY);
   const rounded = roundCoords(coords);
   return useQuery({
     queryKey: keys.searchPlaces(q, rounded),
@@ -250,6 +289,31 @@ export function useSearchPlaces(query: string, coords: Coords | null) {
 export function useNearbyPlaceSearch(query: string) {
   const { coords } = useUserLocation(true, false);
   return useSearchPlaces(query, coords);
+}
+
+/** Yazdıkça eşleşen semt ve ilçeler; önceki sonuç yenisi gelene kadar ekranda kalır */
+export function useSearchAreas(query: string) {
+  const q = useDebounced(query.trim(), LIVE_SEARCH_DELAY);
+  return useQuery({
+    queryKey: keys.searchAreas(q),
+    queryFn: () => api.searchAreas(q),
+    enabled: q.length >= 2,
+    placeholderData: (previous) => previous,
+    staleTime: 5 * 60_000,
+  });
+}
+
+/** Bölgenin en yüksek puanlı mekânları (sayfalı); `limit` verilirse tek sayfa (Keşfet önizlemesi) */
+export function useAreaTopPlaces(area: AreaHit | undefined, segment?: Segment) {
+  return useInfiniteQuery({
+    queryKey: keys.areaTop(area && [area.kind, area.city, area.district, area.name], segment),
+    queryFn: ({ pageParam }) => api.fetchAreaTopPlaces(area!, segment, pageParam),
+    initialPageParam: 0,
+    getNextPageParam: (last, pages) => (last.length < api.AREA_PAGE ? undefined : pages.length * api.AREA_PAGE),
+    enabled: !!area,
+    placeholderData: (previous) => previous,
+    staleTime: 60_000,
+  });
 }
 
 export function useAreas() {
@@ -274,10 +338,26 @@ export function useUserRank(userId: string | undefined) {
   });
 }
 
+/** Yıllık hedef yarışı (hedef sayfası): sen ve takip ettiklerin */
+export function useYearChallenge(year: number) {
+  return useQuery({
+    queryKey: keys.yearChallenge(year),
+    queryFn: () => api.fetchYearChallenge(year),
+  });
+}
+
 export function useUserRankings(userId: string | undefined) {
   return useQuery({
     queryKey: keys.userRankings(userId ?? ''),
     queryFn: () => api.fetchUserRankings(userId!),
+    enabled: !!userId,
+  });
+}
+
+export function useUserFavorites(userId: string | undefined) {
+  return useQuery({
+    queryKey: keys.favorites(userId ?? ''),
+    queryFn: () => api.fetchUserFavorites(userId!),
     enabled: !!userId,
   });
 }
@@ -368,8 +448,39 @@ export function useSuggestedUsers(limit = 30) {
   });
 }
 
+/**
+ * Tanıyor olabileceğin kişiler (bildirim merkezi). Takip edilen kişi listede "Takip ediliyor" olarak
+ * kalsın diye kendiliğinden yenilenmez; aşağı çekince yenilenir.
+ */
+export function usePeopleYouMayKnow(limit = 10) {
+  return useQuery({
+    queryKey: keys.peopleYouMayKnow(limit),
+    queryFn: () => api.fetchPeopleYouMayKnow(limit),
+    staleTime: 10 * 60_000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+/** ✕: öneri tüm listelerden hemen kalkar, sunucuya arkadan yazılır */
+export function useDismissSuggestion() {
+  return (userId: string) => {
+    // Bildirimdeki blok ve "Tümünü gör" listesi farklı limitlerle önbellekte; hepsinden düşer
+    const pymk = queryClient.getQueriesData<PersonSuggestion[]>({ queryKey: keys.peopleYouMayKnow() });
+    const suggested = queryClient.getQueryData<UserProfile[]>(keys.suggested());
+    queryClient.setQueriesData<PersonSuggestion[]>({ queryKey: keys.peopleYouMayKnow() }, (old) =>
+      old?.filter((s) => s.user.id !== userId),
+    );
+    queryClient.setQueryData(keys.suggested(), suggested?.filter((u) => u.id !== userId));
+    api.dismissSuggestion(userId).catch((error) => {
+      for (const [key, data] of pymk) queryClient.setQueryData(key, data);
+      queryClient.setQueryData(keys.suggested(), suggested);
+      showError(error);
+    });
+  };
+}
+
 export function useSearchUsers(query: string) {
-  const q = useDebounced(query.trim());
+  const q = useDebounced(query.trim(), LIVE_SEARCH_DELAY);
   return useQuery({
     queryKey: keys.searchUsers(q),
     queryFn: () => api.searchUsers(q),

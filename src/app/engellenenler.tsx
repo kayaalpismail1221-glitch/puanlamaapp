@@ -1,13 +1,15 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/symbol';
 import { useTranslation } from 'react-i18next';
-import { Alert, FlatList, StyleSheet, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 
 import { fetchBlockedUsers, unblock, type BlockedUser } from '@/api/content';
 import { showError } from '@/api/errors';
+import { BottomInsetSpacer } from '@/components/bottom-inset';
 import { SkeletonScreen, UserRowsSkeleton } from '@/components/skeleton';
 import { Avatar, Button, Divider, ErrorView, Text } from '@/components/ui';
 import { colors, spacing } from '@/constants/theme';
+import { showAlert } from '@/lib/dialog';
 import { haptics } from '@/lib/haptics';
 import { queryClient } from '@/lib/query-client';
 import { useAppStore } from '@/store/app-store';
@@ -31,7 +33,7 @@ export default function BlockedUsersScreen() {
   });
 
   const confirm = (user: BlockedUser) =>
-    Alert.alert(t('blocked.unblockTitle', { name: user.name }), t('blocked.unblockText'), [
+    showAlert(t('blocked.unblockTitle', { name: user.name }), t('blocked.unblockText'), [
       { text: t('common.cancel'), style: 'cancel' },
       { text: t('blocked.unblock'), onPress: () => remove.mutate(user) },
     ]);
@@ -47,6 +49,7 @@ export default function BlockedUsersScreen() {
 
   return (
     <FlatList
+      ListFooterComponent={<BottomInsetSpacer />}
       style={styles.container}
       data={blocked.data}
       keyExtractor={(u) => u.id}

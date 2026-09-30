@@ -39,6 +39,8 @@ yapılanlar, senin yapman gerekenler ve App Store Connect'e yapıştırılacak h
    ```
 6. **Ekran görüntüleri.** 6,9" iPhone (1320×2868) için en az 3, en fazla 10 adet; iPhone'dan çekilebilir. Önerilen sıra:
    Feed, Harita (renkli pinler), Mekân sayfası, Puanlama (Hangisi daha iyiydi?), Profil / Lezzet haritası.
+   Hazır set: `docs/app-store-screenshots/out/puanla-1…9.png` (6,9": 1320×2868, TR) ve `out/6.5/` (6,5": 1284×2778). Kaynağı `screens.html`
+   (uygulama arayüzünün HTML kopyası, demo içerik); değiştirince `bash docs/app-store-screenshots/render.sh`.
 7. **Demo verisi kararı.** `@demo.puanla.app` hesapları kurgusal. Herkese açık yayından önce gerçek kullanıcı içeriğine
    geçmek daha güvenli: TestFlight'taki test kullanıcılarından içerik toplanır, sonra demo silinir
    (`supabase/scripts/remove-demo-data.sql`).

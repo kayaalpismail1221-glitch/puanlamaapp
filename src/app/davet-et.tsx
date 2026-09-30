@@ -1,12 +1,13 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/symbol';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
-import { Avatar, Button, PressableScale, Text } from '@/components/ui';
+import { BottomInsetSpacer } from '@/components/bottom-inset';
+import { Avatar, Button, ErrorView, PressableScale, Text } from '@/components/ui';
 import { colors, radius, spacing } from '@/constants/theme';
-import { usePlace } from '@/data/entities';
+import { useEntityRetry, usePlace } from '@/data/entities';
 import { inviteText, sendInvite, type DeviceContact } from '@/lib/contacts';
 import { haptics } from '@/lib/haptics';
 import { normalizePhone } from '@/lib/validation';
@@ -39,6 +40,7 @@ export default function InviteScreen() {
   const params = useLocalSearchParams<Params>();
   const { t } = useTranslation();
   const place = usePlace(params.mekan);
+  const retryPlace = useEntityRetry('place', params.mekan);
   const myName = useAppSelector((s) => s.profile?.name ?? '');
   const scoreOf = useScoreOf();
   const contacts = useMemo(() => parseContacts(params.kisiler), [params.kisiler]);
@@ -51,6 +53,17 @@ export default function InviteScreen() {
     await sendInvite(contact.phone, text, via);
     setSent((list) => (list.includes(contact.phone) ? list : [...list, contact.phone]));
   };
+
+  // Mekân gelmeden mesaj yazılamaz: düğmeler sonsuza dek pasif kalmasın
+  if (place === null || (place === undefined && retryPlace)) {
+    return (
+      <ErrorView
+        message={place === null ? t('place.notFound') : undefined}
+        onRetry={retryPlace ?? undefined}
+        style={styles.container}
+      />
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -99,6 +112,7 @@ export default function InviteScreen() {
             </View>
           );
         })}
+        <BottomInsetSpacer />
       </ScrollView>
       <View style={styles.footer}>
         <Button title={t('invite.done')} variant={sent.length ? 'primary' : 'ghost'} onPress={() => router.back()} />

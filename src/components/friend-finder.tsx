@@ -2,32 +2,45 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, StyleSheet, View } from 'react-native';
 
+import { BottomInsetSpacer } from '@/components/bottom-inset';
 import { ContactFriends } from '@/components/contact-friends';
+import { SuggestionRow } from '@/components/people-you-may-know';
 import { UserRowsSkeleton } from '@/components/skeleton';
-import { Divider, ErrorView, SearchField, Text } from '@/components/ui';
+import { Button, Divider, ErrorView, SearchField, Text } from '@/components/ui';
 import { UserRow } from '@/components/user-row';
 import { colors, spacing } from '@/constants/theme';
-import { useSearchUsers, useSuggestedUsers } from '@/hooks/queries';
+import { usePeopleYouMayKnow, useSearchUsers } from '@/hooks/queries';
+import { shareInvite } from '@/lib/share';
+import { useAppSelector } from '@/store/app-store';
+import type { PersonSuggestion, UserProfile } from '@/types';
+
+type Item = PersonSuggestion | UserProfile;
+const isSuggestion = (item: Item): item is PersonSuggestion => 'reason' in item;
 
 /**
- * Kullanıcı adıyla arkadaş arama ve takip etme listesi (onboarding ve uygulama içinde ortak).
- * Arama boşken takip önerileri gösterilir.
+ * Kullanıcı adıyla arkadaş arama ve takip etme listesi ("Tümünü gör", ayarlardan arkadaş bul).
+ * Arama boşken bildirim merkezindekiyle aynı gerekçeli öneriler (Takip et / ✕); önerecek kimse kalmadıysa davet çağrısı.
  */
 export function FriendFinder({ header }: { header?: React.ReactElement }) {
   const { t } = useTranslation();
+  const username = useAppSelector((s) => s.profile?.username);
   const [query, setQuery] = useState('');
   const searching = query.trim().replace(/^@/, '').length > 0;
-  const suggested = useSuggestedUsers();
+  const suggested = usePeopleYouMayKnow(30);
   const results = useSearchUsers(query);
   const active = searching ? results : suggested;
+  const data: Item[] = (searching ? results.data : suggested.data) ?? [];
 
   return (
-    <FlatList
-      data={active.data ?? []}
-      keyExtractor={(u) => u.id}
+    <FlatList<Item>
+      data={data}
+      keyExtractor={(item) => (isSuggestion(item) ? item.user.id : item.id)}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
       contentInsetAdjustmentBehavior="automatic"
+      // Klavye son sonuçları örtmesin (iOS; Android'de alttaki boşluk)
+      automaticallyAdjustKeyboardInsets
+      ListFooterComponent={<BottomInsetSpacer />}
       ListHeaderComponent={
         <View style={styles.header}>
           {header}
@@ -46,15 +59,26 @@ export function FriendFinder({ header }: { header?: React.ReactElement }) {
           <UserRowsSkeleton />
         ) : active.isError ? (
           <ErrorView onRetry={() => active.refetch()} />
-        ) : (
+        ) : searching ? (
           <Text variant="subhead" color={colors.textSecondary} align="center" style={styles.empty}>
-            {searching ? t('friends.noMatch', { query: query.trim() }) : t('friends.noSuggestions')}
+            {t('friends.noMatch', { query: query.trim() })}
           </Text>
+        ) : (
+          <View style={styles.caughtUp}>
+            <Text variant="subhead" color={colors.textSecondary} align="center">
+              {t('friends.allCaughtUp')}
+            </Text>
+            <Button title={t('contacts.inviteFriends')} icon="square.and.arrow.up" size="sm" onPress={() => shareInvite({ username })} />
+          </View>
         )
       }
-      renderItem={({ item }) => (
-        <UserRow user={item} subtitle={t('friends.reviews', { username: item.username, count: item.postCount })} />
-      )}
+      renderItem={({ item }) =>
+        isSuggestion(item) ? (
+          <SuggestionRow suggestion={item} />
+        ) : (
+          <UserRow user={item} subtitle={t('friends.reviews', { username: item.username, count: item.postCount })} />
+        )
+      }
     />
   );
 }
@@ -69,6 +93,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   empty: {
+    padding: spacing.xl,
+  },
+  caughtUp: {
+    alignItems: 'center',
+    gap: spacing.lg,
     padding: spacing.xl,
   },
 });

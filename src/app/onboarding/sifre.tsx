@@ -1,8 +1,8 @@
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/symbol';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View, type ColorValue } from 'react-native';
 import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
 
 import { signUp } from '@/api/auth';
@@ -11,6 +11,7 @@ import { LegalConsent } from '@/components/legal-consent';
 import { BigInput, OnboardingStep } from '@/components/onboarding-step';
 import { Button, PressableScale, Text } from '@/components/ui';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
+import { showAlert } from '@/lib/dialog';
 import { haptics } from '@/lib/haptics';
 import { isAcceptablePassword, passwordChecks, passwordStrength } from '@/lib/validation';
 import { useAppStore } from '@/store/app-store';
@@ -50,7 +51,7 @@ export default function PasswordStep() {
     } catch (error) {
       haptics.warning();
       if (/already registered/i.test((error as Error).message ?? '')) {
-        Alert.alert(t('onboarding.emailRegistered'), toUserMessage(error), [
+        showAlert(t('onboarding.emailRegistered'), toUserMessage(error), [
           { text: t('common.cancel'), style: 'cancel' },
           { text: t('onboarding.signIn'), onPress: () => router.replace({ pathname: '/onboarding/giris', params: { email } }) },
         ]);
@@ -123,7 +124,7 @@ export default function PasswordStep() {
 }
 
 /** Güç çubuğu parçası: dolunca soldan yaylı şekilde dolar */
-function StrengthBar({ filled, color }: { filled: boolean; color: string }) {
+function StrengthBar({ filled, color }: { filled: boolean; color: ColorValue }) {
   const fill = useAnimatedStyle(() => ({
     transform: [{ scaleX: withSpring(filled ? 1 : 0, { damping: 18, stiffness: 200 }) }],
   }));

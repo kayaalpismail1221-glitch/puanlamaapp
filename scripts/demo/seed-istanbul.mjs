@@ -10,6 +10,7 @@ import { randomUUID } from 'node:crypto';
 
 import { createClient } from '@supabase/supabase-js';
 
+import { segmentOf } from '../../src/constants/segments.ts';
 import { SENTIMENT_ORDER, scoreAt } from '../../src/lib/ranking.ts';
 
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
@@ -145,13 +146,15 @@ for (const u of list.users.filter((u) => u.email?.endsWith(DOMAIN))) {
 
 // 2) Mekânları bul
 const placeIds = {};
+const placeSegments = {};
 for (const [k, [name, neighborhood]] of Object.entries(PLACES)) {
   const rows = await check(
-    db.from('places').select('id').eq('source', 'osm').eq('name', name).eq('neighborhood', neighborhood).limit(1),
+    db.from('places').select('id, cuisine').eq('source', 'osm').eq('name', name).eq('neighborhood', neighborhood).limit(1),
     `mekân ${name}`,
   );
   if (!rows.length) throw new Error(`Mekân bulunamadı: ${name} (${neighborhood})`);
   placeIds[k] = rows[0].id;
+  placeSegments[k] = segmentOf(rows[0].cuisine);
 }
 
 // 3) Kullanıcılar ve profiller
@@ -179,20 +182,32 @@ const follows = [];
 ids.forEach((a, i) => ids.forEach((b, j) => a !== b && (i + j) % 3 !== 0 && follows.push({ follower_id: userIds[a], followee_id: userIds[b] })));
 await check(db.from('follows').insert(follows), 'takip');
 
-// 5) Sıralamalar: kişi başına grup içi sıra, puan uygulamanın formülüyle
+// 5) Sıralamalar: kişi başına segment + grup içi sıra, puan uygulamanın formülüyle
 const ratings = {};
 for (const p of POSTS) (ratings[p.user] ??= new Map()).set(p.place, { score: p.score, at: p.hours });
 for (const [u, place, score] of EXTRA_RATINGS) if (!ratings[u].has(place)) ratings[u].set(place, { score, at: 200 });
 const finalScore = {};
 const rankingRows = [];
 for (const [u, map] of Object.entries(ratings)) {
-  for (const sentiment of SENTIMENT_ORDER) {
-    const group = [...map.entries()].filter(([, r]) => sentimentOf(r.score) === sentiment).sort((a, b) => b[1].score - a[1].score);
-    group.forEach(([place, r], index) => {
-      const score = scoreAt(sentiment, index, group.length);
-      finalScore[`${u}/${place}`] = score;
-      rankingRows.push({ user_id: userIds[u], place_id: placeIds[place], sentiment, position: index, score, rated_at: hoursAgo(r.at) });
-    });
+  for (const segment of new Set(Object.values(placeSegments))) {
+    for (const sentiment of SENTIMENT_ORDER) {
+      const group = [...map.entries()]
+        .filter(([place, r]) => placeSegments[place] === segment && sentimentOf(r.score) === sentiment)
+        .sort((a, b) => b[1].score - a[1].score);
+      group.forEach(([place, r], index) => {
+        const score = scoreAt(sentiment, index, group.length);
+        finalScore[`${u}/${place}`] = score;
+        rankingRows.push({
+          user_id: userIds[u],
+          place_id: placeIds[place],
+          sentiment,
+          segment,
+          position: index,
+          score,
+          rated_at: hoursAgo(r.at),
+        });
+      });
+    }
   }
 }
 await check(db.from('rankings').insert(rankingRows), 'sıralama');

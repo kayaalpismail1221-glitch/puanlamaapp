@@ -1,37 +1,79 @@
-import { Platform } from 'react-native';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
+import { Appearance, DynamicColorIOS, Platform, PlatformColor, type ColorValue } from 'react-native';
+
+import { androidColorName, dark, light, palettes, type Palette } from '@/constants/palettes';
 
 /**
  * Tasarım token'ları. Bileşenlerde sabit renk/ölçü yazma; hepsini buradan al.
+ *
+ * Açık ve koyu görünüm: `colors` iOS'ta `DynamicColorIOS` değerleridir; sistem (ya da Ayarlar → Görünüm)
+ * değişince her ekran yeniden çizilmeden anında uyum sağlar. Android'de `PlatformColor`: palet uygulamaya renk
+ * kaynağı olarak gömülü (`values` / `values-night`, `plugins/with-android-theme.js`); görünüm değişince gezinme
+ * ağacı yeniden kurulur ve renkler yeni görünümden okunur (bkz. `lib/appearance`). Renk metni gereken yerlerde
+ * (SVG, gezinme teması, degrade) `usePalette()` ile o anki paletin düz değerleri alınır. Görünümden bağımsız
+ * kalması gerekenler (fotoğraf üstü yazı, paylaşım kartları) `fixed` kullanır.
  */
 
-export const colors = {
-  // Yüzeyler
-  background: '#FFFFFF',
-  surface: '#F5F6F8',
-  border: '#E5E7EB',
+export { palettes, type Palette };
 
-  // Marka
-  primary: '#0F1E3D',
-  onPrimary: '#FFFFFF',
+export type Scheme = keyof typeof palettes;
 
-  // Metin
-  text: '#111827',
-  textSecondary: '#6B7280',
-  textTertiary: '#9CA3AF',
+/**
+ * Koyu görünüm desteği: iOS'ta her zaman; Android'de renk kaynakları gömülü olan kendi derlememizde
+ * (Expo Go'da kaynak yok, orada açık kalır); web açık.
+ */
+export const darkModeSupported =
+  Platform.OS === 'ios' ||
+  (Platform.OS === 'android' && Constants.executionEnvironment !== ExecutionEnvironment.StoreClient);
 
-  // Durumlar
-  danger: '#DC2626',
-  warning: '#D97706',
-  like: '#E11D48',
-  overlay: 'rgba(15, 30, 61, 0.45)',
+const androidColors = Platform.OS === 'android' && darkModeSupported;
 
+/**
+ * Görünüme göre değişen renk. iOS'ta sistem çözer; Android'de çağrıldığı anki görünümden seçilir (görünüm
+ * değişince ağaç yeniden kurulduğu için çizim sırasında çağrılan değerler güncel kalır); web açık.
+ */
+export function dynamicColor(lightValue: string, darkValue: string): ColorValue {
+  if (Platform.OS === 'ios') return DynamicColorIOS({ light: lightValue, dark: darkValue });
+  return androidColors && Appearance.getColorScheme() === 'dark' ? darkValue : lightValue;
+}
 
-  // Çizim tarzı dünya haritası (profildeki lezzet haritası): kâğıt tonunda kara, yumuşak mavi deniz
-  mapWater: '#DCE7F3',
-  mapLand: '#FBFCFE',
-  mapCoast: '#AFC0D4',
-  mapBorder: '#D9E1EB',
-  mapShadow: 'rgba(15, 30, 61, 0.10)',
+export const colors = Object.fromEntries(
+  (Object.keys(light) as (keyof Palette)[]).map((key) => [
+    key,
+    androidColors ? PlatformColor(`@color/${androidColorName(key)}`) : dynamicColor(light[key], dark[key]),
+  ]),
+) as Record<keyof Palette, ColorValue>;
+
+const androidKeyByName = new Map((Object.keys(light) as (keyof Palette)[]).map((key) => [androidColorName(key), key]));
+
+/**
+ * `colors` değerini düz renge çevirir: `PlatformColor` kabul etmeyen yerel bileşenler için (Android'de expo-image).
+ * Tema rengi değilse olduğu gibi döner.
+ */
+export function plainColor(value: ColorValue | undefined, palette: Palette): ColorValue | undefined {
+  if (value && typeof value === 'object' && 'resource_paths' in value) {
+    const path = (value as { resource_paths: string[] }).resource_paths[0] ?? '';
+    const key = androidKeyByName.get(path.replace('@color/', ''));
+    return key ? palette[key] : value;
+  }
+  return value;
+}
+
+/** Görünümden bağımsız renkler: fotoğraf ve renkli zemin üstü yazı, paylaşım kartları */
+export const fixed = {
+  white: '#FFFFFF',
+  navy: '#0F1E3D',
+  /** Lacivert degrade üstündeki yarı saydam beyaz düğme zemini (Android'de camın yerine) */
+  frostOnDark: 'rgba(255, 255, 255, 0.18)',
+  ink: '#111827',
+  /** Paylaşım kartlarındaki (hikâye, harita) çizim haritası: her zaman açık */
+  map: {
+    water: light.mapWater,
+    land: light.mapLand,
+    coast: light.mapCoast,
+    border: light.mapBorder,
+    shadow: light.mapShadow,
+  },
 } as const;
 
 /** Paylaşım kartlarının zemini: marka lacivertinden açık maviye */
@@ -55,16 +97,22 @@ export const radius = {
   full: 999,
 } as const;
 
-// iOS sistem fontu (SF Pro) kullanılır; fontFamily belirtmiyoruz.
+const android = Platform.OS === 'android';
+
+/**
+ * Sistem fontu (iOS'ta SF Pro, Android'de Roboto); fontFamily belirtmiyoruz. iOS ölçeği Apple'ın metin stilleri.
+ * Android'de Material 3 ölçeğine yakın: Roboto aynı puntoda SF'ten geniş, gövde metni 16 (bodyLarge), başlıklar
+ * bir kademe sıkı; büyük başlıklarda iOS'a özgü harf aralığı yok.
+ */
 export const typography = {
-  largeTitle: { fontSize: 34, fontWeight: '700', letterSpacing: 0.4 },
-  title: { fontSize: 28, fontWeight: '700', letterSpacing: 0.3 },
+  largeTitle: { fontSize: android ? 32 : 34, fontWeight: '700', letterSpacing: android ? 0 : 0.4 },
+  title: { fontSize: 28, fontWeight: '700', letterSpacing: android ? 0 : 0.3 },
   title2: { fontSize: 22, fontWeight: '700' },
   title3: { fontSize: 20, fontWeight: '600' },
-  headline: { fontSize: 17, fontWeight: '600' },
-  body: { fontSize: 17, fontWeight: '400' },
-  callout: { fontSize: 16, fontWeight: '400' },
-  subhead: { fontSize: 15, fontWeight: '400' },
+  headline: { fontSize: android ? 16 : 17, fontWeight: '600' },
+  body: { fontSize: android ? 16 : 17, fontWeight: '400' },
+  callout: { fontSize: android ? 15 : 16, fontWeight: '400' },
+  subhead: { fontSize: android ? 14 : 15, fontWeight: '400' },
   footnote: { fontSize: 13, fontWeight: '400' },
   caption: { fontSize: 12, fontWeight: '500' },
 } as const;
@@ -91,6 +139,8 @@ const SCORE_BANDS: { min: number; max: number; from: string; to: string }[] = [
 ];
 
 const hexToRgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+/** "#RRGGBB" → yarı saydam "rgba(…)" (degradelerde zemine erime için) */
+export const withAlpha = (hex: string, alpha: number) => `rgba(${hexToRgb(hex).join(', ')}, ${alpha})`;
 const rgbToHex = (rgb: number[]) => `#${rgb.map((c) => Math.round(c).toString(16).padStart(2, '0')).join('')}`;
 const mix = (a: string, b: string, t: number) => {
   const [x, y] = [hexToRgb(a), hexToRgb(b)];
@@ -104,9 +154,15 @@ export function scoreColor(score: number): string {
   return mix(band.from, band.to, t);
 }
 
-/** Beyaz zemin üstünde okunaklı puan yazısı (sarı tonlar koyulaştırılır) */
-export function scoreInk(score: number): string {
-  return mix(scoreColor(score), '#000000', score >= 3.4 && score < 6.7 ? 0.38 : 0.2);
+/**
+ * Zemin üstünde okunaklı puan yazısı: açık görünümde koyulaştırılır (sarı tonlar daha çok),
+ * koyu görünümde biraz açılır.
+ */
+export function scoreInk(score: number): ColorValue {
+  return dynamicColor(
+    mix(scoreColor(score), '#000000', score >= 3.4 && score < 6.7 ? 0.38 : 0.2),
+    mix(scoreColor(score), '#FFFFFF', 0.12),
+  );
 }
 
 /** Puan rengiyle dolu yüzeyin (pin) üstündeki yazı rengi: açık tonlarda koyu, diğerlerinde beyaz */
@@ -116,5 +172,5 @@ export function onScoreColor(score: number): string {
     return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
   });
   const luminance = 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
-  return luminance > 0.3 ? colors.text : colors.onPrimary;
+  return luminance > 0.3 ? fixed.ink : fixed.white;
 }

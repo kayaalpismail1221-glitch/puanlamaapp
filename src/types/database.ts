@@ -7,6 +7,7 @@
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 type Sentiment = 'liked' | 'fine' | 'disliked';
+type Segment = 'restaurant' | 'street' | 'breakfast' | 'cafe' | 'nightlife';
 type SaveOrigin = 'social' | 'app';
 type PriceBucket = 'u250' | '250-500' | '500-1000' | '1000-2000' | 'o2000';
 type Meal = 'kahvalti' | 'ogle' | 'aksam' | 'gece';
@@ -19,6 +20,8 @@ export type ProfileRow = {
   avatar_path: string | null;
   school_id: string | null;
   year_goal: number | null;
+  /** Favori 4: seçilen sırayla en fazla dört mekân kimliği */
+  favorite_places: string[];
   onboarded_at: string | null;
   is_admin: boolean;
   follower_count: number;
@@ -42,9 +45,15 @@ export type PlaceRow = {
   latitude: number;
   longitude: number;
   location: unknown;
+  address: string;
+  phone: string | null;
+  website: string | null;
+  locked_fields: string[];
+  closed_at: string | null;
   photo_url: string | null;
   source: string;
   external_id: string | null;
+  imported_at: string | null;
   created_by: string | null;
   created_at: string;
   search_text: string;
@@ -65,9 +74,34 @@ export type PlaceViewRow = {
   latitude: number;
   longitude: number;
   photo: string | null;
+  /** "Güneşlibahçe Sk. No:48/B"; bilinmiyorsa '' (migration öncesi sunucuda hiç yok) */
+  address?: string;
+  /** E.164 */
+  phone?: string | null;
+  website?: string | null;
+  /** Kullanıcı bildirimleriyle kapandı olarak işaretlendiyse */
+  closed_at?: string | null;
 };
 
-export type NotificationType = 'like' | 'comment' | 'tag' | 'follow' | 'friend_rated' | 'friend_joined';
+export type CorrectionField = 'phone' | 'address' | 'website' | 'name' | 'location' | 'closed';
+
+export type NotificationType =
+  | 'like'
+  | 'comment'
+  | 'reply'
+  | 'comment_like'
+  | 'tag'
+  | 'follow'
+  | 'friend_rated'
+  | 'friend_joined';
+
+/** people_you_may_know(): öneri ve gerekçesi */
+export type PersonSuggestionRow = {
+  profile: PublicProfileJson;
+  reason: 'follows_you' | 'contact' | 'together' | 'mutual' | 'engaged' | 'school' | 'popular';
+  mutual_count: number;
+  mutual_name: string | null;
+};
 
 /** match_contacts(): rehberdeki numaralardan uygulamada olanlar */
 export type ContactMatchRow = { phone: string; user: PublicProfileJson; following: boolean };
@@ -147,6 +181,8 @@ export type RankingViewRow = {
   note: string | null;
   rated_at: string;
   place: PlaceViewRow;
+  segment: Segment;
+  tied: boolean;
 };
 
 export type SavedPlaceViewRow = {
@@ -166,6 +202,9 @@ export type CommentViewRow = {
   body: string;
   created_at: string;
   author: PublicProfileJson;
+  parent_id: string | null;
+  like_count: number;
+  liked_by_me: boolean;
 };
 
 export type AreaViewRow = {
@@ -226,12 +265,25 @@ export type TasteMatchJson = {
   places: { place: PlaceViewRow; my_score: number; their_score: number }[];
 };
 
+/** year_challenge: yıllık hedef yarışı satırı */
+export type YearChallengeRow = {
+  user_id: string;
+  profile: PublicProfileJson;
+  goal: number | null;
+  done: number;
+};
+
 export type LeaderboardRow = {
   user_id: string;
-  reviews: number;
-  likes: number;
+  xp: number;
   rank: number;
   profile: PublicProfileJson;
+  ratings: number;
+  posts: number;
+  photo_posts: number;
+  likes: number;
+  invites: number;
+  welcome: number;
 };
 
 type Table<Row, Insert = Partial<Row>, Update = Partial<Row>> = {
@@ -247,11 +299,13 @@ export type Database = {
   __InternalSupabase: { PostgrestVersion: '12' };
   public: {
     Tables: {
-      cuisines: Table<{ name: string; position: number }>;
+      cuisines: Table<{ name: string; position: number; segment: Segment }>;
       profiles: Table<
         ProfileRow,
         never,
-        Partial<Pick<ProfileRow, 'name' | 'username' | 'avatar_path' | 'school_id' | 'year_goal' | 'onboarded_at'>>
+        Partial<
+          Pick<ProfileRow, 'name' | 'username' | 'avatar_path' | 'school_id' | 'year_goal' | 'favorite_places' | 'onboarded_at'>
+        >
       >;
       profile_private: Table<
         {
@@ -261,6 +315,7 @@ export type Database = {
           discoverable: boolean;
           phone_verified_at: string | null;
           verified_phone_hash: string | null;
+          invited_by: string | null;
           updated_at: string;
         },
         { user_id: string; phone?: string | null; discoverable?: boolean },
@@ -274,6 +329,7 @@ export type Database = {
           neighborhood?: string;
           district: string;
           city: string;
+          address?: string;
           price_level?: number;
           latitude: number;
           longitude: number;
@@ -288,6 +344,7 @@ export type Database = {
         score: number;
         note: string | null;
         rated_at: string;
+        segment: Segment;
       }>;
       saved_places: Table<
         {
@@ -349,8 +406,22 @@ export type Database = {
       post_saves: Table<{ post_id: string; user_id: string; created_at: string }, { post_id: string }, never>;
       post_tags: Table<{ post_id: string; user_id: string }, { post_id: string; user_id: string }, never>;
       comments: Table<
-        { id: string; post_id: string; user_id: string; body: string; created_at: string },
-        { post_id: string; body: string },
+        {
+          id: string;
+          post_id: string;
+          user_id: string;
+          body: string;
+          created_at: string;
+          parent_id: string | null;
+          like_count: number;
+        },
+        { post_id: string; body: string; parent_id?: string | null },
+        never
+      >;
+      comment_likes: Table<{ comment_id: string; user_id: string; created_at: string }, { comment_id: string }, never>;
+      suggestion_dismissals: Table<
+        { user_id: string; dismissed_id: string; created_at: string },
+        { dismissed_id: string },
         never
       >;
       lists: Table<
@@ -403,7 +474,7 @@ export type Database = {
     };
     Functions: {
       rank_place: {
-        Args: { p_place_id: string; p_sentiment: Sentiment; p_index: number; p_note?: string | null };
+        Args: { p_place_id: string; p_sentiment: Sentiment; p_index: number; p_note?: string | null; p_tie?: boolean };
         Returns: number;
       };
       unrank_place: { Args: { p_place_id: string }; Returns: undefined };
@@ -444,6 +515,25 @@ export type Database = {
         Returns: Json;
       };
       place_details: { Args: { p_place_id: string }; Returns: Json };
+      search_areas: {
+        Args: { p_query: string; p_limit?: number };
+        Returns: { kind: 'city' | 'district' | 'neighborhood'; name: string; district: string | null; city: string; place_count: number }[];
+      };
+      area_bounds: {
+        Args: { p_city: string; p_district?: string | null; p_neighborhood?: string | null };
+        Returns: { south: number; west: number; north: number; east: number }[];
+      };
+      area_top_places: {
+        Args: {
+          p_city: string;
+          p_district?: string | null;
+          p_neighborhood?: string | null;
+          p_segment?: Segment | null;
+          p_limit?: number;
+          p_offset?: number;
+        };
+        Returns: (PlaceViewRow & { average: number | null; rating_count: number })[];
+      };
       map_places: {
         Args: { p_south: number; p_west: number; p_north: number; p_east: number; p_limit?: number };
         Returns: (PlaceViewRow & { average: number; rating_count: number })[];
@@ -452,8 +542,24 @@ export type Database = {
         Args: { p_query?: string; p_latitude?: number; p_longitude?: number; p_limit?: number };
         Returns: PlaceViewRow[];
       };
+      suggest_place_correction: {
+        Args: {
+          p_place_id: string;
+          p_field: CorrectionField;
+          p_value?: string | null;
+          p_latitude?: number | null;
+          p_longitude?: number | null;
+        };
+        Returns: 'applied' | 'pending';
+      };
+      /** Koordinattaki il/ilçe/mahalle (sınırları bilinen bölgede; dışında boş) */
+      area_at: {
+        Args: { p_latitude: number; p_longitude: number };
+        Returns: { city: string; district: string; neighborhood: string }[];
+      };
       search_users: { Args: { p_query: string; p_limit?: number }; Returns: ProfileViewRow[] };
       suggested_users: { Args: { p_limit?: number }; Returns: ProfileViewRow[] };
+      people_you_may_know: { Args: { p_limit?: number }; Returns: PersonSuggestionRow[] };
       recommended_places: {
         Args: { p_latitude?: number; p_longitude?: number; p_limit?: number };
         Returns: (PlaceViewRow & {
@@ -502,6 +608,13 @@ export type Database = {
         Returns: LeaderboardRow[];
       };
       user_rank: { Args: { p_user_id: string }; Returns: number | null };
+      year_challenge: { Args: { p_year?: number }; Returns: YearChallengeRow[] };
+      set_inviter: { Args: { p_username: string }; Returns: PublicProfileJson };
+      log_share: {
+        Args: { p_kind: string; p_target?: string | null; p_channel?: string; p_completed?: boolean | null };
+        Returns: undefined;
+      };
+      growth_stats: { Args: { p_days?: number }; Returns: Json };
       username_available: { Args: { p_username: string }; Returns: boolean };
       delete_account: { Args: Record<string, never>; Returns: undefined };
       my_notifications: { Args: { p_before?: string | null; p_limit?: number }; Returns: NotificationRow[] };

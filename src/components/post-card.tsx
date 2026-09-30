@@ -1,22 +1,23 @@
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView } from '@/components/symbol';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring } from 'react-native-reanimated';
 
 import { PhotoCarousel } from '@/components/photo-carousel';
 import { Avatar, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
-import { cuisineLabel } from '@/constants/cuisines';
 import { colors, hitSlop, radius, scoreInk, spacing } from '@/constants/theme';
 import { showError } from '@/api/errors';
 import { getUser, usePlace, usePost, useUser } from '@/data/entities';
 import { useDeletePost } from '@/hooks/queries';
+import { showAlert } from '@/lib/dialog';
 import { formatScore, timeAgo } from '@/lib/format';
 import { formatDistance } from '@/lib/geo';
 import { haptics } from '@/lib/haptics';
 import { openUserProfile } from '@/lib/navigation';
 import { confirmBlock, openReportMenu, showMenu } from '@/lib/moderation';
+import { placeShortArea, placeSubtitle } from '@/lib/place';
 import { sharePost } from '@/lib/share';
 import { highlightLabel, mealLabel } from '@/lib/post-meta';
 import { queryClient } from '@/lib/query-client';
@@ -90,19 +91,23 @@ export const PostCard = memo(function PostCard({ post: initial, expanded, distan
 
   const mine = isMe(post.userId);
 
-  const removePost = (withScore: boolean) =>
-    deletePost.mutate(post, {
-      onSuccess: () => {
-        haptics.success();
-        // Puan gönderiden ayrı durur; istenirse sıralamadan (ve Top 3'ten) da çıkar
-        if (withScore) actions.unrank(post.placeId);
-        if (expanded) router.back();
-      },
-      onError: (error) => showError(error, t('failures.postDelete')),
-    });
+  // mutate'in kendi onSuccess'i kullanılmaz: silinen gönderi önbellekten çıkınca bu kart kalkar ve TanStack
+  // kalkmış gözlemcinin geri çağrılarını çalıştırmaz (ekran kapanmaz, puan silinmezdi). Promise kalkmadan etkilenmez.
+  const removePost = async (withScore: boolean) => {
+    try {
+      await deletePost.mutateAsync(post);
+    } catch (error) {
+      showError(error, t('failures.postDelete'));
+      return;
+    }
+    haptics.success();
+    // Puan gönderiden ayrı durur; istenirse sıralamadan da çıkar
+    if (withScore) actions.unrank(post.placeId);
+    if (expanded) router.back();
+  };
 
   const confirmDelete = () =>
-    Alert.alert(
+    showAlert(
       t('post.deleteTitle'),
       ranked ? t('post.deleteTextWithScore', { place: place.name }) : t('post.deleteText'),
       ranked
@@ -130,20 +135,20 @@ export const PostCard = memo(function PostCard({ post: initial, expanded, distan
       mine
         ? [
             {
-              label: t('story.shareToStory'),
+              icon: 'photo.on.rectangle', label: t('story.shareToStory'),
               onPress: () => router.push({ pathname: '/hikaye', params: { gonderi: post.id } }),
             },
-            { label: t('common.share'), onPress: () => sharePost(post, place, user.name) },
+            { icon: 'square.and.arrow.up', label: t('common.share'), onPress: () => sharePost(post, place, user.name) },
             {
-              label: t('editPost.edit'),
+              icon: 'pencil', label: t('editPost.edit'),
               onPress: () => router.push({ pathname: '/gonderi-duzenle', params: { id: post.id } }),
             },
-            { label: t('post.deleteTitle'), destructive: true, onPress: confirmDelete },
+            { icon: 'trash', label: t('post.deleteTitle'), destructive: true, onPress: confirmDelete },
           ]
         : [
-            { label: t('common.share'), onPress: () => sharePost(post, place, user.name) },
-            { label: t('moderation.report'), destructive: true, onPress: () => openReportMenu({ postId: post.id }) },
-            { label: t('moderation.blockUser', { name: user.name.split(' ')[0] }), destructive: true, onPress: blockUser },
+            { icon: 'square.and.arrow.up', label: t('common.share'), onPress: () => sharePost(post, place, user.name) },
+            { icon: 'exclamationmark.bubble', label: t('moderation.report'), destructive: true, onPress: () => openReportMenu({ postId: post.id }) },
+            { icon: 'hand.raised', label: t('moderation.blockUser', { name: user.name.split(' ')[0] }), destructive: true, onPress: blockUser },
           ],
     );
 
@@ -164,7 +169,7 @@ export const PostCard = memo(function PostCard({ post: initial, expanded, distan
             <Text variant="footnote" color={colors.primary} style={styles.bold} onPress={openPlace}>
               {place.name}
             </Text>
-            {` · ${distanceKm !== undefined ? formatDistance(distanceKm) : place.neighborhood} · ${timeAgo(post.createdAt)}`}
+            {` · ${distanceKm !== undefined ? formatDistance(distanceKm) : placeShortArea(place)} · ${timeAgo(post.createdAt)}`}
           </Text>
         </View>
         {post.score !== undefined && <ScoreBadge score={post.score} />}
@@ -209,7 +214,7 @@ export const PostCard = memo(function PostCard({ post: initial, expanded, distan
               {place.name}
             </Text>
             <Text variant="footnote" color={colors.textSecondary} numberOfLines={1}>
-              {cuisineLabel(place.cuisine)} · {place.neighborhood}
+              {placeSubtitle(place)}
             </Text>
           </View>
           {post.score !== undefined && <ScoreBadge score={post.score} size="lg" />}

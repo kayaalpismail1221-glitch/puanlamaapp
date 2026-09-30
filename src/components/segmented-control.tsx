@@ -1,4 +1,4 @@
-import type { StyleProp, ViewStyle } from 'react-native';
+import { View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { SegmentTabs } from '@/components/segment-tabs';
 
@@ -10,10 +10,13 @@ type Props<T extends string> = {
 };
 
 /**
- * iOS dışındaki platformlarda alt çizgili sekmeler.
- * iOS'ta SwiftUI segmented kontrolü kullanılır (segmented-control.ios.tsx); SwiftUI modülü
- * diğer platformlarda yüklenemediği için dosya ayrı.
+ * Web'de alt çizgili sekmeler. iOS'ta SwiftUI segmented kontrolü (segmented-control.ios.tsx), Android'de
+ * Material 3 segment düğmeleri (segmented-control.android.tsx); yerel modüller web'de yüklenemediği için dosyalar ayrı.
  */
-export function SegmentedControl<T extends string>({ options, value, onChange }: Props<T>) {
-  return <SegmentTabs tabs={options} value={value} onChange={onChange} />;
+export function SegmentedControl<T extends string>({ options, value, onChange, style }: Props<T>) {
+  return (
+    <View style={style}>
+      <SegmentTabs tabs={options} value={value} onChange={onChange} />
+    </View>
+  );
 }
