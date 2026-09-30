@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSyncExternalStore } from 'react';
-import { Appearance, Platform } from 'react-native';
+import { Appearance } from 'react-native';
+
+import { darkModeSupported } from '@/constants/theme';
 
 /**
  * Görünüm tercihi (Ayarlar → Görünüm): açık, koyu ya da cihazı izle.
@@ -20,8 +22,8 @@ let loaded = false;
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((l) => l());
 
-/** Koyu görünüm yalnızca iOS'ta (`colors` DynamicColorIOS); Android ve web her zaman açık */
-export const appearanceSupported = Platform.OS === 'ios';
+/** Koyu görünüm iOS'ta ve Android'de kendi derlememizde (`constants/theme` → `darkModeSupported`); web açık */
+export const appearanceSupported = darkModeSupported;
 
 const apply = (next: AppearancePreference) =>
   Appearance.setColorScheme(!appearanceSupported ? 'light' : next === 'system' ? 'unspecified' : next);

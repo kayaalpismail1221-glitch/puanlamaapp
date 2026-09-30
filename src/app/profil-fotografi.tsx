@@ -1,5 +1,5 @@
 import { BlurView } from 'expo-blur';
-import { Image } from 'expo-image';
+import { Image } from '@/components/image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';

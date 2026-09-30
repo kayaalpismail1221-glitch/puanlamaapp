@@ -2,6 +2,7 @@ import type { NativeStackNavigationOptions } from 'expo-router';
 import { useMemo } from 'react';
 import { Platform } from 'react-native';
 
+import { ModalCloseButton } from '@/components/header-button';
 import type { Palette } from '@/constants/theme';
 import { usePalette } from '@/hooks/use-palette';
 
@@ -23,11 +24,12 @@ export function platformStackOptions(palette: Palette): NativeStackNavigationOpt
 }
 
 /**
- * Modal ekran: iOS'ta sayfa (sheet); Android'de alttan kayarak gelen tam ekran (Android'de sayfa sunumu yok).
+ * Modal ekran: iOS'ta sayfa (sheet, aşağı çekince kapanır); Android'de Material'ın tam ekran diyaloğu: alttan
+ * kayarak gelir, solda ✕ ile kapanır (ekran kendi sol düğmesini verirse o geçerli).
  * `Stack.Screen options={{ ...modal, title }}`
  */
 export const modal: NativeStackNavigationOptions = android
-  ? { presentation: 'modal', animation: 'slide_from_bottom' }
+  ? { presentation: 'modal', animation: 'slide_from_bottom', headerLeft: () => <ModalCloseButton /> }
   : { presentation: 'modal' };
 
 /** Sekmelerin içindeki büyük başlıklı iOS stack başlığı (renkler o anki görünümden); Android'de düz üst çubuk */

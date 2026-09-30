@@ -3,13 +3,14 @@ import { SymbolView } from '@/components/symbol';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlashList } from '@shopify/flash-list';
-import { ActivityIndicator, Linking, RefreshControl, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Linking, StyleSheet, View } from 'react-native';
 
 import { PostCard } from '@/components/post-card';
 import { SegmentedControl } from '@/components/segmented-control';
 import type { FeedEntry } from '@/api/content';
 import { PostCardsSkeleton } from '@/components/skeleton';
 import { Avatar, Button, Divider, ErrorView, PressableScale, Text } from '@/components/ui';
+import { RefreshControl } from '@/components/refresh-control';
 import { colors, fixed, hitSlop, radius, spacing } from '@/constants/theme';
 import { useFollowingFeed, usePopularFeed, useUnreadNotifications } from '@/hooks/queries';
 import { areaLabel } from '@/lib/feed';
@@ -85,7 +86,7 @@ export default function FeedScreen() {
         // Fotoğraflı ve fotoğrafsız kartlar ayrı havuzlarda geri dönüştürülür
         getItemType={(e) => (e.post.photos.length ? 'photo' : 'tile')}
         contentInsetAdjustmentBehavior="automatic"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
         onEndReached={() => active.hasNextPage && !active.isFetchingNextPage && active.fetchNextPage()}
         // Sonraki sayfa, sona bir ekran kala istenir: kaydırma hiç beklemez
         onEndReachedThreshold={1}

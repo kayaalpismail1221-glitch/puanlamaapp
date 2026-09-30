@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { ScrollView } from 'react-native';
+import { Platform, ScrollView } from 'react-native';
 
 import { SettingsGroup, SettingsRow, settingsStyles } from '@/components/settings-list';
 import {
@@ -29,7 +29,7 @@ export default function AppearanceScreen() {
       style={settingsStyles.screen}
       contentContainerStyle={settingsStyles.content}
       contentInsetAdjustmentBehavior="automatic">
-      <SettingsGroup footer={t('appearance.footer')}>
+      <SettingsGroup footer={t(Platform.OS === 'android' ? 'appearance.footerAndroid' : 'appearance.footer')}>
         {APPEARANCES.map((option, i) => (
           <SettingsRow
             key={option}

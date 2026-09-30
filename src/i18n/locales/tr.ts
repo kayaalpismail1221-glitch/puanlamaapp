@@ -31,6 +31,7 @@ const tr = {
     removeFromList: 'Listemden çıkar',
     sharePost: 'Gönderi paylaş',
     back: 'Geri',
+    clear: 'Temizle',
   },
 
   tabs: {
@@ -339,6 +340,8 @@ const tr = {
     socialStep2: 'Paylaş’a dokun ve listeden Puanla’yı seç',
     socialStep3: 'Bağlantı hazır gelir; mekânı seç, Listem’e kaydedilsin',
     socialTip: 'Paylaş menüsünde Puanla yoksa “Diğer”e dokunup ekle. Bağlantıyı kopyalayıp buraya dönersen de otomatik yakalanır.',
+    socialStep1Android: 'Instagram’da, TikTok’ta ya da Chrome’da gezerken bir mekân gör',
+    socialTipAndroid: 'Paylaş menüsünde Puanla ilk sırada değilse listeyi kaydır. Bağlantıyı kopyalayıp buraya dönersen de otomatik yakalanır.',
     appEmptyTitle: 'Henüz bir şey kaydetmedin',
     appEmptyText: 'Mekân sayfasında, aramada ya da feed’deki gönderilerde yer imine dokun, burada toplansın.',
     searchPlaces: 'Mekân ara',
@@ -686,6 +689,7 @@ const tr = {
   appearance: {
     options: { system: 'Cihazla aynı', light: 'Açık', dark: 'Koyu' },
     footer: '“Cihazla aynı” seçiliyken Puanla, iPhone’unun açık/koyu ayarını izler.',
+    footerAndroid: '“Cihazla aynı” seçiliyken Puanla, telefonunun koyu tema ayarını izler.',
   },
 
   language: {
@@ -994,6 +998,7 @@ const tr = {
     download: 'Puanla’yı indir: {{link}}',
     xpHint: 'Katılınca Puanla Ligi’nde “Seni kim davet etti?” kısmına @{{username}} yaz, ikimiz de XP kazanalım.',
     searchStore: 'App Store’da “Puanla”yı aratıp indirebilirsin.',
+    searchStoreAndroid: 'Google Play’de “Puanla”yı aratıp indirebilirsin.',
     title: 'Masadakileri davet et',
     subtitle_one: '{{count}} kişi henüz Puanla’da değil. Mesajı gönder, onlar da puanlasın; katılınca haber veririz.',
     subtitle_other: '{{count}} kişi henüz Puanla’da değil. Mesajı gönder, onlar da puanlasın; katılınca haber veririz.',
@@ -1031,6 +1036,7 @@ const tr = {
   },
 
   notifications: {
+    channelName: 'Bildirimler',
     like: '{{place}} gönderini beğendi.',
     comment: 'yorum yaptı: “{{comment}}”',
     reply: 'yorumuna yanıt verdi: “{{comment}}”',
@@ -1057,6 +1063,7 @@ const tr = {
     on: 'Açık',
     off: 'Kapalı',
     systemOffFooter: 'Bildirimler kapalı. Açmak için dokun; daha önce reddettiysen iPhone Ayarları açılır.',
+    systemOffFooterAndroid: 'Bildirimler kapalı. Açmak için dokun; daha önce reddettiysen telefonun uygulama ayarları açılır.',
     pushTitle: 'Telefona bildirim',
     pushFooter: 'Kapattıkların bildirim merkezinde görünmeye devam eder, yalnızca telefonuna bildirim gelmez.',
     kinds: {
@@ -1103,9 +1110,13 @@ const tr = {
     noRoute: 'Bu mekâna rota bulunamadı.',
     locationOff: 'Yol tarifi için konum izni gerekiyor.',
     openSettings: 'Ayarları aç',
+    allowLocation: 'Konuma izin ver',
     openInMaps: 'Apple Haritalar’da aç',
+    openInMapsAndroid: 'Google Haritalar’da yol tarifi',
     unavailable: 'Uygulama içi yol tarifi bu sürümde yok. Kuş uçuşu {{distance}}.',
     transitNote: 'Toplu taşımada hat ve aktarma adımlarını Apple Haritalar gösterir.',
+    transitNoteAndroid: 'Toplu taşımada hat ve aktarma adımlarını Google Haritalar gösterir.',
+    unavailableAndroid: 'Kuş uçuşu {{distance}}. Adım adım yol tarifi Google Haritalar’da açılır.',
     transitSteps: 'Hatları göster',
     rerouting: 'Rota yeniden hesaplanıyor.',
     arrived: 'Vardın! Afiyet olsun.',
@@ -1121,11 +1132,14 @@ const tr = {
   mapShare: {
     title: 'Paylaş',
     actions: { share: 'Paylaş', save: 'Kaydet', message: 'Mesajlar', link: 'Bağlantı' },
+    messageAndroid: 'Mesaj',
     saved: 'Kaydedildi',
     hint: 'Instagram hikâyesi için: Paylaş → Instagram → Hikâye',
     messageBody: 'Puanla’daki lezzet haritama bak 🍽️',
     savePermission: 'Kaydetmek için Ayarlar’dan Fotoğraflar’a ekleme izni ver.',
     messageUnavailable: 'Bu cihazda Mesajlar kullanılamıyor.',
+    messageUnavailableAndroid: 'Bu cihazda mesaj gönderilemiyor.',
+    savePermissionAndroid: 'Kaydetmek için telefon ayarlarından Puanla’ya fotoğraf izni ver.',
   },
 
   story: {
@@ -1136,6 +1150,7 @@ const tr = {
     followHint: 'Puanla’da beni takip et',
     followHintOther: 'Puanla’da takip et',
     getAppKicker: 'App Store’da',
+    getAppKickerAndroid: 'Google Play’de',
     getApp: 'Puanla',
     linkCopied: 'İndirme bağlantısı kopyalandı: Instagram’da “Bağlantı” çıkartmasına yapıştır.',
     top5Kicker: 'En iyi mekânlarım',
@@ -1395,6 +1410,7 @@ const tr = {
     average_one: 'Puanla puanı · {{count}} kişi',
     average_other: 'Puanla puanı · {{count}} kişi',
     mapPlaceholder: 'Harita (yalnızca iOS)',
+    unavailable: 'Harita bu sürümde açılamıyor.',
     searchPlaceholder: 'Mekân, semt, ilçe ara',
     clearSearch: 'Aramayı temizle',
   },

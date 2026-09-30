@@ -1,102 +1,63 @@
-import { DynamicColorIOS, Platform, type ColorValue } from 'react-native';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
+import { Appearance, DynamicColorIOS, Platform, PlatformColor, type ColorValue } from 'react-native';
+
+import { androidColorName, dark, light, palettes, type Palette } from '@/constants/palettes';
 
 /**
  * Tasarım token'ları. Bileşenlerde sabit renk/ölçü yazma; hepsini buradan al.
  *
  * Açık ve koyu görünüm: `colors` iOS'ta `DynamicColorIOS` değerleridir; sistem (ya da Ayarlar → Görünüm)
- * değişince her ekran yeniden çizilmeden anında uyum sağlar. Renk metni gereken yerlerde (SVG, gezinme
- * teması, degrade) `usePalette()` ile o anki paletin düz değerleri alınır. Görünümden bağımsız kalması
- * gerekenler (fotoğraf üstü yazı, paylaşım kartları) `fixed` kullanır.
+ * değişince her ekran yeniden çizilmeden anında uyum sağlar. Android'de `PlatformColor`: palet uygulamaya renk
+ * kaynağı olarak gömülü (`values` / `values-night`, `plugins/with-android-theme.js`); görünüm değişince gezinme
+ * ağacı yeniden kurulur ve renkler yeni görünümden okunur (bkz. `lib/appearance`). Renk metni gereken yerlerde
+ * (SVG, gezinme teması, degrade) `usePalette()` ile o anki paletin düz değerleri alınır. Görünümden bağımsız
+ * kalması gerekenler (fotoğraf üstü yazı, paylaşım kartları) `fixed` kullanır.
  */
 
-const light = {
-  // Yüzeyler
-  background: '#FFFFFF',
-  surface: '#F5F6F8',
-  border: '#E5E7EB',
-  /** Harita ve fotoğraf üstünde yüzen yarı saydam düğme/etiket zemini */
-  floating: 'rgba(255, 255, 255, 0.92)',
-  /** Gruplu liste ekranının zemini (Ayarlar gibi); satırlar `card` */
-  grouped: '#F5F6F8',
-  /** Zeminden bir kat yukarıdaki yüzey: gruplu satırlar, açılır pencere, alttan çıkan panel */
-  card: '#FFFFFF',
-  /** `card` üstündeki düğme/alan dolgusu */
-  fill: '#F2F3F6',
+export { palettes, type Palette };
 
-  // Marka: açıkta lacivert mürekkep, koyuda beyaza yakın; dolu düğmelerde yazı onPrimary
-  primary: '#0F1E3D',
-  onPrimary: '#FFFFFF',
-  /** Açık anahtar (Toggle) rengi */
-  toggle: '#0F1E3D',
-
-  // Metin
-  text: '#111827',
-  textSecondary: '#6B7280',
-  textTertiary: '#9CA3AF',
-
-  // Durumlar
-  danger: '#DC2626',
-  /** Silme gibi yıkıcı düğmelerin açık zemini */
-  dangerSoft: '#FDECEC',
-  warning: '#D97706',
-  like: '#E11D48',
-  overlay: 'rgba(15, 30, 61, 0.45)',
-
-  // Çizim tarzı dünya haritası (profildeki lezzet haritası): kâğıt tonunda kara, yumuşak mavi deniz
-  mapWater: '#DCE7F3',
-  mapLand: '#FBFCFE',
-  mapCoast: '#AFC0D4',
-  mapBorder: '#D9E1EB',
-  mapShadow: 'rgba(15, 30, 61, 0.10)',
-};
-
-export type Palette = Record<keyof typeof light, string>;
-
-/**
- * Koyu görünüm: iOS'un koyu katmanlarıyla (sekme çubuğu, arama alanı, segment, anahtar) aynı nötr tonlar;
- * zemin siyaha yakın, bir kat yukarısı #1C1C1E. Marka mürekkebi beyaza yakın, anahtarlar puan yeşili.
- */
-const dark: Palette = {
-  background: '#0B0B0D',
-  surface: '#1C1C1E',
-  border: '#2E2E32',
-  floating: 'rgba(28, 28, 30, 0.9)',
-  grouped: '#000000',
-  card: '#1C1C1E',
-  fill: '#2C2C2F',
-
-  primary: '#F2F4F8',
-  onPrimary: '#0F1E3D',
-  toggle: '#3BA55C',
-
-  text: '#F5F5F7',
-  textSecondary: '#A1A1A8',
-  textTertiary: '#6D6D74',
-
-  danger: '#FF6B6B',
-  dangerSoft: '#3A1719',
-  warning: '#FFB840',
-  like: '#FF4F6F',
-  overlay: 'rgba(0, 0, 0, 0.62)',
-
-  mapWater: '#18212E',
-  mapLand: '#2A3039',
-  mapCoast: '#46505F',
-  mapBorder: '#3A414C',
-  mapShadow: 'rgba(0, 0, 0, 0.45)',
-};
-
-export const palettes = { light, dark } as const;
 export type Scheme = keyof typeof palettes;
 
-/** iOS'ta görünüme göre değişen renk; Android ve web şimdilik açık görünümde */
+/**
+ * Koyu görünüm desteği: iOS'ta her zaman; Android'de renk kaynakları gömülü olan kendi derlememizde
+ * (Expo Go'da kaynak yok, orada açık kalır); web açık.
+ */
+export const darkModeSupported =
+  Platform.OS === 'ios' ||
+  (Platform.OS === 'android' && Constants.executionEnvironment !== ExecutionEnvironment.StoreClient);
+
+const androidColors = Platform.OS === 'android' && darkModeSupported;
+
+/**
+ * Görünüme göre değişen renk. iOS'ta sistem çözer; Android'de çağrıldığı anki görünümden seçilir (görünüm
+ * değişince ağaç yeniden kurulduğu için çizim sırasında çağrılan değerler güncel kalır); web açık.
+ */
 export function dynamicColor(lightValue: string, darkValue: string): ColorValue {
-  return Platform.OS === 'ios' ? DynamicColorIOS({ light: lightValue, dark: darkValue }) : lightValue;
+  if (Platform.OS === 'ios') return DynamicColorIOS({ light: lightValue, dark: darkValue });
+  return androidColors && Appearance.getColorScheme() === 'dark' ? darkValue : lightValue;
 }
 
 export const colors = Object.fromEntries(
-  Object.keys(light).map((key) => [key, dynamicColor(light[key as keyof Palette], dark[key as keyof Palette])]),
+  (Object.keys(light) as (keyof Palette)[]).map((key) => [
+    key,
+    androidColors ? PlatformColor(`@color/${androidColorName(key)}`) : dynamicColor(light[key], dark[key]),
+  ]),
 ) as Record<keyof Palette, ColorValue>;
+
+const androidKeyByName = new Map((Object.keys(light) as (keyof Palette)[]).map((key) => [androidColorName(key), key]));
+
+/**
+ * `colors` değerini düz renge çevirir: `PlatformColor` kabul etmeyen yerel bileşenler için (Android'de expo-image).
+ * Tema rengi değilse olduğu gibi döner.
+ */
+export function plainColor(value: ColorValue | undefined, palette: Palette): ColorValue | undefined {
+  if (value && typeof value === 'object' && 'resource_paths' in value) {
+    const path = (value as { resource_paths: string[] }).resource_paths[0] ?? '';
+    const key = androidKeyByName.get(path.replace('@color/', ''));
+    return key ? palette[key] : value;
+  }
+  return value;
+}
 
 /** Görünümden bağımsız renkler: fotoğraf ve renkli zemin üstü yazı, paylaşım kartları */
 export const fixed = {
@@ -134,16 +95,22 @@ export const radius = {
   full: 999,
 } as const;
 
-// iOS sistem fontu (SF Pro) kullanılır; fontFamily belirtmiyoruz.
+const android = Platform.OS === 'android';
+
+/**
+ * Sistem fontu (iOS'ta SF Pro, Android'de Roboto); fontFamily belirtmiyoruz. iOS ölçeği Apple'ın metin stilleri.
+ * Android'de Material 3 ölçeğine yakın: Roboto aynı puntoda SF'ten geniş, gövde metni 16 (bodyLarge), başlıklar
+ * bir kademe sıkı; büyük başlıklarda iOS'a özgü harf aralığı yok.
+ */
 export const typography = {
-  largeTitle: { fontSize: 34, fontWeight: '700', letterSpacing: 0.4 },
-  title: { fontSize: 28, fontWeight: '700', letterSpacing: 0.3 },
+  largeTitle: { fontSize: android ? 32 : 34, fontWeight: '700', letterSpacing: android ? 0 : 0.4 },
+  title: { fontSize: 28, fontWeight: '700', letterSpacing: android ? 0 : 0.3 },
   title2: { fontSize: 22, fontWeight: '700' },
   title3: { fontSize: 20, fontWeight: '600' },
-  headline: { fontSize: 17, fontWeight: '600' },
-  body: { fontSize: 17, fontWeight: '400' },
-  callout: { fontSize: 16, fontWeight: '400' },
-  subhead: { fontSize: 15, fontWeight: '400' },
+  headline: { fontSize: android ? 16 : 17, fontWeight: '600' },
+  body: { fontSize: android ? 16 : 17, fontWeight: '400' },
+  callout: { fontSize: android ? 15 : 16, fontWeight: '400' },
+  subhead: { fontSize: android ? 14 : 15, fontWeight: '400' },
   footnote: { fontSize: 13, fontWeight: '400' },
   caption: { fontSize: 12, fontWeight: '500' },
 } as const;

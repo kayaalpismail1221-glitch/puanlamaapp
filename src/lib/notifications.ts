@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { Linking, Platform } from 'react-native';
 
 import { registerPushToken, unregisterPushToken } from '@/api/notifications';
+import { fixed } from '@/constants/theme';
 import i18n, { currentLanguage } from '@/i18n';
 import { showAlert } from '@/lib/dialog';
 import { keys, queryClient } from '@/lib/query-client';
@@ -35,6 +36,21 @@ if (supported) {
 /** Bu cihazın jetonu (çıkışta sunucudan silinir) */
 let deviceToken: string | undefined;
 
+/**
+ * Android 8+ bildirimleri bir kanal üstünden gösterir; Android 13+ izin penceresi de kanal olmadan çıkmaz.
+ * Sunucu `channelId` göndermediği için Expo Push "default" kanalını kullanır.
+ */
+async function ensureAndroidChannel() {
+  if (Platform.OS !== 'android') return;
+  await Notifications.setNotificationChannelAsync('default', {
+    name: i18n.t('notifications.channelName'),
+    importance: Notifications.AndroidImportance.HIGH,
+    vibrationPattern: [0, 180, 120, 180],
+    lightColor: fixed.navy,
+    showBadge: true,
+  });
+}
+
 export type PushPermission = 'granted' | 'denied' | 'undetermined' | 'unsupported';
 
 export async function pushPermission(): Promise<PushPermission> {
@@ -48,6 +64,7 @@ export async function pushPermission(): Promise<PushPermission> {
  */
 export async function registerDevice(ask = false): Promise<boolean> {
   if (!supported || !Device.isDevice) return false;
+  await ensureAndroidChannel().catch(() => {});
   let { status } = await Notifications.getPermissionsAsync();
   if (status === 'undetermined' && ask) status = (await Notifications.requestPermissionsAsync()).status;
   if (status !== 'granted') return false;

@@ -2,12 +2,13 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import MapView, { type Region } from 'react-native-maps';
+import type { Region } from 'react-native-maps';
 import Animated from 'react-native-reanimated';
 import { SymbolView } from '@/components/symbol';
 
 import { suggestPlaceCorrection } from '@/api/content';
 import { showError } from '@/api/errors';
+import { AppMapView } from '@/components/app-map';
 import { SettingsGroup, SettingsRow } from '@/components/settings-list';
 import { Button, Text } from '@/components/ui';
 import { colors, radius, spacing, typography } from '@/constants/theme';
@@ -167,7 +168,7 @@ export default function FixPlaceScreen() {
               {t('fixPlace.locationHint')}
             </Text>
             <View style={styles.map} onTouchStart={() => setTouched(true)}>
-              <MapView
+              <AppMapView
                 style={StyleSheet.absoluteFill}
                 initialRegion={{ latitude: place.latitude, longitude: place.longitude, latitudeDelta: 0.003, longitudeDelta: 0.003 }}
                 onRegionChangeComplete={(region: Region) => setCoords({ latitude: region.latitude, longitude: region.longitude })}

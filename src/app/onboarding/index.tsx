@@ -10,10 +10,10 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
 import Animated, { FadeIn, FadeInDown, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AppMapView, PinMarker } from '@/components/app-map';
 import { LegalConsent } from '@/components/legal-consent';
 import { Button, PressableScale, Text } from '@/components/ui';
 import { colors, fixed, fonts, onScoreColor, radius, scoreColor, spacing, withAlpha } from '@/constants/theme';
@@ -76,7 +76,8 @@ function WelcomeScreen() {
     <View style={styles.container}>
       {/* Arka plan haritası */}
       <View style={[styles.mapWrap, { height: height * 0.64 }]} pointerEvents="none">
-        <MapView
+        <AppMapView
+          decorative
           style={StyleSheet.absoluteFill}
           initialCamera={{ center: CAMERA, pitch: 0, heading: 0, altitude: 14000, zoom: 12.5 }}
           scrollEnabled={false}
@@ -87,11 +88,11 @@ function WelcomeScreen() {
           showsCompass={false}
           toolbarEnabled={false}>
           {PINS.map((p) => (
-            <Marker key={p.id} coordinate={p} anchor={{ x: 0.5, y: 1 }}>
+            <PinMarker key={p.id} coordinate={p} anchor={{ x: 0.5, y: 1 }}>
               <ScorePin score={p.score} />
-            </Marker>
+            </PinMarker>
           ))}
-        </MapView>
+        </AppMapView>
         <LinearGradient
           // Harita alttaki zemine erir (açık ve koyu görünümde)
           colors={[

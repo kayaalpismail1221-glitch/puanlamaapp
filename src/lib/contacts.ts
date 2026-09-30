@@ -2,9 +2,9 @@ import type * as ContactsModule from 'expo-contacts';
 import { Linking, Platform, Share } from 'react-native';
 
 import { logShare } from '@/api/growth';
-import { inviteLink } from '@/constants/app';
 import i18n from '@/i18n';
 import { formatScore } from '@/lib/format';
+import { downloadHint } from '@/lib/share';
 import { normalizePhone } from '@/lib/validation';
 
 /**
@@ -85,8 +85,7 @@ export function inviteText(input: { inviterName: string; placeName: string; scor
     input.score === undefined
       ? i18n.t('invite.messageNoScore', { name: first, place: input.placeName })
       : i18n.t('invite.message', { name: first, place: input.placeName, score: formatScore(input.score) });
-  const link = inviteLink();
-  return `${body}\n\n${link ? i18n.t('invite.download', { link }) : i18n.t('invite.searchStore')}`;
+  return `${body}\n\n${downloadHint()}`;
 }
 
 /** Davet mesajını doğrudan o kişiye WhatsApp'tan açar; WhatsApp yoksa SMS, o da yoksa paylaşım menüsü */

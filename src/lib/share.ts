@@ -1,4 +1,4 @@
-import { Share } from 'react-native';
+import { Platform, Share } from 'react-native';
 
 import { logShare, type ShareKind } from '@/api/growth';
 import { appLink, inviteLink } from '@/constants/app';
@@ -88,15 +88,23 @@ export function shareYearGoal(year: number, goal: number, done: number) {
   return share(i18n.t('challenge.shareText', { year, goal, done }), 'hedef', 'goal', String(year));
 }
 
-/** Genel davet: indirme bağlantısıyla (yoksa App Store'da aratma önerisiyle) */
+/**
+ * Davet mesajının indirme satırı: mağaza bağlantısı, yoksa gönderenin platformundaki mağazada aratma önerisi
+ * (Android'den gönderilen davet Google Play der).
+ */
+export function downloadHint() {
+  const link = inviteLink();
+  if (link) return i18n.t('invite.download', { link });
+  return Platform.OS === 'android' ? i18n.t('invite.searchStoreAndroid') : i18n.t('invite.searchStore');
+}
+
 /**
  * Uygulamaya davet mesajı. Kullanıcı adı verilirse davetliye "Seni kim davet etti?" alanına ne yazacağı söylenir
  * (ilk puanından sonra davet edene +100, davetliye +50 XP). Düğmelere doğrudan bağlanabilir: dokunma olayı
  * `username` taşımadığı için yok sayılır.
  */
 export function shareInvite(options?: { username?: string }) {
-  const link = inviteLink();
-  const how = link ? i18n.t('invite.download', { link }) : i18n.t('invite.searchStore');
+  const how = downloadHint();
   const username = typeof options?.username === 'string' ? options.username : undefined;
   const hint = username ? `\n${i18n.t('invite.xpHint', { username })}` : '';
   return shareMessage(`${i18n.t('settings.inviteMessage')}${hint}\n\n${how}`, 'invite');

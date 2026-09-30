@@ -3,7 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView, type SFSymbol } from '@/components/symbol';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -40,6 +40,9 @@ const ACTIONS: { key: Action; icon: SFSymbol }[] = [
 export default function ShareTasteMapScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t } = useTranslation();
+  // Android'de "Mesajlar" (iMessage) yerine SMS: "Mesaj"
+  const actionLabel = (key: Action) =>
+    key === 'message' && Platform.OS === 'android' ? t('mapShare.messageAndroid') : t(`mapShare.actions.${key}`);
   const insets = useSafeAreaInsets();
   const { profile } = useAppStore();
   const mine = isMe(id);
@@ -98,11 +101,11 @@ export default function ShareTasteMapScreen() {
           haptics.success();
           setSaved(true);
           logShare('map', { target: id, channel: 'save', completed: true });
-        } else showAlert(t('mapShare.savePermission'));
+        } else showAlert(t(Platform.OS === 'android' ? 'mapShare.savePermissionAndroid' : 'mapShare.savePermission'));
       }
       if (action === 'message') {
         if (await messageImage(uri, t('mapShare.messageBody'))) logShare('map', { target: id, channel: 'messages' });
-        else showAlert(t('mapShare.messageUnavailable'));
+        else showAlert(t(Platform.OS === 'android' ? 'mapShare.messageUnavailableAndroid' : 'mapShare.messageUnavailable'));
       }
     } catch (error) {
       if (__DEV__) console.warn('[puanla] harita paylaşımı', error);
@@ -157,7 +160,7 @@ export default function ShareTasteMapScreen() {
                 disabled={!ready || !!busy}
                 style={styles.action}
                 accessibilityRole="button"
-                accessibilityLabel={t(`mapShare.actions.${key}`)}>
+                accessibilityLabel={actionLabel(key)}>
                 <View style={[styles.actionIcon, done && styles.actionDone]}>
                   {busy === key ? (
                     <ActivityIndicator color={colors.onPrimary} />
@@ -166,7 +169,7 @@ export default function ShareTasteMapScreen() {
                   )}
                 </View>
                 <Text variant="caption" color={colors.text} numberOfLines={1}>
-                  {done ? t('mapShare.saved') : t(`mapShare.actions.${key}`)}
+                  {done ? t('mapShare.saved') : actionLabel(key)}
                 </Text>
               </PressableScale>
             );

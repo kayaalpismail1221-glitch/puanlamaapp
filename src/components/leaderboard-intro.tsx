@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SymbolView } from '@/components/symbol';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Modal, Platform, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -66,7 +66,12 @@ export function LeaderboardIntro({ visible, startAt, onClose }: { visible: boole
         setStep(startAt);
         scroll.current?.scrollTo({ x: startAt * width, animated: false });
       }}>
-      <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
+      <View
+        style={[
+          styles.sheet,
+          // iOS'ta sayfa (pageSheet) durum çubuğunun altında açılır; Android'de tam ekran, üst boşluk bizden
+          { paddingTop: Platform.OS === 'android' ? insets.top : 0, paddingBottom: Math.max(insets.bottom, spacing.lg) },
+        ]}>
         <View style={styles.top}>
           <PressableScale onPress={onClose} hitSlop={hitSlop} accessibilityLabel={t('leaderboard.intro.skip')}>
             <Text variant="subhead" color={colors.textSecondary} style={styles.bold}>

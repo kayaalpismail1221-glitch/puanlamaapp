@@ -105,7 +105,7 @@ export default function SettingsScreen() {
       <SettingsGroup title={t('settings.preferences')}>
         <SettingsRow icon="bell.fill" label={t('settings.notifications')} onPress={() => router.push('/bildirim-ayarlari')} />
         <SettingsRow icon="globe" label={t('settings.language')} value={languageValue} onPress={() => router.push('/dil')} />
-        {/* Koyu görünüm şimdilik yalnızca iOS'ta (constants/theme: DynamicColorIOS) */}
+        {/* Koyu görünüm iOS'ta ve Android derlemesinde (constants/theme → darkModeSupported) */}
         {appearanceSupported && (
           <SettingsRow
             icon="circle.lefthalf.filled"

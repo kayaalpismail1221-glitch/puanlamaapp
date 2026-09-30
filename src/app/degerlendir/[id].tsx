@@ -2,8 +2,9 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from '@/components/symbol';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Keyboard, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Keyboard, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CompareStep, SentimentChoice, useRankResultText } from '@/components/rank-steps';
 import { ScoringGuide, useScoringGuide } from '@/components/scoring-guide';
@@ -39,6 +40,7 @@ export default function RateScreen() {
   const { rankings, onboarded, actions } = useAppStore();
   const { t } = useTranslation();
   const footerStyle = useKeyboardFooterStyle();
+  const insets = useSafeAreaInsets();
   const flow = useRankFlow(id);
   const resultText = useRankResultText();
   const scrollRef = useRef<ScrollView>(null);
@@ -77,7 +79,8 @@ export default function RateScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: spacing.lg }]}>
+    // iOS'ta sayfa durum çubuğunun altında açılır; Android'de tam ekran, üst boşluk durum çubuğu kadar
+    <View style={[styles.container, { paddingTop: Platform.OS === 'android' ? insets.top + spacing.sm : spacing.lg }]}>
       {/* Üst bar */}
       <View style={styles.topBar}>
         <PressableScale onPress={() => router.back()} hitSlop={hitSlop} style={styles.iconButton} accessibilityLabel={t('rate.close')}>

@@ -87,6 +87,7 @@
     "demo:seed": "node --env-file=.env.local --experimental-strip-types --no-warnings scripts/demo/seed-istanbul.mjs",
     "legal:build": "node --env-file=.env.local --experimental-strip-types --no-warnings scripts/legal/build.mjs",
     "icons:generate": "python scripts/generate-icons.py",
+    "icons:android": "python scripts/generate-android-symbols.py",
     "update": "eas update --channel production --environment production"
   },
   "private": true

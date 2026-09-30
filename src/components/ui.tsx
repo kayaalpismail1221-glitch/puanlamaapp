@@ -1,8 +1,9 @@
-import { Image } from 'expo-image';
+import { Image } from '@/components/image';
 import { SymbolView, type SFSymbol } from '@/components/symbol';
 import { useState, type ComponentProps, type ReactNode } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   StyleSheet,
   Text as RNText,
@@ -18,9 +19,11 @@ import {
 import { useTranslation } from 'react-i18next';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 
-import { colors, radius, scoreColor, scoreInk, spacing, typography, type TypographyVariant } from '@/constants/theme';
+import { colors, hitSlop, radius, scoreColor, scoreInk, spacing, typography, type TypographyVariant } from '@/constants/theme';
 import { formatScore, initials } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
+
+const android = Platform.OS === 'android';
 
 /* ---------- Metin ---------- */
 
@@ -245,9 +248,10 @@ export function SearchField({
   placeholder: string;
   autoFocus?: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <View style={styles.search}>
-      <SymbolView name="magnifyingglass" tintColor={colors.textSecondary} size={17} />
+      <SymbolView name="magnifyingglass" tintColor={colors.textSecondary} size={android ? 20 : 17} />
       <TextInput
         value={value}
         onChangeText={onChangeText}
@@ -257,8 +261,21 @@ export function SearchField({
         autoCorrect={false}
         clearButtonMode="while-editing"
         returnKeyType="search"
+        cursorColor={colors.primary}
+        selectionColor={colors.primary}
         style={[typography.body, styles.searchInput]}
       />
+      {/* Android'de sistem temizleme düğmesi (clearButtonMode) yok */}
+      {android && value.length > 0 && (
+        <Pressable
+          onPress={() => onChangeText('')}
+          hitSlop={hitSlop}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.clear')}
+          android_ripple={{ color: colors.border, borderless: true, radius: 18 }}>
+          <SymbolView name="xmark" tintColor={colors.textSecondary} size={20} />
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -349,18 +366,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // iOS: sistem arama alanı ölçüsü; Android: Material 3 arama çubuğu (hap, 48)
   search: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: android ? spacing.md : spacing.sm,
     backgroundColor: colors.surface,
-    borderRadius: radius.button,
-    paddingHorizontal: spacing.md,
-    height: 44,
+    borderRadius: android ? radius.full : radius.button,
+    paddingHorizontal: android ? spacing.lg : spacing.md,
+    height: android ? 48 : 44,
   },
   searchInput: {
     flex: 1,
     color: colors.text,
     height: '100%',
+    paddingVertical: 0,
   },
 });

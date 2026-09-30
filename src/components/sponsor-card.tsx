@@ -1,5 +1,5 @@
 import * as Clipboard from 'expo-clipboard';
-import { Image } from 'expo-image';
+import { Image } from '@/components/image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SymbolView } from '@/components/symbol';
 import { useEffect, useState } from 'react';

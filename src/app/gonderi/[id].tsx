@@ -2,12 +2,14 @@ import { useLocalSearchParams } from 'expo-router';
 import { SymbolView } from '@/components/symbol';
 import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import { FlatList, Platform, StyleSheet, TextInput, View } from 'react-native';
+import { useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
+import Animated, { FadeIn, FadeOut, interpolate, useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PostCard } from '@/components/post-card';
 import { showError } from '@/api/errors';
+import { KeyboardAvoidingView } from '@/components/keyboard-avoiding-view';
 import { CommentsSkeleton } from '@/components/skeleton';
 import { Avatar, Divider, LoadingView, PressableScale, Text } from '@/components/ui';
 import { colors, hitSlop, radius, spacing, typography } from '@/constants/theme';
@@ -70,6 +72,17 @@ export default function PostDetailScreen() {
   const { profile, actions } = useAppStore();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+
+  // Alt güvenli alan payı klavye kapalıyken; Android'de klavye açılınca kalkar (çubuk klavyeye yapışır).
+  // iOS'ta olduğu gibi kalır.
+  const restingBottom = Math.max(insets.bottom, spacing.sm);
+  const keyboard = useReanimatedKeyboardAnimation();
+  const composerInset = useAnimatedStyle(() => ({
+    paddingBottom:
+      Platform.OS === 'android'
+        ? interpolate(keyboard.progress.value, [0, 1], [restingBottom, spacing.sm])
+        : restingBottom,
+  }));
   const inputRef = useRef<TextInput>(null);
   const [text, setText] = useState('');
   const [replyTo, setReplyTo] = useState<Comment | null>(null);
@@ -174,8 +187,9 @@ export default function PostDetailScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={insets.top + 44}>
+      behavior="padding"
+      // Başlık yüksekliği: iOS gezinme çubuğu 44, Android üst çubuğu 56 (durum çubuğu altında)
+      keyboardVerticalOffset={insets.top + Platform.select({ ios: 44, default: 56 })}>
       <FlatList
         data={rows}
         keyExtractor={(row) => (row.type === 'comment' ? row.comment.id : `more-${row.rootId}`)}
@@ -222,7 +236,7 @@ export default function PostDetailScreen() {
       />
 
       {/* Yorum yazma çubuğu; yanıt verirken kime yanıt verildiği üstte */}
-      <View style={[styles.composer, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
+      <Animated.View style={[styles.composer, composerInset]}>
         {replyTo && (
           <Animated.View entering={FadeIn.duration(150)} exiting={FadeOut.duration(120)} style={styles.replyBar}>
             <Text variant="footnote" color={colors.textSecondary} style={{ flex: 1 }} numberOfLines={1}>
@@ -257,7 +271,7 @@ export default function PostDetailScreen() {
             />
           </PressableScale>
         </View>
-      </View>
+      </Animated.View>
     </KeyboardAvoidingView>
   );
 }

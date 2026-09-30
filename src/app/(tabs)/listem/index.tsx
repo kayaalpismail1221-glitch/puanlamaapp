@@ -2,9 +2,10 @@ import { router, Stack } from 'expo-router';
 import { SymbolView, type SFSymbol } from '@/components/symbol';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
+import { FlatList, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
+import { HeaderIconButton } from '@/components/header-button';
 import { ListStrip } from '@/components/list-card';
 import { SavedPlaceCard } from '@/components/saved-place-card';
 import { Button, Divider, PlaceImage, PressableScale, Text } from '@/components/ui';
@@ -112,24 +113,36 @@ export default function SavedListScreen() {
 
   const filtersActive = !!cuisine || !!source;
 
+  const showOnMap = () => router.navigate({ pathname: '/harita', params: { filtre: 'want' } });
+
   return (
     <>
       <Stack.Screen
-        options={{
-          headerLeft: () => (
-            <PressableScale
-              onPress={() => router.navigate({ pathname: '/harita', params: { filtre: 'want' } })}
-              hitSlop={hitSlop}
-              accessibilityLabel={t('list.showOnMap')}>
-              <SymbolView name="map" tintColor={colors.primary} size={22} />
-            </PressableScale>
-          ),
-          headerRight: () => (
-            <PressableScale onPress={openAddMenu} hitSlop={hitSlop} accessibilityLabel={t('screens.addToList')}>
-              <SymbolView name="plus" tintColor={colors.primary} size={22} weight="semibold" />
-            </PressableScale>
-          ),
-        }}
+        options={
+          Platform.OS === 'android'
+            ? {
+                // Material üst çubuğu: başlık solda, eylemler sağda
+                headerRight: () => (
+                  <View style={styles.headerActions}>
+                    <HeaderIconButton icon="map" onPress={showOnMap} accessibilityLabel={t('list.showOnMap')} side="inner" />
+                    <HeaderIconButton icon="plus" onPress={openAddMenu} accessibilityLabel={t('screens.addToList')} side="right" />
+                  </View>
+                ),
+              }
+            : {
+                // Harita ve ekleme yan yana sağ üstte (iOS 26'da tek cam grup)
+                headerRight: () => (
+                  <View style={styles.headerActionsIOS}>
+                    <PressableScale onPress={showOnMap} hitSlop={hitSlop} accessibilityLabel={t('list.showOnMap')}>
+                      <SymbolView name="map" tintColor={colors.primary} size={22} />
+                    </PressableScale>
+                    <PressableScale onPress={openAddMenu} hitSlop={hitSlop} accessibilityLabel={t('screens.addToList')}>
+                      <SymbolView name="plus" tintColor={colors.primary} size={22} weight="semibold" />
+                    </PressableScale>
+                  </View>
+                ),
+              }
+        }
       />
       <FlatList
         data={rows}
@@ -360,7 +373,7 @@ function FilterChip({ label, active, onPress }: { label: string; active: boolean
 function SocialEmpty() {
   const { t } = useTranslation();
   const steps: { icon: SFSymbol; text: string }[] = [
-    { icon: 'play.rectangle.on.rectangle', text: t('list.socialStep1') },
+    { icon: 'play.rectangle.on.rectangle', text: t(Platform.OS === 'android' ? 'list.socialStep1Android' : 'list.socialStep1') },
     { icon: 'square.and.arrow.up', text: t('list.socialStep2') },
     { icon: 'bookmark.fill', text: t('list.socialStep3') },
   ];
@@ -385,9 +398,18 @@ function SocialEmpty() {
         ))}
       </View>
       <Text variant="footnote" color={colors.textSecondary} align="center">
-        {t('list.socialTip')}
+        {t(Platform.OS === 'android' ? 'list.socialTipAndroid' : 'list.socialTip')}
       </Text>
-      <Button title={t('list.addFromSocial')} icon="plus" onPress={() => addSocial()} style={styles.emptyButton} />
+      <View style={styles.emptyButtons}>
+        <Button title={t('list.addFromSocial')} icon="plus" onPress={() => addSocial()} />
+        {/* İkincil yol: bağlantı yoksa mekânı arayıp kaydet. iOS'ta gri dolgulu, Android'de Material çerçeveli düğme */}
+        <Button
+          title={t('list.searchAndSave')}
+          icon="magnifyingglass"
+          variant={Platform.OS === 'android' ? 'outline' : 'secondary'}
+          onPress={addApp}
+        />
+      </View>
     </View>
   );
 }
@@ -410,6 +432,16 @@ function AppEmpty() {
 }
 
 const styles = StyleSheet.create({
+  headerActions: {
+    flexDirection: 'row',
+  },
+  // iOS 26 iki düğmeyi tek cam kapsüle alır; kapsül sıkışık durmasın diye aralık ve yan pay geniş
+  headerActionsIOS: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xl,
+    paddingHorizontal: spacing.sm,
+  },
   header: {
     gap: spacing.md,
     paddingBottom: spacing.xs,
@@ -564,6 +596,11 @@ const styles = StyleSheet.create({
   emptyButton: {
     alignSelf: 'stretch',
     marginTop: spacing.sm,
+  },
+  emptyButtons: {
+    alignSelf: 'stretch',
+    marginTop: spacing.sm,
+    gap: spacing.md,
   },
   hint: {
     padding: spacing.xl,

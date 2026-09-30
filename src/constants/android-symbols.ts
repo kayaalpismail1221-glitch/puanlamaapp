@@ -10,6 +10,8 @@
  * Android'de boş kalır ve geliştirmede uyarı verir.
  */
 export const ANDROID_SYMBOLS: Record<string, string> = {
+  /** Android geri/üst çubuk oku (iOS'ta chevron.left) */
+  'arrow.left': 'arrow_back',
   'arrow.left.arrow.right': 'swap_horiz',
   'arrow.triangle.turn.up.right.diamond.fill': 'directions',
   'arrow.up.arrow.down': 'swap_vert',
@@ -56,7 +58,8 @@ export const ANDROID_SYMBOLS: Record<string, string> = {
   'doc.on.clipboard': 'content_paste',
   'doc.on.doc': 'content_copy',
   'doc.text.fill': 'description',
-  ellipsis: 'more_horiz',
+  // Android'de taşma menüsü dikey üç nokta
+  ellipsis: 'more_vert',
   'ellipsis.circle': 'more_vert',
   'envelope.fill': 'mail',
   'equal.circle': 'equal',

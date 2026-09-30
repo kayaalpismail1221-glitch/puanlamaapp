@@ -2,7 +2,7 @@ import { useFocusEffect } from 'expo-router';
 import type { SFSymbol } from '@/components/symbol';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView } from 'react-native';
+import { Platform, ScrollView } from 'react-native';
 
 import { showError } from '@/api/errors';
 import { setMutedKinds } from '@/api/notifications';
@@ -54,6 +54,9 @@ export default function NotificationSettingsScreen() {
   };
 
   const allowed = permission === 'granted';
+  // Tercihler sunucuda saklanır; yalnızca bu telefonda sistem izni kapalıyken (üstte "Kapalı" satırı) düzenlenemez.
+  // Push'u desteklemeyen cihazda (emülatör, web) izin satırı yok, tercihler yine düzenlenebilir.
+  const editable = allowed || permission === 'unsupported';
 
   return (
     <ScrollView
@@ -61,7 +64,7 @@ export default function NotificationSettingsScreen() {
       contentContainerStyle={settingsStyles.content}
       contentInsetAdjustmentBehavior="automatic">
       {permission !== 'unsupported' && (
-        <SettingsGroup footer={allowed ? undefined : t('notifications.systemOffFooter')}>
+        <SettingsGroup footer={allowed ? undefined : t(Platform.OS === 'android' ? 'notifications.systemOffFooterAndroid' : 'notifications.systemOffFooter')}>
           <SettingsRow
             icon="bell.badge.fill"
             label={t('notifications.system')}
@@ -90,7 +93,7 @@ export default function NotificationSettingsScreen() {
               <Toggle
                 value={!(muted.data ?? []).includes(kind)}
                 onValueChange={(on) => toggle(kind, on)}
-                disabled={!muted.data || !allowed}
+                disabled={!muted.data || !editable}
               />
             }
           />

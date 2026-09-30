@@ -1,9 +1,9 @@
-import { Platform, useColorScheme } from 'react-native';
+import { useColorScheme } from 'react-native';
 
-import { palettes, type Palette, type Scheme } from '@/constants/theme';
+import { darkModeSupported, palettes, type Palette, type Scheme } from '@/constants/theme';
 
-/** `colors` yalnızca iOS'ta görünüme uyar (DynamicColorIOS); Android ve web açık görünümde */
-const followsScheme = Platform.OS === 'ios';
+/** iOS ve Android kendi derlememizde görünüme uyar; web (ve Android'de Expo Go) açık görünümde */
+const followsScheme = darkModeSupported;
 
 /** O anki görünüm (sistem ya da Ayarlar → Görünüm); bilinmiyorsa açık */
 export function useScheme(): Scheme {

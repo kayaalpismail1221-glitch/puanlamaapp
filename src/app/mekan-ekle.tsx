@@ -4,11 +4,13 @@ import { SymbolView } from '@/components/symbol';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Modal, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import MapView, { type Region } from 'react-native-maps';
+import type MapView from 'react-native-maps';
+import type { Region } from 'react-native-maps';
 import Animated from 'react-native-reanimated';
 
 import { createPlace, fetchAreaAt, searchPlaces, type AreaAt } from '@/api/content';
 import { showError } from '@/api/errors';
+import { AppMapView } from '@/components/app-map';
 import { PlaceRow } from '@/components/place-row';
 import { Button, Divider, PressableScale, Text } from '@/components/ui';
 import { CUISINES, cuisineLabel } from '@/constants/cuisines';
@@ -347,7 +349,7 @@ export default function AddPlaceScreen() {
           )}
 
           <View style={styles.map} onTouchStart={() => setPin('set')}>
-            <MapView
+            <AppMapView
               ref={mapRef}
               style={StyleSheet.absoluteFill}
               initialRegion={DEFAULT_REGION}

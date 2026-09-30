@@ -2,7 +2,7 @@ import { router, Stack } from 'expo-router';
 import { SymbolView } from '@/components/symbol';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { FavoritePlaces } from '@/components/favorite-places';
 import { ProfileLists } from '@/components/list-card';
@@ -12,6 +12,7 @@ import { GoalCard, MenuRow, ProfileIdentity, RankStreakCards, SchoolChip } from 
 import { ProfileStats } from '@/components/profile-stats';
 import { PostGridSkeleton } from '@/components/skeleton';
 import { Button, Divider, PressableScale, Text } from '@/components/ui';
+import { RefreshControl } from '@/components/refresh-control';
 import { colors, hitSlop, spacing } from '@/constants/theme';
 import { useUserPosts } from '@/hooks/queries';
 import { showAlert } from '@/lib/dialog';
@@ -64,7 +65,7 @@ export default function ProfileScreen() {
       <ScrollView
         style={styles.container}
         contentInsetAdjustmentBehavior="automatic"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary} />}>
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}>
         <ProfileIdentity
           name={profile?.name ?? '?'}
           username={profile?.username ?? ''}

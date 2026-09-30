@@ -9,11 +9,12 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
 - Windows PC + iPhone 11 (Mac yok).
 - Test: iPhone'da Expo Go (gerekirse EAS development build).
 - iOS derlemesi: EAS Build (bulutta). Xcode'a veya Mac'e bağımlı adım önerme.
-- Öncelik iOS. Tasarım iOS'a native hissettirmeli; Android sonra gelir (2026-09-26 kararı: iOS cilası bitince).
-  Android'e geçerken eksikler: `app.json` → `android.package` yok (build başlamaz); react-native-maps için Google
-  Maps API anahtarı; 54 dosyada `SymbolView` (SF Symbols) Android karşılığı yok; Google ile giriş; FCM push;
-  Liquid Glass/SwiftUI yerine Material'a uygun gözden geçirme; karanlık mod (`DynamicColorIOS` yalnız iOS); hiçbir ekran Android'de denenmedi. Türkiye'de
-  kullanıcıların çoğu Android'de ve davet/masa döngüsü Android'e çıkmaza gidiyor: viral katsayı için önemli.
+- iOS ve Android ayrı ayrı native hissettirmeli (2026-09-30 kullanıcı kararı: "her yerini iOS ayrı Android ayrı
+  geliştir", Android'in tasarımı ve akışları da premium). Türkiye'de kullanıcıların çoğu Android'de; davet/masa
+  döngüsü Android'e çıkmaza gitmemeli. Ayrıntılar aşağıda "Android".
+- Yerel Android derlemesi mümkün (Android SDK + emülatör kurulu, `JAVA_HOME` = Microsoft JDK 17; SDK'daki
+  `ndk/27.0.12077973` klasörü boş, `android/build.gradle`'a NDK 27.1 zorlaması gerekir) ama **C: diski dolu**
+  (2026-09-30: ~5 GB boş; emülatör cihazı ~4 GB, Gradle önbelleği ~2 GB ister). Yer açılmadan emülatör kurma.
 
 ## Teknoloji
 - React Native + Expo (en güncel SDK), TypeScript
@@ -288,7 +289,7 @@ Tutunma tarafı: bildirimler ve rehber eşleştirme olmadan ağın ürettiği de
   tersine döner). Fotoğraf, degrade ya da renkli (puan/kırmızı/beğeni) zemin üstündeki beyaz yazı/simge için
   `fixed.white`; görünümden bağımsız lacivert için `fixed.navy`. Dinamik renk almayan yerlerde (SVG, gezinme teması
   ve başlık seçenekleri, `@expo/ui` seedColor, harita çizgisi, degrade) `usePalette()` düz değerleri. Paylaşılan
-  görseller (hikâye kartları) her zaman açık paletle (`palettes.light`) çizilir. Android şimdilik yalnızca açık.
+  görseller (hikâye kartları) her zaman açık paletle (`palettes.light`) çizilir. Android: bkz. "Android".
   Koyu palet iOS'un nötr katmanlarıyla uyumlu (zemin #0B0B0D, bir kat yukarısı #1C1C1E). Katmanlar: gruplu liste
   ekranı `grouped` + satırlar `card`; açılır pencere/alttan panel `card`; kart üstündeki düğme/alan `fill`.
   Gölge rengi `fixed.navy` (koyuda beyaz parlama olmasın). Açma/kapama için RN `Switch` değil `components/toggle`
@@ -296,6 +297,53 @@ Tutunma tarafı: bildirimler ve rehber eşleştirme olmadan ağın ürettiği de
 - Dokunmalarda hafif haptik geri bildirim, geçişler akıcı olmalı
 - Veri yüklenirken spinner değil, ekranın düzenini taklit eden iskelet (`components/skeleton.tsx`). Spinner yalnızca
   buton içi işlemler, sayfa sonu yükleme ve açılışta kullanılır. Yeni liste/ekran eklenirse iskeleti de eklenir.
+
+## Android (kalıcı ilke, 2026-09-30)
+Aynı ekran iki platformda o platformun diliyle: iOS dosyası/dalı olduğu gibi kalır, Android karşılığı ayrı dosya
+(`*.android.tsx`) ya da `Platform.OS` dalı. Android tarafı Material 3.
+- **Renkler ve koyu görünüm:** palet `constants/palettes.ts` (yalnız veri). `plugins/with-android-theme.js` onu
+  `res/values(-night)/colors.xml` içine `puanla_*` olarak yazar; `colors` Android'de `PlatformColor('@color/puanla_*')`.
+  Görünüm değişince (`useAppearanceRemountKey`, kök düzen) gezinme ağacı yeniden kurulur, ekran yığını geri yüklenir
+  (veri/oturum yerinde). Expo Go'da kaynak yok → açık görünüm (`darkModeSupported`). Palet değişirse yeni build.
+  Aynı eklenti: EditText zemini saydam (iOS gibi dolgusuz alan), imleç/seçim marka rengi, pencere zemini görünüme göre.
+- **Simgeler:** SF adı → Material Symbols Rounded (`constants/android-symbols.ts`, gömülü yazı tipi). Yeni SF simgesi
+  kullanınca eşlemeye ekle + `npm run icons:android`. Taşma menüsü dikey üç nokta, geri `arrow.left`.
+- **Gezinme:** alt çubuk Material 3 (marka renkli hap, seçili sekmede dolu simge `lib/tab-icons`; Material'ın dolu hâli iOS'tan farklıysa çizilmiş görsel
+  `assets/images/tabs`, ör. harita: üç panel dolu, kıvrımlar açık; geri tuşu Feed'e);
+  üst çubuk düz, başlık solda; modal = tam ekran diyalog, solda ✕ (`constants/navigation.tsx` → `modal`);
+  başlık düğmeleri `components/header-button` (48 dp, ripple); fotoğraf üstü saydam başlıkta `FloatingBackButton`.
+  Ekran içi adımlar geri tuşunu `useAndroidBack` ile yakalar; açılır pencereler geri tuşuyla kapanır.
+- **Bileşenler:** segment → Compose `SegmentedButton`; anahtar → Compose `Switch`; ayarlar → Material liste
+  (`settings-list.android.tsx`: tam genişlik, radyo, değer alt satırda); arama → her zaman görünen hap arama çubuğu
+  (`SearchField`, temizle düğmeli); cam yüzey yerine opak yükseltilmiş yüzey; yenileme göstergesi marka renginde.
+- **Klavye:** `KeyboardProvider` pencereyi küçültmez. Alt çubuklu formlar `useKeyboardFooterStyle`; diğer formlar
+  `FormScrollView`, altta sabit girişli ekranlar `components/keyboard-avoiding-view` (Android'de keyboard-controller).
+- **Harita:** Google Maps (`components/app-map`: sade stil `constants/map-style`, pinler `PinMarker` ile yalnızca
+  değişince yeniden çizilir). Anahtar EAS'ta `GOOGLE_MAPS_ANDROID_API_KEY` (app.config.ts); yoksa harita gri.
+  Uygulama içi rota yok (Apple servisi): yol tarifi Google Haritalar'da açılır (`openInMaps`).
+- **Paylaşım/davet:** "Paylaş → Puanla" ACTION_SEND ile gelir, `useShareIntentRedirect` karşılama ekranına götürür.
+  Davet ve hikâye kartı Android'den Google Play der (`PLAY_STORE_URL`, yayınlanınca doldur).
+- **İzinler:** kamera açık; medya okuma izinleri engelli (Play politikası; kaydetme yalnız yazma ister).
+  Bildirim kanalı `default` (Android 13+ izin penceresi için şart). Push için Firebase (`google-services.json`) +
+  EAS'a FCM V1 anahtarı gerekir — henüz yok.
+- **Yazı:** Roboto; ölçek Material 3'e yakın (`typography`, gövde 16).
+- **Bilinen tuzaklar (2026-09-30 emülatör testinde bulundu):** Google Maps anahtarı yoksa harita çizilince uygulama
+  ÇÖKER (gri kalmaz) → `AppMapView` anahtar yoksa yedek yüzey çizer (`mapsAvailable`, süs haritada `decorative`).
+  expo-image `PlatformColor` kabul etmez → görseller `components/image` (tema rengini düz değere çevirir), `expo-image`
+  doğrudan içe aktarılmaz. Başlıksız modal ve RN `Modal` Android'de tam ekran: üst boşluk `insets.top` (iOS'ta sayfa).
+  Saydam başlıkta `headerStyle: { backgroundColor: 'transparent' }` şart (yoksa Android üst çubuk zemini ezer).
+  Konum izni: Android'de kapatılan pencere "denied" görünür ama sorulabilir; düğmeyle her zaman yeniden istenir
+  (`lib/location`), dengeli hassasiyet konum veremezse GPS'le denenir.
+- **Yerel test:** `npx expo prebuild --platform android --clean` → `android/build.gradle`'a NDK 27.1 zorlaması →
+  `./gradlew app:assembleDebug -PreactNativeArchitectures=x86_64` (JAVA_HOME JDK 17; emülatör KAPALIYKEN ve
+  `gradle.properties`'te düşük bellekle: aksi hâlde pagefile şişip C: dolar). Emülatör `Puanla_API_34`, penceresi
+  ekran dışına açılabiliyor (SetWindowPos ile sola alınır). Metro 8082'de; uygulamaya `debug_http_host=10.0.2.2:8082`
+  (shared_prefs) yazılır. Geliştirme sürümünde açılışta ~3 sn siyah ekran Metro'dan paket indirmesinden (release'te yok).
+- Denendi (2026-09-30, emülatör, Android 14): karşılama/giriş/kayıt adımları, 5 sekme, açık/koyu geçişi (ekran yerinde
+  kalıyor), feed + menüler + geri tuşu, yorum + klavye, Ara, gönderi oluşturma + kamera + kırpma, mekân sayfası,
+  puanlama ve rehber, profil düzenle, hikâye kartı + paylaşım sayfası, lig, bildirimler, ayarlar/görünüm.
+  Denenmedi: harita (anahtar yok), push (FCM yok), "Paylaş → Puanla" ile gelen paylaşım, rehberden kişi seçme.
+- Henüz yok: Google ile giriş, FCM, Google Maps anahtarı, Play Store kaydı.
 
 ## Kalite ve premium his (kalıcı ilke)
 - Uygulama premium hissettirmeli; güncel iOS tasarım dili ve yetenekleri tercih edilir.

@@ -6,11 +6,13 @@ import { SymbolView, type SFSymbol } from '@/components/symbol';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Linking, ScrollView, StyleSheet, View } from 'react-native';
-import MapView, { Marker, Polyline } from 'react-native-maps';
+import { ActivityIndicator, Linking, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import type MapView from 'react-native-maps';
+import { Polyline } from 'react-native-maps';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AppMapView, PinMarker } from '@/components/app-map';
 import { GlassSurface } from '@/components/glass-surface';
 import { SegmentedControl } from '@/components/segmented-control';
 import { Button, PressableScale, Text } from '@/components/ui';
@@ -29,7 +31,8 @@ import {
   inAppDirections,
   meters,
   OFF_ROUTE_M,
-  openInAppleMaps,
+  openInMaps,
+  openInMapsLabel,
   remainingMeters,
   type Route,
   type TravelMode,
@@ -113,7 +116,7 @@ export default function DirectionsScreen() {
 
   return (
     <View style={styles.container}>
-      <MapView
+      <AppMapView
         ref={mapRef}
         style={StyleSheet.absoluteFill}
         initialRegion={{ ...target, latitudeDelta: 0.02, longitudeDelta: 0.02 }}
@@ -130,12 +133,12 @@ export default function DirectionsScreen() {
             lineJoin="round"
           />
         )}
-        <Marker coordinate={target}>
+        <PinMarker coordinate={target}>
           <View style={styles.pin}>
             <SymbolView name="fork.knife" tintColor={colors.onPrimary} size={14} />
           </View>
-        </Marker>
-      </MapView>
+        </PinMarker>
+      </AppMapView>
 
       {navigating && route.data ? (
         <Navigation
@@ -156,7 +159,12 @@ export default function DirectionsScreen() {
             style={[styles.back, { top: insets.top + spacing.sm }]}
             accessibilityLabel={t('common.back')}>
             <GlassSurface interactive style={styles.backGlass}>
-              <SymbolView name="chevron.left" tintColor={colors.primary} size={18} weight="semibold" />
+              <SymbolView
+                name={Platform.OS === 'android' ? 'arrow.left' : 'chevron.left'}
+                tintColor={colors.primary}
+                size={Platform.OS === 'android' ? 22 : 18}
+                weight="semibold"
+              />
             </GlassSurface>
           </PressableScale>
 
@@ -180,7 +188,12 @@ export default function DirectionsScreen() {
                   <Text variant="subhead" color={colors.textSecondary}>
                     {t('directions.locationOff')}
                   </Text>
-                  <Button title={t('directions.openSettings')} icon="gear" onPress={() => Linking.openSettings()} />
+                  {location.status === 'denied' ? (
+                    <Button title={t('directions.openSettings')} icon="gear" onPress={() => Linking.openSettings()} />
+                  ) : (
+                    // Henüz sorulabiliyor: sistemin izin penceresi
+                    <Button title={t('directions.allowLocation')} icon="location.fill" onPress={location.retry} />
+                  )}
                 </View>
               ) : !inAppDirections ? (
                 <Fallback target={target} name={place.name} mode={mode} origin={origin} />
@@ -208,12 +221,12 @@ export default function DirectionsScreen() {
                   {mode === 'transit' ? (
                     <>
                       <Text variant="footnote" color={colors.textSecondary}>
-                        {t('directions.transitNote')}
+                        {t(Platform.OS === 'android' ? 'directions.transitNoteAndroid' : 'directions.transitNote')}
                       </Text>
                       <Button
                         title={t('directions.transitSteps')}
                         icon="tram.fill"
-                        onPress={() => openInAppleMaps(target, place.name, 'transit')}
+                        onPress={() => openInMaps(target, place.name, 'transit')}
                       />
                     </>
                   ) : (
@@ -250,9 +263,9 @@ export default function DirectionsScreen() {
                     {t('directions.noRoute')}
                   </Text>
                   <Button
-                    title={t('directions.openInMaps')}
+                    title={openInMapsLabel()}
                     icon="map.fill"
-                    onPress={() => openInAppleMaps(target, place.name, mode)}
+                    onPress={() => openInMaps(target, place.name, mode)}
                   />
                 </View>
               )}
@@ -287,17 +300,22 @@ function StepList({ route }: { route: Route }) {
   );
 }
 
-/** Yerel modül yoksa (Expo Go): kuş uçuşu mesafe ve Apple Haritalar */
+/**
+ * Uygulama içi rota yoksa: iOS'ta yerel modülsüz sürüm (Expo Go), Android'de her zaman (rota servisi Apple'ın).
+ * Kuş uçuşu mesafe ve platformun harita uygulaması.
+ */
 function Fallback({ target, name, mode, origin }: { target: Coords; name: string; mode: TravelMode; origin: Coords | null }) {
   const { t } = useTranslation();
   return (
     <View style={styles.notice}>
       {origin && (
         <Text variant="subhead" color={colors.textSecondary}>
-          {t('directions.unavailable', { distance: formatDistance(distanceKm(origin, target)) })}
+          {t(Platform.OS === 'android' ? 'directions.unavailableAndroid' : 'directions.unavailable', {
+            distance: formatDistance(distanceKm(origin, target)),
+          })}
         </Text>
       )}
-      <Button title={t('directions.openInMaps')} icon="map.fill" onPress={() => openInAppleMaps(target, name, mode)} />
+      <Button title={openInMapsLabel()} icon="map.fill" onPress={() => openInMaps(target, name, mode)} />
     </View>
   );
 }

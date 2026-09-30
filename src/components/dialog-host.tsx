@@ -28,6 +28,8 @@ import { dialogClosed, subscribeDialogs, type DialogButton, type DialogRequest }
 export function DialogHost() {
   const [state, setState] = useState<{ id: number; request: DialogRequest } | null>(null);
   const counter = useRef(0);
+  /** Android geri tuşu: açık pencerenin vazgeçme davranışı (kapatılamayan uyarıda hiçbir şey yapmaz) */
+  const backRef = useRef<(() => void) | null>(null);
 
   useEffect(
     () => subscribeDialogs((request) => setState(request ? { id: ++counter.current, request } : null)),
@@ -35,7 +37,7 @@ export function DialogHost() {
   );
 
   if (!state) return null;
-  const sheet = <DialogSheet key={state.id} request={state.request} />;
+  const sheet = <DialogSheet key={state.id} request={state.request} backRef={backRef} />;
 
   if (Platform.OS === 'ios') {
     return (
@@ -46,7 +48,7 @@ export function DialogHost() {
     );
   }
   return (
-    <Modal transparent statusBarTranslucent navigationBarTranslucent animationType="none" onRequestClose={() => {}}>
+    <Modal transparent statusBarTranslucent navigationBarTranslucent animationType="none" onRequestClose={() => backRef.current?.()}>
       <GestureHandlerRootView style={StyleSheet.absoluteFill}>{sheet}</GestureHandlerRootView>
     </Modal>
   );
@@ -56,7 +58,13 @@ const OPEN_MS = 280;
 const CLOSE_MS = 200;
 const DISMISS_DRAG = 90;
 
-function DialogSheet({ request }: { request: DialogRequest }) {
+function DialogSheet({
+  request,
+  backRef,
+}: {
+  request: DialogRequest;
+  backRef: { current: (() => void) | null };
+}) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const keyboard = useAnimatedKeyboard();
@@ -93,6 +101,9 @@ function DialogSheet({ request }: { request: DialogRequest }) {
     if (!dismissible) return;
     close(cancelButton?.onPress ? () => cancelButton.onPress?.() : undefined);
   };
+  useEffect(() => {
+    backRef.current = dismiss;
+  });
 
   const pan = Gesture.Pan()
     .enabled(dismissible)

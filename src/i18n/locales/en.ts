@@ -29,6 +29,7 @@ const en: Translation = {
     removeFromList: 'Remove from My List',
     sharePost: 'Share a post',
     back: 'Back',
+    clear: 'Clear',
   },
 
   tabs: {
@@ -336,6 +337,8 @@ const en: Translation = {
     socialStep2: 'Tap Share and pick Puanla from the list',
     socialStep3: 'The link comes ready — pick the place and it’s saved to My List',
     socialTip: 'Don’t see Puanla in the share menu? Tap “More” to add it. You can also copy the link and come back here — we’ll catch it automatically.',
+    socialStep1Android: 'Spot a place while browsing Instagram, TikTok or Chrome',
+    socialTipAndroid: 'Don’t see Puanla in the share menu? Scroll the app list. You can also copy the link and come back here — we’ll catch it automatically.',
     appEmptyTitle: 'Nothing saved yet',
     appEmptyText: 'Tap the bookmark on a place page, in search or on feed posts to collect them here.',
     searchPlaces: 'Search places',
@@ -683,6 +686,7 @@ const en: Translation = {
   appearance: {
     options: { system: 'Match device', light: 'Light', dark: 'Dark' },
     footer: 'With “Match device”, Puanla follows your iPhone’s light/dark setting.',
+    footerAndroid: 'With “Match device”, Puanla follows your phone’s dark theme setting.',
   },
 
   language: {
@@ -991,6 +995,7 @@ const en: Translation = {
     download: 'Get Puanla: {{link}}',
     xpHint: 'When you join, enter @{{username}} under “Did someone invite you?” in the Puanla League — we both earn XP.',
     searchStore: 'Search for “Puanla” on the App Store to get it.',
+    searchStoreAndroid: 'Search for “Puanla” on Google Play to get it.',
     title: 'Invite your table',
     subtitle_one: '{{count}} person isn’t on Puanla yet. Send the message so they can rate it too; we’ll let you know when they join.',
     subtitle_other: '{{count}} people aren’t on Puanla yet. Send the message so they can rate it too; we’ll let you know when they join.',
@@ -1028,6 +1033,7 @@ const en: Translation = {
   },
 
   notifications: {
+    channelName: 'Notifications',
     like: 'liked your post at {{place}}.',
     comment: 'commented: “{{comment}}”',
     reply: 'replied to your comment: “{{comment}}”',
@@ -1054,6 +1060,7 @@ const en: Translation = {
     on: 'On',
     off: 'Off',
     systemOffFooter: 'Notifications are off. Tap to turn them on; if you declined before, iPhone Settings will open.',
+    systemOffFooterAndroid: 'Notifications are off. Tap to turn them on; if you declined before, your phone’s app settings will open.',
     pushTitle: 'Push notifications',
     pushFooter: 'Anything you turn off still shows up in your notifications, you just won’t get a push.',
     kinds: {
@@ -1100,9 +1107,13 @@ const en: Translation = {
     noRoute: 'No route found to this place.',
     locationOff: 'Directions need location access.',
     openSettings: 'Open Settings',
+    allowLocation: 'Allow location',
     openInMaps: 'Open in Apple Maps',
+    openInMapsAndroid: 'Directions in Google Maps',
     unavailable: 'In-app directions aren’t available in this version. {{distance}} away as the crow flies.',
     transitNote: 'Apple Maps shows the lines and transfers for transit.',
+    transitNoteAndroid: 'Google Maps shows the lines and transfers for transit.',
+    unavailableAndroid: '{{distance}} away as the crow flies. Turn-by-turn directions open in Google Maps.',
     transitSteps: 'Show lines',
     rerouting: 'Recalculating route.',
     arrived: 'You’ve arrived! Enjoy your meal.',
@@ -1118,11 +1129,14 @@ const en: Translation = {
   mapShare: {
     title: 'Share',
     actions: { share: 'Share', save: 'Save', message: 'Messages', link: 'Link' },
+    messageAndroid: 'Message',
     saved: 'Saved',
     hint: 'For an Instagram story: Share → Instagram → Story',
     messageBody: 'Check out my food map on Puanla 🍽️',
     savePermission: 'To save, allow adding to Photos in Settings.',
     messageUnavailable: 'Messages isn’t available on this device.',
+    messageUnavailableAndroid: 'Messaging isn’t available on this device.',
+    savePermissionAndroid: 'To save, allow Puanla to access photos in your phone’s settings.',
   },
 
   story: {
@@ -1133,6 +1147,7 @@ const en: Translation = {
     followHint: 'Follow me on Puanla',
     followHintOther: 'Follow on Puanla',
     getAppKicker: 'On the App Store',
+    getAppKickerAndroid: 'On Google Play',
     getApp: 'Puanla',
     linkCopied: 'Download link copied: paste it into an Instagram “Link” sticker.',
     top5Kicker: 'My best spots',
@@ -1392,6 +1407,7 @@ const en: Translation = {
     average_one: 'Puanla score · {{count}} rating',
     average_other: 'Puanla score · {{count}} ratings',
     mapPlaceholder: 'Map (iOS only)',
+    unavailable: 'The map isn’t available in this version.',
     searchPlaceholder: 'Search places and areas',
     clearSearch: 'Clear search',
   },

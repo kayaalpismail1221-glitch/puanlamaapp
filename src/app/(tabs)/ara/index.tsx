@@ -2,14 +2,14 @@ import { router, Stack } from 'expo-router';
 import { SymbolView } from '@/components/symbol';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, SectionList, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, SectionList, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
 import type { AreaTopItem } from '@/api/content';
 import { AreaRow, openArea } from '@/components/area-row';
 import { PlaceRow } from '@/components/place-row';
 import { PlaceRowsSkeleton, UserRowsSkeleton } from '@/components/skeleton';
-import { Button, Divider, PressableScale, ScoreBadge, Text } from '@/components/ui';
+import { Button, Divider, PressableScale, ScoreBadge, SearchField, Text } from '@/components/ui';
 import { UserRow } from '@/components/user-row';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
 import {
@@ -169,18 +169,22 @@ export default function SearchTab() {
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          headerSearchBarOptions: {
-            placeholder: t('search.placeholder'),
-            autoCapitalize: 'none',
-            hideWhenScrolling: false,
-            cancelButtonText: t('common.cancel'),
-            onChangeText: (e) => setQuery(e.nativeEvent.text),
-            onCancelButtonPress: () => setQuery(''),
-          },
-        }}
-      />
+      {/* iOS: başlığın altındaki sistem arama çubuğu. Android'de bu, üst çubukta gizli bir simgeye dönüşüyor;
+          yerine listenin başında her zaman görünen Material arama çubuğu var */}
+      {Platform.OS === 'ios' && (
+        <Stack.Screen
+          options={{
+            headerSearchBarOptions: {
+              placeholder: t('search.placeholder'),
+              autoCapitalize: 'none',
+              hideWhenScrolling: false,
+              cancelButtonText: t('common.cancel'),
+              onChangeText: (e) => setQuery(e.nativeEvent.text),
+              onCancelButtonPress: () => setQuery(''),
+            },
+          }}
+        />
+      )}
       <SectionList<Item, Section>
         sections={sections}
         keyExtractor={itemKey}
@@ -189,25 +193,32 @@ export default function SearchTab() {
         keyboardDismissMode="on-drag"
         stickySectionHeadersEnabled={false}
         ListHeaderComponent={
-          <View style={styles.scopes}>
-            {SCOPES.map((s) => {
-              const active = s === scope;
-              return (
-                <PressableScale
-                  key={s}
-                  haptic={false}
-                  onPress={() => {
-                    haptics.select();
-                    setScope(s);
-                  }}
-                  style={[styles.chip, active && styles.chipActive]}>
-                  <Text variant="subhead" color={active ? colors.onPrimary : colors.primary} style={styles.chipText}>
-                    {scopeLabel(s)}
-                  </Text>
-                </PressableScale>
-              );
-            })}
-          </View>
+          <>
+            {Platform.OS === 'android' && (
+              <View style={styles.searchBar}>
+                <SearchField value={query} onChangeText={setQuery} placeholder={t('search.placeholder')} />
+              </View>
+            )}
+            <View style={styles.scopes}>
+              {SCOPES.map((s) => {
+                const active = s === scope;
+                return (
+                  <PressableScale
+                    key={s}
+                    haptic={false}
+                    onPress={() => {
+                      haptics.select();
+                      setScope(s);
+                    }}
+                    style={[styles.chip, active && styles.chipActive]}>
+                    <Text variant="subhead" color={active ? colors.onPrimary : colors.primary} style={styles.chipText}>
+                      {scopeLabel(s)}
+                    </Text>
+                  </PressableScale>
+                );
+              })}
+            </View>
+          </>
         }
         renderSectionHeader={({ section }) => (
           <View style={styles.sectionHeader}>
@@ -282,6 +293,10 @@ export default function SearchTab() {
 }
 
 const styles = StyleSheet.create({
+  searchBar: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+  },
   scopes: {
     flexDirection: 'row',
     gap: spacing.sm,

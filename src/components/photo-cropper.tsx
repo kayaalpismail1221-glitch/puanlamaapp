@@ -1,4 +1,4 @@
-import { Image } from 'expo-image';
+import { Image } from '@/components/image';
 import { StatusBar } from 'expo-status-bar';
 import { SymbolView } from '@/components/symbol';
 import { useEffect, useState } from 'react';

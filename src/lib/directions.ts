@@ -1,4 +1,4 @@
-import { Linking } from 'react-native';
+import { Linking, Platform } from 'react-native';
 
 import i18n, { currentLanguage, currentLocale } from '@/i18n';
 import type { Coords } from '@/lib/geo';
@@ -52,12 +52,22 @@ export async function fetchEta(from: Coords, to: Coords, mode: TravelMode): Prom
 
 const point = (c: Coords) => ({ latitude: c.latitude, longitude: c.longitude });
 
-/** Yedek: Apple Haritalar'da yol tarifi (toplu taşıma adımları ya da modül yoksa) */
-export function openInAppleMaps(to: Coords, name: string, mode: TravelMode) {
-  const flag = mode === 'walking' ? 'w' : mode === 'transit' ? 'r' : 'd';
-  const url = `http://maps.apple.com/?daddr=${to.latitude},${to.longitude}&dirflg=${flag}&q=${encodeURIComponent(name)}`;
+/**
+ * Yedek: platformun harita uygulamasında yol tarifi (toplu taşıma adımları ya da yerel modül yoksa).
+ * iOS: Apple Haritalar. Android: Google Haritalar (yüklüyse uygulamada, değilse tarayıcıda açılır; Android'de
+ * uygulama içi rota yok, adım adım navigasyon Google Haritalar'da).
+ */
+export function openInMaps(to: Coords, name: string, mode: TravelMode) {
+  const url =
+    Platform.OS === 'android'
+      ? `https://www.google.com/maps/dir/?api=1&destination=${to.latitude},${to.longitude}&travelmode=${mode === 'transit' ? 'transit' : mode}`
+      : `http://maps.apple.com/?daddr=${to.latitude},${to.longitude}&dirflg=${mode === 'walking' ? 'w' : mode === 'transit' ? 'r' : 'd'}&q=${encodeURIComponent(name)}`;
   return Linking.openURL(url).catch(() => {});
 }
+
+/** Harita uygulaması düğmesinin metni: "Apple Haritalar'da aç" / "Google Haritalar'da aç" */
+export const openInMapsLabel = () =>
+  i18n.t(Platform.OS === 'android' ? 'directions.openInMapsAndroid' : 'directions.openInMaps');
 
 /* ---------- Biçimlendirme ---------- */
 

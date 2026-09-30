@@ -1,15 +1,16 @@
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { SymbolView, type SFSymbol } from '@/components/symbol';
-import { Image } from 'expo-image';
+import { Image } from '@/components/image';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, RefreshControl, SectionList, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, SectionList, StyleSheet, View } from 'react-native';
 
 import { markAllRead } from '@/api/notifications';
 import { PeopleYouMayKnow } from '@/components/people-you-may-know';
 import { UserRowsSkeleton } from '@/components/skeleton';
 import { Avatar, Button, Divider, ErrorView, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { FollowButton } from '@/components/user-row';
+import { RefreshControl } from '@/components/refresh-control';
 import { colors, fixed, hitSlop, radius, spacing } from '@/constants/theme';
 import { useNotifications } from '@/hooks/queries';
 import { formatScore, timeAgo } from '@/lib/format';
@@ -107,7 +108,7 @@ export default function NotificationsScreen() {
         keyExtractor={(n) => n.id}
         contentInsetAdjustmentBehavior="automatic"
         stickySectionHeadersEnabled={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
         onEndReached={() => query.hasNextPage && !query.isFetchingNextPage && query.fetchNextPage()}
         onEndReachedThreshold={0.5}
         ListHeaderComponent={

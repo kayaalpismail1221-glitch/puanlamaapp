@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { SymbolView, type SFSymbol } from '@/components/symbol';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Modal, Platform, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown, FadeInUp, ZoomIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -101,7 +101,12 @@ export function ScoringGuide({ visible, onClose }: { visible: boolean; onClose: 
         setStep(0);
         scroll.current?.scrollTo({ x: 0, animated: false });
       }}>
-      <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
+      <View
+        style={[
+          styles.sheet,
+          // iOS'ta sayfa (pageSheet) durum çubuğunun altında açılır; Android'de tam ekran, üst boşluk bizden
+          { paddingTop: Platform.OS === 'android' ? insets.top : 0, paddingBottom: Math.max(insets.bottom, spacing.lg) },
+        ]}>
         <View style={styles.top}>
           <Text variant="caption" color={colors.textSecondary} style={styles.kicker}>
             {t('scoringGuide.kicker')}

@@ -3,12 +3,14 @@ import { SymbolView } from '@/components/symbol';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Keyboard, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import MapView, { Marker, type Region } from 'react-native-maps';
+import type MapView from 'react-native-maps';
+import type { Region } from 'react-native-maps';
 import Animated, { FadeInDown, FadeInUp, FadeOutDown, FadeOutUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { fetchAreaBounds } from '@/api/content';
 import { showError } from '@/api/errors';
+import { AppMapView, PinMarker } from '@/components/app-map';
 import { openArea } from '@/components/area-row';
 import { GlassSurface } from '@/components/glass-surface';
 import { HighlightText } from '@/components/highlight-text';
@@ -217,7 +219,7 @@ export default function MapScreen() {
 
   return (
     <View style={styles.container}>
-      <MapView
+      <AppMapView
         ref={mapRef}
         style={StyleSheet.absoluteFill}
         initialRegion={DEFAULT_REGION}
@@ -231,18 +233,19 @@ export default function MapScreen() {
           setSelectedId(null);
         }}>
         {pins.map(({ place, score }) => (
-          <Marker
+          <PinMarker
             key={place.id}
             coordinate={{ latitude: place.latitude, longitude: place.longitude }}
+            redraw={`${score}-${place.id === selectedId}`}
             onPress={(e) => {
               e.stopPropagation();
               haptics.select();
               setSelectedId(place.id);
             }}>
             <MapPin score={score} active={place.id === selectedId} />
-          </Marker>
+          </PinMarker>
         ))}
-      </MapView>
+      </AppMapView>
 
       {/* Üstte cam arama ve katman seçimi (iOS 26: Liquid Glass) */}
       <View style={[styles.top, { top: insets.top + spacing.sm }]} pointerEvents="box-none">

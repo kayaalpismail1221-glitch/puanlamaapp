@@ -3,10 +3,11 @@ import { router, Stack } from 'expo-router';
 import { SymbolView } from '@/components/symbol';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { askGoal, daysLeftInYear, editGoal, GOAL_PRESETS } from '@/components/profile-parts';
 import { Avatar, Button, ErrorView, LoadingView, PressableScale, Text } from '@/components/ui';
+import { RefreshControl } from '@/components/refresh-control';
 import { colors, fixed, fonts, gradients, hitSlop, radius, spacing } from '@/constants/theme';
 import { useUser } from '@/data/entities';
 import { useYearChallenge } from '@/hooks/queries';
@@ -74,7 +75,7 @@ export default function YearGoalScreen() {
       <ScrollView
         style={styles.container}
         contentInsetAdjustmentBehavior="automatic"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary} />}>
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}>
         <LinearGradient
           colors={gradients.share}
           locations={gradients.shareStops}

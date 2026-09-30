@@ -6,7 +6,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { ShareIntentProvider } from 'expo-share-intent';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
-import { useEffect, useMemo } from 'react';
+import { Fragment, useEffect, useMemo } from 'react';
 import { Platform } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -17,15 +17,19 @@ import { DialogHost } from '@/components/dialog-host';
 import { LaunchSkeleton } from '@/components/skeleton';
 import { ErrorView } from '@/components/ui';
 import { FoodMapShareButton } from '@/components/food-map-header';
+import { FloatingBackButton } from '@/components/header-button';
 import { SYMBOL_FONTS } from '@/components/symbol';
 import { ZoomOverlayProvider } from '@/components/zoom-overlay';
 import { modal, platformStackOptions } from '@/constants/navigation';
 import { type Palette, type Scheme } from '@/constants/theme';
+import { useAppearanceRemountKey } from '@/hooks/use-appearance-remount';
 import { usePalette, useScheme } from '@/hooks/use-palette';
+import { useShareIntentRedirect } from '@/hooks/use-share-intent-redirect';
 import { useLanguageLoaded } from '@/i18n';
 import { useAppearanceLoaded } from '@/lib/appearance';
 import { usePushNotifications } from '@/lib/notifications';
 import { queryClient } from '@/lib/query-client';
+import { useTabIconsReady } from '@/lib/tab-icons';
 import { isBackendConfigured } from '@/lib/supabase';
 import { AppStoreProvider, useAppActions, useAppSelector } from '@/store/app-store';
 
@@ -65,16 +69,23 @@ function RootNavigator() {
   const palette = usePalette();
   // Android ve web ikon yazı tipleri (components/symbol); iOS'ta boş, hemen hazır
   const [symbolsLoaded, symbolsError] = useFonts(SYMBOL_FONTS);
+  const tabIconsReady = useTabIconsReady();
 
   // Açılış görseli yalnızca oturum, tercihler, dil ve ikonlar hazır olana kadar kalır (anlık, cihazdan);
   // kullanıcı verisi sunucudan beklenirken Feed iskeleti gösterilir
   const booting =
-    status === 'loading' || !prefsLoaded || !languageLoaded || !appearanceLoaded || !(symbolsLoaded || symbolsError);
+    status === 'loading' ||
+    !prefsLoaded ||
+    !languageLoaded ||
+    !appearanceLoaded ||
+    !(symbolsLoaded || symbolsError) ||
+    !tabIconsReady;
   const loadingData = status === 'signedIn' && !ready;
   const deciding = booting || loadingData;
   const splashDone = !booting || !!loadError;
   const showOnboarding = status === 'signedOut' || !onboarded;
   usePushNotifications(!deciding && !showOnboarding);
+  useShareIntentRedirect(!deciding && !showOnboarding);
 
   useEffect(() => {
     if (splashDone) SplashScreen.hideAsync();
@@ -99,7 +110,17 @@ function RootNavigator() {
 
       <Stack.Protected guard={!showOnboarding}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="mekan/[id]" options={{ title: '', headerTransparent: true }} />
+        <Stack.Screen
+          name="mekan/[id]"
+          options={{
+            title: '',
+            headerTransparent: true,
+            // Android üst çubuğunun zemin rengi (platformStackOptions) saydamlığı ezmesin
+            headerStyle: { backgroundColor: 'transparent' },
+            // Android: geri oku fotoğraf üstünde okunsun diye yüzen yuvarlak düğme
+            ...(Platform.OS === 'android' && { headerLeft: () => <FloatingBackButton /> }),
+          }}
+        />
         <Stack.Screen name="mekan-puanla" options={{ ...modal, title: t('screens.ratePlace') }} />
         <Stack.Screen name="arkadas-bul" options={{ ...modal, title: t('screens.findFriends') }} />
         <Stack.Screen name="kullanici/[id]" options={{ title: '' }} />
@@ -134,7 +155,10 @@ function RootNavigator() {
         <Stack.Screen name="yol-tarifi/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="bildirimler" options={{ title: t('screens.notifications') }} />
         <Stack.Screen name="bildirim-ayarlari" options={{ title: t('screens.notificationSettings') }} />
-        <Stack.Screen name="telefon-dogrula" options={{ ...modal, headerTransparent: true, title: '' }} />
+        <Stack.Screen
+          name="telefon-dogrula"
+          options={{ ...modal, headerTransparent: true, headerStyle: { backgroundColor: 'transparent' }, title: '' }}
+        />
         <Stack.Screen name="hikaye" options={{ ...modal, title: t('screens.story') }} />
         <Stack.Screen name="favoriler" options={{ ...modal, title: t('screens.favorites') }} />
         <Stack.Screen name="liste-duzenle" options={{ ...modal, title: t('screens.newList') }} />
@@ -163,6 +187,8 @@ export default function RootLayout() {
   const scheme = useScheme();
   const palette = usePalette();
   const theme = useMemo(() => navigationTheme(scheme, palette), [scheme, palette]);
+  // Android: görünüm değişince ekranlar yeni renk kaynaklarıyla yeniden kurulur (veri ve oturum yerinde kalır)
+  const appearanceKey = useAppearanceRemountKey(scheme);
 
   useEffect(() => {
     if (!isBackendConfigured) SplashScreen.hideAsync();
@@ -183,12 +209,14 @@ export default function RootLayout() {
             <QueryClientProvider client={queryClient}>
               <AppStoreProvider>
                 <StatusBar style="auto" />
-                {/* Yakınlaştırılan fotoğraf gezinmenin (başlık, alt bar) üstünde çizilir */}
-                <ZoomOverlayProvider>
-                  <RootNavigator />
-                </ZoomOverlayProvider>
-                {/* Menü ve uyarı pencereleri (lib/dialog): modal ekranların da üstünde */}
-                <DialogHost />
+                <Fragment key={appearanceKey}>
+                  {/* Yakınlaştırılan fotoğraf gezinmenin (başlık, alt bar) üstünde çizilir */}
+                  <ZoomOverlayProvider>
+                    <RootNavigator />
+                  </ZoomOverlayProvider>
+                  {/* Menü ve uyarı pencereleri (lib/dialog): modal ekranların da üstünde */}
+                  <DialogHost />
+                </Fragment>
               </AppStoreProvider>
             </QueryClientProvider>
           </ThemeProvider>

@@ -1,11 +1,12 @@
 import { router } from 'expo-router';
 import { SymbolView } from '@/components/symbol';
 import { useTranslation } from 'react-i18next';
-import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 
 import type { Recommendation } from '@/api/content';
 import { PlaceRowsSkeleton, SkeletonScreen } from '@/components/skeleton';
 import { Button, Divider, ErrorView, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
+import { RefreshControl } from '@/components/refresh-control';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
 import { useRecommendations } from '@/hooks/queries';
 import { formatScore } from '@/lib/format';
@@ -37,7 +38,7 @@ export default function RecommendationsScreen() {
       keyExtractor={(r) => r.place.id}
       contentInsetAdjustmentBehavior="automatic"
       refreshControl={
-        <RefreshControl refreshing={recs.isRefetching} onRefresh={() => recs.refetch()} tintColor={colors.primary} />
+        <RefreshControl refreshing={recs.isRefetching} onRefresh={() => recs.refetch()} />
       }
       ListHeaderComponent={
         <Text variant="subhead" color={colors.textSecondary} style={styles.intro}>

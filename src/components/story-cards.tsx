@@ -1,8 +1,8 @@
-import { Image } from 'expo-image';
+import { Image } from '@/components/image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { forwardRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 
 import { Text } from '@/components/ui';
 import { WorldMap } from '@/components/world-map';
@@ -105,7 +105,7 @@ function Footer({ author, onImageSettled }: Common) {
       </View>
       {/* Uygulaması olmayan izleyici için indirme yolu (Instagram'da tıklanır bağlantı yok) */}
       <View style={styles.getApp}>
-        <Text style={styles.getAppSmall}>{t('story.getAppKicker')}</Text>
+        <Text style={styles.getAppSmall}>{t(Platform.OS === 'android' ? 'story.getAppKickerAndroid' : 'story.getAppKicker')}</Text>
         <Text style={styles.getAppBig}>{t('story.getApp')}</Text>
       </View>
     </View>
