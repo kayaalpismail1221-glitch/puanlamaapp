@@ -288,8 +288,8 @@ Tutunma tarafı: bildirimler ve rehber eşleştirme olmadan ağın ürettiği de
 - Boşluklar 4'ün katları (4, 8, 12, 16, 24, 32)
 - Renkleri ve ölçüleri tek bir `theme.ts` dosyasında token olarak tut. Bileşenlerde sabit renk yazma.
 - Açık/koyu görünüm (2026-09-29): `colors` iOS'ta `DynamicColorIOS`; Ayarlar → Görünüm değişince yeniden çizim
-  olmadan uyum sağlar. Varsayılan AÇIK (kullanıcı kararı: telefon koyu olsa da uygulama beyaz açılır; "Cihazla aynı"
-  yalnızca seçilirse); açılış ekranı her zaman beyaz. Koyuda `primary` açık mavi-beyaz, `onPrimary` lacivert olur (dolu düğmeler
+  olmadan uyum sağlar. Varsayılan AÇIK (kullanıcı kararı: telefon koyu olsa da uygulama beyaz açılır). Seçenekler yalnızca
+  Açık / Koyu: "Cihazla aynı" kaldırıldı (kullanıcı kararı 2026-09-30), kayıtlı eski tercih açığa döner; açılış ekranı her zaman beyaz. Koyuda `primary` açık mavi-beyaz, `onPrimary` lacivert olur (dolu düğmeler
   tersine döner). Fotoğraf, degrade ya da renkli (puan/kırmızı/beğeni) zemin üstündeki beyaz yazı/simge için
   `fixed.white`; görünümden bağımsız lacivert için `fixed.navy`. Dinamik renk almayan yerlerde (SVG, gezinme teması
   ve başlık seçenekleri, `@expo/ui` seedColor, harita çizgisi, degrade) `usePalette()` düz değerleri. Paylaşılan

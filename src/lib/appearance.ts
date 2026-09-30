@@ -1,30 +1,17 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Updates from 'expo-updates';
 import { useSyncExternalStore } from 'react';
-import { Appearance, Platform } from 'react-native';
+import { Appearance } from 'react-native';
 
 import { darkModeSupported } from '@/constants/theme';
 
 /**
- * Görünüm tercihi (Ayarlar → Görünüm): açık, koyu ya da cihazı izle.
- * Varsayılan açık (kullanıcı kararı, 2026-09-29): telefon koyu olsa da uygulama beyaz açılır.
- * Pencerenin görünümü değişir; `colors` (DynamicColorIOS) ve `useColorScheme` buna uyar.
+ * Görünüm tercihi (Ayarlar → Görünüm): açık ya da koyu. Varsayılan açık (kullanıcı kararı, 2026-09-29): telefon koyu
+ * olsa da uygulama beyaz açılır. "Cihazla aynı" seçeneği kaldırıldı (kullanıcı kararı, 2026-09-30); eskiden seçenler
+ * açık görünüme döner. Pencerenin görünümü değişir; `colors` (DynamicColorIOS) ve `useColorScheme` buna uyar.
  */
 
-export type AppearancePreference = 'system' | 'light' | 'dark';
-
-/**
- * iOS 1.0.1 ikilisinde Info.plist görünümü "Light"a sabit (`userInterfaceStyle` sonradan "automatic" oldu):
- * pencere geçersiz kılması kalkınca da açık kalır, "Cihazla aynı" çalışmaz. 1.0.2 build'inden itibaren açılır.
- * Expo Go ve geliştirme sürümünde `runtimeVersion` yok → açık.
- */
-const IOS_LIGHT_ONLY_RUNTIMES = ['1.0.0', '1.0.1'];
-export const systemAppearanceAvailable =
-  Platform.OS !== 'ios' || !IOS_LIGHT_ONLY_RUNTIMES.includes(Updates.runtimeVersion ?? '');
-
-export const APPEARANCES: readonly AppearancePreference[] = systemAppearanceAvailable
-  ? ['light', 'dark', 'system']
-  : ['light', 'dark'];
+export type AppearancePreference = 'light' | 'dark';
+export const APPEARANCES: readonly AppearancePreference[] = ['light', 'dark'];
 
 const STORAGE_KEY = 'puanla:appearance';
 
@@ -39,13 +26,13 @@ const emit = () => listeners.forEach((l) => l());
 export const appearanceSupported = darkModeSupported;
 
 const apply = (next: AppearancePreference) =>
-  Appearance.setColorScheme(!appearanceSupported ? 'light' : next === 'system' ? 'unspecified' : next);
+  Appearance.setColorScheme(appearanceSupported ? next : 'light');
 
 // İlk karede varsayılan; kayıtlı tercih okunana kadar açılış ekranı bekler (bkz. RootNavigator)
 apply(DEFAULT);
 AsyncStorage.getItem(STORAGE_KEY)
   .then((saved) => {
-    if ((saved === 'system' && systemAppearanceAvailable) || saved === 'light' || saved === 'dark') {
+    if (saved === 'light' || saved === 'dark') {
       preference = saved;
       apply(saved);
     }

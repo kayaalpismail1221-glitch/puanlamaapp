@@ -691,9 +691,7 @@ const en: Translation = {
   },
 
   appearance: {
-    options: { system: 'Match device', light: 'Light', dark: 'Dark' },
-    footer: 'With “Match device”, Puanla follows your iPhone’s light/dark setting.',
-    footerAndroid: 'With “Match device”, Puanla follows your phone’s dark theme setting.',
+    options: { light: 'Light', dark: 'Dark' },
   },
 
   language: {
