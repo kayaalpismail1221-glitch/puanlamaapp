@@ -115,7 +115,15 @@ export default function SavedListScreen() {
   };
 
   const openAddMenu = () => {
-    if (Platform.OS !== 'ios') return addSocial();
+    if (Platform.OS !== 'ios') {
+      // Android: sistem diyaloğu (ActionSheetIOS yok)
+      Alert.alert(t('screens.addToList'), undefined, [
+        { text: t('list.addFromSocial'), onPress: () => addSocial() },
+        { text: t('list.searchAndSave'), onPress: addApp },
+        { text: t('common.cancel'), style: 'cancel' },
+      ]);
+      return;
+    }
     ActionSheetIOS.showActionSheetWithOptions(
       {
         options: [t('list.addFromSocial'), t('list.searchAndSave'), t('common.cancel')],
@@ -403,7 +411,16 @@ function SocialEmpty() {
           </View>
         ))}
       </View>
-      <Button title={t('list.addFromSocial')} icon="plus" onPress={() => addSocial()} style={styles.emptyButton} />
+      <View style={styles.emptyActions}>
+        <Button title={t('list.addFromSocial')} icon="plus" onPress={() => addSocial()} />
+        {/* iOS: gri dolgulu ikincil düğme; Android: Material'daki çerçeveli (outlined) düğme */}
+        <Button
+          title={t('list.searchAndSave')}
+          icon="magnifyingglass"
+          variant={Platform.OS === 'ios' ? 'secondary' : 'outline'}
+          onPress={addApp}
+        />
+      </View>
     </View>
   );
 }
@@ -579,6 +596,11 @@ const styles = StyleSheet.create({
   },
   emptyButton: {
     alignSelf: 'stretch',
+    marginTop: spacing.sm,
+  },
+  emptyActions: {
+    alignSelf: 'stretch',
+    gap: spacing.sm,
     marginTop: spacing.sm,
   },
   hint: {

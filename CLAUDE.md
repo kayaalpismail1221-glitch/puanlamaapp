@@ -10,6 +10,10 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
 - Test: iPhone'da Expo Go (gerekirse EAS development build).
 - iOS derlemesi: EAS Build (bulutta). Xcode'a veya Mac'e bağımlı adım önerme.
 - Öncelik iOS. Tasarım iOS'a native hissettirmeli; Android sonra gelir.
+- **Kullanıcı kararı (2026-09-30):** bundan sonra her özellik iOS ve Android için ayrı ayrı düşünülür; her platform
+  kendi dilinde native hissettirir (iOS: ActionSheet, gri dolgulu ikincil düğme, SF Symbols; Android: Alert/Material
+  diyaloğu, çerçeveli ikincil düğme). Küçük farklar `Platform.OS` ile, büyükleri `.ios.tsx`/`.android.tsx` dosyalarıyla.
+  Her adımda iOS ve Android bundle'ı (`npx expo export --platform ios|android`) temiz olmalı.
 
 ## Teknoloji
 - React Native + Expo (en güncel SDK), TypeScript
