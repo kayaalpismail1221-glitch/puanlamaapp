@@ -694,9 +694,7 @@ const tr = {
   },
 
   appearance: {
-    options: { system: 'Cihazla aynı', light: 'Açık', dark: 'Koyu' },
-    footer: '“Cihazla aynı” seçiliyken Puanla, iPhone’unun açık/koyu ayarını izler.',
-    footerAndroid: '“Cihazla aynı” seçiliyken Puanla, telefonunun koyu tema ayarını izler.',
+    options: { light: 'Açık', dark: 'Koyu' },
   },
 
   language: {
