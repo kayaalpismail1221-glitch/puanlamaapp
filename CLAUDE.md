@@ -119,7 +119,7 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
   beğeni/kaydetme/yorum, şikâyet), RLS + sütun yetkileri, günlük sınırlar, sayaç tetikleyicileri; RPC'ler:
   `rank_place`, `create_post`, `feed_popular` (3→10→30 km, yoksa en yakın şehir), `feed_following`,
   `place_details`, `search_places` (Türkçe katlama + trigram + popülerlik), `search_users`, `suggested_users`,
-  `leaderboard`/`user_rank`, `saved_posts`, `delete_account`. PGlite+PostGIS ile 82 DB testi (`npm run test:db`).
+  `leaderboard`/`user_rank`, `saved_posts`, `delete_account`. PGlite+PostGIS ile 97 DB testi (`npm run test:db`).
 - **Keşfet araması (2026-09-26):** mekân, kişi ve semt/ilçe; her harfte canlı (120 ms gecikme, önceki sonuç yenisi
   gelene kadar kalır, eşleşen kısım `HighlightText` ile vurgulu, Türkçe harfsiz yazım `lib/fold.ts` = `tr_fold`).
   `search_areas` şehir/ilçe/mahalle; semt tam yazılınca oranın en yüksek puanlıları Keşfet'te (5), tümü `bolge`
