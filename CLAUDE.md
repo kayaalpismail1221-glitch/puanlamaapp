@@ -91,13 +91,17 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
   `recommended_places`), `20260929100000_phone_optional`, `20260930100000_notifications` (bildirimler, 2026-09-25 canlıda doğrulandı),
   `20261002100000_table_loop` (telefon doğrulama, rehber eşleştirme, davetler; 2026-09-26 canlıda doğrulandı),
   `20261003100000_place_quality` (2026-09-26: `admin_areas`, `place_sources`, adres/telefon/web, koordinattan semt),
-  `20261004100000_place_corrections` ("Bilgi yanlış mı?", `closed_at`), `20261003100000_taste_match` ve
+  `20261004100000_place_corrections` ("Bilgi yanlış mı?", `closed_at`), `20261003100001_taste_match` ve
   `20261003110000_lists` (hepsi 2026-09-26 itibarıyla canlıda).
   `20261005100000_segment_rankings`, `20261006100000_comment_notification_types` ve `20261006110000_comment_social`
   2026-09-26'da canlıya uygulandı ve iki geçici hesapla uçtan uca doğrulandı (segment puanları, Bayes topluluk puanı,
   harita/öneriler, yorum yanıtı ve beğenisi, bildirimler, kişi önerileri ve gizleme; 13/13). Canlıdaki fonksiyonu yeniden tanımlayan migration her zaman o fonksiyonun **en son**
   tanımından (tüm dallar dahil) yola çıkmalı. Eski demo silindi; canlıda OSM + Overture mekânları ve gerçek mekânlar
   üzerine yeni demo var (`npm run demo:seed`: 7 `@demo.puanla.app` hesabı, 25 gönderi).
+- **Denetim düzeltmeleri (2026-09-30), `20261014100000_audit_fixes`:** mekân düzeltmesi yalnızca güvenilir hesapların
+  (≥ 7 gün, ≥ 5 puan) oyuyla kendiliğinden uygulanır (telefon/web/kapandı 3 kişi), engelliler birbirinin puanlarını
+  görmez (`rankings` politikası `block_peer_ids()`), `avatar_path` yalnızca kendi klasörü, `xp_totals` istemciye kapalı.
+  Canlıya uygulanması gerekiyor (SQL Editor, önceki migration'lardan sonra).
 - Auth: e-posta/şifre açık, **Confirm email kapalı**. SMTP yok (Supabase SMTP'siz şablon düzenletmiyor ve
   varsayılan e-posta kod değil bağlantı gönderiyor). Bu yüzden `src/constants/features.ts` →
   `EMAIL_CODES_ENABLED = false` ("Şifremi unuttum" ve kod doğrulama gizli). Alan adı alınınca: Resend SMTP →

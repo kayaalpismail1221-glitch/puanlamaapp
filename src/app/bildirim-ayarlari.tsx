@@ -29,6 +29,9 @@ const KINDS: { kind: NotificationKind; icon: SFSymbol }[] = [
 
 /** Tercih yazmaları sırayla gider: hızlı art arda dokunuşta eski liste yenisinin üstüne yazılmasın */
 let writes: Promise<unknown> = Promise.resolve();
+const queueWrite = (write: () => Promise<unknown>, onError: (error: unknown) => void) => {
+  writes = writes.then(write).catch(onError);
+};
 
 /**
  * Bildirim tercihleri: sistem izni ve tür başına push. Kapatılan tür uygulama içi
@@ -52,13 +55,14 @@ export default function NotificationSettingsScreen() {
     const next = on ? previous.filter((k) => k !== kind) : [...previous, kind];
     haptics.select();
     queryClient.setQueryData(keys.mutedNotifications(), next);
-    writes = writes
-      .then(() => setMutedKinds(userId!, next))
-      .catch((error) => {
+    queueWrite(
+      () => setMutedKinds(userId!, next),
+      (error) => {
         // Sunucudaki gerçek durum yeniden okunur (sıradaki yazmalar da olmuş olabilir)
         queryClient.invalidateQueries({ queryKey: keys.mutedNotifications() });
         showError(error, t('failures.notificationSettings'));
-      });
+      },
+    );
   };
 
   const allowed = permission === 'granted';
