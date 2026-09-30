@@ -1,5 +1,7 @@
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { SymbolView, type SFSymbol } from '@/components/symbol';
+import { BottomInsetSpacer } from '@/components/bottom-inset';
+import { HeaderAction } from '@/components/header-button';
 import { Image } from '@/components/image';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -11,7 +13,7 @@ import { UserRowsSkeleton } from '@/components/skeleton';
 import { Avatar, Button, Divider, ErrorView, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { FollowButton } from '@/components/user-row';
 import { RefreshControl } from '@/components/refresh-control';
-import { colors, fixed, hitSlop, radius, spacing } from '@/constants/theme';
+import { colors, fixed,  radius, spacing } from '@/constants/theme';
 import { useNotifications } from '@/hooks/queries';
 import { formatScore, timeAgo } from '@/lib/format';
 import { clearBadge, enablePush, pushPermission, type PushPermission } from '@/lib/notifications';
@@ -93,12 +95,12 @@ export default function NotificationsScreen() {
       <Stack.Screen
         options={{
           headerRight: () => (
-            <PressableScale
+            <HeaderAction
+              icon="gearshape"
+              iosSize={21}
               onPress={() => router.push('/bildirim-ayarlari')}
-              hitSlop={hitSlop}
-              accessibilityLabel={t('screens.notificationSettings')}>
-              <SymbolView name="gearshape" tintColor={colors.primary} size={21} />
-            </PressableScale>
+              accessibilityLabel={t('screens.notificationSettings')}
+            />
           ),
         }}
       />
@@ -123,7 +125,10 @@ export default function NotificationsScreen() {
         renderSectionFooter={({ section }) => (section.key === suggestionsAfter ? <PeopleYouMayKnow /> : null)}
         ItemSeparatorComponent={() => <Divider inset={spacing.lg + 44 + spacing.md} />}
         ListFooterComponent={
-          query.isFetchingNextPage ? <ActivityIndicator color={colors.primary} style={styles.more} /> : null
+          <>
+            {query.isFetchingNextPage ? <ActivityIndicator color={colors.primary} style={styles.more} /> : null}
+            <BottomInsetSpacer />
+          </>
         }
         ListEmptyComponent={
           query.isPending ? (

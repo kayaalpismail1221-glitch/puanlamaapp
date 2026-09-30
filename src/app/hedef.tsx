@@ -5,10 +5,12 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { BottomInsetSpacer } from '@/components/bottom-inset';
+import { HeaderAction } from '@/components/header-button';
 import { askGoal, daysLeftInYear, editGoal, GOAL_PRESETS } from '@/components/profile-parts';
 import { Avatar, Button, ErrorView, LoadingView, PressableScale, Text } from '@/components/ui';
 import { RefreshControl } from '@/components/refresh-control';
-import { colors, fixed, fonts, gradients, hitSlop, radius, spacing } from '@/constants/theme';
+import { colors, fixed, fonts, gradients,  radius, spacing } from '@/constants/theme';
 import { useUser } from '@/data/entities';
 import { useYearChallenge } from '@/hooks/queries';
 import { currentLanguage } from '@/i18n';
@@ -65,9 +67,12 @@ export default function YearGoalScreen() {
         options={{
           headerRight: goal
             ? () => (
-                <PressableScale onPress={() => shareYearGoal(year, goal, done)} hitSlop={hitSlop} accessibilityLabel={t('challenge.share')}>
-                  <SymbolView name="square.and.arrow.up" tintColor={colors.primary} size={20} />
-                </PressableScale>
+                <HeaderAction
+                  icon="square.and.arrow.up"
+                  iosSize={20}
+                  onPress={() => shareYearGoal(year, goal, done)}
+                  accessibilityLabel={t('challenge.share')}
+                />
               )
             : undefined,
         }}
@@ -173,6 +178,7 @@ export default function YearGoalScreen() {
           </>
         )}
         <View style={{ height: spacing.xxl }} />
+        <BottomInsetSpacer />
       </ScrollView>
     </>
   );

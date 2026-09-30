@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, FlatList, ScrollView, StyleSheet, View } from 'react-native';
 
+import { BottomInsetSpacer } from '@/components/bottom-inset';
 import { PlaceRow } from '@/components/place-row';
 import { PlaceRowsSkeleton } from '@/components/skeleton';
 import { Divider, ErrorView, PressableScale, ScoreBadge, Text } from '@/components/ui';
@@ -114,13 +115,16 @@ export default function AreaScreen() {
           )
         }
         ListFooterComponent={
-          query.isFetchingNextPage ? (
-            <ActivityIndicator color={colors.primary} style={styles.more} />
-          ) : items.length ? (
-            <Text variant="caption" color={colors.textTertiary} style={styles.hint}>
-              {t('region.hint')}
-            </Text>
-          ) : null
+          <>
+            {query.isFetchingNextPage ? (
+              <ActivityIndicator color={colors.primary} style={styles.more} />
+            ) : items.length ? (
+              <Text variant="caption" color={colors.textTertiary} style={styles.hint}>
+                {t('region.hint')}
+              </Text>
+            ) : null}
+            <BottomInsetSpacer />
+          </>
         }
       />
     </>

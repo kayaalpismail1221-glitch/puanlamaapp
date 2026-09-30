@@ -59,6 +59,14 @@
         ],
         "NSPrivacyCollectedDataTypes": [
           {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeProductInteraction",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAnalytics"
+            ]
+          },
+          {
             "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeName",
             "NSPrivacyCollectedDataTypeLinked": true,
             "NSPrivacyCollectedDataTypeTracking": false,
@@ -120,6 +128,7 @@
     "android": {
       "package": "app.puanla",
       "versionCode": 1,
+      "runtimeVersion": "android-1",
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -134,6 +143,7 @@
       ],
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO",
+        "android.permission.WRITE_CONTACTS",
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.READ_MEDIA_VIDEO",
         "android.permission.READ_MEDIA_AUDIO",
@@ -172,7 +182,8 @@
         "expo-image-picker",
         {
           "photosPermission": "Profil ve gönderi fotoğrafı seçebilmen için fotoğraflarına erişim gerekiyor. Yalnızca seçtiğin fotoğraflar yüklenir.",
-          "cameraPermission": "Gönderine yemek fotoğrafı çekebilmen için kamera erişimi gerekiyor."
+          "cameraPermission": "Gönderine yemek fotoğrafı çekebilmen için kamera erişimi gerekiyor.",
+          "microphonePermission": false
         }
       ],
       [
@@ -188,6 +199,7 @@
       [
         "expo-notifications",
         {
+          "icon": "./assets/images/notification-icon.png",
           "color": "#0F1E3D"
         }
       ],

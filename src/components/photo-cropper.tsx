@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { cropImage, type LocalImage } from '@/api/storage';
 import { PressableScale, Text } from '@/components/ui';
 import { fixed, hitSlop, radius, spacing } from '@/constants/theme';
+import { showAlert } from '@/lib/dialog';
 import { haptics } from '@/lib/haptics';
 
 /** Akıştaki gönderi fotoğrafının oranı (PhotoCarousel ile aynı): kırpılan fotoğraf akışta birebir böyle görünür */
@@ -198,8 +199,10 @@ function CropSession({
       );
       haptics.success();
       onDone(photos);
-    } catch {
+    } catch (error) {
+      if (__DEV__) console.warn('[puanla] kırpma', error);
       setBusy(false);
+      showAlert(t('crop.failed'));
     }
   };
 

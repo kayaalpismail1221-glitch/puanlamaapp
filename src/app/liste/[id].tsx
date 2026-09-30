@@ -1,14 +1,15 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from '@/components/symbol';
 import { useTranslation } from 'react-i18next';
 import { FlatList, StyleSheet, View } from 'react-native';
 
 import { showError } from '@/api/errors';
+import { BottomInsetSpacer } from '@/components/bottom-inset';
+import { HeaderAction } from '@/components/header-button';
 import { ListCover, newList } from '@/components/list-card';
 import { Bone, PlaceRowsSkeleton, Skeleton } from '@/components/skeleton';
 import { Avatar, Button, Divider, ErrorView, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { cuisineLabel } from '@/constants/cuisines';
-import { colors, fonts, hitSlop, radius, scoreInk, spacing } from '@/constants/theme';
+import { colors, fonts,  radius, scoreInk, spacing } from '@/constants/theme';
 import { useDeleteList, useListDetails, useToggleListSaved } from '@/hooks/queries';
 import { showAlert } from '@/lib/dialog';
 import { formatScore } from '@/lib/format';
@@ -115,9 +116,7 @@ export default function ListScreen() {
           title: '',
           // Paylaşım aşağıdaki tek "Paylaş" düğmesinde; burada yalnızca diğer seçenekler
           headerRight: () => (
-            <PressableScale onPress={openMenu} hitSlop={hitSlop} accessibilityLabel={t('moderation.options')}>
-              <SymbolView name="ellipsis.circle" tintColor={colors.primary} size={22} />
-            </PressableScale>
+            <HeaderAction icon="ellipsis.circle" onPress={openMenu} accessibilityLabel={t('moderation.options')} />
           ),
         }}
       />
@@ -176,19 +175,22 @@ export default function ListScreen() {
           <ItemRow item={item} rank={index + 1} myScore={mine ? undefined : scoreOf(item.place.id)} />
         )}
         ListFooterComponent={
-          mine ? (
-            <View style={styles.footer} />
-          ) : (
-            <View style={[styles.footer, styles.makeOwn]}>
-              <Text variant="headline" align="center">
-                {t('lists.makeYourOwn')}
-              </Text>
-              <Text variant="subhead" color={colors.textSecondary} align="center">
-                {t('lists.makeYourOwnText')}
-              </Text>
-              <Button title={t('lists.newList')} icon="plus" variant="secondary" size="sm" onPress={() => newList()} />
-            </View>
-          )
+          <>
+            {mine ? (
+              <View style={styles.footer} />
+            ) : (
+              <View style={[styles.footer, styles.makeOwn]}>
+                <Text variant="headline" align="center">
+                  {t('lists.makeYourOwn')}
+                </Text>
+                <Text variant="subhead" color={colors.textSecondary} align="center">
+                  {t('lists.makeYourOwnText')}
+                </Text>
+                <Button title={t('lists.newList')} icon="plus" variant="secondary" size="sm" onPress={() => newList()} />
+              </View>
+            )}
+            <BottomInsetSpacer />
+          </>
         }
       />
     </>

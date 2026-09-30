@@ -63,6 +63,8 @@ export function plainColor(value: ColorValue | undefined, palette: Palette): Col
 export const fixed = {
   white: '#FFFFFF',
   navy: '#0F1E3D',
+  /** Lacivert degrade üstündeki yarı saydam beyaz düğme zemini (Android'de camın yerine) */
+  frostOnDark: 'rgba(255, 255, 255, 0.18)',
   ink: '#111827',
   /** Paylaşım kartlarındaki (hikâye, harita) çizim haritası: her zaman açık */
   map: {

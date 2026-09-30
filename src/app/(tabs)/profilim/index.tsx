@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { HeaderAction } from '@/components/header-button';
 import { FavoritePlaces } from '@/components/favorite-places';
 import { ProfileLists } from '@/components/list-card';
 import { VisitedMap } from '@/components/visited-map';
@@ -37,7 +38,11 @@ export default function ProfileScreen() {
 
   const refresh = async () => {
     setRefreshing(true);
-    await Promise.all([actions.refresh(), queryClient.invalidateQueries()]);
+    // Feed'ler hariç: açık feed sekmesinin yüklenmiş tüm sayfaları profil yenilenince baştan çekilmesin
+    await Promise.all([
+      actions.refresh(),
+      queryClient.invalidateQueries({ predicate: (query) => query.queryKey[0] !== 'feed' }),
+    ]);
     setRefreshing(false);
   };
   const streak = weeklyStreak([...allEntries.map((e) => e.ratedAt), ...myPosts.map((p) => p.createdAt)]);
@@ -56,9 +61,7 @@ export default function ProfileScreen() {
           title: '',
           // Paylaşma, profildeki "Paylaş" düğmesinden; başlıkta yalnızca ayarlar
           headerRight: () => (
-            <PressableScale onPress={() => router.push('/ayarlar')} hitSlop={hitSlop} accessibilityLabel={t('common.settings')}>
-              <SymbolView name="gearshape" tintColor={colors.primary} size={22} />
-            </PressableScale>
+            <HeaderAction icon="gearshape" onPress={() => router.push('/ayarlar')} accessibilityLabel={t('common.settings')} />
           ),
         }}
       />

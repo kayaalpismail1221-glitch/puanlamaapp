@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Linking, ScrollView, StyleSheet, View } from 'react-native';
 
 import { showError } from '@/api/errors';
+import { BottomInsetSpacer } from '@/components/bottom-inset';
 import { SettingsGroup, SettingsRow, settingsStyles } from '@/components/settings-list';
 import { ScoringGuide, useScoringGuide } from '@/components/scoring-guide';
 import { Toggle } from '@/components/toggle';
@@ -210,6 +211,7 @@ export default function SettingsScreen() {
         </PressableScale>
       </SettingsGroup>
       <ScoringGuide visible={guide.visible} onClose={guide.close} />
+      <BottomInsetSpacer />
     </ScrollView>
   );
 }

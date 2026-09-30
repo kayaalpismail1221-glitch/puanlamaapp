@@ -11,9 +11,9 @@ import { PostCard } from '@/components/post-card';
 import { showError } from '@/api/errors';
 import { KeyboardAvoidingView } from '@/components/keyboard-avoiding-view';
 import { CommentsSkeleton } from '@/components/skeleton';
-import { Avatar, Divider, LoadingView, PressableScale, Text } from '@/components/ui';
+import { Avatar, Divider, ErrorView, LoadingView, PressableScale, Text } from '@/components/ui';
 import { colors, hitSlop, radius, spacing, typography } from '@/constants/theme';
-import { getUser, usePost, useUser } from '@/data/entities';
+import { getUser, useEntityRetry, usePost, useUser } from '@/data/entities';
 import { useAddComment, useComments, useDeleteComment, useToggleCommentLike } from '@/hooks/queries';
 import { showAlert } from '@/lib/dialog';
 import { timeAgo } from '@/lib/format';
@@ -73,21 +73,20 @@ export default function PostDetailScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
 
-  // Alt güvenli alan payı klavye kapalıyken; Android'de klavye açılınca kalkar (çubuk klavyeye yapışır).
-  // iOS'ta olduğu gibi kalır.
+  // Alt güvenli alan payı yalnızca klavye kapalıyken; klavye açılınca kalkar ve çubuk klavyeye yapışır.
+  // (iOS'ta KeyboardAvoidingView klavyenin tamamı kadar iter, ana ekran çubuğu alanı dahil: pay kalsaydı
+  // giriş alanıyla klavye arasında ~30 pt boş şerit kalırdı.)
   const restingBottom = Math.max(insets.bottom, spacing.sm);
   const keyboard = useReanimatedKeyboardAnimation();
   const composerInset = useAnimatedStyle(() => ({
-    paddingBottom:
-      Platform.OS === 'android'
-        ? interpolate(keyboard.progress.value, [0, 1], [restingBottom, spacing.sm])
-        : restingBottom,
+    paddingBottom: interpolate(keyboard.progress.value, [0, 1], [restingBottom, spacing.sm]),
   }));
   const inputRef = useRef<TextInput>(null);
   const [text, setText] = useState('');
   const [replyTo, setReplyTo] = useState<Comment | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const post = usePost(id);
+  const retryPost = useEntityRetry('post', id);
   const comments = useComments(id);
   const addComment = useAddComment(id);
   const deleteComment = useDeleteComment(id);
@@ -96,7 +95,10 @@ export default function PostDetailScreen() {
   const rows = useMemo(() => threadRows(comments.data ?? [], expanded), [comments.data, expanded]);
   const replyAuthor = useUser(replyTo?.userId);
 
-  if (post === undefined) return <LoadingView style={styles.center} />;
+  if (post === undefined) {
+    // Bildirimden çevrimdışı açılınca sonsuz beklemek yerine "Tekrar dene"
+    return retryPost ? <ErrorView onRetry={retryPost} style={styles.center} /> : <LoadingView style={styles.center} />;
+  }
   if (!post) {
     return (
       <View style={styles.center}>

@@ -3,7 +3,7 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { SymbolView, type SFSymbol } from '@/components/symbol';
 import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Linking, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown, LinearTransition, ZoomIn } from 'react-native-reanimated';
 
 import { PhotoCropper, type CroppedPhoto, type CropItem } from '@/components/photo-cropper';
@@ -19,6 +19,7 @@ import { showError } from '@/api/errors';
 import type { LocalImage } from '@/api/storage';
 import { getPlace, getUser, useEntitiesVersion, usePlace, usePrefetchUsers } from '@/data/entities';
 import { useCreatePost } from '@/hooks/queries';
+import { useAndroidBack } from '@/hooks/use-android-back';
 import { useKeyboardFooterStyle } from '@/hooks/use-keyboard-footer';
 import { useRankFlow } from '@/hooks/use-rank-flow';
 import i18n from '@/i18n';
@@ -90,6 +91,24 @@ export default function CreatePostScreen() {
   // İlk puanlamada puanlama rehberi bir kez kendiliğinden açılır
   const guide = useScoringGuide({ auto: rating });
 
+  // Android geri tuşu: yazılanlar sorulmadan gitmesin; ekranda seçilen mekândan mekân seçimine dönülür
+  const dirty = photos.length > 0 || caption.trim() !== '' || highlights.length > 0 || tagged.length > 0 || invitees.length > 0;
+  const backToPicker = !!place && !params.placeId && !dirty;
+  useAndroidBack(
+    dirty
+      ? () =>
+          showAlert(t('compose.discardTitle'), t('compose.discardText'), [
+            { text: t('compose.keepEditing'), style: 'cancel' },
+            { text: t('compose.discard'), style: 'destructive', onPress: () => router.back() },
+          ])
+      : backToPicker
+        ? () => {
+            setPlaceId(undefined);
+            setRerating(false);
+          }
+        : null,
+  );
+
   if (!place) {
     return <PlacePicker title={t('compose.whereDidYouEat')} onSelect={(p) => setPlaceId(p.id)} />;
   }
@@ -111,7 +130,11 @@ export default function CreatePostScreen() {
   const addFromCamera = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
-      showAlert(t('compose.cameraPermissionTitle'), t('compose.cameraPermissionText'));
+      // iOS bir kez reddedilince yeniden sormaz: izin yalnızca Ayarlar'dan açılır
+      showAlert(t('compose.cameraPermissionTitle'), t('compose.cameraPermissionText'), [
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('compose.openSettings'), onPress: () => Linking.openSettings() },
+      ]);
       return;
     }
     const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 });

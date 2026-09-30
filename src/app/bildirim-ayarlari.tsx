@@ -6,6 +6,7 @@ import { Platform, ScrollView } from 'react-native';
 
 import { showError } from '@/api/errors';
 import { setMutedKinds } from '@/api/notifications';
+import { BottomInsetSpacer } from '@/components/bottom-inset';
 import { Toggle } from '@/components/toggle';
 import { SettingsGroup, SettingsRow, settingsStyles } from '@/components/settings-list';
 import { useMutedNotifications } from '@/hooks/queries';
@@ -26,6 +27,9 @@ const KINDS: { kind: NotificationKind; icon: SFSymbol }[] = [
   { kind: 'follow', icon: 'person.fill.badge.plus' },
 ];
 
+/** Tercih yazmaları sırayla gider: hızlı art arda dokunuşta eski liste yenisinin üstüne yazılmasın */
+let writes: Promise<unknown> = Promise.resolve();
+
 /**
  * Bildirim tercihleri: sistem izni ve tür başına push. Kapatılan tür uygulama içi
  * bildirim merkezinde görünmeye devam eder, yalnızca telefona bildirim gelmez.
@@ -43,14 +47,18 @@ export default function NotificationSettingsScreen() {
   );
 
   const toggle = (kind: NotificationKind, on: boolean) => {
-    const previous = muted.data ?? [];
+    // Önbellekten: iki dokunuş aynı çizimde gelirse ikincisi birincinin değişikliğini görsün
+    const previous = queryClient.getQueryData<NotificationKind[]>(keys.mutedNotifications()) ?? muted.data ?? [];
     const next = on ? previous.filter((k) => k !== kind) : [...previous, kind];
     haptics.select();
     queryClient.setQueryData(keys.mutedNotifications(), next);
-    setMutedKinds(userId!, next).catch((error) => {
-      queryClient.setQueryData(keys.mutedNotifications(), previous);
-      showError(error, t('failures.notificationSettings'));
-    });
+    writes = writes
+      .then(() => setMutedKinds(userId!, next))
+      .catch((error) => {
+        // Sunucudaki gerçek durum yeniden okunur (sıradaki yazmalar da olmuş olabilir)
+        queryClient.invalidateQueries({ queryKey: keys.mutedNotifications() });
+        showError(error, t('failures.notificationSettings'));
+      });
   };
 
   const allowed = permission === 'granted';
@@ -99,6 +107,7 @@ export default function NotificationSettingsScreen() {
           />
         ))}
       </SettingsGroup>
+      <BottomInsetSpacer />
     </ScrollView>
   );
 }

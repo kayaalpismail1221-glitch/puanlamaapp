@@ -1,9 +1,11 @@
 import { router } from 'expo-router';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet } from 'react-native';
+import { Platform, Pressable, StyleSheet, type ColorValue } from 'react-native';
 
 import { SymbolView, type SFSymbol } from '@/components/symbol';
-import { colors, radius } from '@/constants/theme';
+import { PressableScale } from '@/components/ui';
+import { colors, hitSlop, radius } from '@/constants/theme';
 import { haptics } from '@/lib/haptics';
 
 /**
@@ -15,11 +17,14 @@ export function HeaderIconButton({
   accessibilityLabel,
   disabled,
   side = 'left',
+  badge,
 }: {
   icon: SFSymbol;
   onPress: () => void;
   accessibilityLabel: string;
   disabled?: boolean;
+  /** Simgenin sağ üstüne oturan rozet (ör. okunmamış bildirim sayısı) */
+  badge?: ReactNode;
   /**
    * Çubuğun hangi ucunda: simge kenardan 16 dp içeride dursun diye dokunma alanı kenara taşar. Yan yana
    * düğmelerde yalnızca kenardaki taşar (`inner`).
@@ -38,7 +43,36 @@ export function HeaderIconButton({
       android_ripple={{ color: colors.border, borderless: true, radius: 24 }}
       style={[styles.button, side === 'left' && styles.left, side === 'right' && styles.right]}>
       <SymbolView name={icon} tintColor={disabled ? colors.textTertiary : colors.primary} size={24} />
+      {badge}
     </Pressable>
+  );
+}
+
+/**
+ * Başlık çubuğunun sağındaki simge eylemi, platformun diliyle: iOS'ta sistemin cam düğmesine giren simge
+ * (yay animasyonu), Android'de Material 3 düğmesi (48 dp, dalga, 24 dp simge).
+ */
+export function HeaderAction({
+  icon,
+  onPress,
+  accessibilityLabel,
+  iosSize = 22,
+  tintColor = colors.primary,
+}: {
+  icon: SFSymbol;
+  onPress: () => void;
+  accessibilityLabel: string;
+  /** iOS'taki simge boyutu (ekranlar arasında tutarlı kalsın diye mevcut değerler korunur) */
+  iosSize?: number;
+  tintColor?: ColorValue;
+}) {
+  if (Platform.OS === 'android') {
+    return <HeaderIconButton icon={icon} onPress={onPress} accessibilityLabel={accessibilityLabel} side="right" />;
+  }
+  return (
+    <PressableScale onPress={onPress} hitSlop={hitSlop} accessibilityLabel={accessibilityLabel}>
+      <SymbolView name={icon} tintColor={tintColor} size={iosSize} />
+    </PressableScale>
   );
 }
 
@@ -65,6 +99,7 @@ export function FloatingBackButton() {
       onPress={() => {
         haptics.tap();
         if (router.canGoBack()) router.back();
+        else router.replace('/');
       }}
       accessibilityRole="button"
       accessibilityLabel={t('common.back')}

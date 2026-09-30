@@ -8,9 +8,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CompareStep, SentimentChoice, useRankResultText } from '@/components/rank-steps';
 import { ScoringGuide, useScoringGuide } from '@/components/scoring-guide';
-import { Button, LoadingView, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
+import { Button, ErrorView, LoadingView, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { colors, hitSlop, radius, spacing, typography } from '@/constants/theme';
-import { getPlace, usePlace } from '@/data/entities';
+import { getPlace, useEntityRetry, usePlace } from '@/data/entities';
+import { useAndroidBack } from '@/hooks/use-android-back';
 import { useKeyboardFooterStyle } from '@/hooks/use-keyboard-footer';
 import { useRankFlow } from '@/hooks/use-rank-flow';
 import { currentLanguage } from '@/i18n';
@@ -37,6 +38,7 @@ export default function RateScreen() {
   }>();
   const theirScore = karsiPuan ? Number(karsiPuan) : NaN;
   const place = usePlace(id);
+  const retryPlace = useEntityRetry('place', id);
   const { rankings, onboarded, actions } = useAppStore();
   const { t } = useTranslation();
   const footerStyle = useKeyboardFooterStyle();
@@ -44,8 +46,12 @@ export default function RateScreen() {
   const flow = useRankFlow(id);
   const resultText = useRankResultText();
   const scrollRef = useRef<ScrollView>(null);
+  // Kaydet'e hızlı çift dokunuş puanı iki kez yazıp bir ekran fazla geri götürmesin
+  const saved = useRef(false);
   // İlk puanlamada puanlama rehberi bir kez kendiliğinden açılır; sonra ? ile
   const guide = useScoringGuide({ auto: true });
+  // Android geri tuşu karşılaştırmanın son adımını geri alır (ilerleme kaybolmasın); his seçiminde ekranı kapatır
+  useAndroidBack(flow.phase !== 'sentiment' ? flow.undo : null);
 
   // Not yazarken klavye alttaki butonları yukarı iter; içerik kayar ve not alanı butonların üstünde görünür kalır
   useEffect(() => {
@@ -57,7 +63,16 @@ export default function RateScreen() {
     () => Object.values(rankings).flat().find((e) => e.placeId === id)?.note ?? '',
   );
 
-  if (place === undefined) return <LoadingView style={styles.container} />;
+  if (place === undefined) {
+    if (!retryPlace) return <LoadingView style={styles.container} />;
+    return (
+      <ErrorView
+        onRetry={retryPlace}
+        action={{ title: t('rate.close'), onPress: () => router.back() }}
+        style={styles.container}
+      />
+    );
+  }
   if (!place) {
     return (
       <View style={[styles.container, styles.center]}>
@@ -68,7 +83,8 @@ export default function RateScreen() {
   }
 
   const save = (thenShare = false) => {
-    if (!flow.result) return;
+    if (!flow.result || saved.current) return;
+    saved.current = true;
     haptics.success();
     actions.rank(place.id, flow.result, note);
     if (sonra === 'gonderi') {

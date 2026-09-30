@@ -9,7 +9,8 @@ import type { AreaTopItem } from '@/api/content';
 import { AreaRow, openArea } from '@/components/area-row';
 import { PlaceRow } from '@/components/place-row';
 import { PlaceRowsSkeleton, UserRowsSkeleton } from '@/components/skeleton';
-import { Button, Divider, PressableScale, ScoreBadge, SearchField, Text } from '@/components/ui';
+import { BottomInsetSpacer } from '@/components/bottom-inset';
+import { Button, Divider, ErrorView, PressableScale, ScoreBadge, SearchField, Text } from '@/components/ui';
 import { UserRow } from '@/components/user-row';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
 import {
@@ -80,6 +81,8 @@ export default function SearchTab() {
   const focusArea = areas[0] && trFold(areas[0].name) === trFold(trimmed) ? areas[0] : undefined;
   const areaTop = useAreaTopPlaces(focusArea);
   const loading = placeSearch.isPending || (searching && userSearch.isPending);
+  // Bağlantı yokken "sonuç yok, mekân ekle" denmesin: var olan mekânın kopyası eklenirdi
+  const failed = scope === 'people' ? searching && userSearch.isError : placeSearch.isError;
 
   const sections = useMemo<Section[]>(() => {
     const people = searching
@@ -191,6 +194,9 @@ export default function SearchTab() {
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
+        // Klavye son sonuçları örtmesin (iOS; Android'de alttaki boşluk)
+        automaticallyAdjustKeyboardInsets
+        ListFooterComponent={<BottomInsetSpacer keyboardOnly />}
         stickySectionHeadersEnabled={false}
         ListHeaderComponent={
           <>
@@ -243,6 +249,8 @@ export default function SearchTab() {
         ListEmptyComponent={
           loading ? (
             scope === 'people' ? <UserRowsSkeleton /> : <PlaceRowsSkeleton />
+          ) : failed ? (
+            <ErrorView onRetry={() => (scope === 'people' ? userSearch.refetch() : placeSearch.refetch())} />
           ) : (
             <View style={styles.empty}>
               <SymbolView name="magnifyingglass" tintColor={colors.textTertiary} size={40} />

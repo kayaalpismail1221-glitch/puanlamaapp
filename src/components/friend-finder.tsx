@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, StyleSheet, View } from 'react-native';
 
+import { BottomInsetSpacer } from '@/components/bottom-inset';
 import { ContactFriends } from '@/components/contact-friends';
 import { SuggestionRow } from '@/components/people-you-may-know';
 import { UserRowsSkeleton } from '@/components/skeleton';
@@ -37,6 +38,9 @@ export function FriendFinder({ header }: { header?: React.ReactElement }) {
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
       contentInsetAdjustmentBehavior="automatic"
+      // Klavye son sonuçları örtmesin (iOS; Android'de alttaki boşluk)
+      automaticallyAdjustKeyboardInsets
+      ListFooterComponent={<BottomInsetSpacer />}
       ListHeaderComponent={
         <View style={styles.header}>
           {header}

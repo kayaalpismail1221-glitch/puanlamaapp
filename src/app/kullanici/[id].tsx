@@ -1,20 +1,21 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from '@/components/symbol';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { BottomInsetSpacer } from '@/components/bottom-inset';
+import { HeaderAction } from '@/components/header-button';
 import { FavoritePlaces } from '@/components/favorite-places';
 import { ProfileLists } from '@/components/list-card';
 import { PostGrid } from '@/components/post-grid';
 import { MenuRow, ProfileIdentity, RankStreakCards, SchoolChip } from '@/components/profile-parts';
 import { ProfileStats } from '@/components/profile-stats';
 import { PostGridSkeleton, ProfileSkeleton } from '@/components/skeleton';
-import { Button, Divider, ErrorView, PressableScale, Text } from '@/components/ui';
+import { Button, Divider, ErrorView,  Text } from '@/components/ui';
 import { TasteMatchRow } from '@/components/taste-match';
 import { FollowButton } from '@/components/user-row';
 import { VisitedMap } from '@/components/visited-map';
-import { colors, hitSlop, radius, spacing } from '@/constants/theme';
+import { colors,  radius, spacing } from '@/constants/theme';
 import { useUserPosts, useUserProfile, useUserRankings } from '@/hooks/queries';
 import { confirmBlock, openReportMenu, showMenu } from '@/lib/moderation';
 import { queryClient } from '@/lib/query-client';
@@ -73,9 +74,12 @@ export default function UserProfileScreen() {
           title: '',
           headerRight: () =>
             isMe(user.id) ? null : (
-              <PressableScale onPress={openMenu} hitSlop={hitSlop} accessibilityLabel={t('moderation.options')}>
-                <SymbolView name="ellipsis.circle" tintColor={colors.text} size={22} />
-              </PressableScale>
+              <HeaderAction
+                icon="ellipsis.circle"
+                tintColor={colors.text}
+                onPress={openMenu}
+                accessibilityLabel={t('moderation.options')}
+              />
             ),
         }}
       />
@@ -102,10 +106,19 @@ export default function UserProfileScreen() {
         <ProfileStats userId={user.id} />
 
         <View style={styles.buttons}>
-          <View style={styles.flex}>
-            <FollowButton userId={user.id} large />
-          </View>
-          <Button title={t('common.share')} variant="outline" size="sm" onPress={share} style={styles.share} />
+          {/* Kendi profil bağlantısı açılınca kendini takip et düğmesi çıkmasın */}
+          {!isMe(user.id) && (
+            <View style={styles.flex}>
+              <FollowButton userId={user.id} large />
+            </View>
+          )}
+          <Button
+            title={t('common.share')}
+            variant="outline"
+            size="sm"
+            onPress={share}
+            style={[styles.share, isMe(user.id) && styles.flex]}
+          />
         </View>
 
         <View style={styles.menu}>
@@ -143,6 +156,7 @@ export default function UserProfileScreen() {
         </Text>
         {postsQuery.isPending ? <PostGridSkeleton count={6} /> : <PostGrid posts={userPosts} emptyText={t('user.noPosts')} />}
         <View style={{ height: spacing.xxl }} />
+        <BottomInsetSpacer />
       </ScrollView>
     </>
   );

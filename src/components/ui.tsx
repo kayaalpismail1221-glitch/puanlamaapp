@@ -301,10 +301,13 @@ export function LoadingView({ style }: { style?: StyleProp<ViewStyle> }) {
 export function ErrorView({
   message,
   onRetry,
+  action,
   style,
 }: {
   message?: string;
   onRetry?: () => void;
+  /** "Tekrar dene"nin altında ikinci çıkış yolu (ör. açılış hatasında "Çıkış yap") */
+  action?: { title: string; onPress: () => void };
   style?: StyleProp<ViewStyle>;
 }) {
   const { t } = useTranslation();
@@ -315,6 +318,7 @@ export function ErrorView({
         {message ?? t('common.loadFailed')}
       </Text>
       {onRetry && <Button title={t('common.retry')} variant="secondary" size="sm" onPress={onRetry} />}
+      {action && <Button title={action.title} variant="ghost" size="sm" onPress={action.onPress} />}
     </View>
   );
 }

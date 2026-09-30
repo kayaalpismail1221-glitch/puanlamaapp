@@ -8,12 +8,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { setInviter } from '@/api/content';
 import { showError } from '@/api/errors';
+import { HeaderAction } from '@/components/header-button';
 import { GlassSurface } from '@/components/glass-surface';
 import { LeaderboardIntro, useLeaderboardIntro } from '@/components/leaderboard-intro';
 import { SegmentedControl } from '@/components/segmented-control';
 import { UserRowsSkeleton } from '@/components/skeleton';
 import { Avatar, Button, Divider, ErrorView, PressableScale, Text } from '@/components/ui';
-import { colors, hitSlop, radius, spacing } from '@/constants/theme';
+import { colors,  radius, spacing } from '@/constants/theme';
 import { schoolById, schoolLabel } from '@/data/schools';
 import { useUser } from '@/data/entities';
 import { useLeaderboard } from '@/hooks/queries';
@@ -98,9 +99,7 @@ export default function LeaderboardScreen() {
           title:
             scope === 'school' && school ? t('leaderboard.schoolTitle', { school: schoolLabel(school) }) : t('leaderboard.title'),
           headerRight: () => (
-            <PressableScale onPress={() => intro.open(0)} hitSlop={hitSlop} accessibilityLabel={t('leaderboard.howItWorks')}>
-              <SymbolView name="info.circle" tintColor={colors.primary} size={22} />
-            </PressableScale>
+            <HeaderAction icon="info.circle" onPress={() => intro.open(0)} accessibilityLabel={t('leaderboard.howItWorks')} />
           ),
         }}
       />

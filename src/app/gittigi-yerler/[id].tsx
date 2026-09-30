@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
+import { BottomInsetSpacer } from '@/components/bottom-inset';
 import { PlaceRow } from '@/components/place-row';
 import { PostGrid } from '@/components/post-grid';
 import { SegmentedControl } from '@/components/segmented-control';
@@ -179,6 +180,7 @@ export default function VisitedPlacesScreen() {
         </>
       )}
       <View style={{ height: spacing.xxl }} />
+      <BottomInsetSpacer />
     </ScrollView>
   );
 }

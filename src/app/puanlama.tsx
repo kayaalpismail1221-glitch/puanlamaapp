@@ -2,6 +2,7 @@ import { SymbolView, type SFSymbol } from '@/components/symbol';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { BottomInsetSpacer } from '@/components/bottom-inset';
 import { Text } from '@/components/ui';
 import { colors, radius, spacing } from '@/constants/theme';
 
@@ -44,6 +45,7 @@ export default function ScoringScreen() {
           </View>
         </View>
       ))}
+      <BottomInsetSpacer />
     </ScrollView>
   );
 }

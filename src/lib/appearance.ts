@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Updates from 'expo-updates';
 import { useSyncExternalStore } from 'react';
-import { Appearance } from 'react-native';
+import { Appearance, Platform } from 'react-native';
 
 import { darkModeSupported } from '@/constants/theme';
 
@@ -11,7 +12,19 @@ import { darkModeSupported } from '@/constants/theme';
  */
 
 export type AppearancePreference = 'system' | 'light' | 'dark';
-export const APPEARANCES: readonly AppearancePreference[] = ['light', 'dark', 'system'];
+
+/**
+ * iOS 1.0.1 ikilisinde Info.plist görünümü "Light"a sabit (`userInterfaceStyle` sonradan "automatic" oldu):
+ * pencere geçersiz kılması kalkınca da açık kalır, "Cihazla aynı" çalışmaz. 1.0.2 build'inden itibaren açılır.
+ * Expo Go ve geliştirme sürümünde `runtimeVersion` yok → açık.
+ */
+const IOS_LIGHT_ONLY_RUNTIMES = ['1.0.0', '1.0.1'];
+export const systemAppearanceAvailable =
+  Platform.OS !== 'ios' || !IOS_LIGHT_ONLY_RUNTIMES.includes(Updates.runtimeVersion ?? '');
+
+export const APPEARANCES: readonly AppearancePreference[] = systemAppearanceAvailable
+  ? ['light', 'dark', 'system']
+  : ['light', 'dark'];
 
 const STORAGE_KEY = 'puanla:appearance';
 
@@ -32,7 +45,7 @@ const apply = (next: AppearancePreference) =>
 apply(DEFAULT);
 AsyncStorage.getItem(STORAGE_KEY)
   .then((saved) => {
-    if (saved === 'system' || saved === 'light' || saved === 'dark') {
+    if ((saved === 'system' && systemAppearanceAvailable) || saved === 'light' || saved === 'dark') {
       preference = saved;
       apply(saved);
     }

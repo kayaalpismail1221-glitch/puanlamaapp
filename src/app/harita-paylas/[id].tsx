@@ -1,5 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { SymbolView, type SFSymbol } from '@/components/symbol';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -115,21 +116,32 @@ export default function ShareTasteMapScreen() {
     }
   };
 
+  // iOS'ta sayfa (pageSheet) durum çubuğunun altında açılır; Android'de tam ekran, üst boşluk durum çubuğu kadar
+  const top = Platform.OS === 'android' ? insets.top : 0;
+
   return (
     <View style={styles.container}>
       <LinearGradient colors={gradients.share} locations={gradients.shareStops} style={StyleSheet.absoluteFill} />
+      {Platform.OS === 'android' && <StatusBar style="light" />}
 
       <PressableScale
         onPress={() => router.back()}
         hitSlop={hitSlop}
-        style={[styles.close, { top: insets.top + spacing.sm }]}
+        style={[styles.close, { top: top + spacing.sm }]}
         accessibilityLabel={t('rate.close')}>
-        <GlassSurface interactive style={styles.closeGlass}>
-          <SymbolView name="xmark" tintColor={fixed.white} size={16} weight="semibold" />
-        </GlassSurface>
+        {Platform.OS === 'android' ? (
+          // Android'in opak yüzeyi açık görünümde beyaz: beyaz ✕ görünmezdi
+          <View style={[styles.closeGlass, { backgroundColor: fixed.frostOnDark }]}>
+            <SymbolView name="xmark" tintColor={fixed.white} size={18} weight="semibold" />
+          </View>
+        ) : (
+          <GlassSurface interactive style={styles.closeGlass}>
+            <SymbolView name="xmark" tintColor={fixed.white} size={16} weight="semibold" />
+          </GlassSurface>
+        )}
       </PressableScale>
 
-      <View style={[styles.stage, { marginTop: insets.top + 56 }]} onLayout={(e) => setBox(e.nativeEvent.layout)}>
+      <View style={[styles.stage, { marginTop: top + 56 }]} onLayout={(e) => setBox(e.nativeEvent.layout)}>
         {loading || !author ? (
           <ActivityIndicator color={fixed.white} />
         ) : (

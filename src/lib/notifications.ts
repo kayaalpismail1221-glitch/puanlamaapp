@@ -65,8 +65,12 @@ export async function pushPermission(): Promise<PushPermission> {
 export async function registerDevice(ask = false): Promise<boolean> {
   if (!supported || !Device.isDevice) return false;
   await ensureAndroidChannel().catch(() => {});
-  let { status } = await Notifications.getPermissionsAsync();
-  if (status === 'undetermined' && ask) status = (await Notifications.requestPermissionsAsync()).status;
+  const current = await Notifications.getPermissionsAsync();
+  let { status } = current;
+  // Android 13+'ta kapatılan izin penceresi "denied" görünür ama yeniden sorulabilir (`canAskAgain`)
+  if (ask && status !== 'granted' && (status === 'undetermined' || current.canAskAgain)) {
+    status = (await Notifications.requestPermissionsAsync()).status;
+  }
   if (status !== 'granted') return false;
   const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
   const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
@@ -103,8 +107,8 @@ export async function offerPushPermission() {
 
 /** Bildirimler ekranından izin: sorulmadıysa sistem penceresi, reddedildiyse iOS ayarları */
 export async function enablePush(): Promise<boolean> {
-  const status = await pushPermission();
-  if (status === 'denied') {
+  if ((await pushPermission()) === 'denied' && !(await Notifications.getPermissionsAsync()).canAskAgain) {
+    // Sistem artık sormuyor (iOS'ta bir kez reddedilince): izin yalnızca Ayarlar'dan açılır
     Linking.openSettings();
     return false;
   }
@@ -141,12 +145,14 @@ export function usePushNotifications(active: boolean) {
   useEffect(() => {
     if (!active || !supported) return;
     // Uygulama kapalıyken dokunulan bildirim
-    Notifications.getLastNotificationResponseAsync().then((response) => {
-      if (response) {
-        open(response);
-        Notifications.clearLastNotificationResponseAsync().catch(() => {});
-      }
-    });
+    Notifications.getLastNotificationResponseAsync()
+      .then((response) => {
+        if (response) {
+          open(response);
+          Notifications.clearLastNotificationResponseAsync().catch(() => {});
+        }
+      })
+      .catch(() => {});
     const tapped = Notifications.addNotificationResponseReceivedListener((response) => {
       open(response);
       Notifications.clearLastNotificationResponseAsync().catch(() => {});

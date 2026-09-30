@@ -15,9 +15,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppMapView, PinMarker } from '@/components/app-map';
 import { GlassSurface } from '@/components/glass-surface';
 import { SegmentedControl } from '@/components/segmented-control';
-import { Button, PressableScale, Text } from '@/components/ui';
+import { Button, ErrorView, LoadingView, PressableScale, Text } from '@/components/ui';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
-import { usePlace } from '@/data/entities';
+import { useEntityRetry, usePlace } from '@/data/entities';
 import { currentLocale } from '@/i18n';
 import {
   ARRIVED_M,
@@ -38,6 +38,7 @@ import {
   type TravelMode,
 } from '@/lib/directions';
 import { distanceKm, formatDistance, type Coords } from '@/lib/geo';
+import { showAlert } from '@/lib/dialog';
 import { haptics } from '@/lib/haptics';
 import { useUserLocation } from '@/lib/location';
 import { usePalette } from '@/hooks/use-palette';
@@ -60,6 +61,7 @@ const REROUTE_COOLDOWN_MS = 15_000;
 export default function DirectionsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const place = usePlace(id);
+  const retryPlace = useEntityRetry('place', id);
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const palette = usePalette();
@@ -83,6 +85,8 @@ export default function DirectionsScreen() {
     enabled: inAppDirections && !!origin && !!target && !!routeMode,
     staleTime: 5 * 60_000,
     retry: false,
+    // Navigasyonda rotadan çıkınca yeni rota gelene kadar eskisi kalır: ekran kapanıp talimat baştan okunmasın
+    placeholderData: (previous) => (navigating ? previous : undefined),
   });
 
   const transitEta = useQuery({
@@ -101,7 +105,18 @@ export default function DirectionsScreen() {
     });
   }, [route.data, navigating, insets.top]);
 
-  if (!place || !target) return <View style={styles.container} />;
+  if (!place || !target) {
+    if (place === undefined && !retryPlace) return <LoadingView style={styles.container} />;
+    // Başlık gizli: bulunamayınca ya da yüklenemeyince de ekrandan çıkılabilsin
+    return (
+      <ErrorView
+        message={place === null ? t('place.notFound') : undefined}
+        onRetry={retryPlace ?? undefined}
+        action={{ title: t('common.close'), onPress: () => router.back() }}
+        style={[styles.container, { backgroundColor: colors.background }]}
+      />
+    );
+  }
 
   const modes = (['walking', 'driving', 'transit'] as const).map((key) => ({ key, label: t(`directions.modes.${key}`) }));
   const summary =
@@ -398,12 +413,17 @@ function Navigation({
 
     let subscription: Location.LocationSubscription | undefined;
     let active = true;
-    Location.watchPositionAsync({ accuracy: Location.Accuracy.BestForNavigation, distanceInterval: 3 }, onPosition).then(
-      (s) => {
+    Location.watchPositionAsync({ accuracy: Location.Accuracy.BestForNavigation, distanceInterval: 3 }, onPosition)
+      .then((s) => {
         if (active) subscription = s;
         else s.remove();
-      },
-    );
+      })
+      // Konum servisi kapalı/izin geri alınmışsa navigasyon donup kalmasın: söylenir ve önizlemeye dönülür
+      .catch(() => {
+        if (!active) return;
+        showAlert(t('directions.locationOff'));
+        onEnd();
+      });
     return () => {
       active = false;
       subscription?.remove();

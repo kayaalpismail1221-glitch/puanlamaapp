@@ -1,4 +1,4 @@
-import { Platform, Share } from 'react-native';
+import { Platform, Share, type ShareAction } from 'react-native';
 
 import { logShare, type ShareKind } from '@/api/growth';
 import { appLink, inviteLink } from '@/constants/app';
@@ -17,11 +17,20 @@ function share(text: string, path: string, kind: ShareKind, target?: string) {
   return shareMessage(`${text}\n\n${i18n.t('share.openInApp', { link: appLink(path) })}`, kind, target);
 }
 
+/**
+ * Paylaşım sonucu ölçüme: iOS yapılıp yapılmadığını bildirir. Android her zaman "paylaşıldı" der (menüden
+ * vazgeçilse de), orada bilinmiyor (null) yazılır; yoksa K hunisindeki tamamlanan paylaşım şişer.
+ */
+export function shareCompleted(result: ShareAction): boolean | undefined {
+  if (Platform.OS !== 'ios') return undefined;
+  return result.action === Share.sharedAction;
+}
+
 /** Paylaşım menüsünü açar; iOS paylaşımın yapılıp yapılmadığını bildirir, ölçüme o da yazılır */
 async function shareMessage(message: string, kind: ShareKind, target?: string) {
   try {
     const result = await Share.share({ message });
-    logShare(kind, { target, completed: result.action === Share.sharedAction });
+    logShare(kind, { target, completed: shareCompleted(result) });
   } catch {
     // Menü açılamadı
   }

@@ -32,6 +32,8 @@ const tr = {
     sharePost: 'Gönderi paylaş',
     back: 'Geri',
     clear: 'Temizle',
+    pageNotFound: 'Bu bağlantı artık bir yere çıkmıyor.',
+    goHome: 'Puanla’ya dön',
   },
 
   tabs: {
@@ -432,6 +434,11 @@ const tr = {
     whereDidYouEat: 'Nerede yedin?',
     cameraPermissionTitle: 'Kamera izni gerekli',
     cameraPermissionText: 'Ayarlar’dan kamera iznini açabilirsin.',
+    openSettings: 'Ayarlar’ı aç',
+    discardTitle: 'Gönderiden vazgeçilsin mi?',
+    discardText: 'Eklediğin fotoğraflar ve yazdıkların silinecek.',
+    discard: 'Vazgeç ve sil',
+    keepEditing: 'Düzenlemeye devam et',
     takePhoto: 'Fotoğraf çek',
     chooseFromLibrary: 'Galeriden seç',
     onboardingHint: 'Fotoğraf zorunlu değil. Birkaç bilgi eklersen arkadaşların için çok daha faydalı olur.',
@@ -1225,6 +1232,7 @@ const tr = {
     done: 'Bitti',
     hint: 'Sıkıştırıp yakınlaştır, sürükleyip konumla',
     edit: 'Fotoğrafı yeniden kırp',
+    failed: 'Fotoğraf kırpılamadı. Tekrar dene ya da başka bir fotoğraf seç.',
   },
 
   scoringGuide: {

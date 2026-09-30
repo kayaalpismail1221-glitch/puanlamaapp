@@ -1,9 +1,7 @@
 import { router } from 'expo-router';
-import { SymbolView } from '@/components/symbol';
 import { useTranslation } from 'react-i18next';
 
-import { PressableScale } from '@/components/ui';
-import { colors, hitSlop } from '@/constants/theme';
+import { HeaderAction } from '@/components/header-button';
 
 /**
  * Büyük lezzet haritasının sağ üstündeki paylaş düğmesi. Rota tanımında sabit durur (kök düzen):
@@ -13,11 +11,11 @@ import { colors, hitSlop } from '@/constants/theme';
 export function FoodMapShareButton({ userId }: { userId: string }) {
   const { t } = useTranslation();
   return (
-    <PressableScale
+    <HeaderAction
+      icon="square.and.arrow.up"
+      iosSize={20}
       onPress={() => router.push({ pathname: '/harita-paylas/[id]', params: { id: userId } })}
-      hitSlop={hitSlop}
-      accessibilityLabel={t('tasteMap.share')}>
-      <SymbolView name="square.and.arrow.up" tintColor={colors.primary} size={20} />
-    </PressableScale>
+      accessibilityLabel={t('tasteMap.share')}
+    />
   );
 }

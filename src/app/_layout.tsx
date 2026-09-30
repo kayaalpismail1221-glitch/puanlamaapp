@@ -1,7 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { useFonts } from 'expo-font';
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, router, Stack, ThemeProvider, usePathname, type Href } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { ShareIntentProvider } from 'expo-share-intent';
 import { StatusBar } from 'expo-status-bar';
@@ -28,12 +28,19 @@ import { useShareIntentRedirect } from '@/hooks/use-share-intent-redirect';
 import { useLanguageLoaded } from '@/i18n';
 import { useAppearanceLoaded } from '@/lib/appearance';
 import { usePushNotifications } from '@/lib/notifications';
+import { isSamePath, takeLink } from '@/lib/pending-link';
 import { queryClient } from '@/lib/query-client';
 import { useTabIconsReady } from '@/lib/tab-icons';
 import { isBackendConfigured } from '@/lib/supabase';
 import { AppStoreProvider, useAppActions, useAppSelector } from '@/store/app-store';
 
 SplashScreen.preventAutoHideAsync();
+
+/**
+ * Uygulama kapalıyken açılan bağlantıda (`puanla://mekan/…`, bildirim, paylaşım uzantısı) sekmeler yığının altında
+ * durur: geri düğmesi ve alt çubuk çalışır, ekran çıkmaza düşmez.
+ */
+export const unstable_settings = { anchor: '(tabs)' };
 
 /** "Paylaş → Puanla" uzantısı yerel kod ister: Expo Go'da ve web'de kapalı */
 const shareIntentDisabled =
@@ -86,13 +93,22 @@ function RootNavigator() {
   const showOnboarding = status === 'signedOut' || !onboarded;
   usePushNotifications(!deciding && !showOnboarding);
   useShareIntentRedirect(!deciding && !showOnboarding);
+  usePendingLink(!deciding && !showOnboarding);
 
   useEffect(() => {
     if (splashDone) SplashScreen.hideAsync();
   }, [splashDone]);
 
   if (deciding) {
-    if (loadError) return <ErrorView onRetry={actions.refresh} style={{ flex: 1 }} />;
+    // Önbellek yokken veri yüklenemezse: tekrar dene ya da oturumu kapat (ör. profil satırı yoksa çıkış tek yol)
+    if (loadError)
+      return (
+        <ErrorView
+          onRetry={actions.refresh}
+          action={{ title: t('settings.logout'), onPress: actions.signOut }}
+          style={{ flex: 1 }}
+        />
+      );
     return loadingData ? <LaunchSkeleton /> : null;
   }
 
@@ -169,18 +185,36 @@ function RootNavigator() {
         />
       </Stack.Protected>
 
-      {/* Puanlama, gönderi ve mekân ekleme hem onboarding'de hem uygulama içinde kullanılır */}
-      <Stack.Screen name="gonderi-olustur" options={{ ...modal, title: t('screens.sharePost') }} />
-      <Stack.Screen name="mekan-ekle" options={{ ...modal, title: t('screens.newPlace') }} />
-      <Stack.Screen name="mekan-duzelt/[id]" options={{ ...modal, title: t('screens.fixPlace') }} />
-      <Stack.Screen name="davet-et" options={{ ...modal, title: t('screens.invite') }} />
+      {/* Puanlama, gönderi ve mekân ekleme hem onboarding'de hem uygulama içinde kullanılır; oturum ister */}
+      <Stack.Protected guard={status === 'signedIn'}>
+        <Stack.Screen name="gonderi-olustur" options={{ ...modal, title: t('screens.sharePost') }} />
+        <Stack.Screen name="mekan-ekle" options={{ ...modal, title: t('screens.newPlace') }} />
+        <Stack.Screen name="mekan-duzelt/[id]" options={{ ...modal, title: t('screens.fixPlace') }} />
+        <Stack.Screen name="davet-et" options={{ ...modal, title: t('screens.invite') }} />
+        <Stack.Screen
+          name="degerlendir/[id]"
+          options={{ ...modal, headerShown: false, gestureEnabled: false }}
+        />
+      </Stack.Protected>
       <Stack.Screen name="yasal/[belge]" options={{ ...modal, title: '' }} />
-      <Stack.Screen
-        name="degerlendir/[id]"
-        options={{ ...modal, headerShown: false, gestureEnabled: false }}
-      />
+      <Stack.Screen name="+not-found" options={{ title: '' }} />
     </Stack>
   );
+}
+
+/**
+ * Kurulum bitmeden gelen bağlantı kurulumdan sonra açılır (`lib/pending-link`). Uygulama hazırken gelen bağlantıyı
+ * gezgin zaten açmıştır: yol şu anki ekranla aynıysa yalnızca silinir.
+ */
+function usePendingLink(ready: boolean) {
+  const pathname = usePathname();
+  useEffect(() => {
+    if (!ready) return;
+    const link = takeLink();
+    if (!link || isSamePath(link, pathname)) return;
+    // Korunan rotalar bu çizimde kaydolur; yönlendirme bir kare sonra (iptal edilmez: bağlantı zaten alındı)
+    requestAnimationFrame(() => router.push(link as Href));
+  }, [ready, pathname]);
 }
 
 export default function RootLayout() {

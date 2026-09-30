@@ -20,6 +20,7 @@ import { PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { colors, hitSlop, radius, spacing, typography } from '@/constants/theme';
 import { getPlace, useEntitiesVersion, usePrefetchPlaces } from '@/data/entities';
 import { useMapPlaces, useNearbyPlaceSearch, useSearchAreas } from '@/hooks/queries';
+import { useAndroidBack } from '@/hooks/use-android-back';
 import { currentLanguage } from '@/i18n';
 import { DEFAULT_REGION } from '@/lib/geo';
 import { haptics } from '@/lib/haptics';
@@ -62,8 +63,9 @@ export default function MapScreen() {
     { key: 'been', label: t('map.been') },
     { key: 'want', label: t('map.want') },
   ];
-  // Listem'deki harita butonu `filtre=want` ile açar
-  const { filtre } = useLocalSearchParams<{ filtre?: Filter }>();
+  // Listem'deki harita butonu `filtre=want` ile açar (bilinmeyen değer yok sayılır)
+  const { filtre: rawFiltre } = useLocalSearchParams<{ filtre?: string }>();
+  const filtre = filters.some((f) => f.key === rawFiltre) ? (rawFiltre as Filter) : undefined;
   const [filter, setFilter] = useState<Filter>(filtre ?? 'puanla');
   // Parametre değişince filtreyi güncelle (render sırasında, efekt olmadan)
   const [lastParam, setLastParam] = useState(filtre);
@@ -71,6 +73,10 @@ export default function MapScreen() {
     setLastParam(filtre);
     if (filtre) setFilter(filtre);
   }
+  // Uygulanan parametre silinir: katman elle değiştirilse de Listem'den ikinci gelişte yine Listem açılsın
+  useEffect(() => {
+    if (rawFiltre) router.setParams({ filtre: undefined });
+  }, [rawFiltre]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [region, setRegion] = useState<Region>(DEFAULT_REGION);
   const version = useEntitiesVersion();
@@ -217,6 +223,17 @@ export default function MapScreen() {
 
   const selected = pins.find((p) => p.place.id === selectedId);
 
+  // Android geri tuşu önce ekrandakini kapatır (arama → aramadan gidilen sonuç → mekân kartı), sonra sekmeden çıkar
+  useAndroidBack(
+    searchFocused || query
+      ? closeSearch
+      : resultLabel
+        ? clearResult
+        : selectedId
+          ? () => setSelectedId(null)
+          : null,
+  );
+
   return (
     <View style={styles.container}>
       <AppMapView
@@ -343,7 +360,13 @@ export default function MapScreen() {
         <View style={styles.emptyWrap} pointerEvents="none">
           <GlassSurface style={styles.emptyCard}>
             <Text variant="subhead" color={colors.textSecondary} align="center">
-              {filter === 'want' ? t('map.emptyWant') : filter === 'been' ? t('map.emptyBeen') : t('map.emptyCommunity')}
+              {filter === 'want'
+                ? t('map.emptyWant')
+                : filter === 'been'
+                  ? t('map.emptyBeen')
+                  : community.isError
+                    ? t('common.loadFailed')
+                    : t('map.emptyCommunity')}
             </Text>
           </GlassSurface>
         </View>

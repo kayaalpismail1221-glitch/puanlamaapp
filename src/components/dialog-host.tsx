@@ -324,6 +324,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.22,
     shadowRadius: 30,
     shadowOffset: { width: 0, height: 12 },
+    // Android gölgesi (iOS gölge özellikleri orada çizilmez)
+    elevation: 12,
   },
   header: {
     gap: spacing.xs + 2,

@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { FlatList, Platform, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
+import { BottomInsetSpacer } from '@/components/bottom-inset';
 import { HeaderIconButton, ModalCloseButton } from '@/components/header-button';
 import { TextRowsSkeleton } from '@/components/skeleton';
 import { Divider, ErrorView, PressableScale, SearchField, Text } from '@/components/ui';
@@ -71,6 +72,8 @@ export default function PickAreaScreen() {
           }}
         />
         <FlatList
+          automaticallyAdjustKeyboardInsets
+          ListFooterComponent={<BottomInsetSpacer />}
           data={districts}
           keyExtractor={(d) => d.name}
           keyboardShouldPersistTaps="handled"
@@ -121,6 +124,8 @@ export default function PickAreaScreen() {
         }}
       />
       <FlatList
+        automaticallyAdjustKeyboardInsets
+          ListFooterComponent={<BottomInsetSpacer />}
         data={cities}
         keyExtractor={(c) => c.name}
         keyboardShouldPersistTaps="handled"

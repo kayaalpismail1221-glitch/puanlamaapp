@@ -50,7 +50,10 @@ export default function PlaceDetailScreen() {
   }));
 
   if (!place) {
-    if (details.isError) return <ErrorView onRetry={() => details.refetch()} style={styles.container} />;
+    // Önbellek "yok" dediyse (silinmiş ya da bozuk bağlantıdaki geçersiz kimlik) "bağlantını kontrol et" yerine bulunamadı
+    if (details.isError && cached !== null) {
+      return <ErrorView onRetry={() => details.refetch()} style={styles.container} />;
+    }
     if (cached === undefined && details.isPending) return <PlaceDetailSkeleton />;
     return (
       <View style={[styles.container, styles.center]}>

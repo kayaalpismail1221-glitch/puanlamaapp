@@ -58,9 +58,12 @@ export function useTabIconsReady() {
   useEffect(() => {
     if (Platform.OS !== 'android') return;
     let active = true;
-    Promise.all(TAB_SYMBOLS.flatMap((sf) => Object.values(androidTabIcon(sf)))).finally(() => {
-      if (active) setReady(true);
-    });
+    // Simge çizilemese de açılış beklemede kalmasın (sekme simgesiz açılır, uyarı yalnızca geliştirmede)
+    Promise.all(TAB_SYMBOLS.flatMap((sf) => Object.values(androidTabIcon(sf))))
+      .catch((error) => __DEV__ && console.warn('[puanla] sekme simgeleri', error))
+      .finally(() => {
+        if (active) setReady(true);
+      });
     return () => {
       active = false;
     };

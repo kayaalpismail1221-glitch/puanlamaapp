@@ -30,6 +30,8 @@ const en: Translation = {
     sharePost: 'Share a post',
     back: 'Back',
     clear: 'Clear',
+    pageNotFound: 'This link doesn’t lead anywhere anymore.',
+    goHome: 'Back to Puanla',
   },
 
   tabs: {
@@ -429,6 +431,11 @@ const en: Translation = {
     whereDidYouEat: 'Where did you eat?',
     cameraPermissionTitle: 'Camera access needed',
     cameraPermissionText: 'You can allow camera access in Settings.',
+    openSettings: 'Open Settings',
+    discardTitle: 'Discard this post?',
+    discardText: 'The photos you added and what you wrote will be lost.',
+    discard: 'Discard',
+    keepEditing: 'Keep editing',
     takePhoto: 'Take photo',
     chooseFromLibrary: 'Choose from library',
     onboardingHint: 'Photos are optional. Adding a few details makes it much more useful for your friends.',
@@ -1222,6 +1229,7 @@ const en: Translation = {
     done: 'Done',
     hint: 'Pinch to zoom, drag to position',
     edit: 'Crop photo again',
+    failed: 'Couldn’t crop the photo. Try again or pick another one.',
   },
 
   scoringGuide: {

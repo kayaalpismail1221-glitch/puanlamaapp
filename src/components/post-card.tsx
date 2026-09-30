@@ -91,16 +91,20 @@ export const PostCard = memo(function PostCard({ post: initial, expanded, distan
 
   const mine = isMe(post.userId);
 
-  const removePost = (withScore: boolean) =>
-    deletePost.mutate(post, {
-      onSuccess: () => {
-        haptics.success();
-        // Puan gönderiden ayrı durur; istenirse sıralamadan (ve Top 3'ten) da çıkar
-        if (withScore) actions.unrank(post.placeId);
-        if (expanded) router.back();
-      },
-      onError: (error) => showError(error, t('failures.postDelete')),
-    });
+  // mutate'in kendi onSuccess'i kullanılmaz: silinen gönderi önbellekten çıkınca bu kart kalkar ve TanStack
+  // kalkmış gözlemcinin geri çağrılarını çalıştırmaz (ekran kapanmaz, puan silinmezdi). Promise kalkmadan etkilenmez.
+  const removePost = async (withScore: boolean) => {
+    try {
+      await deletePost.mutateAsync(post);
+    } catch (error) {
+      showError(error, t('failures.postDelete'));
+      return;
+    }
+    haptics.success();
+    // Puan gönderiden ayrı durur; istenirse sıralamadan da çıkar
+    if (withScore) actions.unrank(post.placeId);
+    if (expanded) router.back();
+  };
 
   const confirmDelete = () =>
     showAlert(

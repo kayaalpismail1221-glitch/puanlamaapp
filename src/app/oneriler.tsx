@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { FlatList, StyleSheet, View } from 'react-native';
 
 import type { Recommendation } from '@/api/content';
+import { BottomInsetSpacer } from '@/components/bottom-inset';
 import { PlaceRowsSkeleton, SkeletonScreen } from '@/components/skeleton';
 import { Button, Divider, ErrorView, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { RefreshControl } from '@/components/refresh-control';
@@ -33,6 +34,7 @@ export default function RecommendationsScreen() {
 
   return (
     <FlatList
+      ListFooterComponent={<BottomInsetSpacer />}
       style={styles.container}
       data={recs.data}
       keyExtractor={(r) => r.place.id}

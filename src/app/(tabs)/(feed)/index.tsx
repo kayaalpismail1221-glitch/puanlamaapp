@@ -3,12 +3,13 @@ import { SymbolView } from '@/components/symbol';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlashList } from '@shopify/flash-list';
-import { ActivityIndicator, Linking, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Linking, Platform, StyleSheet, View } from 'react-native';
 
 import { PostCard } from '@/components/post-card';
 import { SegmentedControl } from '@/components/segmented-control';
 import type { FeedEntry } from '@/api/content';
 import { PostCardsSkeleton } from '@/components/skeleton';
+import { HeaderIconButton } from '@/components/header-button';
 import { Avatar, Button, Divider, ErrorView, PressableScale, Text } from '@/components/ui';
 import { RefreshControl } from '@/components/refresh-control';
 import { colors, fixed, hitSlop, radius, spacing } from '@/constants/theme';
@@ -189,21 +190,29 @@ const Separator = () => <Divider />;
 function NotificationBell() {
   const { t } = useTranslation();
   const unread = useUnreadNotifications().data ?? 0;
+  const label = unread ? t('notifications.bellUnread', { count: unread }) : t('screens.notifications');
+  const badge =
+    unread > 0 ? (
+      <View style={[styles.bellBadge, Platform.OS === 'android' && styles.bellBadgeAndroid]}>
+        <Text variant="caption" color={fixed.white} style={styles.bellBadgeText}>
+          {unread > 9 ? '9+' : unread}
+        </Text>
+      </View>
+    ) : null;
+  if (Platform.OS === 'android') {
+    return (
+      <HeaderIconButton icon="bell" onPress={() => router.push('/bildirimler')} accessibilityLabel={label} side="right" badge={badge} />
+    );
+  }
   return (
     <PressableScale
       onPress={() => router.push('/bildirimler')}
       hitSlop={hitSlop}
       // Rozet bu kutunun içinde kalır: iOS başlık çubuğu öğenin dışına taşanı keser
       style={styles.bell}
-      accessibilityLabel={unread ? t('notifications.bellUnread', { count: unread }) : t('screens.notifications')}>
+      accessibilityLabel={label}>
       <SymbolView name="bell" tintColor={colors.primary} size={21} />
-      {unread > 0 && (
-        <View style={styles.bellBadge}>
-          <Text variant="caption" color={fixed.white} style={styles.bellBadgeText}>
-            {unread > 9 ? '9+' : unread}
-          </Text>
-        </View>
-      )}
+      {badge}
     </PressableScale>
   );
 }
@@ -261,6 +270,11 @@ const styles = StyleSheet.create({
     height: 32,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  /** Android'de 48 dp düğmenin içinde, 24 dp simgenin sağ üstünde */
+  bellBadgeAndroid: {
+    top: 8,
+    right: 6,
   },
   bellBadge: {
     position: 'absolute',

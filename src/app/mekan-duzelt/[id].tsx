@@ -10,9 +10,9 @@ import { suggestPlaceCorrection } from '@/api/content';
 import { showError } from '@/api/errors';
 import { AppMapView } from '@/components/app-map';
 import { SettingsGroup, SettingsRow } from '@/components/settings-list';
-import { Button, Text } from '@/components/ui';
+import { Button, ErrorView, LoadingView, Text } from '@/components/ui';
 import { colors, radius, spacing, typography } from '@/constants/theme';
-import { usePlace } from '@/data/entities';
+import { useEntityRetry, usePlace } from '@/data/entities';
 import { useKeyboardFooterStyle } from '@/hooks/use-keyboard-footer';
 import { showAlert } from '@/lib/dialog';
 import { distanceKm, type Coords } from '@/lib/geo';
@@ -33,6 +33,7 @@ const REMOVABLE: CorrectionField[] = ['phone', 'address', 'website'];
 export default function FixPlaceScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const place = usePlace(id);
+  const retryPlace = useEntityRetry('place', id);
   const { t } = useTranslation();
   const footerStyle = useKeyboardFooterStyle();
 
@@ -44,7 +45,16 @@ export default function FixPlaceScreen() {
   const [touched, setTouched] = useState(false);
   const [sending, setSending] = useState(false);
 
-  if (!place) return <View style={styles.container} />;
+  if (!place) {
+    if (place === undefined && !retryPlace) return <LoadingView style={styles.container} />;
+    return (
+      <ErrorView
+        message={place === null ? t('place.notFound') : undefined}
+        onRetry={retryPlace ?? undefined}
+        style={styles.container}
+      />
+    );
+  }
 
   const currentValue: Partial<Record<CorrectionField, string | undefined>> = {
     phone: place.phone && formatPhone(place.phone),

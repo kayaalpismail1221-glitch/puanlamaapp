@@ -4,6 +4,7 @@ import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, StyleSheet, View } from 'react-native';
 
+import { BottomInsetSpacer } from '@/components/bottom-inset';
 import { PlaceRow } from '@/components/place-row';
 import { PlaceRowsSkeleton } from '@/components/skeleton';
 import { Button, Divider, ErrorView, SearchField, Text } from '@/components/ui';
@@ -42,6 +43,8 @@ export function PlaceSearchList({ query, onSelect, trailing, exclude, header }: 
       keyExtractor={(p) => p.id}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
+      // Klavye son sonuçları örtmesin (iOS; Android'de alttaki boşluk)
+      automaticallyAdjustKeyboardInsets
       ListHeaderComponent={header}
       ItemSeparatorComponent={() => <Divider inset={spacing.lg + 52 + spacing.md} />}
       ListEmptyComponent={
@@ -59,14 +62,17 @@ export function PlaceSearchList({ query, onSelect, trailing, exclude, header }: 
         )
       }
       ListFooterComponent={
-        results.length > 0 && q ? (
-          <Button
-            title={t('picker.notListed')}
-            variant="ghost"
-            onPress={() => openAddPlace(q, onSelect)}
-            style={styles.footer}
-          />
-        ) : null
+        <>
+          {results.length > 0 && q ? (
+            <Button
+              title={t('picker.notListed')}
+              variant="ghost"
+              onPress={() => openAddPlace(q, onSelect)}
+              style={styles.footer}
+            />
+          ) : null}
+          <BottomInsetSpacer />
+        </>
       }
       renderItem={({ item }) => (
         <PlaceRow

@@ -1,10 +1,12 @@
 import { useTranslation } from 'react-i18next';
 import { Platform, ScrollView } from 'react-native';
 
+import { BottomInsetSpacer } from '@/components/bottom-inset';
 import { SettingsGroup, SettingsRow, settingsStyles } from '@/components/settings-list';
 import {
   APPEARANCES,
   setAppearancePreference,
+  systemAppearanceAvailable,
   useAppearancePreference,
   type AppearancePreference,
 } from '@/lib/appearance';
@@ -29,7 +31,12 @@ export default function AppearanceScreen() {
       style={settingsStyles.screen}
       contentContainerStyle={settingsStyles.content}
       contentInsetAdjustmentBehavior="automatic">
-      <SettingsGroup footer={t(Platform.OS === 'android' ? 'appearance.footerAndroid' : 'appearance.footer')}>
+      <SettingsGroup
+        footer={
+          systemAppearanceAvailable
+            ? t(Platform.OS === 'android' ? 'appearance.footerAndroid' : 'appearance.footer')
+            : undefined
+        }>
         {APPEARANCES.map((option, i) => (
           <SettingsRow
             key={option}
@@ -40,6 +47,7 @@ export default function AppearanceScreen() {
           />
         ))}
       </SettingsGroup>
+      <BottomInsetSpacer />
     </ScrollView>
   );
 }

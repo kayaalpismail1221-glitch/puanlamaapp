@@ -19,10 +19,10 @@ import {
   type StoryAuthor,
 } from '@/components/story-cards';
 import { logShare } from '@/api/growth';
-import { Button, LoadingView, Text } from '@/components/ui';
+import { Button, ErrorView, LoadingView, Text } from '@/components/ui';
 import { inviteLink } from '@/constants/app';
 import { colors, radius, spacing } from '@/constants/theme';
-import { getPlace, useEntitiesVersion, usePlace, usePost } from '@/data/entities';
+import { getPlace, useEntitiesVersion, useEntityRetry, usePlace, usePost } from '@/data/entities';
 import { useListDetails, useUserPosts } from '@/hooks/queries';
 import { useFavoritePlaces } from '@/hooks/use-favorite-places';
 import { useVisitedPlaces } from '@/hooks/use-visited-places';
@@ -53,6 +53,8 @@ export default function StoryScreen() {
 
   const post = usePost(params.gonderi);
   const postPlace = usePlace(post ? post.placeId : undefined);
+  const retryPost = useEntityRetry('post', params.gonderi);
+  const retryPostPlace = useEntityRetry('place', post ? post.placeId : undefined);
   const posts = useUserPosts(me);
   const listQuery = useListDetails(params.liste);
   const listDetails = listQuery.data;
@@ -102,7 +104,8 @@ export default function StoryScreen() {
   }, [dated, posts.data]);
 
   const kinds = useMemo<StoryKind[]>(() => {
-    if (params.gonderi) return ['post'];
+    // Silinmiş gönderide boş önizleme yerine "Bu gönderi artık yok"
+    if (params.gonderi) return post && postPlace ? ['post'] : [];
     if (params.liste) return listDetails ? ['list'] : [];
     return [
       ...(favorites.length ? (['favorites'] as const) : []),
@@ -110,7 +113,7 @@ export default function StoryScreen() {
       ...(visited.items.length ? (['map'] as const) : []),
       ...(recap ? (['recap'] as const) : []),
     ];
-  }, [params.gonderi, params.liste, listDetails, favorites.length, top.length, visited.items.length, recap]);
+  }, [params.gonderi, post, postPlace, params.liste, listDetails, favorites.length, top.length, visited.items.length, recap]);
 
   const [picked, setPicked] = useState<StoryKind | undefined>(params.tur);
   const kind = picked && kinds.includes(picked) ? picked : kinds[0];
@@ -189,7 +192,10 @@ export default function StoryScreen() {
     : params.liste
       ? listQuery.isPending
       : visited.loading;
-  if (loading) return <LoadingView style={styles.container} />;
+  const retry = params.gonderi ? (retryPost ?? retryPostPlace) : params.liste && listQuery.isError ? () => listQuery.refetch() : null;
+  if (loading || (params.liste && listQuery.isError)) {
+    return retry ? <ErrorView onRetry={retry} style={styles.container} /> : <LoadingView style={styles.container} />;
+  }
 
   if (!kind) {
     return (

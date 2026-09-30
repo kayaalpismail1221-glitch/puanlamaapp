@@ -35,7 +35,8 @@ async function load<T>(importer: () => Promise<T>): Promise<T | null> {
 
 /** Fotoğraflar'a kaydeder (yalnızca ekleme izni istenir); izin verilmezse ya da desteklenmezse false */
 export async function saveImage(uri: string): Promise<boolean> {
-  const MediaLibrary = await load(() => import('expo-media-library'));
+  // Kök paketteki saveToLibraryAsync bu sürümde yalnızca hata fırlatan bir kalıntı; çalışan API /legacy'de
+  const MediaLibrary = await load(() => import('expo-media-library/legacy'));
   if (!MediaLibrary) return false;
   const permission = await MediaLibrary.requestPermissionsAsync(true);
   if (!permission.granted) return false;

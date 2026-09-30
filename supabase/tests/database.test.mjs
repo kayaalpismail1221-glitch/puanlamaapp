@@ -279,6 +279,18 @@ describe('mekân bilgisi düzeltmeleri', () => {
   const suggest = (user, field, value = null, lat = null, lng = null) =>
     one(user, `select suggest_place_correction($1, $2, $3, $4, $5) as r`, [place, field, value, lat, lng]).then((x) => x.r);
   const current = async () => (await db.query(`select * from places where id = $1`, [place])).rows[0];
+  /** Oyu sayılan hesap: 8 günlük ve 5 mekân puanlamış (düzeltilen mekân hariç) */
+  const trusted = async (meta) => {
+    const user = await signUp(meta);
+    await db.query(`update profiles set created_at = now() - interval '8 days' where id = $1`, [user]);
+    await db.query(
+      `insert into rankings (user_id, place_id, sentiment, position, score)
+       select $1, id, 'liked', 100 + row_number() over (order by id), 8
+       from (select id from places where id <> $2 order by id limit 5) p`,
+      [user, place],
+    );
+    return user;
+  };
 
   before(async () => {
     place = (
@@ -289,10 +301,11 @@ describe('mekân bilgisi düzeltmeleri', () => {
   });
   after(() => db.query(`delete from places where id = $1`, [place]));
 
-  test('tek kişinin önerisi bekler; bağımsız ikinci kişi aynısını söyleyince uygulanır ve kilitlenir', async () => {
-    const a = await signUp({ name: 'Düzelten A' });
-    const b = await signUp({ name: 'Düzelten B' });
-    const c = await signUp({ name: 'Farklı C' });
+  test('tek kişinin önerisi bekler; telefonda bağımsız üçüncü güvenilir kişi aynısını söyleyince uygulanır ve kilitlenir', async () => {
+    const a = await trusted({ name: 'Düzelten A' });
+    const b = await trusted({ name: 'Düzelten B' });
+    const d = await trusted({ name: 'Düzelten D' });
+    const c = await trusted({ name: 'Farklı C' });
     assert.equal(await suggest(a, 'phone', '+902164185115'), 'pending');
     assert.equal(await suggest(c, 'phone', '+902169999999'), 'pending'); // farklı değer sayılmaz
     assert.equal((await current()).phone, '+902160000000');
@@ -300,12 +313,14 @@ describe('mekân bilgisi düzeltmeleri', () => {
     assert.equal((await rows(b, 'select * from place_corrections')).length, 0);
     assert.equal((await rows(a, 'select * from place_corrections')).length, 1);
 
-    assert.equal(await suggest(b, 'phone', '+902164185115'), 'applied');
+    // Telefon (oltalamaya açık) iki kişiyle değişmez
+    assert.equal(await suggest(b, 'phone', '+902164185115'), 'pending');
+    assert.equal(await suggest(d, 'phone', '+902164185115'), 'applied');
     const after = await current();
     assert.equal(after.phone, '+902164185115');
     assert.deepEqual(after.locked_fields, ['phone']);
     const statuses = await db.query(`select status, count(*)::int as n from place_corrections where place_id = $1 group by status order by status`, [place]);
-    assert.deepEqual(statuses.rows, [{ status: 'applied', n: 2 }, { status: 'pending', n: 1 }]);
+    assert.deepEqual(statuses.rows, [{ status: 'applied', n: 3 }, { status: 'pending', n: 1 }]);
 
     // Adres: yazım farkı (büyük harf, Türkçe karakter) aynı öneri sayılır
     assert.equal(await suggest(a, 'address', 'Güneşlibahçe Sk. No:43'), 'pending');
@@ -336,8 +351,23 @@ describe('mekân bilgisi düzeltmeleri', () => {
     await rejects(rows(a, `select apply_place_correction(gen_random_uuid())`), /42501/);
   });
 
+  test('yeni hesapların oyu kendiliğinden uygulanmaz (yönetici kuyruğunda bekler)', async () => {
+    const fresh = await Promise.all([1, 2, 3, 4].map((n) => signUp({ name: `Yeni Hesap ${n}` })));
+    for (const user of fresh) assert.equal(await suggest(user, 'closed'), 'pending');
+    for (const user of fresh.slice(0, 3)) assert.equal(await suggest(user, 'website', 'https://oltalama.example.com'), 'pending');
+    const now = await current();
+    assert.equal(now.closed_at, null);
+    assert.notEqual(now.website, 'https://oltalama.example.com');
+    // Eski ama hiç puanlamamış hesap da sayılmaz
+    const idle = await signUp({ name: 'Eski Boş' });
+    await db.query(`update profiles set created_at = now() - interval '60 days' where id = $1`, [idle]);
+    assert.equal(await suggest(idle, 'closed'), 'pending');
+    assert.equal((await current()).closed_at, null);
+    await db.query(`delete from place_corrections where place_id = $1 and status = 'pending'`, [place]);
+  });
+
   test('kapandı: üç bağımsız bildirimle kapanır, arama ve haritadan çıkar', async () => {
-    const [a, b, c] = await Promise.all([signUp({ name: 'K1' }), signUp({ name: 'K2' }), signUp({ name: 'K3' })]);
+    const [a, b, c] = await Promise.all([trusted({ name: 'K1' }), trusted({ name: 'K2' }), trusted({ name: 'K3' })]);
     await db.query(`insert into rankings (user_id, place_id, sentiment, position, score) values ($1, $2, 'liked', 0, 8)`, [a, place]);
     const inSearch = async () => (await rows(a, `select id from search_places('Düzeltme Kafe')`)).some((p) => p.id === place);
     const onMap = async () => (await rows(a, 'select id from map_places(40.8, 28.5, 41.3, 29.4)')).some((p) => p.id === place);
@@ -777,6 +807,20 @@ describe('takip ve engelleme', () => {
     await rejects(as(me, `insert into follows (followee_id) values ($1)`, [USER(2)]), /row-level security/);
     // Engellenen de engelleyeni göremez
     assert.equal((await rows(USER(2), 'select * from profile_view where id = $1', [me])).length, 0);
+  });
+
+  test('engelli çiftler birbirinin puanlarını göremez', async () => {
+    const [me, other, third] = await Promise.all([signUp({ name: 'Puan Gizleyen' }), signUp({ name: 'Puan Engellenen' }), signUp({ name: 'Üçüncü' })]);
+    await db.query(`insert into rankings (user_id, place_id, sentiment, position, score) values ($1, $3, 'liked', 0, 9), ($2, $3, 'liked', 0, 8)`, [me, other, PLACE(1)]);
+    const seen = async (viewer, owner) => (await rows(viewer, 'select * from rankings where user_id = $1', [owner])).length;
+    assert.equal(await seen(other, me), 1);
+    await as(me, `insert into blocks (blocked_id) values ($1)`, [other]);
+    assert.equal(await seen(other, me), 0);
+    assert.equal(await seen(me, other), 0);
+    assert.equal((await rows(other, 'select * from ranking_view where user_id = $1', [me])).length, 0);
+    // Kendi puanları ve başkaları etkilenmez
+    assert.equal(await seen(me, me), 1);
+    assert.equal(await seen(third, me), 1);
   });
 });
 
@@ -1593,6 +1637,24 @@ describe('hesap', () => {
     assert.deepEqual(left[0], { p: 0, g: 0, r: 0 });
     const after = (await db.query('select follower_count from profiles where id = $1', [USER(6)])).rows[0];
     assert.equal(after.follower_count, followers - 1);
+  });
+
+  test('profil fotoğrafı yalnızca kendi klasöründen; dış adres yazılamaz', async () => {
+    const me = await signUp({ name: 'Fotoğraflı' });
+    await as(me, 'update profiles set avatar_path = $2 where id = $1', [me, `${me}/avatar-1.jpg`]);
+    await rejects(as(me, 'update profiles set avatar_path = $2 where id = $1', [me, 'https://izleyici.example.com/p.jpg']), /22023/);
+    await rejects(as(me, 'update profiles set avatar_path = $2 where id = $1', [me, `${USER(1)}/avatar.jpg`]), /22023/);
+    await rejects(as(me, 'update profiles set avatar_path = $2 where id = $1', [me, `${me}/../${USER(1)}/a.jpg`]), /22023/);
+    await as(me, 'update profiles set avatar_path = null where id = $1', [me]);
+    // Başka sütunu güncellemek eski (betikle yazılmış) dış adrese takılmaz
+    await db.query('update profiles set avatar_path = $2 where id = $1', [me, 'https://i.pravatar.cc/200?img=1']);
+    await as(me, 'update profiles set name = $2 where id = $1', [me, 'Fotoğraflı Ad']);
+  });
+
+  test('ağır XP referansı ve puanlama yetkileri', async () => {
+    const me = await signUp({ name: 'Yetki' });
+    await rejects(rows(me, 'select * from xp_totals(null)'), /42501/);
+    await rejects(rows(null, `select rank_place($1, 'liked', 0)`, [PLACE(1)]), /42501/);
   });
 
   test('günlük mekân ekleme sınırı', async () => {

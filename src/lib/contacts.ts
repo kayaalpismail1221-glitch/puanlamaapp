@@ -4,7 +4,7 @@ import { Linking, Platform, Share } from 'react-native';
 import { logShare } from '@/api/growth';
 import i18n from '@/i18n';
 import { formatScore } from '@/lib/format';
-import { downloadHint } from '@/lib/share';
+import { downloadHint, shareCompleted } from '@/lib/share';
 import { normalizePhone } from '@/lib/validation';
 
 /**
@@ -111,5 +111,5 @@ export async function sendInvite(phone: string, text: string, via: 'whatsapp' | 
     // Yerel modül yok (web); paylaşım menüsüne düş
   }
   const shared = await Share.share({ message: text }).catch(() => null);
-  if (shared) logShare('invite', { completed: shared.action === Share.sharedAction });
+  if (shared) logShare('invite', { completed: shareCompleted(shared) });
 }

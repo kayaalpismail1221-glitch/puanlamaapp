@@ -6,14 +6,15 @@ import Animated from 'react-native-reanimated';
 
 import { showError } from '@/api/errors';
 import { FormSection, HighlightPicker, MAX_HIGHLIGHTS } from '@/components/post-fields';
-import { Button, LoadingView, PlaceImage, Text } from '@/components/ui';
+import { Button, ErrorView, LoadingView, PlaceImage, Text } from '@/components/ui';
 import { segmentOf } from '@/constants/segments';
 import { colors, radius, spacing, typography } from '@/constants/theme';
-import { usePlace, usePost } from '@/data/entities';
+import { useEntityRetry, usePlace, usePost } from '@/data/entities';
 import { useUpdatePost } from '@/hooks/queries';
 import { useKeyboardFooterStyle } from '@/hooks/use-keyboard-footer';
 import { haptics } from '@/lib/haptics';
 import { placeSubtitle } from '@/lib/place';
+import type { Place, Post } from '@/types';
 
 /**
  * Kendi gönderini düzenle: açıklama, öğün ve öne çıkanlar.
@@ -24,15 +25,27 @@ export default function EditPostScreen() {
   const { t } = useTranslation();
   const post = usePost(id);
   const place = usePlace(post?.placeId);
+  const retryPost = useEntityRetry('post', id);
+  const retryPlace = useEntityRetry('place', post?.placeId);
+  const retry = retryPost ?? retryPlace;
+
+  if (post === null || place === null) return <ErrorView message={t('comments.gone')} style={styles.container} />;
+  if (!post || !place) {
+    return retry ? <ErrorView onRetry={retry} style={styles.container} /> : <LoadingView style={styles.container} />;
+  }
+  // Form alanları gönderi geldikten sonra kurulur: önbellek boşken açılırsa açıklama boş başlayıp kaydedince silinmesin
+  return <EditPostForm key={post.id} post={post} place={place} />;
+}
+
+function EditPostForm({ post, place }: { post: Post; place: Place }) {
+  const { t } = useTranslation();
   const update = useUpdatePost();
   const footerStyle = useKeyboardFooterStyle();
   const scrollRef = useRef<ScrollView>(null);
   const captionY = useRef(0);
 
-  const [caption, setCaption] = useState(post?.caption ?? '');
-  const [highlights, setHighlights] = useState<string[]>(post?.highlights ?? []);
-
-  if (!post || !place) return <LoadingView style={styles.container} />;
+  const [caption, setCaption] = useState(post.caption ?? '');
+  const [highlights, setHighlights] = useState<string[]>(post.highlights ?? []);
 
   const changed =
     caption.trim() !== (post.caption ?? '') ||
@@ -85,7 +98,7 @@ export default function EditPostScreen() {
 
 
         <FormSection title={t('compose.highlights')} hint={t('compose.highlightsHint', { max: MAX_HIGHLIGHTS })}>
-          <HighlightPicker value={highlights} onChange={setHighlights} segment={place ? segmentOf(place.cuisine) : undefined} />
+          <HighlightPicker value={highlights} onChange={setHighlights} segment={segmentOf(place.cuisine)} />
         </FormSection>
 
         <Text variant="footnote" color={colors.textSecondary}>

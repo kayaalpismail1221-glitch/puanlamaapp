@@ -3,7 +3,7 @@ Uygulama ikonu ve açılış görseli üretir (marka: lacivert zemin, beyaz seri
 
 Çalıştırma: python scripts/generate-icons.py
 Çıktılar: assets/images/{icon,splash-icon,android-icon-foreground,android-icon-background,
-          android-icon-monochrome,favicon}.png
+          android-icon-monochrome,notification-icon,favicon}.png
 Not: iOS ikonu saydamlık içeremez; köşe yuvarlatmayı sistem yapar (tam kare çizilir).
 """
 from pathlib import Path
@@ -59,6 +59,16 @@ def draw_mark(size, fg, dot, scale=1.0, shadow=False):
     return layer
 
 
+def notification_icon():
+    """Android durum çubuğu bildirim simgesi: saydam zeminde beyaz silüet, 24 dp'yi dolduracak kadar büyük (96 px)"""
+    mark = draw_mark(768, WHITE, WHITE)
+    mark = mark.crop(mark.getbbox())
+    side = round(max(mark.size) / 0.86)
+    square = Image.new('RGBA', (side, side), (0, 0, 0, 0))
+    square.alpha_composite(mark, ((side - mark.width) // 2, (side - mark.height) // 2))
+    return square.resize((96, 96), Image.LANCZOS)
+
+
 def main():
     # iOS / genel ikon (1024, opak)
     icon = gradient(1024, NAVY_LIGHT, NAVY).convert('RGBA')
@@ -73,6 +83,8 @@ def main():
     draw_mark(512, WHITE, GREEN_LIGHT, scale=0.62).save(ROOT / 'android-icon-foreground.png')
     gradient(512, NAVY_LIGHT, NAVY).save(ROOT / 'android-icon-background.png')
     draw_mark(512, WHITE, WHITE, scale=0.62).save(ROOT / 'android-icon-monochrome.png')
+
+    notification_icon().save(ROOT / 'notification-icon.png')
 
     # Web favicon
     icon.convert('RGB').resize((48, 48), Image.LANCZOS).save(ROOT / 'favicon.png')

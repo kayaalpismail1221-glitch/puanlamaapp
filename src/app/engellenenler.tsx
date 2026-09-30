@@ -5,6 +5,7 @@ import { FlatList, StyleSheet, View } from 'react-native';
 
 import { fetchBlockedUsers, unblock, type BlockedUser } from '@/api/content';
 import { showError } from '@/api/errors';
+import { BottomInsetSpacer } from '@/components/bottom-inset';
 import { SkeletonScreen, UserRowsSkeleton } from '@/components/skeleton';
 import { Avatar, Button, Divider, ErrorView, Text } from '@/components/ui';
 import { colors, spacing } from '@/constants/theme';
@@ -48,6 +49,7 @@ export default function BlockedUsersScreen() {
 
   return (
     <FlatList
+      ListFooterComponent={<BottomInsetSpacer />}
       style={styles.container}
       data={blocked.data}
       keyExtractor={(u) => u.id}

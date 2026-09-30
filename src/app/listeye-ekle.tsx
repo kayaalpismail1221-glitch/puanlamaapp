@@ -9,6 +9,7 @@ import { PlacePicker } from '@/components/place-picker';
 import { Button, PlaceImage, PressableScale, Text } from '@/components/ui';
 import { colors, radius, spacing, typography } from '@/constants/theme';
 import { usePlace } from '@/data/entities';
+import { useAndroidBack } from '@/hooks/use-android-back';
 import { useKeyboardFooterStyle } from '@/hooks/use-keyboard-footer';
 import { readClipboardLink, useClipboardHasUrl } from '@/lib/clipboard';
 import { haptics } from '@/lib/haptics';
@@ -67,6 +68,8 @@ export default function AddToListScreen() {
 
   const title = isSocial ? t('addToList.fromSocialTitle') : t('addToList.savePlaceTitle');
   const place = usePlace(placeId);
+  // Android geri tuşu 2. adımdan mekân seçimine döner (mekân dışarıdan verilmediyse), pencereyi kapatmaz
+  useAndroidBack(place && !params.placeId ? () => setPlaceId(undefined) : null);
 
   // 1. adım: mekân seç
   if (!place) {

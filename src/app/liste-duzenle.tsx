@@ -8,7 +8,7 @@ import Animated from 'react-native-reanimated';
 import { showError } from '@/api/errors';
 import type { ListDetails } from '@/api/lists';
 import { PlaceRowsSkeleton } from '@/components/skeleton';
-import { Button, Divider, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
+import { Button, Divider, ErrorView, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { cuisineLabel } from '@/constants/cuisines';
 import { colors, fonts, radius, spacing, typography } from '@/constants/theme';
 import { getPlace, useEntitiesVersion } from '@/data/entities';
@@ -39,6 +39,7 @@ export default function ListEditorScreen() {
   // `baslik`: yeni listenin hazır başlığı (profildeki "Favori mekânlarını listele")
   const { id, baslik } = useLocalSearchParams<{ id?: string; baslik?: string }>();
   const existing = useListDetails(id);
+  const { t } = useTranslation();
   // Düzenlemede form, mevcut liste yüklenince onun değerleriyle açılır
   if (id && existing.isPending) {
     return (
@@ -46,6 +47,13 @@ export default function ListEditorScreen() {
         <PlaceRowsSkeleton count={8} />
       </View>
     );
+  }
+  // Liste yüklenemezse boş form açılmaz: kaydedince listenin mekânları silinirdi
+  if (id && existing.isError) {
+    return <ErrorView onRetry={() => existing.refetch()} style={styles.container} />;
+  }
+  if (id && !existing.data) {
+    return <ErrorView message={t('lists.notFound')} style={styles.container} />;
   }
   return <ListEditor id={id} initial={existing.data ?? undefined} initialTitle={baslik} />;
 }

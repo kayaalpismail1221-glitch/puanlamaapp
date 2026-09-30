@@ -1,7 +1,8 @@
 import { SymbolView, type SFSymbol } from '@/components/symbol';
-import type { ReactNode } from 'react';
+import { isValidElement, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { Toggle } from '@/components/toggle';
 import { Text } from '@/components/ui';
 import { colors, radius, spacing } from '@/constants/theme';
 import { haptics } from '@/lib/haptics';
@@ -48,16 +49,26 @@ export function SettingsRow({
   destructive?: boolean;
   last?: boolean;
 }) {
+  // Material'da anahtarlı satırın tamamı dokunulabilir: satıra dokunmak anahtarı çevirir
+  const toggle =
+    !onPress && isValidElement<{ value: boolean; onValueChange: (v: boolean) => void; disabled?: boolean }>(accessory) &&
+    accessory.type === Toggle &&
+    !accessory.props.disabled
+      ? () => accessory.props.onValueChange(!accessory.props.value)
+      : undefined;
+  const press = onPress ?? toggle;
   return (
     <Pressable
       onPress={
-        onPress &&
+        press &&
         (() => {
-          haptics.tap();
-          onPress();
+          // Anahtarın kendi dokunuşundaki gibi seçim titreşimi
+          if (toggle) haptics.select();
+          else haptics.tap();
+          press();
         })
       }
-      disabled={!onPress}
+      disabled={!press}
       android_ripple={{ color: colors.border }}
       style={styles.row}
       accessibilityRole={checked !== undefined ? 'radio' : 'button'}

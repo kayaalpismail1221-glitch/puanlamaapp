@@ -337,6 +337,8 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   /* Kullanıcı verisini sunucudan yükleme */
   const load = useCallback(async (userId: string, email?: string) => {
     try {
+      // Sunucuya yazılmakta olan puan/takip/beğeni önce bitsin: yoksa gelen eski veri iyimser değişikliği ezer
+      await Promise.allSettled([...requestQueues.current.values()]);
       const data = await meApi.loadMyData(userId, email);
       if (stateRef.current.userId !== userId) return;
       upsertUsers([profileUser(data.profile)]);
@@ -577,6 +579,10 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
             queryClient.invalidateQueries({ queryKey: ['taste-match'] });
             // Listeler sahibin güncel puanına göre sıralanır
             queryClient.invalidateQueries({ queryKey: ['lists'] });
+            // Puanlama XP verir (profildeki "Sıralama" ilk puanla açılır); puanlanan mekân önerilerden çıkar
+            queryClient.invalidateQueries({ queryKey: keys.userRank(me()) });
+            queryClient.invalidateQueries({ queryKey: ['leaderboard'] });
+            queryClient.invalidateQueries({ queryKey: ['recommendations'] });
           },
         );
         // Gönderi paylaşılırken puanın sunucuya yazılmış olması beklenir (bkz. waitForRank)
@@ -596,10 +602,14 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           i18n.t('failures.rankDelete'),
           () => {
             queryClient.invalidateQueries({ queryKey: keys.place(placeId) });
+            queryClient.invalidateQueries({ queryKey: keys.userRankings(me()) });
             queryClient.invalidateQueries({ queryKey: ['map-places'] });
             queryClient.invalidateQueries({ queryKey: ['taste-match'] });
             // Listeler sahibin güncel puanına göre sıralanır
             queryClient.invalidateQueries({ queryKey: ['lists'] });
+            queryClient.invalidateQueries({ queryKey: keys.userRank(me()) });
+            queryClient.invalidateQueries({ queryKey: ['leaderboard'] });
+            queryClient.invalidateQueries({ queryKey: ['recommendations'] });
           },
         ),
 

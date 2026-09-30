@@ -10,6 +10,7 @@ import { BigInput, OnboardingStep } from '@/components/onboarding-step';
 import { Button, PressableScale, Text } from '@/components/ui';
 import { APPLE_SIGN_IN_ENABLED, EMAIL_CODES_ENABLED } from '@/constants/features';
 import { colors, radius, spacing } from '@/constants/theme';
+import { useScheme } from '@/hooks/use-palette';
 import { haptics } from '@/lib/haptics';
 import { isValidEmail } from '@/lib/validation';
 
@@ -18,6 +19,8 @@ import { isValidEmail } from '@/lib/validation';
  * Başarılı olunca oturum açılır; kök düzen kullanıcıyı sekmelere (ya da yarım kalan kuruluma) taşır.
  */
 export default function SignInScreen() {
+  // Apple'ın kuralı: koyu zeminde beyaz, açık zeminde siyah düğme (siyah düğme koyu zeminde kaybolur)
+  const scheme = useScheme();
   const params = useLocalSearchParams<{ email?: string }>();
   const { t } = useTranslation();
   const [email, setEmail] = useState(params.email ?? '');
@@ -119,7 +122,11 @@ export default function SignInScreen() {
             </View>
             <AppleAuthentication.AppleAuthenticationButton
               buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+              buttonStyle={
+                scheme === 'dark'
+                  ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
+                  : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
+              }
               cornerRadius={radius.button}
               style={styles.appleButton}
               onPress={apple}
