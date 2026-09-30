@@ -1,6 +1,6 @@
 /**
  * Web için react-native-maps yer tutucusu (yalnızca tarayıcıda geliştirme/deneme).
- * iOS'ta gerçek Apple Haritalar kullanılır; bu dosya iOS paketine girmez (bkz. metro.config.js).
+ * Telefonda gerçek harita kullanılır (iOS'ta Apple, Android'de Google Haritalar); bu dosya yalnızca web paketine girer (bkz. metro.config.js).
  */
 import { forwardRef, useImperativeHandle, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';

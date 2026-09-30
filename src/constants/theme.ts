@@ -13,6 +13,9 @@ export const colors = {
   // Marka
   primary: '#0F1E3D',
   onPrimary: '#FFFFFF',
+  /** Android: seçili sekme göstergesi ve dokunma dalgası (lacivertin çok açık tonu) */
+  primarySoft: '#E4E9F2',
+  ripple: 'rgba(15, 30, 61, 0.08)',
 
   // Metin
   text: '#111827',
@@ -24,6 +27,8 @@ export const colors = {
   warning: '#D97706',
   like: '#E11D48',
   overlay: 'rgba(15, 30, 61, 0.45)',
+  /** Android'de cam yerine: harita üstündeki yükseltilmiş yüzey */
+  raisedSurface: 'rgba(255, 255, 255, 0.97)',
 
 
   // Çizim tarzı dünya haritası (profildeki lezzet haritası): kâğıt tonunda kara, yumuşak mavi deniz
@@ -52,10 +57,15 @@ export const spacing = {
 export const radius = {
   card: 16,
   button: 12,
+  /** Android alt sayfa ve diyalog köşesi (Material 3) */
+  sheet: 28,
   full: 999,
 } as const;
 
-// iOS sistem fontu (SF Pro) kullanılır; fontFamily belirtmiyoruz.
+/** Stack başlığının yüksekliği (güvenli alan hariç): iOS 44, Android Material üst çubuğu 64 */
+export const headerHeight = Platform.select({ ios: 44, default: 64 });
+
+// Sistem fontu kullanılır (iOS'ta SF Pro, Android'de Roboto); fontFamily belirtmiyoruz.
 export const typography = {
   largeTitle: { fontSize: 34, fontWeight: '700', letterSpacing: 0.4 },
   title: { fontSize: 28, fontWeight: '700', letterSpacing: 0.3 },
@@ -75,6 +85,12 @@ export type TypographyVariant = keyof typeof typography;
 export const fonts = {
   serif: Platform.select({ ios: 'ui-serif', default: 'serif' }),
   rounded: Platform.select({ ios: 'ui-rounded', default: undefined }),
+} as const;
+
+/** Gölgeler (iOS ve Android'de aynı çizilen `boxShadow`) */
+export const shadows = {
+  /** Material'deki 3. seviye yükselti: harita üstündeki paneller */
+  raised: '0 2px 12px rgba(15, 30, 61, 0.16)',
 } as const;
 
 export const hitSlop = { top: 8, bottom: 8, left: 8, right: 8 } as const;

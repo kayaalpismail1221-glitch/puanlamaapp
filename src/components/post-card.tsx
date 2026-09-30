@@ -1,10 +1,10 @@
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring } from 'react-native-reanimated';
 
+import { Icon } from '@/components/icon';
 import { PhotoCarousel } from '@/components/photo-carousel';
 import { Avatar, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { cuisineLabel } from '@/constants/cuisines';
@@ -131,19 +131,26 @@ export const PostCard = memo(function PostCard({ post: initial, expanded, distan
         ? [
             {
               label: t('story.shareToStory'),
+              icon: 'rectangle.portrait.on.rectangle.portrait',
               onPress: () => router.push({ pathname: '/hikaye', params: { gonderi: post.id } }),
             },
-            { label: t('common.share'), onPress: () => sharePost(post, place, user.name) },
+            { label: t('common.share'), icon: 'square.and.arrow.up', onPress: () => sharePost(post, place, user.name) },
             {
               label: t('editPost.edit'),
+              icon: 'pencil',
               onPress: () => router.push({ pathname: '/gonderi-duzenle', params: { id: post.id } }),
             },
-            { label: t('post.deleteTitle'), destructive: true, onPress: confirmDelete },
+            { label: t('post.deleteTitle'), icon: 'trash', destructive: true, onPress: confirmDelete },
           ]
         : [
-            { label: t('common.share'), onPress: () => sharePost(post, place, user.name) },
-            { label: t('moderation.report'), destructive: true, onPress: () => openReportMenu({ postId: post.id }) },
-            { label: t('moderation.blockUser', { name: user.name.split(' ')[0] }), destructive: true, onPress: blockUser },
+            { label: t('common.share'), icon: 'square.and.arrow.up', onPress: () => sharePost(post, place, user.name) },
+            { label: t('moderation.report'), icon: 'flag', destructive: true, onPress: () => openReportMenu({ postId: post.id }) },
+            {
+              label: t('moderation.blockUser', { name: user.name.split(' ')[0] }),
+              icon: 'nosign',
+              destructive: true,
+              onPress: blockUser,
+            },
           ],
     );
 
@@ -169,14 +176,14 @@ export const PostCard = memo(function PostCard({ post: initial, expanded, distan
         </View>
         {post.score !== undefined && <ScoreBadge score={post.score} />}
         <PressableScale onPress={showPostMenu} hitSlop={hitSlop} accessibilityLabel={t('moderation.options')}>
-          <SymbolView name="ellipsis" tintColor={colors.textSecondary} size={18} />
+          <Icon name="ellipsis" tintColor={colors.textSecondary} size={18} />
         </PressableScale>
       </View>
 
       {/* Birlikte gidilen arkadaşlar */}
       {tagged.length > 0 && (
         <View style={styles.tagged}>
-          <SymbolView name="person.2.fill" tintColor={colors.textSecondary} size={14} />
+          <Icon name="person.2.fill" tintColor={colors.textSecondary} size={14} />
           <Text variant="footnote" color={colors.textSecondary} numberOfLines={1} style={{ flex: 1 }}>
             {t('post.togetherPrefix')}
             {tagged.map((u, i) => (
@@ -220,7 +227,7 @@ export const PostCard = memo(function PostCard({ post: initial, expanded, distan
       <View style={styles.actions}>
         <PressableScale onPress={toggleLike} haptic={false} hitSlop={hitSlop} style={styles.action} accessibilityLabel={t('post.like')}>
           <Animated.View style={heartStyle}>
-            <SymbolView
+            <Icon
               name={liked ? 'heart.fill' : 'heart'}
               tintColor={liked ? colors.like : colors.text}
               size={24}
@@ -231,7 +238,7 @@ export const PostCard = memo(function PostCard({ post: initial, expanded, distan
           </Text>
         </PressableScale>
         <PressableScale onPress={openPost} hitSlop={hitSlop} style={styles.action} accessibilityLabel={t('post.comments')}>
-          <SymbolView name="bubble.right" tintColor={colors.text} size={23} />
+          <Icon name="bubble.right" tintColor={colors.text} size={23} />
           <Text variant="subhead" style={styles.bold}>
             {commentCount}
           </Text>
@@ -251,7 +258,7 @@ export const PostCard = memo(function PostCard({ post: initial, expanded, distan
           />
         )}
         <PressableScale onPress={toggleSave} haptic={false} hitSlop={hitSlop} accessibilityLabel={saved ? t('post.unsave') : t('post.save')}>
-          <SymbolView
+          <Icon
             name={saved ? 'bookmark.fill' : 'bookmark'}
             tintColor={saved ? colors.primary : colors.text}
             size={23}
@@ -302,7 +309,7 @@ function MyScorePill({
         style={styles.pill}
         accessibilityRole="button"
         accessibilityLabel={t('post.rateTooLabel', { place: placeName })}>
-        <SymbolView name="plus" tintColor={colors.primary} size={11} weight="bold" />
+        <Icon name="plus" tintColor={colors.primary} size={11} weight="bold" />
         <Text variant="footnote" color={colors.primary} style={styles.bold}>
           {t('post.rateToo')}
         </Text>

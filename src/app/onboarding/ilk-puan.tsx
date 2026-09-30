@@ -1,10 +1,10 @@
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
+import { Icon } from '@/components/icon';
 import { OnboardingStep } from '@/components/onboarding-step';
 import { PlaceSearchList } from '@/components/place-picker';
 import type { Invite } from '@/api/contacts';
@@ -14,6 +14,7 @@ import { colors, radius, spacing } from '@/constants/theme';
 import { usePlace } from '@/data/entities';
 import { useUserPosts } from '@/hooks/queries';
 import { useMyInvites } from '@/hooks/use-contact-friends';
+import { useBlockHardwareBack } from '@/hooks/use-hardware-back';
 import { formatScore } from '@/lib/format';
 import { useAppStore } from '@/store/app-store';
 
@@ -22,6 +23,7 @@ const rate = (id: string) => router.push({ pathname: '/degerlendir/[id]', params
 
 /** 5. En son gidilen restoranı puanla */
 export default function FirstRatingStep() {
+  useBlockHardwareBack();
   const { scored, scoreOf, userId } = useAppStore();
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
@@ -51,7 +53,7 @@ export default function FirstRatingStep() {
             <PlaceImage uri={firstPlace.photoUrl} style={styles.ratedImage} />
             <View style={{ flex: 1, gap: 2 }}>
               <View style={styles.ratedLabel}>
-                <SymbolView name="checkmark.circle.fill" tintColor={colors.primary} size={14} />
+                <Icon name="checkmark.circle.fill" tintColor={colors.primary} size={14} />
                 <Text variant="caption" color={colors.primary} style={styles.bold}>
                   {posted ? t('onboarding.firstPostShared') : t('onboarding.firstRateSaved')}
                 </Text>
@@ -89,7 +91,7 @@ export default function FirstRatingStep() {
             query={query}
             exclude={(p) => scoreOf(p.id) !== undefined}
             onSelect={(p) => rate(p.id)}
-            trailing={() => <SymbolView name="plus.circle" tintColor={colors.primary} size={26} />}
+            trailing={() => <Icon name="plus.circle" tintColor={colors.primary} size={26} />}
           />
         </>
       )}

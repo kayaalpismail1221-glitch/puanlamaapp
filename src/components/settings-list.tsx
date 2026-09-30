@@ -1,7 +1,7 @@
-import { SymbolView, type SFSymbol } from 'expo-symbols';
 import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { Icon, type AppSymbol } from '@/components/icon';
 import { PressableScale, Text } from '@/components/ui';
 import { colors, radius, spacing } from '@/constants/theme';
 import { currentLocale } from '@/i18n';
@@ -35,7 +35,7 @@ export function SettingsRow({
   destructive,
   last,
 }: {
-  icon?: SFSymbol;
+  icon?: AppSymbol;
   label: string;
   value?: string;
   accessory?: ReactNode;
@@ -57,7 +57,7 @@ export function SettingsRow({
       accessibilityState={checked !== undefined ? { selected: checked } : undefined}>
       {icon && (
         <View style={styles.rowIcon}>
-          <SymbolView name={icon} tintColor={colors.onPrimary} size={15} />
+          <Icon name={icon} tintColor={colors.onPrimary} size={15} />
         </View>
       )}
       <View style={[styles.rowBody, !last && styles.rowDivider]}>
@@ -70,8 +70,8 @@ export function SettingsRow({
           </Text>
         )}
         {accessory}
-        {checked && <SymbolView name="checkmark" tintColor={colors.primary} size={16} weight="semibold" />}
-        {showChevron && <SymbolView name="chevron.right" tintColor={colors.textTertiary} size={13} weight="semibold" />}
+        {checked && <Icon name="checkmark" tintColor={colors.primary} size={16} weight="semibold" />}
+        {showChevron && <Icon name="chevron.right" tintColor={colors.textTertiary} size={13} weight="semibold" />}
       </View>
     </PressableScale>
   );

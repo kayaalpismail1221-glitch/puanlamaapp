@@ -1,17 +1,19 @@
 import { useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, FlatList, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, FlatList, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Icon } from '@/components/icon';
+import { KeyboardAvoidingView } from '@/components/keyboard-avoiding-view';
 import { PostCard } from '@/components/post-card';
 import { showError } from '@/api/errors';
 import { CommentsSkeleton } from '@/components/skeleton';
 import { Avatar, Divider, LoadingView, PressableScale, Text } from '@/components/ui';
-import { colors, hitSlop, radius, spacing, typography } from '@/constants/theme';
+import { colors, headerHeight, hitSlop, radius, spacing, typography } from '@/constants/theme';
 import { getUser, usePost, useUser } from '@/data/entities';
 import { useAddComment, useComments, useDeleteComment } from '@/hooks/queries';
+import type { MenuOption } from '@/lib/dialogs';
 import { timeAgo } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
 import { confirmBlock, openReportMenu, showMenu } from '@/lib/moderation';
@@ -69,15 +71,16 @@ export default function PostDetailScreen() {
    */
   const commentActions = (comment: Comment) => {
     const author = getUser(comment.userId);
-    const options = [];
+    const options: MenuOption[] = [];
     if (isMe(comment.userId) || isMe(post.userId)) {
-      options.push({ label: t('comments.deleteTitle'), destructive: true, onPress: () => confirmDelete(comment) });
+      options.push({ label: t('comments.deleteTitle'), icon: 'trash', destructive: true, onPress: () => confirmDelete(comment) });
     }
     if (!isMe(comment.userId)) {
-      options.push({ label: t('moderation.reportComment'), destructive: true, onPress: () => openReportMenu({ commentId: comment.id }) });
+      options.push({ label: t('moderation.reportComment'), icon: 'flag', destructive: true, onPress: () => openReportMenu({ commentId: comment.id }) });
       if (author) {
         options.push({
           label: t('moderation.blockUser', { name: author.name.split(' ')[0] }),
+          icon: 'nosign',
           destructive: true,
           onPress: () =>
             confirmBlock(author, () => {
@@ -93,8 +96,8 @@ export default function PostDetailScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={insets.top + 44}>
+      behavior="padding"
+      keyboardVerticalOffset={insets.top + headerHeight}>
       <FlatList
         data={comments.data ?? []}
         keyExtractor={(c) => c.id}
@@ -138,7 +141,7 @@ export default function PostDetailScreen() {
           disabled={!text.trim() || addComment.isPending}
           hitSlop={hitSlop}
           accessibilityLabel={t('comments.send')}>
-          <SymbolView
+          <Icon
             name="arrow.up.circle.fill"
             tintColor={text.trim() ? colors.primary : colors.textTertiary}
             size={30}
@@ -171,7 +174,7 @@ function CommentRow({ comment, onActions }: { comment: Comment; onActions: () =>
       </View>
       {/* Uzun basma yanında görünür bir seçenekler düğmesi: şikâyet/engelle kolay bulunsun */}
       <PressableScale onPress={onActions} hitSlop={hitSlop} accessibilityLabel={t('moderation.options')}>
-        <SymbolView name="ellipsis" tintColor={colors.textTertiary} size={16} />
+        <Icon name="ellipsis" tintColor={colors.textTertiary} size={16} />
       </PressableScale>
     </PressableScale>
   );

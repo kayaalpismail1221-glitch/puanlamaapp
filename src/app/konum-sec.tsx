@@ -1,10 +1,10 @@
 import { router, Stack } from 'expo-router';
-import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
+import { Icon, type AppSymbol } from '@/components/icon';
 import { TextRowsSkeleton } from '@/components/skeleton';
 import { Divider, ErrorView, PressableScale, SearchField, Text } from '@/components/ui';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
@@ -53,7 +53,7 @@ export default function PickAreaScreen() {
                 hitSlop={hitSlop}
                 style={styles.back}
                 accessibilityLabel={t('area.cities')}>
-                <SymbolView name="chevron.left" tintColor={colors.primary} size={17} weight="semibold" />
+                <Icon name="chevron.left" tintColor={colors.primary} size={17} weight="semibold" />
                 <Text variant="body" color={colors.primary}>
                   {t('area.cities')}
                 </Text>
@@ -163,7 +163,7 @@ function AreaRow({
   highlight,
   onPress,
 }: {
-  icon: SFSymbol;
+  icon: AppSymbol;
   title: string;
   subtitle: string;
   active: boolean;
@@ -174,7 +174,7 @@ function AreaRow({
   return (
     <PressableScale onPress={onPress} scaleTo={0.98} haptic={false} style={styles.row}>
       <View style={[styles.icon, highlight && styles.iconHighlight]}>
-        <SymbolView name={icon} tintColor={highlight ? colors.onPrimary : colors.primary} size={18} />
+        <Icon name={icon} tintColor={highlight ? colors.onPrimary : colors.primary} size={18} />
       </View>
       <View style={{ flex: 1, gap: 2 }}>
         <Text variant="headline">{title}</Text>
@@ -182,8 +182,8 @@ function AreaRow({
           {subtitle}
         </Text>
       </View>
-      {active && <SymbolView name="checkmark" tintColor={colors.primary} size={16} weight="bold" />}
-      {chevron && <SymbolView name="chevron.right" tintColor={colors.textTertiary} size={14} />}
+      {active && <Icon name="checkmark" tintColor={colors.primary} size={16} weight="bold" />}
+      {chevron && <Icon name="chevron.right" tintColor={colors.textTertiary} size={14} />}
     </PressableScale>
   );
 }

@@ -1,5 +1,4 @@
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, StyleSheet, View } from 'react-native';
@@ -7,6 +6,7 @@ import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated'
 
 import { signUp } from '@/api/auth';
 import { showError, toUserMessage } from '@/api/errors';
+import { Icon } from '@/components/icon';
 import { LegalConsent } from '@/components/legal-consent';
 import { BigInput, OnboardingStep } from '@/components/onboarding-step';
 import { Button, PressableScale, Text } from '@/components/ui';
@@ -88,7 +88,7 @@ export default function PasswordStep() {
             onPress={() => setVisible((v) => !v)}
             hitSlop={hitSlop}
             accessibilityLabel={visible ? t('onboarding.hidePassword') : t('onboarding.showPassword')}>
-            <SymbolView name={visible ? 'eye.slash' : 'eye'} tintColor={colors.textSecondary} size={22} />
+            <Icon name={visible ? 'eye.slash' : 'eye'} tintColor={colors.textSecondary} size={22} />
           </PressableScale>
         }
       />
@@ -107,7 +107,7 @@ export default function PasswordStep() {
       <View style={styles.checks}>
         {checks.map((c) => (
           <View key={c.label} style={styles.check}>
-            <SymbolView
+            <Icon
               name={c.ok ? 'checkmark.circle.fill' : 'circle'}
               tintColor={c.ok ? colors.primary : colors.textTertiary}
               size={18}

@@ -1,9 +1,9 @@
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useTranslation } from 'react-i18next';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 
 import type { Recommendation } from '@/api/content';
+import { Icon } from '@/components/icon';
 import { PlaceRowsSkeleton, SkeletonScreen } from '@/components/skeleton';
 import { Button, Divider, ErrorView, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { cuisineLabel } from '@/constants/cuisines';
@@ -47,7 +47,7 @@ export default function RecommendationsScreen() {
       ItemSeparatorComponent={() => <Divider inset={spacing.lg + 64 + spacing.md} />}
       ListEmptyComponent={
         <View style={styles.empty}>
-          <SymbolView name="sparkles" tintColor={colors.textTertiary} size={40} />
+          <Icon name="sparkles" tintColor={colors.textTertiary} size={40} />
           <Text variant="title3" align="center">
             {t('recs.emptyTitle')}
           </Text>
@@ -89,7 +89,7 @@ function RecommendationRow({ rec }: { rec: Recommendation }) {
           {rec.distanceKm !== undefined ? ` · ${t('recs.distance', { distance: formatDistance(rec.distanceKm) })}` : ''}
         </Text>
         <View style={styles.reason}>
-          <SymbolView
+          <Icon
             name={rec.friendAverage !== undefined ? 'person.2.fill' : 'star.fill'}
             tintColor={colors.primary}
             size={11}
@@ -104,7 +104,7 @@ function RecommendationRow({ rec }: { rec: Recommendation }) {
         hitSlop={hitSlop}
         onPress={() => actions.toggleSaved(place.id)}
         accessibilityLabel={saved ? t('common.removeFromList') : t('common.saveToList')}>
-        <SymbolView name={saved ? 'bookmark.fill' : 'bookmark'} tintColor={colors.primary} size={22} />
+        <Icon name={saved ? 'bookmark.fill' : 'bookmark'} tintColor={colors.primary} size={22} />
       </PressableScale>
     </PressableScale>
   );

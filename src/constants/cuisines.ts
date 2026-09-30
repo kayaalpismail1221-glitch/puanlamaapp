@@ -1,10 +1,10 @@
-import type { SFSymbol } from 'expo-symbols';
 
+import type { AppSymbol } from '@/constants/icons';
 import i18n from '@/i18n';
 import type { Cuisine } from '@/types';
 
 /** Mutfak kategorileri; veritabanındaki `cuisines` tablosuyla aynı sırada (değerler Türkçe, ekranda çevrilir) */
-export const CUISINES: { name: Cuisine; icon: SFSymbol }[] = [
+export const CUISINES: { name: Cuisine; icon: AppSymbol }[] = [
   { name: 'Kahvaltıcı', icon: 'sun.horizon' },
   { name: 'Esnaf lokantası', icon: 'fork.knife' },
   { name: 'Dürümcü', icon: 'flame' },

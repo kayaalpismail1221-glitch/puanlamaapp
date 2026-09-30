@@ -118,6 +118,7 @@
       }
     },
     "android": {
+      "package": "app.puanla",
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -127,7 +128,9 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ],
+      "blockedPermissions": [
         "android.permission.RECORD_AUDIO"
       ]
     },
@@ -164,7 +167,8 @@
       [
         "expo-notifications",
         {
-          "color": "#0F1E3D"
+          "color": "#0F1E3D",
+          "icon": "./assets/images/android-icon-monochrome.png"
         }
       ],
       [

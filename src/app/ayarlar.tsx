@@ -1,11 +1,11 @@
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, Switch, View } from 'react-native';
 
 import { showError } from '@/api/errors';
+import { Icon } from '@/components/icon';
 import { SettingsGroup, SettingsRow, settingsStyles } from '@/components/settings-list';
 import { Avatar, PressableScale, Text } from '@/components/ui';
 import { SUPPORT_EMAIL } from '@/constants/app';
@@ -82,7 +82,7 @@ export default function SettingsScreen() {
               @{profile?.username} · {t('settings.editProfile')}
             </Text>
           </View>
-          <SymbolView name="chevron.right" tintColor={colors.textTertiary} size={14} weight="semibold" />
+          <Icon name="chevron.right" tintColor={colors.textTertiary} size={14} weight="semibold" />
         </PressableScale>
       </SettingsGroup>
 

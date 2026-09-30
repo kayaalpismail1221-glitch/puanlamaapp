@@ -1,9 +1,9 @@
-import type { SFSymbol } from 'expo-symbols';
 
+import type { AppSymbol } from '@/constants/icons';
 import i18n from '@/i18n';
 
 /** Kaydedilen bağlantının kaynağını (Instagram, TikTok…) tanır */
-export function linkSource(url: string): { label: string; icon: SFSymbol } {
+export function linkSource(url: string): { label: string; icon: AppSymbol } {
   let host = '';
   try {
     host = new URL(normalizeUrl(url)).hostname.replace(/^www\./, '');

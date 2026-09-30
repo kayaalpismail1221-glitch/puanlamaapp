@@ -1,15 +1,17 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, TextInput, View } from 'react-native';
+import { Platform, StyleSheet, TextInput, View } from 'react-native';
 import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Icon } from '@/components/icon';
 import { CompareStep, SentimentChoice, useRankResultText } from '@/components/rank-steps';
 import { Button, LoadingView, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { cuisineLabel } from '@/constants/cuisines';
 import { colors, hitSlop, radius, spacing, typography } from '@/constants/theme';
 import { getPlace, usePlace } from '@/data/entities';
+import { useHardwareBack } from '@/hooks/use-hardware-back';
 import { useKeyboardFooterStyle } from '@/hooks/use-keyboard-footer';
 import { useRankFlow } from '@/hooks/use-rank-flow';
 import { currentLanguage } from '@/i18n';
@@ -40,6 +42,17 @@ export default function RateScreen() {
   const footerStyle = useKeyboardFooterStyle();
   const flow = useRankFlow(id);
   const resultText = useRankResultText();
+  const insets = useSafeAreaInsets();
+  // Android'de geri: karşılaştırmadaysa bir adım geri, ilk adımda sayfayı kapatır (üstteki ↶ ve ✕ gibi)
+  const inProgress = flow.phase !== 'sentiment';
+  const undo = flow.undo;
+  useHardwareBack(
+    useCallback(() => {
+      if (!inProgress) return false;
+      undo();
+      return true;
+    }, [inProgress, undo]),
+  );
 
   const [note, setNote] = useState(
     () => Object.values(rankings).flat().find((e) => e.placeId === id)?.note ?? '',
@@ -67,15 +80,16 @@ export default function RateScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: spacing.lg }]}>
+    // iOS'ta sayfa durum çubuğunun altında açılır; Android'de tam ekran olduğundan güvenli alan eklenir
+    <View style={[styles.container, { paddingTop: (Platform.OS === 'android' ? insets.top : 0) + spacing.lg }]}>
       {/* Üst bar */}
       <View style={styles.topBar}>
         <PressableScale onPress={() => router.back()} hitSlop={hitSlop} style={styles.iconButton} accessibilityLabel={t('rate.close')}>
-          <SymbolView name="xmark" tintColor={colors.primary} size={16} weight="semibold" />
+          <Icon name="xmark" tintColor={colors.primary} size={16} weight="semibold" />
         </PressableScale>
         {flow.phase !== 'sentiment' && (
           <PressableScale onPress={flow.undo} hitSlop={hitSlop} style={styles.iconButton} accessibilityLabel={t('rate.undo')}>
-            <SymbolView name="arrow.uturn.backward" tintColor={colors.primary} size={16} weight="semibold" />
+            <Icon name="arrow.uturn.backward" tintColor={colors.primary} size={16} weight="semibold" />
           </PressableScale>
         )}
       </View>

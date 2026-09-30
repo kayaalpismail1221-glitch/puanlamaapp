@@ -1,6 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
-import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
@@ -8,6 +7,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { GlassSurface } from '@/components/glass-surface';
+import { Icon, type AppSymbol } from '@/components/icon';
 import { MapStoryCard, STORY_MAP_ASPECT, type StoryAuthor } from '@/components/story-cards';
 import { PressableScale, Text } from '@/components/ui';
 import { colors, gradients, hitSlop, radius, scoreColor, spacing } from '@/constants/theme';
@@ -25,7 +25,7 @@ import { useAppStore } from '@/store/app-store';
 
 type Action = 'share' | 'save' | 'message' | 'link';
 
-const ACTIONS: { key: Action; icon: SFSymbol }[] = [
+const ACTIONS: { key: Action; icon: AppSymbol }[] = [
   { key: 'share', icon: 'square.and.arrow.up' },
   { key: 'save', icon: 'square.and.arrow.down' },
   { key: 'message', icon: 'message.fill' },
@@ -117,7 +117,7 @@ export default function ShareTasteMapScreen() {
         style={[styles.close, { top: insets.top + spacing.sm }]}
         accessibilityLabel={t('rate.close')}>
         <GlassSurface interactive style={styles.closeGlass}>
-          <SymbolView name="xmark" tintColor={colors.onPrimary} size={16} weight="semibold" />
+          <Icon name="xmark" tintColor={colors.onPrimary} size={16} weight="semibold" />
         </GlassSurface>
       </PressableScale>
 
@@ -157,7 +157,7 @@ export default function ShareTasteMapScreen() {
                   {busy === key ? (
                     <ActivityIndicator color={colors.onPrimary} />
                   ) : (
-                    <SymbolView name={done ? 'checkmark' : icon} tintColor={colors.onPrimary} size={22} weight="semibold" />
+                    <Icon name={done ? 'checkmark' : icon} tintColor={colors.onPrimary} size={22} weight="semibold" />
                   )}
                 </View>
                 <Text variant="caption" color={colors.text} numberOfLines={1}>

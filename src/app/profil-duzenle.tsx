@@ -1,11 +1,12 @@
 import * as ImagePicker from 'expo-image-picker';
 import { router, Stack } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import type { LocalImage } from '@/api/storage';
+import { Icon } from '@/components/icon';
+import { KeyboardAvoidingView } from '@/components/keyboard-avoiding-view';
 import { Avatar, PressableScale, Text } from '@/components/ui';
 import { colors, hitSlop, radius, spacing, typography } from '@/constants/theme';
 import { schoolById, schoolLabel } from '@/data/schools';
@@ -56,7 +57,7 @@ export default function EditProfileScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={styles.container} behavior="padding">
       <Stack.Screen
         options={{
           headerLeft: () => (
@@ -112,7 +113,7 @@ export default function EditProfileScreen() {
                 autoCorrect={false}
                 style={[typography.body, styles.input]}
               />
-              {username.length >= 3 && <SymbolView name="checkmark.circle.fill" tintColor={colors.primary} size={18} />}
+              {username.length >= 3 && <Icon name="checkmark.circle.fill" tintColor={colors.primary} size={18} />}
             </View>
           </Field>
           <View style={styles.separator} />
@@ -122,7 +123,7 @@ export default function EditProfileScreen() {
                 <Text variant="body" color={school ? colors.text : colors.textTertiary} style={styles.schoolValue} numberOfLines={1}>
                   {school ? schoolLabel(school) : t('editProfile.addSchool')}
                 </Text>
-                <SymbolView name="chevron.right" tintColor={colors.textTertiary} size={13} weight="semibold" />
+                <Icon name="chevron.right" tintColor={colors.textTertiary} size={13} weight="semibold" />
               </View>
             </Field>
           </PressableScale>

@@ -1,10 +1,10 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
+import { Icon } from '@/components/icon';
 import { PlaceRow } from '@/components/place-row';
 import { PostGrid } from '@/components/post-grid';
 import { SegmentedControl } from '@/components/segmented-control';
@@ -111,7 +111,7 @@ export default function VisitedPlacesScreen() {
             </View>
             {selectedRow.average !== undefined && <ScoreBadge score={selectedRow.average} />}
             <PressableScale onPress={() => select(null)} hitSlop={hitSlop} style={styles.close} accessibilityLabel={t('rate.close')}>
-              <SymbolView name="xmark" tintColor={colors.primary} size={13} weight="bold" />
+              <Icon name="xmark" tintColor={colors.primary} size={13} weight="bold" />
             </PressableScale>
           </View>
           {selectedPosts.length > 0 && <PostGrid posts={selectedPosts} emptyText="" />}
@@ -145,7 +145,7 @@ export default function VisitedPlacesScreen() {
               }}
               style={styles.sort}
               accessibilityLabel={t('foodMap.changeSort')}>
-              <SymbolView name="arrow.up.arrow.down" tintColor={colors.primary} size={13} weight="semibold" />
+              <Icon name="arrow.up.arrow.down" tintColor={colors.primary} size={13} weight="semibold" />
               <Text variant="footnote" color={colors.primary} style={styles.bold}>
                 {sort === 'count' ? t('foodMap.byCount') : t('foodMap.byScore')}
               </Text>
@@ -176,7 +176,7 @@ function BreakdownItem({ row, label, onPress }: { row: BreakdownRow; label: stri
         </Text>
       </View>
       {row.average !== undefined && <ScoreBadge score={row.average} size="sm" />}
-      <SymbolView name="chevron.right" tintColor={colors.textTertiary} size={13} weight="semibold" />
+      <Icon name="chevron.right" tintColor={colors.textTertiary} size={13} weight="semibold" />
     </PressableScale>
   );
 }

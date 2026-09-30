@@ -1,5 +1,5 @@
-import type { SFSymbol } from 'expo-symbols';
 
+import type { AppSymbol } from '@/constants/icons';
 import type { Cuisine, Place } from '@/types';
 
 export type ScoredPlace = { place: Place; score: number };
@@ -27,7 +27,7 @@ export function tasteProfile(items: ScoredPlace[], limit = 4): TasteSlice[] {
 /** Başlık ve açıklama i18n'de: `badges.<id>.title` / `badges.<id>.description` */
 export type Badge = {
   id: BadgeId;
-  icon: SFSymbol;
+  icon: AppSymbol;
   progress: number;
   target: number;
   earned: boolean;
@@ -42,7 +42,7 @@ export type BadgeId = 'ilk' | 'kahvalti' | 'esnaf' | 'sokak' | 'meyhane' | 'bali
 
 const DEFINITIONS: {
   id: BadgeId;
-  icon: SFSymbol;
+  icon: AppSymbol;
   target: number;
   value: (i: BadgeInput) => number;
 }[] = [

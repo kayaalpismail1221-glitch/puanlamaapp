@@ -1,4 +1,4 @@
-import { Linking } from 'react-native';
+import { Linking, Platform } from 'react-native';
 
 import i18n, { currentLanguage, currentLocale } from '@/i18n';
 import type { Coords } from '@/lib/geo';
@@ -6,7 +6,7 @@ import Native from '../../modules/puanla-directions';
 
 /**
  * Uygulama içi yol tarifi: rota, süre ve adımlar Apple'ın rota servisinden (yerel modül
- * modules/puanla-directions). Navigasyon sırasında adım ilerletme ve rotadan çıkma hesabı burada.
+ * modules/puanla-directions, yalnızca iOS). Navigasyon sırasında adım ilerletme ve rotadan çıkma hesabı burada.
  */
 
 export type TravelMode = 'walking' | 'driving' | 'transit';
@@ -22,7 +22,7 @@ export type Route = {
   steps: RouteStep[];
 };
 
-/** Yerel modül derlenmiş mi (Expo Go'da ve web'de yok) */
+/** Yerel modül derlenmiş mi (yalnızca iOS EAS build'inde; Expo Go, Android ve web'de yok) */
 export const inAppDirections = !!Native;
 
 export async function fetchRoute(from: Coords, to: Coords, mode: 'walking' | 'driving'): Promise<Route> {
@@ -52,11 +52,28 @@ export async function fetchEta(from: Coords, to: Coords, mode: TravelMode): Prom
 
 const point = (c: Coords) => ({ latitude: c.latitude, longitude: c.longitude });
 
-/** Yedek: Apple Haritalar'da yol tarifi (toplu taşıma adımları ya da modül yoksa) */
-export function openInAppleMaps(to: Coords, name: string, mode: TravelMode) {
-  const flag = mode === 'walking' ? 'w' : mode === 'transit' ? 'r' : 'd';
-  const url = `http://maps.apple.com/?daddr=${to.latitude},${to.longitude}&dirflg=${flag}&q=${encodeURIComponent(name)}`;
-  return Linking.openURL(url).catch(() => {});
+/** Cihazın harita uygulamasının adı (düğme metinleri için): iOS'ta Apple Haritalar, Android'de Google Haritalar */
+export const mapsAppName = () =>
+  i18n.t(Platform.OS === 'ios' ? 'directions.mapsApp.apple' : 'directions.mapsApp.google');
+
+/**
+ * Yedek: cihazın harita uygulamasında yol tarifi (toplu taşıma adımları ya da yerel modül yoksa).
+ * iOS'ta Apple Haritalar; Android'de (ve web'de) Google Haritalar — uygulama yüklüyse o açar, değilse tarayıcı.
+ * Android'de uygulama içi rota yok: MKDirections'ın ücretsiz bir Android karşılığı olmadığından navigasyon
+ * cihazın alıştığı Google Haritalar'a bırakılır.
+ */
+export function openInMaps(to: Coords, name: string, mode: TravelMode) {
+  if (Platform.OS === 'ios') {
+    const flag = mode === 'walking' ? 'w' : mode === 'transit' ? 'r' : 'd';
+    const url = `http://maps.apple.com/?daddr=${to.latitude},${to.longitude}&dirflg=${flag}&q=${encodeURIComponent(name)}`;
+    return Linking.openURL(url).catch(() => {});
+  }
+  const params = new URLSearchParams({
+    api: '1',
+    destination: `${to.latitude},${to.longitude}`,
+    travelmode: mode,
+  });
+  return Linking.openURL(`https://www.google.com/maps/dir/?${params}`).catch(() => {});
 }
 
 /* ---------- Biçimlendirme ---------- */

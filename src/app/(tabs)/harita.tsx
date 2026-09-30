@@ -1,17 +1,19 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
-import MapView, { Marker, type Region } from 'react-native-maps';
+import MapView, { type Region } from 'react-native-maps';
 import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { GlassSurface } from '@/components/glass-surface';
+import { Icon } from '@/components/icon';
+import { ViewMarker } from '@/components/map-marker';
 import { MapPin } from '@/components/map-pin';
 import { SegmentedControl } from '@/components/segmented-control';
 import { PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { cuisineLabel } from '@/constants/cuisines';
+import { quietMapProps } from '@/constants/map';
 import { colors, radius, spacing } from '@/constants/theme';
 import { getPlace, useEntitiesVersion, usePrefetchPlaces } from '@/data/entities';
 import { useMapPlaces } from '@/hooks/queries';
@@ -83,12 +85,13 @@ export default function MapScreen() {
       <MapView
         style={StyleSheet.absoluteFill}
         initialRegion={DEFAULT_REGION}
-        showsPointsOfInterests={false}
+        {...quietMapProps}
         onRegionChangeComplete={setRegion}
         onPress={() => setSelectedId(null)}>
         {pins.map(({ place, score }) => (
-          <Marker
+          <ViewMarker
             key={place.id}
+            redrawKey={`${score}-${place.id === selectedId}`}
             coordinate={{ latitude: place.latitude, longitude: place.longitude }}
             onPress={(e) => {
               e.stopPropagation();
@@ -96,7 +99,7 @@ export default function MapScreen() {
               setSelectedId(place.id);
             }}>
             <MapPin score={score} active={place.id === selectedId} />
-          </Marker>
+          </ViewMarker>
         ))}
       </MapView>
 
@@ -150,7 +153,7 @@ export default function MapScreen() {
             {selected.score !== undefined ? (
               <ScoreBadge score={selected.score} />
             ) : (
-              <SymbolView name="bookmark.fill" tintColor={colors.primary} size={20} />
+              <Icon name="bookmark.fill" tintColor={colors.primary} size={20} />
             )}
             </GlassSurface>
           </PressableScale>

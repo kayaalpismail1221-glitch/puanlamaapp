@@ -1,9 +1,9 @@
-import { ActionSheetIOS, Alert, Platform } from 'react-native';
+import { Alert } from 'react-native';
 
 import { block, report, type ReportReason } from '@/api/content';
 import { showError } from '@/api/errors';
-import { colors } from '@/constants/theme';
 import i18n from '@/i18n';
+import { showMenu } from '@/lib/dialogs';
 import { haptics } from '@/lib/haptics';
 
 /**
@@ -11,29 +11,8 @@ import { haptics } from '@/lib/haptics';
  * şikâyet ve engelleme akışı. Şikâyetler `reports` tablosuna düşer ve 24 saat içinde incelenir.
  */
 
-type MenuOption = { label: string; destructive?: boolean; onPress: () => void };
-
-/** iOS'ta sistem menüsü, diğerlerinde uyarı penceresi */
-export function showMenu(title: string | undefined, options: MenuOption[]) {
-  const cancel = i18n.t('common.cancel');
-  if (Platform.OS === 'ios') {
-    ActionSheetIOS.showActionSheetWithOptions(
-      {
-        title,
-        options: [...options.map((o) => o.label), cancel],
-        destructiveButtonIndex: options.flatMap((o, i) => (o.destructive ? [i] : [])),
-        cancelButtonIndex: options.length,
-        tintColor: colors.primary,
-      },
-      (i) => options[i]?.onPress(),
-    );
-  } else {
-    Alert.alert(title ?? '', undefined, [
-      ...options.map((o) => ({ text: o.label, onPress: o.onPress, style: o.destructive ? ('destructive' as const) : undefined })),
-      { text: cancel, style: 'cancel' as const },
-    ]);
-  }
-}
+/** Menü `lib/dialogs.ts`'te; ekranlar buradan da alabilsin */
+export { showMenu };
 
 const REASONS: ReportReason[] = ['offensive', 'spam', 'fake', 'other'];
 

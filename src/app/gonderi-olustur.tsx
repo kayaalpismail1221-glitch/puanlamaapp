@@ -1,19 +1,11 @@
 import * as ImagePicker from 'expo-image-picker';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  ActionSheetIOS,
-  Alert,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
-} from 'react-native';
+import { Alert, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
 
+import { Icon } from '@/components/icon';
 import { PlacePicker } from '@/components/place-picker';
 import { CompareStep, SentimentChoice, useRankResultText } from '@/components/rank-steps';
 import { FormSection as Section, HighlightPicker, MAX_HIGHLIGHTS, MealPicker, postFieldStyles } from '@/components/post-fields';
@@ -29,6 +21,7 @@ import { useKeyboardFooterStyle } from '@/hooks/use-keyboard-footer';
 import { useRankFlow } from '@/hooks/use-rank-flow';
 import i18n from '@/i18n';
 import { pickContact, type DeviceContact } from '@/lib/contacts';
+import { showMenu } from '@/lib/dialogs';
 import { haptics } from '@/lib/haptics';
 import { useAppStore } from '@/store/app-store';
 import type { Meal, User } from '@/types';
@@ -117,18 +110,12 @@ export default function CreatePostScreen() {
   };
 
   const addPhoto = () => {
-    if (Platform.OS !== 'ios') return addFromLibrary();
-    ActionSheetIOS.showActionSheetWithOptions(
-      {
-        options: [t('compose.takePhoto'), t('compose.chooseFromLibrary'), t('common.cancel')],
-        cancelButtonIndex: 2,
-        tintColor: colors.primary,
-      },
-      (i) => {
-        if (i === 0) addFromCamera();
-        if (i === 1) addFromLibrary();
-      },
-    );
+    // Web'de kamera yok: doğrudan dosya seçici
+    if (Platform.OS === 'web') return addFromLibrary();
+    showMenu(undefined, [
+      { label: t('compose.takePhoto'), icon: 'camera', onPress: addFromCamera },
+      { label: t('compose.chooseFromLibrary'), icon: 'photo.on.rectangle', onPress: addFromLibrary },
+    ]);
   };
 
   /** Sistem kişi seçicisi: Puanla'daysa etiketlenir, değilse paylaşınca davet edilir */
@@ -273,7 +260,7 @@ export default function CreatePostScreen() {
                   hitSlop={hitSlop}
                   style={styles.removePhoto}
                   accessibilityLabel={t('compose.removePhoto')}>
-                  <SymbolView name="xmark" tintColor={colors.onPrimary} size={11} weight="bold" />
+                  <Icon name="xmark" tintColor={colors.onPrimary} size={11} weight="bold" />
                 </PressableScale>
               </Animated.View>
             ))}
@@ -282,7 +269,7 @@ export default function CreatePostScreen() {
                 onPress={addPhoto}
                 style={[styles.photoTile, styles.addPhoto]}
                 accessibilityLabel={t('compose.addPhoto')}>
-                <SymbolView name="camera" tintColor={colors.primary} size={24} />
+                <Icon name="camera" tintColor={colors.primary} size={24} />
                 <Text variant="caption" color={colors.primary}>
                   {t('compose.add')}
                 </Text>
@@ -326,7 +313,7 @@ export default function CreatePostScreen() {
               onPress={addFromContacts}
               style={[postFieldStyles.chip, styles.friendChip]}
               accessibilityLabel={t('compose.fromContacts')}>
-              <SymbolView name="person.crop.circle.badge.plus" tintColor={colors.primary} size={20} />
+              <Icon name="person.crop.circle.badge.plus" tintColor={colors.primary} size={20} />
               <Text variant="subhead" color={colors.primary}>
                 {t('compose.fromContacts')}
               </Text>
@@ -341,7 +328,7 @@ export default function CreatePostScreen() {
                 }}
                 style={[postFieldStyles.chip, styles.friendChip, postFieldStyles.chipActive]}
                 accessibilityLabel={t('compose.removeInvitee', { name: c.name })}>
-                <SymbolView name="paperplane.fill" tintColor={colors.onPrimary} size={14} />
+                <Icon name="paperplane.fill" tintColor={colors.onPrimary} size={14} />
                 <Text variant="subhead" color={colors.onPrimary}>
                   {c.name.split(' ')[0]}
                 </Text>

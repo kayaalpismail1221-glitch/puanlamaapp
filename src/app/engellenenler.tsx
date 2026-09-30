@@ -1,10 +1,10 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { SymbolView } from 'expo-symbols';
 import { useTranslation } from 'react-i18next';
 import { Alert, FlatList, StyleSheet, View } from 'react-native';
 
 import { fetchBlockedUsers, unblock, type BlockedUser } from '@/api/content';
 import { showError } from '@/api/errors';
+import { Icon } from '@/components/icon';
 import { SkeletonScreen, UserRowsSkeleton } from '@/components/skeleton';
 import { Avatar, Button, Divider, ErrorView, Text } from '@/components/ui';
 import { colors, spacing } from '@/constants/theme';
@@ -54,7 +54,7 @@ export default function BlockedUsersScreen() {
       ItemSeparatorComponent={() => <Divider inset={spacing.lg + 44 + spacing.md} />}
       ListEmptyComponent={
         <View style={styles.empty}>
-          <SymbolView name="hand.raised" tintColor={colors.textTertiary} size={40} />
+          <Icon name="hand.raised" tintColor={colors.textTertiary} size={40} />
           <Text variant="headline" align="center">
             {t('blocked.empty')}
           </Text>

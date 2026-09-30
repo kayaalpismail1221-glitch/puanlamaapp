@@ -1,11 +1,11 @@
 import { router, Stack, useFocusEffect } from 'expo-router';
-import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { Image } from 'expo-image';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, RefreshControl, SectionList, StyleSheet, View } from 'react-native';
 
 import { markAllRead } from '@/api/notifications';
+import { Icon, type AppSymbol } from '@/components/icon';
 import { UserRowsSkeleton } from '@/components/skeleton';
 import { Avatar, Button, Divider, ErrorView, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { FollowButton } from '@/components/user-row';
@@ -81,7 +81,7 @@ export default function NotificationsScreen() {
               onPress={() => router.push('/bildirim-ayarlari')}
               hitSlop={hitSlop}
               accessibilityLabel={t('screens.notificationSettings')}>
-              <SymbolView name="gearshape" tintColor={colors.primary} size={21} />
+              <Icon name="gearshape" tintColor={colors.primary} size={21} />
             </PressableScale>
           ),
         }}
@@ -115,7 +115,7 @@ export default function NotificationsScreen() {
             <ErrorView onRetry={() => query.refetch()} />
           ) : (
             <View style={styles.empty}>
-              <SymbolView name="bell" tintColor={colors.textTertiary} size={40} />
+              <Icon name="bell" tintColor={colors.textTertiary} size={40} />
               <Text variant="headline" align="center">
                 {t('notifications.emptyTitle')}
               </Text>
@@ -137,7 +137,7 @@ export default function NotificationsScreen() {
   );
 }
 
-const ICONS: Record<AppNotification['kind'], SFSymbol> = {
+const ICONS: Record<AppNotification['kind'], AppSymbol> = {
   like: 'heart.fill',
   comment: 'bubble.left.fill',
   tag: 'person.2.fill',
@@ -178,7 +178,7 @@ function NotificationRow({ item }: { item: AppNotification }) {
       <PressableScale onPress={() => openUserProfile(item.actor.id)} haptic={false}>
         <Avatar uri={item.actor.avatarUrl} name={item.actor.name} size={44} />
         <View style={[styles.kind, item.kind === 'like' && styles.kindLike]}>
-          <SymbolView name={ICONS[item.kind]} tintColor={colors.onPrimary} size={10} />
+          <Icon name={ICONS[item.kind]} tintColor={colors.onPrimary} size={10} />
         </View>
       </PressableScale>
 
@@ -209,7 +209,7 @@ function PushBanner({ onPress }: { onPress: () => void }) {
   const { t } = useTranslation();
   return (
     <View style={styles.banner}>
-      <SymbolView name="bell.badge.fill" tintColor={colors.primary} size={22} />
+      <Icon name="bell.badge.fill" tintColor={colors.primary} size={22} />
       <View style={{ flex: 1, gap: 2 }}>
         <Text variant="subhead" style={styles.bold}>
           {t('notifications.bannerTitle')}

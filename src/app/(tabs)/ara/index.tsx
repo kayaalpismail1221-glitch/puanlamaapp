@@ -1,9 +1,9 @@
 import { router, Stack } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SectionList, StyleSheet, View } from 'react-native';
 
+import { Icon } from '@/components/icon';
 import { PlaceRow } from '@/components/place-row';
 import { PlaceRowsSkeleton, UserRowsSkeleton } from '@/components/skeleton';
 import { Button, Divider, PressableScale, ScoreBadge, Text } from '@/components/ui';
@@ -114,7 +114,7 @@ export default function SearchTab() {
             scope === 'people' ? <UserRowsSkeleton /> : <PlaceRowsSkeleton />
           ) : (
             <View style={styles.empty}>
-              <SymbolView name="magnifyingglass" tintColor={colors.textTertiary} size={40} />
+              <Icon name="magnifyingglass" tintColor={colors.textTertiary} size={40} />
               <Text variant="subhead" color={colors.textSecondary} align="center">
                 {searching ? t('search.noResults', { query: query.trim() }) : t('search.nothingYet')}
               </Text>
@@ -146,7 +146,7 @@ export default function SearchTab() {
                     hitSlop={hitSlop}
                     onPress={() => actions.toggleSaved(place.id)}
                     accessibilityLabel={saved ? t('common.removeFromList') : t('common.saveToList')}>
-                    <SymbolView
+                    <Icon
                       name={saved ? 'bookmark.fill' : 'bookmark'}
                       tintColor={colors.primary}
                       size={22}

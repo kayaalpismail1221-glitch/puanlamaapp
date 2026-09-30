@@ -2,19 +2,21 @@ import { useQuery } from '@tanstack/react-query';
 import * as Location from 'expo-location';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Speech from 'expo-speech';
-import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Linking, ScrollView, StyleSheet, View } from 'react-native';
-import MapView, { Marker, Polyline } from 'react-native-maps';
+import { ActivityIndicator, Linking, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import MapView, { Polyline } from 'react-native-maps';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { GlassSurface } from '@/components/glass-surface';
+import { Icon, type AppSymbol } from '@/components/icon';
+import { ViewMarker } from '@/components/map-marker';
 import { SegmentedControl } from '@/components/segmented-control';
 import { Button, PressableScale, Text } from '@/components/ui';
 import { cuisineLabel } from '@/constants/cuisines';
+import { fullScreenMapProps } from '@/constants/map';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
 import { usePlace } from '@/data/entities';
 import { currentLocale } from '@/i18n';
@@ -30,7 +32,8 @@ import {
   inAppDirections,
   meters,
   OFF_ROUTE_M,
-  openInAppleMaps,
+  mapsAppName,
+  openInMaps,
   remainingMeters,
   type Route,
   type TravelMode,
@@ -39,7 +42,7 @@ import { distanceKm, formatDistance, type Coords } from '@/lib/geo';
 import { haptics } from '@/lib/haptics';
 import { useUserLocation } from '@/lib/location';
 
-const MODE_ICONS: Record<TravelMode, SFSymbol> = {
+const MODE_ICONS: Record<TravelMode, AppSymbol> = {
   walking: 'figure.walk',
   driving: 'car.fill',
   transit: 'tram.fill',
@@ -117,6 +120,7 @@ export default function DirectionsScreen() {
         initialRegion={{ ...target, latitudeDelta: 0.02, longitudeDelta: 0.02 }}
         showsUserLocation
         showsCompass={false}
+        {...fullScreenMapProps}
         pitchEnabled
         rotateEnabled>
         {route.data && mode !== 'transit' && (
@@ -128,11 +132,11 @@ export default function DirectionsScreen() {
             lineJoin="round"
           />
         )}
-        <Marker coordinate={target}>
+        <ViewMarker coordinate={target}>
           <View style={styles.pin}>
-            <SymbolView name="fork.knife" tintColor={colors.onPrimary} size={14} />
+            <Icon name="fork.knife" tintColor={colors.onPrimary} size={14} />
           </View>
-        </Marker>
+        </ViewMarker>
       </MapView>
 
       {navigating && route.data ? (
@@ -154,7 +158,7 @@ export default function DirectionsScreen() {
             style={[styles.back, { top: insets.top + spacing.sm }]}
             accessibilityLabel={t('common.back')}>
             <GlassSurface interactive style={styles.backGlass}>
-              <SymbolView name="chevron.left" tintColor={colors.primary} size={18} weight="semibold" />
+              <Icon name="chevron.left" tintColor={colors.primary} size={18} weight="semibold" />
             </GlassSurface>
           </PressableScale>
 
@@ -192,7 +196,7 @@ export default function DirectionsScreen() {
               ) : summary ? (
                 <Animated.View entering={FadeIn} style={styles.summary}>
                   <View style={styles.summaryRow}>
-                    <SymbolView name={MODE_ICONS[mode]} tintColor={colors.primary} size={22} />
+                    <Icon name={MODE_ICONS[mode]} tintColor={colors.primary} size={22} />
                     <Text variant="title2" color={colors.primary}>
                       {formatDuration(summary.duration)}
                     </Text>
@@ -206,12 +210,12 @@ export default function DirectionsScreen() {
                   {mode === 'transit' ? (
                     <>
                       <Text variant="footnote" color={colors.textSecondary}>
-                        {t('directions.transitNote')}
+                        {t('directions.transitNote', { app: mapsAppName() })}
                       </Text>
                       <Button
                         title={t('directions.transitSteps')}
                         icon="tram.fill"
-                        onPress={() => openInAppleMaps(target, place.name, 'transit')}
+                        onPress={() => openInMaps(target, place.name, 'transit')}
                       />
                     </>
                   ) : (
@@ -248,9 +252,9 @@ export default function DirectionsScreen() {
                     {t('directions.noRoute')}
                   </Text>
                   <Button
-                    title={t('directions.openInMaps')}
+                    title={t('directions.openInMaps', { app: mapsAppName() })}
                     icon="map.fill"
-                    onPress={() => openInAppleMaps(target, place.name, mode)}
+                    onPress={() => openInMaps(target, place.name, mode)}
                   />
                 </View>
               )}
@@ -285,17 +289,24 @@ function StepList({ route }: { route: Route }) {
   );
 }
 
-/** Yerel modül yoksa (Expo Go): kuş uçuşu mesafe ve Apple Haritalar */
+/** Yerel modül yoksa (Android, Expo Go): kuş uçuşu mesafe ve cihazın harita uygulaması */
 function Fallback({ target, name, mode, origin }: { target: Coords; name: string; mode: TravelMode; origin: Coords | null }) {
   const { t } = useTranslation();
   return (
     <View style={styles.notice}>
       {origin && (
         <Text variant="subhead" color={colors.textSecondary}>
-          {t('directions.unavailable', { distance: formatDistance(distanceKm(origin, target)) })}
+          {/* Android'de uygulama içi rota hiç yok; "bu sürümde yok" demek yanıltıcı olur */}
+          {t(Platform.OS === 'ios' ? 'directions.unavailable' : 'directions.straightLine', {
+            distance: formatDistance(distanceKm(origin, target)),
+          })}
         </Text>
       )}
-      <Button title={t('directions.openInMaps')} icon="map.fill" onPress={() => openInAppleMaps(target, name, mode)} />
+      <Button
+        title={t('directions.openInMaps', { app: mapsAppName() })}
+        icon="map.fill"
+        onPress={() => openInMaps(target, name, mode)}
+      />
     </View>
   );
 }
@@ -402,7 +413,7 @@ function Navigation({
     <>
       <Animated.View entering={FadeInDown} style={[styles.banner, { top: insets.top + spacing.sm }]}>
         <View style={styles.bannerInner}>
-          <SymbolView
+          <Icon
             name={arrived ? 'flag.checkered' : 'arrow.triangle.turn.up.right.diamond.fill'}
             tintColor={colors.onPrimary}
             size={30}
@@ -441,7 +452,7 @@ function Navigation({
             hitSlop={hitSlop}
             style={styles.roundButton}
             accessibilityLabel={muted ? t('directions.unmute') : t('directions.mute')}>
-            <SymbolView name={muted ? 'speaker.slash.fill' : 'speaker.wave.2.fill'} tintColor={colors.primary} size={18} />
+            <Icon name={muted ? 'speaker.slash.fill' : 'speaker.wave.2.fill'} tintColor={colors.primary} size={18} />
           </PressableScale>
           <Button title={t('directions.end')} variant={arrived ? 'primary' : 'secondary'} size="sm" onPress={onEnd} style={styles.endButton} />
         </GlassSurface>

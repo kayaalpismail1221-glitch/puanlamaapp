@@ -785,7 +785,7 @@ const tr = {
     message: '{{name}} {{place}} için {{score}} verdi. Sen kaç verirdin? 🍽️',
     messageNoScore: '{{name}} seni Puanla’da {{place}} gönderisine ekledi. Sen kaç verirdin? 🍽️',
     download: 'Puanla’yı indir: {{link}}',
-    searchStore: 'App Store’da “Puanla”yı aratıp indirebilirsin.',
+    searchStore: 'App Store’da ya da Google Play’de “Puanla”yı aratıp indirebilirsin.',
     title: 'Masadakileri davet et',
     subtitle_one: '{{count}} kişi henüz Puanla’da değil. Mesajı gönder, onlar da puanlasın; katılınca haber veririz.',
     subtitle_other: '{{count}} kişi henüz Puanla’da değil. Mesajı gönder, onlar da puanlasın; katılınca haber veririz.',
@@ -846,7 +846,7 @@ const tr = {
     system: 'Bildirimler',
     on: 'Açık',
     off: 'Kapalı',
-    systemOffFooter: 'Bildirimler kapalı. Açmak için dokun; daha önce reddettiysen iPhone Ayarları açılır.',
+    systemOffFooter: 'Bildirimler kapalı. Açmak için dokun; daha önce reddettiysen telefonunun ayarları açılır.',
     pushTitle: 'Telefona bildirim',
     pushFooter: 'Kapattıkların bildirim merkezinde görünmeye devam eder, yalnızca telefonuna bildirim gelmez.',
     kinds: {
@@ -874,9 +874,12 @@ const tr = {
     noRoute: 'Bu mekâna rota bulunamadı.',
     locationOff: 'Yol tarifi için konum izni gerekiyor.',
     openSettings: 'Ayarları aç',
-    openInMaps: 'Apple Haritalar’da aç',
+    /** Cihazın harita uygulaması: iOS'ta Apple, Android'de Google */
+    mapsApp: { apple: 'Apple Haritalar', google: 'Google Haritalar' },
+    openInMaps: '{{app}}’da aç',
     unavailable: 'Uygulama içi yol tarifi bu sürümde yok. Kuş uçuşu {{distance}}.',
-    transitNote: 'Toplu taşımada hat ve aktarma adımlarını Apple Haritalar gösterir.',
+    straightLine: 'Kuş uçuşu {{distance}}.',
+    transitNote: 'Toplu taşımada hat ve aktarma adımlarını {{app}} gösterir.',
     transitSteps: 'Hatları göster',
     rerouting: 'Rota yeniden hesaplanıyor.',
     arrived: 'Vardın! Afiyet olsun.',
@@ -1049,7 +1052,7 @@ const tr = {
     emptyCommunity: 'Bu bölgede henüz puanlanan mekân yok. Haritayı kaydırıp başka yerlere bak.',
     average_one: '{{count}} kişinin puanı',
     average_other: '{{count}} kişinin ortalaması',
-    mapPlaceholder: 'Harita (yalnızca iOS)',
+    mapPlaceholder: 'Harita (yalnızca telefonda)',
   },
 };
 

@@ -1,6 +1,6 @@
-import { SymbolView } from 'expo-symbols';
 import { StyleSheet, View } from 'react-native';
 
+import { Icon } from '@/components/icon';
 import { Text } from '@/components/ui';
 import { colors, onScoreColor, radius, scoreColor, spacing } from '@/constants/theme';
 import { formatScore } from '@/lib/format';
@@ -19,7 +19,7 @@ export function MapPin({ score, active }: { score?: number; active?: boolean }) 
         active && styles.pinActive,
       ]}>
       {isWant ? (
-        <SymbolView name="bookmark.fill" tintColor={color} size={12} />
+        <Icon name="bookmark.fill" tintColor={color} size={12} />
       ) : (
         <Text variant="caption" color={onScoreColor(score)} style={styles.pinText}>
           {formatScore(score)}

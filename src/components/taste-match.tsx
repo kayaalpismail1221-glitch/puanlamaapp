@@ -1,8 +1,8 @@
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
+import { Icon } from '@/components/icon';
 import { Bone, Skeleton } from '@/components/skeleton';
 import { PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { colors, radius, scoreColor, scoreInk, spacing } from '@/constants/theme';
@@ -21,7 +21,7 @@ export function MatchDisc({ percent, size = 44 }: { percent?: number; size?: num
   return (
     <View style={[styles.disc, { width: size, height: size, borderColor: color, borderWidth: size > 60 ? 4 : 2.5 }]}>
       {percent === undefined ? (
-        <SymbolView name="fork.knife" tintColor={colors.textTertiary} size={size * 0.4} />
+        <Icon name="fork.knife" tintColor={colors.textTertiary} size={size * 0.4} />
       ) : (
         <Text
           color={matchInk(percent)}
@@ -78,7 +78,7 @@ export function TasteMatchRow({ userId }: { userId: string }) {
           {subtitle}
         </Text>
       </View>
-      <SymbolView name="chevron.right" tintColor={colors.textTertiary} size={14} weight="semibold" />
+      <Icon name="chevron.right" tintColor={colors.textTertiary} size={14} weight="semibold" />
     </PressableScale>
   );
 }

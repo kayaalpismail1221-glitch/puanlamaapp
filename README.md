@@ -11,7 +11,8 @@ npm install
 npx expo start
 ```
 
-iPhone'da Expo Go ile terminaldeki QR kodu okut. Bilgisayar ve telefon aynı Wi‑Fi'da değilse `npx expo start --tunnel` kullan.
+iPhone'da ya da Android telefonda Expo Go ile terminaldeki QR kodu okut. Bilgisayar ve telefon aynı Wi‑Fi'da değilse `npx expo start --tunnel` kullan.
+Android derleme ve Google Play: [docs/android.md](docs/android.md).
 
 ## Yapı
 

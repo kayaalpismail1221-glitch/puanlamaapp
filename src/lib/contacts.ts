@@ -54,7 +54,7 @@ export async function pickContact(): Promise<DeviceContact | null | 'no_mobile' 
   try {
     details = await contact.getDetails(fields);
   } catch {
-    // Bazı iOS sürümlerinde seçilen kişinin ayrıntıları için rehber izni gerekir
+    // Android'de ve bazı iOS sürümlerinde seçilen kişinin ayrıntıları için rehber izni gerekir
     if (!(await Contacts.requestPermissionsAsync()).granted) return 'denied';
     details = await contact.getDetails(fields);
   }

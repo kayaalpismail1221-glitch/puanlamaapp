@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
+import { Icon } from '@/components/icon';
 import { PlaceImage, PressableScale, Text } from '@/components/ui';
 import { colors, onScoreColor, radius, scoreColor, spacing } from '@/constants/theme';
 import { formatScore } from '@/lib/format';
@@ -41,7 +41,7 @@ export function PostGrid({ posts, emptyText }: { posts: Post[]; emptyText: strin
           )}
           {post.photos.length > 1 && (
             <View style={styles.multi}>
-              <SymbolView name="square.fill.on.square.fill" tintColor={colors.onPrimary} size={14} />
+              <Icon name="square.fill.on.square.fill" tintColor={colors.onPrimary} size={14} />
             </View>
           )}
           {post.score !== undefined && (

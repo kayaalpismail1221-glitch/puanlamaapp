@@ -1,10 +1,10 @@
 import { router, Stack } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlashList } from '@shopify/flash-list';
 import { ActivityIndicator, Linking, RefreshControl, StyleSheet, View } from 'react-native';
 
+import { Icon } from '@/components/icon';
 import { PostCard } from '@/components/post-card';
 import { SegmentedControl } from '@/components/segmented-control';
 import type { FeedEntry } from '@/api/content';
@@ -105,7 +105,7 @@ export default function FeedScreen() {
                 style={styles.areaButton}
                 accessibilityLabel={t('feed.chooseLocation')}>
                 <View style={styles.areaIcon}>
-                  <SymbolView
+                  <Icon
                     name={feedArea.type === 'near' ? 'location.fill' : 'mappin.and.ellipse'}
                     tintColor={colors.onPrimary}
                     size={14}
@@ -116,7 +116,7 @@ export default function FeedScreen() {
                     <Text variant="headline" color={colors.primary} numberOfLines={1}>
                       {areaLabel(feedArea)}
                     </Text>
-                    <SymbolView name="chevron.down" tintColor={colors.primary} size={12} weight="bold" />
+                    <Icon name="chevron.down" tintColor={colors.primary} size={12} weight="bold" />
                   </View>
                   <Text variant="caption" color={colors.textSecondary} numberOfLines={1}>
                     {locationPending
@@ -147,7 +147,7 @@ export default function FeedScreen() {
                   <Text variant="callout" color={colors.textSecondary} style={{ flex: 1 }}>
                     {t('feed.composer')}
                   </Text>
-                  <SymbolView name="camera" tintColor={colors.primary} size={20} />
+                  <Icon name="camera" tintColor={colors.primary} size={20} />
                 </PressableScale>
                 <Divider />
               </>
@@ -195,7 +195,7 @@ function NotificationBell() {
       // Rozet bu kutunun içinde kalır: iOS başlık çubuğu öğenin dışına taşanı keser
       style={styles.bell}
       accessibilityLabel={unread ? t('notifications.bellUnread', { count: unread }) : t('screens.notifications')}>
-      <SymbolView name="bell" tintColor={colors.primary} size={21} />
+      <Icon name="bell" tintColor={colors.primary} size={21} />
       {unread > 0 && (
         <View style={styles.bellBadge}>
           <Text variant="caption" color={colors.onPrimary} style={styles.bellBadgeText}>
@@ -216,7 +216,7 @@ function LocationBanner({ denied, onRetry }: { denied: boolean; onRetry: () => v
       scaleTo={0.98}
       style={styles.banner}
       accessibilityLabel={t('feed.turnOnLocation')}>
-      <SymbolView name="location.fill" tintColor={colors.primary} size={16} />
+      <Icon name="location.fill" tintColor={colors.primary} size={16} />
       <Text variant="footnote" color={colors.text} style={{ flex: 1 }}>
         {t('feed.locationBanner')}
       </Text>
@@ -242,7 +242,7 @@ function EmptyState({
 }) {
   return (
     <View style={styles.empty}>
-      <SymbolView name={icon} tintColor={colors.textTertiary} size={44} />
+      <Icon name={icon} tintColor={colors.textTertiary} size={44} />
       <Text variant="title3" align="center">
         {title}
       </Text>

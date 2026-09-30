@@ -1,9 +1,9 @@
 import { Link, router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
+import { Icon } from '@/components/icon';
 import { PressableScale, Text } from '@/components/ui';
 import { WorldMap } from '@/components/world-map';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
@@ -46,7 +46,7 @@ export function VisitedMap({ userId, name }: { userId: string; name: string }) {
           </Text>
         </View>
         <PressableScale onPress={share} hitSlop={hitSlop} accessibilityLabel={t('tasteMap.share')}>
-          <SymbolView name="square.and.arrow.up" tintColor={colors.primary} size={20} />
+          <Icon name="square.and.arrow.up" tintColor={colors.primary} size={20} />
         </PressableScale>
       </View>
 
@@ -60,7 +60,7 @@ export function VisitedMap({ userId, name }: { userId: string; name: string }) {
             accessibilityLabel={t('tasteMap.expand')}>
             {width > 0 && <WorldMap view={view} width={width} height={width / ASPECT} dots={dots} />}
             <View style={styles.expand} pointerEvents="none">
-              <SymbolView name="arrow.up.left.and.arrow.down.right" tintColor={colors.primary} size={12} weight="semibold" />
+              <Icon name="arrow.up.left.and.arrow.down.right" tintColor={colors.primary} size={12} weight="semibold" />
             </View>
           </PressableScale>
         </Link.AppleZoom>

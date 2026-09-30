@@ -10,12 +10,14 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import MapView from 'react-native-maps';
 import Animated, { FadeIn, FadeInDown, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LegalConsent } from '@/components/legal-consent';
+import { ViewMarker } from '@/components/map-marker';
 import { Button, PressableScale, Text } from '@/components/ui';
+import { quietMapProps } from '@/constants/map';
 import { colors, fonts, onScoreColor, radius, scoreColor, spacing } from '@/constants/theme';
 import { formatScore } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
@@ -81,13 +83,12 @@ function WelcomeScreen() {
           zoomEnabled={false}
           rotateEnabled={false}
           pitchEnabled={false}
-          showsPointsOfInterests={false}
           showsCompass={false}
-          toolbarEnabled={false}>
+          {...quietMapProps}>
           {PINS.map((p) => (
-            <Marker key={p.id} coordinate={p} anchor={{ x: 0.5, y: 1 }}>
+            <ViewMarker key={p.id} coordinate={p} anchor={{ x: 0.5, y: 1 }}>
               <ScorePin score={p.score} />
-            </Marker>
+            </ViewMarker>
           ))}
         </MapView>
         <LinearGradient

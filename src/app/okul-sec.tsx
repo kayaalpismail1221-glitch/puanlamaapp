@@ -1,9 +1,9 @@
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, StyleSheet, View } from 'react-native';
 
+import { Icon } from '@/components/icon';
 import { Button, Divider, PressableScale, SearchField, Text } from '@/components/ui';
 import { colors, radius, spacing } from '@/constants/theme';
 import { schoolById, searchSchools, type School } from '@/data/schools';
@@ -58,7 +58,7 @@ export default function PickSchoolScreen() {
           return (
             <PressableScale onPress={() => select(item)} scaleTo={0.99} haptic={false} style={styles.row}>
               <View style={[styles.icon, active && styles.iconActive]}>
-                <SymbolView name="graduationcap.fill" tintColor={active ? colors.onPrimary : colors.primary} size={18} />
+                <Icon name="graduationcap.fill" tintColor={active ? colors.onPrimary : colors.primary} size={18} />
               </View>
               <View style={{ flex: 1, gap: 2 }}>
                 <Text variant="headline" numberOfLines={2}>
@@ -68,7 +68,7 @@ export default function PickSchoolScreen() {
                   {[item.short, item.city, item.type === 'state' ? t('school.state') : t('school.foundation')].filter(Boolean).join(' · ')}
                 </Text>
               </View>
-              {active && <SymbolView name="checkmark" tintColor={colors.primary} size={16} weight="bold" />}
+              {active && <Icon name="checkmark" tintColor={colors.primary} size={16} weight="bold" />}
             </PressableScale>
           );
         }}

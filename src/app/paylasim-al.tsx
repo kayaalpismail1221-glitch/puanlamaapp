@@ -1,10 +1,10 @@
 import { router } from 'expo-router';
 import { useShareIntentContext } from 'expo-share-intent';
-import { SymbolView } from 'expo-symbols';
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
+import { Icon } from '@/components/icon';
 import { Text } from '@/components/ui';
 import { colors, spacing } from '@/constants/theme';
 import { placeHint, sharedLink } from '@/lib/share-intent';
@@ -45,7 +45,7 @@ export default function ReceiveShareScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.icon}>
-        <SymbolView name="bookmark.fill" tintColor={colors.onPrimary} size={26} />
+        <Icon name="bookmark.fill" tintColor={colors.onPrimary} size={26} />
       </View>
       <Text variant="headline" color={colors.primary}>
         {t('shareIntent.receiving')}

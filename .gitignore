@@ -44,3 +44,6 @@ example
 
 # içe aktarma önbelleği (OSM indirmeleri)
 scripts/.cache/
+
+# Android push (Firebase) yapılandırması: EAS'te GOOGLE_SERVICES_JSON dosya değişkeni olarak tutulur
+google-services.json

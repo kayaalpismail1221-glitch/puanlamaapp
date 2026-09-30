@@ -1,6 +1,5 @@
 import { useNavigation, type NativeStackNavigationProp } from 'expo-router';
 import type { ParamListBase } from 'expo-router/react-navigation';
-import { SymbolView } from 'expo-symbols';
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type ReactNode } from 'react';
 import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 import { KeyboardStickyView } from 'react-native-keyboard-controller';
@@ -15,8 +14,9 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Icon } from '@/components/icon';
 import { Text } from '@/components/ui';
-import { colors, fonts, spacing } from '@/constants/theme';
+import { colors, fonts, headerHeight, spacing } from '@/constants/theme';
 import { haptics } from '@/lib/haptics';
 
 type Props = {
@@ -38,7 +38,7 @@ export function OnboardingStep({ title, subtitle, children, footer }: Props) {
   const insets = useSafeAreaInsets();
   const bottom = Math.max(insets.bottom, spacing.lg);
   return (
-    <View style={[styles.container, { paddingTop: insets.top + 56 }]}>
+    <View style={[styles.container, { paddingTop: insets.top + headerHeight + spacing.md }]}>
       <View style={styles.header}>
         <Text style={styles.title}>{title}</Text>
         {subtitle && (
@@ -146,7 +146,7 @@ export const BigInput = forwardRef<TextInput, BigInputProps>(function BigInput(
         />
         {valid && (
           <Animated.View entering={FadeIn.duration(180)} exiting={FadeOut.duration(120)}>
-            <SymbolView name="checkmark.circle.fill" tintColor={colors.primary} size={24} />
+            <Icon name="checkmark.circle.fill" tintColor={colors.primary} size={24} />
           </Animated.View>
         )}
         {accessory}

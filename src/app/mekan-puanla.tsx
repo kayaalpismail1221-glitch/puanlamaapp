@@ -1,9 +1,9 @@
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
+import { Icon } from '@/components/icon';
 import { PlaceSearchList } from '@/components/place-picker';
 import { ScoreBadge, SearchField } from '@/components/ui';
 import { colors, spacing } from '@/constants/theme';
@@ -28,7 +28,7 @@ export default function SearchScreen() {
           return score !== undefined ? (
             <ScoreBadge score={score} size="sm" />
           ) : (
-            <SymbolView name="plus.circle" tintColor={colors.primary} size={26} />
+            <Icon name="plus.circle" tintColor={colors.primary} size={26} />
           );
         }}
       />

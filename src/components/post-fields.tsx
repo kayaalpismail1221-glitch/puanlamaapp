@@ -1,7 +1,7 @@
-import { SymbolView } from 'expo-symbols';
 import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { Icon } from '@/components/icon';
 import { PressableScale, Text } from '@/components/ui';
 import { colors, radius, spacing } from '@/constants/theme';
 import { haptics } from '@/lib/haptics';
@@ -72,7 +72,7 @@ export function MealPicker({ value, onChange }: { value?: Meal; onChange: (meal:
             }}
             accessibilityState={{ selected: active }}
             style={[styles.meal, active && styles.chipActive]}>
-            <SymbolView name={m.icon} tintColor={active ? colors.onPrimary : colors.primary} size={20} />
+            <Icon name={m.icon} tintColor={active ? colors.onPrimary : colors.primary} size={20} />
             <Text variant="caption" color={active ? colors.onPrimary : colors.text} style={styles.bold}>
               {mealLabel(m.key)}
             </Text>

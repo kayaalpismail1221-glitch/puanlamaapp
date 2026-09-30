@@ -1,4 +1,4 @@
-// Metro ayarları. Uygulama iOS için; web yalnızca geliştirirken tarayıcıda hızlı deneme içindir.
+// Metro ayarları. Uygulama iOS ve Android için; web yalnızca geliştirirken tarayıcıda hızlı deneme içindir.
 const { getDefaultConfig } = require('expo/metro-config');
 const path = require('path');
 

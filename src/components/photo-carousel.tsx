@@ -10,8 +10,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
-import { SymbolView } from 'expo-symbols';
 
+import { Icon } from '@/components/icon';
 import { PlaceImage, Text } from '@/components/ui';
 import { colors, radius, spacing } from '@/constants/theme';
 
@@ -75,7 +75,7 @@ export function PhotoCarousel({ photos, thumbs, onDoubleTap, onPress, aspectRati
         />
 
         <Animated.View pointerEvents="none" style={[styles.heart, heartStyle]}>
-          <SymbolView name="heart.fill" tintColor={colors.onPrimary} size={88} />
+          <Icon name="heart.fill" tintColor={colors.onPrimary} size={88} />
         </Animated.View>
 
         {photos.length > 1 && (

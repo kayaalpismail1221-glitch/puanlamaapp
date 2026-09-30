@@ -1,10 +1,10 @@
 import { router, Stack } from 'expo-router';
-import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActionSheetIOS, Alert, FlatList, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
+import { Icon, type AppSymbol } from '@/components/icon';
 import { ListStrip } from '@/components/list-card';
 import { SavedPlaceCard } from '@/components/saved-place-card';
 import { Button, Divider, PlaceImage, PressableScale, Text } from '@/components/ui';
@@ -13,6 +13,7 @@ import { colors, hitSlop, radius, spacing } from '@/constants/theme';
 import { getPlace, useEntitiesVersion, usePrefetchPlaces } from '@/data/entities';
 import { useFriendScores, useSavedLists, useSavedPosts } from '@/hooks/queries';
 import { useClipboardHasUrl } from '@/lib/clipboard';
+import { showMenu } from '@/lib/dialogs';
 import { formatScore } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
 import { linkSource } from '@/lib/links';
@@ -97,37 +98,17 @@ export default function SavedListScreen() {
     setSource(null);
   };
 
-  const chooseSort = () => {
-    const keys = SORTS;
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          title: t('list.sort.title'),
-          options: [...keys.map((k) => (k === sort ? `✓ ${sortLabel(k)}` : sortLabel(k))), t('common.cancel')],
-          cancelButtonIndex: keys.length,
-          tintColor: colors.primary,
-        },
-        (i) => keys[i] && setSort(keys[i]),
-      );
-    } else {
-      Alert.alert(t('list.sort.title'), undefined, keys.map((k) => ({ text: sortLabel(k), onPress: () => setSort(k) })));
-    }
-  };
-
-  const openAddMenu = () => {
-    if (Platform.OS !== 'ios') return addSocial();
-    ActionSheetIOS.showActionSheetWithOptions(
-      {
-        options: [t('list.addFromSocial'), t('list.searchAndSave'), t('common.cancel')],
-        cancelButtonIndex: 2,
-        tintColor: colors.primary,
-      },
-      (i) => {
-        if (i === 0) addSocial();
-        if (i === 1) addApp();
-      },
+  const chooseSort = () =>
+    showMenu(
+      t('list.sort.title'),
+      SORTS.map((k) => ({ label: sortLabel(k), selected: k === sort, onPress: () => setSort(k) })),
     );
-  };
+
+  const openAddMenu = () =>
+    showMenu(undefined, [
+      { label: t('list.addFromSocial'), icon: 'link', onPress: addSocial },
+      { label: t('list.searchAndSave'), icon: 'magnifyingglass', onPress: addApp },
+    ]);
 
   const filtersActive = !!cuisine || !!source;
 
@@ -140,12 +121,12 @@ export default function SavedListScreen() {
               onPress={() => router.navigate({ pathname: '/harita', params: { filtre: 'want' } })}
               hitSlop={hitSlop}
               accessibilityLabel={t('list.showOnMap')}>
-              <SymbolView name="map" tintColor={colors.primary} size={22} />
+              <Icon name="map" tintColor={colors.primary} size={22} />
             </PressableScale>
           ),
           headerRight: () => (
             <PressableScale onPress={openAddMenu} hitSlop={hitSlop} accessibilityLabel={t('screens.addToList')}>
-              <SymbolView name="plus" tintColor={colors.primary} size={22} weight="semibold" />
+              <Icon name="plus" tintColor={colors.primary} size={22} weight="semibold" />
             </PressableScale>
           ),
         }}
@@ -180,7 +161,7 @@ export default function SavedListScreen() {
               <Animated.View entering={FadeIn}>
                 <PressableScale onPress={() => addSocial(true)} style={styles.clipboard}>
                   <View style={styles.clipboardIcon}>
-                    <SymbolView name="doc.on.clipboard" tintColor={colors.onPrimary} size={18} />
+                    <Icon name="doc.on.clipboard" tintColor={colors.onPrimary} size={18} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text variant="subhead" color={colors.primary} style={styles.bold}>
@@ -190,7 +171,7 @@ export default function SavedListScreen() {
                       {t('list.clipboardText')}
                     </Text>
                   </View>
-                  <SymbolView name="chevron.right" tintColor={colors.primary} size={14} weight="semibold" />
+                  <Icon name="chevron.right" tintColor={colors.primary} size={14} weight="semibold" />
                 </PressableScale>
               </Animated.View>
             )}
@@ -216,7 +197,7 @@ export default function SavedListScreen() {
                     <Text variant="subhead" color={colors.primary} style={styles.bold}>
                       {t('common.seeAll')}
                     </Text>
-                    <SymbolView name="chevron.right" tintColor={colors.primary} size={12} weight="semibold" />
+                    <Icon name="chevron.right" tintColor={colors.primary} size={12} weight="semibold" />
                   </PressableScale>
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.postStrip}>
@@ -279,7 +260,7 @@ export default function SavedListScreen() {
                     {t('common.placeCount', { count: rows.length })}
                   </Text>
                   <PressableScale onPress={chooseSort} hitSlop={hitSlop} style={styles.sortButton}>
-                    <SymbolView name="arrow.up.arrow.down" tintColor={colors.primary} size={13} />
+                    <Icon name="arrow.up.arrow.down" tintColor={colors.primary} size={13} />
                     <Text variant="footnote" color={colors.primary} style={styles.bold}>
                       {sortLabel(sort)}
                     </Text>
@@ -338,7 +319,7 @@ function SectionButton({
   active,
   onPress,
 }: {
-  icon: SFSymbol;
+  icon: AppSymbol;
   label: string;
   count: number;
   active: boolean;
@@ -346,7 +327,7 @@ function SectionButton({
 }) {
   return (
     <PressableScale haptic={false} onPress={onPress} style={[styles.section, active && styles.sectionActive]}>
-      <SymbolView name={icon} tintColor={active ? colors.onPrimary : colors.primary} size={16} />
+      <Icon name={icon} tintColor={active ? colors.onPrimary : colors.primary} size={16} />
       <Text variant="subhead" color={active ? colors.onPrimary : colors.primary} style={styles.bold} numberOfLines={1}>
         {label}
       </Text>
@@ -378,7 +359,7 @@ function FilterChip({ label, active, onPress }: { label: string; active: boolean
 /** Sosyal medya bölümü boşken: 3 adımda nasıl kaydedilir */
 function SocialEmpty() {
   const { t } = useTranslation();
-  const steps: { icon: SFSymbol; text: string }[] = [
+  const steps: { icon: AppSymbol; text: string }[] = [
     { icon: 'camera', text: t('list.socialStep1') },
     { icon: 'link', text: t('list.socialStep2') },
     { icon: 'bookmark.fill', text: t('list.socialStep3') },
@@ -392,7 +373,7 @@ function SocialEmpty() {
         {steps.map((s, i) => (
           <View key={s.text} style={styles.step}>
             <View style={styles.stepIcon}>
-              <SymbolView name={s.icon} tintColor={colors.primary} size={18} />
+              <Icon name={s.icon} tintColor={colors.primary} size={18} />
             </View>
             <Text variant="subhead" style={{ flex: 1 }}>
               <Text variant="subhead" style={styles.bold}>
@@ -413,7 +394,7 @@ function AppEmpty() {
   const { t } = useTranslation();
   return (
     <View style={styles.empty}>
-      <SymbolView name="bookmark" tintColor={colors.textTertiary} size={40} />
+      <Icon name="bookmark" tintColor={colors.textTertiary} size={40} />
       <Text variant="title3" align="center">
         {t('list.appEmptyTitle')}
       </Text>

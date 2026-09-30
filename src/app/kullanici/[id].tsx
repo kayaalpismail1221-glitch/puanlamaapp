@@ -1,9 +1,9 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { Icon } from '@/components/icon';
 import { ProfileLists } from '@/components/list-card';
 import { PostGrid } from '@/components/post-grid';
 import { MenuRow, ProfileIdentity, SchoolChip, StatCard, TasteCard, TopThree } from '@/components/profile-parts';
@@ -65,10 +65,11 @@ export default function UserProfileScreen() {
   // Kullanıcı içeriği güvenliği: profilden şikâyet ve engelleme
   const openMenu = () =>
     showMenu(undefined, [
-      { label: t('common.share'), onPress: share },
-      { label: t('moderation.reportUser'), destructive: true, onPress: () => openReportMenu({ userId: user.id }) },
+      { label: t('common.share'), icon: 'square.and.arrow.up', onPress: share },
+      { label: t('moderation.reportUser'), icon: 'flag', destructive: true, onPress: () => openReportMenu({ userId: user.id }) },
       {
         label: t('moderation.blockUser', { name: user.name.split(' ')[0] }),
+        icon: 'nosign',
         destructive: true,
         onPress: () =>
           confirmBlock(user, () => {
@@ -87,7 +88,7 @@ export default function UserProfileScreen() {
           headerRight: () =>
             isMe(user.id) ? null : (
               <PressableScale onPress={openMenu} hitSlop={hitSlop} accessibilityLabel={t('moderation.options')}>
-                <SymbolView name="ellipsis.circle" tintColor={colors.text} size={22} />
+                <Icon name="ellipsis.circle" tintColor={colors.text} size={22} />
               </PressableScale>
             ),
         }}

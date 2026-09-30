@@ -1,9 +1,9 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useMemo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { Icon } from '@/components/icon';
 import { PlaceRow } from '@/components/place-row';
 import { Bone, PlaceRowsSkeleton, Skeleton } from '@/components/skeleton';
 import { DualScore, MATCH_MIN_COMMON, MatchDisc } from '@/components/taste-match';
@@ -53,7 +53,7 @@ export default function TasteMatchScreen() {
           headerRight: () =>
             match.percent === undefined ? null : (
               <PressableScale onPress={share} hitSlop={hitSlop} accessibilityLabel={t('common.share')}>
-                <SymbolView name="square.and.arrow.up" tintColor={colors.primary} size={20} />
+                <Icon name="square.and.arrow.up" tintColor={colors.primary} size={20} />
               </PressableScale>
             ),
         }}

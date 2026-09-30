@@ -1,14 +1,15 @@
 import { router } from 'expo-router';
-import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActionSheetIOS, Alert, Linking, Platform, StyleSheet, View } from 'react-native';
+import { Alert, Linking, StyleSheet, View } from 'react-native';
 import ReanimatedSwipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 
 import type { FriendScore } from '@/api/content';
+import { Icon, type AppSymbol } from '@/components/icon';
 import { PlaceImage, PressableScale, Text } from '@/components/ui';
 import { cuisineLabel } from '@/constants/cuisines';
 import { colors, hitSlop, onScoreColor, radius, scoreColor, spacing } from '@/constants/theme';
+import { showMenu } from '@/lib/dialogs';
 import { formatScore, timeAgo } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
 import { linkSource } from '@/lib/links';
@@ -44,29 +45,14 @@ export function SavedPlaceCard({ entry, place, friends }: { entry: SavedPlace; p
 
   const showActions = () => {
     haptics.tap();
-    const actions: { label: string; run: () => void; destructive?: boolean }[] = [
-      { label: t('saved.beenRate'), run: rate },
-      ...(source ? [{ label: t('place.openSource', { source: source.label }), run: openLink }] : []),
-      { label: entry.origin === 'social' ? t('saved.editLinkNote') : t('saved.editNote'), run: edit },
-      { label: t('common.removeFromList'), run: remove, destructive: true },
-    ];
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          title: place.name,
-          options: [...actions.map((a) => a.label), t('common.cancel')],
-          destructiveButtonIndex: actions.findIndex((a) => a.destructive),
-          cancelButtonIndex: actions.length,
-          tintColor: colors.primary,
-        },
-        (i) => actions[i]?.run(),
-      );
-    } else {
-      Alert.alert(place.name, undefined, [
-        ...actions.map((a) => ({ text: a.label, onPress: a.run, style: a.destructive ? ('destructive' as const) : undefined })),
-        { text: t('common.cancel'), style: 'cancel' },
-      ]);
-    }
+    showMenu(place.name, [
+      { label: t('saved.beenRate'), icon: 'checkmark.circle', onPress: rate },
+      ...(source
+        ? [{ label: t('place.openSource', { source: source.label }), icon: 'arrow.up.right.square' as const, onPress: openLink }]
+        : []),
+      { label: entry.origin === 'social' ? t('saved.editLinkNote') : t('saved.editNote'), icon: 'pencil', onPress: edit },
+      { label: t('common.removeFromList'), icon: 'trash', destructive: true, onPress: remove },
+    ]);
   };
 
   return (
@@ -91,7 +77,7 @@ export function SavedPlaceCard({ entry, place, friends }: { entry: SavedPlace; p
               {place.name}
             </Text>
             <PressableScale onPress={showActions} haptic={false} hitSlop={hitSlop} accessibilityLabel={t('moderation.options')}>
-              <SymbolView name="ellipsis" tintColor={colors.textSecondary} size={16} />
+              <Icon name="ellipsis" tintColor={colors.textSecondary} size={16} />
             </PressableScale>
           </View>
 
@@ -108,16 +94,16 @@ export function SavedPlaceCard({ entry, place, friends }: { entry: SavedPlace; p
           <View style={styles.meta}>
             {source && (
               <PressableScale onPress={openLink} haptic={false} hitSlop={hitSlop} style={styles.chip}>
-                <SymbolView name={source.icon} tintColor={colors.primary} size={12} />
+                <Icon name={source.icon} tintColor={colors.primary} size={12} />
                 <Text variant="caption" color={colors.primary}>
                   {source.label}
                 </Text>
-                <SymbolView name="arrow.up.right" tintColor={colors.primary} size={9} weight="bold" />
+                <Icon name="arrow.up.right" tintColor={colors.primary} size={9} weight="bold" />
               </PressableScale>
             )}
             {friends && (
               <View style={[styles.chip, { backgroundColor: scoreColor(friends.average) }]}>
-                <SymbolView name="person.2.fill" tintColor={onScoreColor(friends.average)} size={11} />
+                <Icon name="person.2.fill" tintColor={onScoreColor(friends.average)} size={11} />
                 <Text variant="caption" color={onScoreColor(friends.average)} style={{ fontVariant: ['tabular-nums'] }}>
                   {formatScore(friends.average)}
                 </Text>
@@ -139,14 +125,14 @@ function SwipeAction({
   color,
   onPress,
 }: {
-  icon: SFSymbol;
+  icon: AppSymbol;
   label: string;
   color: string;
   onPress: () => void;
 }) {
   return (
     <PressableScale onPress={onPress} style={[styles.action, { backgroundColor: color }]} accessibilityLabel={label}>
-      <SymbolView name={icon} tintColor={colors.onPrimary} size={22} />
+      <Icon name={icon} tintColor={colors.onPrimary} size={22} />
       <Text variant="caption" color={colors.onPrimary}>
         {label}
       </Text>

@@ -1,9 +1,9 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useTranslation } from 'react-i18next';
 import { Alert, FlatList, StyleSheet, View } from 'react-native';
 
 import { showError } from '@/api/errors';
+import { Icon } from '@/components/icon';
 import { ListCover, newList } from '@/components/list-card';
 import { Bone, PlaceRowsSkeleton, Skeleton } from '@/components/skeleton';
 import { Avatar, Button, Divider, ErrorView, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
@@ -73,15 +73,16 @@ export default function ListScreen() {
       undefined,
       mine
         ? [
-            { label: t('lists.storyCard'), onPress: openStory },
-            { label: t('lists.edit'), onPress: edit },
-            { label: t('lists.deleteTitle'), destructive: true, onPress: confirmDelete },
+            { label: t('lists.storyCard'), icon: 'rectangle.portrait.on.rectangle.portrait', onPress: openStory },
+            { label: t('lists.edit'), icon: 'pencil', onPress: edit },
+            { label: t('lists.deleteTitle'), icon: 'trash', destructive: true, onPress: confirmDelete },
           ]
         : [
-            { label: t('lists.storyCard'), onPress: openStory },
-            { label: t('moderation.report'), destructive: true, onPress: () => openReportMenu({ listId: list.id }) },
+            { label: t('lists.storyCard'), icon: 'rectangle.portrait.on.rectangle.portrait', onPress: openStory },
+            { label: t('moderation.report'), icon: 'flag', destructive: true, onPress: () => openReportMenu({ listId: list.id }) },
             {
               label: t('moderation.blockUser', { name: list.author.name.split(' ')[0] }),
+              icon: 'nosign',
               destructive: true,
               onPress: () =>
                 confirmBlock(list.author, () => {
@@ -113,10 +114,10 @@ export default function ListScreen() {
           headerRight: () => (
             <View style={styles.headerButtons}>
               <PressableScale onPress={share} hitSlop={hitSlop} accessibilityLabel={t('common.share')}>
-                <SymbolView name="square.and.arrow.up" tintColor={colors.primary} size={20} />
+                <Icon name="square.and.arrow.up" tintColor={colors.primary} size={20} />
               </PressableScale>
               <PressableScale onPress={openMenu} hitSlop={hitSlop} accessibilityLabel={t('moderation.options')}>
-                <SymbolView name="ellipsis.circle" tintColor={colors.primary} size={22} />
+                <Icon name="ellipsis.circle" tintColor={colors.primary} size={22} />
               </PressableScale>
             </View>
           ),

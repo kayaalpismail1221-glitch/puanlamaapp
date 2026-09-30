@@ -1,5 +1,4 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, FlatList, ScrollView, StyleSheet, TextInput, View } from 'react-native';
@@ -7,6 +6,7 @@ import Animated from 'react-native-reanimated';
 
 import { showError } from '@/api/errors';
 import type { ListDetails } from '@/api/lists';
+import { Icon } from '@/components/icon';
 import { PlaceRowsSkeleton } from '@/components/skeleton';
 import { Button, Divider, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { cuisineLabel } from '@/constants/cuisines';
@@ -121,7 +121,7 @@ function ListEditor({ id, initial, initialTitle }: { id?: string; initial?: List
   if (candidates.length === 0) {
     return (
       <View style={[styles.container, styles.empty]}>
-        <SymbolView name="list.star" tintColor={colors.textTertiary} size={40} />
+        <Icon name="list.star" tintColor={colors.textTertiary} size={40} />
         <Text variant="headline" align="center">
           {t('lists.editor.noRanked')}
         </Text>
@@ -258,7 +258,7 @@ function CandidateRow({
         style={styles.candidateRow}
         accessibilityRole="checkbox"
         accessibilityState={{ checked: isSelected }}>
-        <SymbolView
+        <Icon
           name={isSelected ? 'checkmark.circle.fill' : 'circle'}
           tintColor={isSelected ? colors.primary : colors.textTertiary}
           size={24}

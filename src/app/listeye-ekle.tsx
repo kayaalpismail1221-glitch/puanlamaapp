@@ -1,10 +1,10 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
+import { Icon } from '@/components/icon';
 import { PlacePicker } from '@/components/place-picker';
 import { Button, PlaceImage, PressableScale, Text } from '@/components/ui';
 import { cuisineLabel } from '@/constants/cuisines';
@@ -75,7 +75,7 @@ export default function AddToListScreen() {
         <Stack.Screen options={{ title }} />
         {isSocial && link ? (
           <View style={styles.pickedLink}>
-            <SymbolView name={linkSource(link).icon} tintColor={colors.primary} size={16} />
+            <Icon name={linkSource(link).icon} tintColor={colors.primary} size={16} />
             <Text variant="footnote" color={colors.primary} numberOfLines={1} style={{ flex: 1 }}>
               {t('addToList.linkAdded', { source: linkSource(link).label })}
             </Text>
@@ -147,14 +147,14 @@ export default function AddToListScreen() {
             </Text>
             {clipboardHasUrl && !link && (
               <PressableScale onPress={pasteLink} style={styles.pasteBanner}>
-                <SymbolView name="doc.on.clipboard" tintColor={colors.primary} size={18} />
+                <Icon name="doc.on.clipboard" tintColor={colors.primary} size={18} />
                 <Text variant="subhead" color={colors.primary} style={styles.bold}>
                   {t('addToList.pasteFromClipboard')}
                 </Text>
               </PressableScale>
             )}
             <View style={styles.linkRow}>
-              {source && <SymbolView name={source.icon} tintColor={colors.primary} size={18} />}
+              {source && <Icon name={source.icon} tintColor={colors.primary} size={18} />}
               <TextInput
                 value={link}
                 onChangeText={setLink}
@@ -168,7 +168,7 @@ export default function AddToListScreen() {
               />
               {link ? (
                 <PressableScale onPress={() => setLink('')} accessibilityLabel={t('addToList.clearLink')}>
-                  <SymbolView name="xmark.circle.fill" tintColor={colors.textTertiary} size={18} />
+                  <Icon name="xmark.circle.fill" tintColor={colors.textTertiary} size={18} />
                 </PressableScale>
               ) : (
                 <PressableScale onPress={pasteLink} style={styles.pasteButton}>

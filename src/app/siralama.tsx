@@ -1,9 +1,9 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, StyleSheet, View } from 'react-native';
 
+import { Icon } from '@/components/icon';
 import { SegmentedControl } from '@/components/segmented-control';
 import { UserRowsSkeleton } from '@/components/skeleton';
 import { Avatar, Button, Divider, ErrorView, PressableScale, Text } from '@/components/ui';
@@ -151,7 +151,7 @@ function MyRankCard({ mine, entries }: { mine: LeaderboardEntry; entries: Leader
   return (
     <View style={styles.myCard}>
       <View style={styles.myIcon}>
-        <SymbolView name="trophy.fill" tintColor={colors.onPrimary} size={22} />
+        <Icon name="trophy.fill" tintColor={colors.onPrimary} size={22} />
       </View>
       <View style={{ flex: 1, gap: 2 }}>
         <Text variant="headline" color={colors.primary}>

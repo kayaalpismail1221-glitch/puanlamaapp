@@ -1,6 +1,5 @@
 import * as Location from 'expo-location';
 import { router, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
@@ -9,8 +8,10 @@ import Animated from 'react-native-reanimated';
 
 import { createPlace } from '@/api/content';
 import { showError } from '@/api/errors';
+import { Icon } from '@/components/icon';
 import { Button, PressableScale, Text } from '@/components/ui';
 import { CUISINES, cuisineLabel } from '@/constants/cuisines';
+import { mapBaseProps } from '@/constants/map';
 import { colors, radius, spacing, typography } from '@/constants/theme';
 import { useKeyboardFooterStyle } from '@/hooks/use-keyboard-footer';
 import { DEFAULT_REGION, type Coords } from '@/lib/geo';
@@ -120,7 +121,7 @@ export default function AddPlaceScreen() {
                     setCuisine(c.name);
                   }}
                   style={[styles.chip, active && styles.chipActive]}>
-                  <SymbolView name={c.icon} tintColor={active ? colors.onPrimary : colors.primary} size={14} />
+                  <Icon name={c.icon} tintColor={active ? colors.onPrimary : colors.primary} size={14} />
                   <Text variant="subhead" color={active ? colors.onPrimary : colors.text}>
                     {cuisineLabel(c.name)}
                   </Text>
@@ -138,11 +139,12 @@ export default function AddPlaceScreen() {
               initialRegion={DEFAULT_REGION}
               onRegionChangeComplete={moveTo}
               showsUserLocation
+              {...mapBaseProps}
             />
             {/* Sabit iğne: haritanın ortası seçilen konumdur */}
             <View pointerEvents="none" style={styles.pinWrap}>
               <View style={styles.pin}>
-                <SymbolView name="fork.knife" tintColor={colors.onPrimary} size={14} />
+                <Icon name="fork.knife" tintColor={colors.onPrimary} size={14} />
               </View>
             </View>
           </View>

@@ -1,8 +1,8 @@
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { Icon } from '@/components/icon';
 import { Bone, Skeleton } from '@/components/skeleton';
 import { Button, PlaceImage, PressableScale, Text } from '@/components/ui';
 import { colors, fonts, hitSlop, radius, spacing } from '@/constants/theme';
@@ -61,7 +61,7 @@ function NewListCard() {
     <PressableScale onPress={() => newList()} scaleTo={0.97} style={styles.card} accessibilityRole="button">
       <View style={[styles.cover, styles.newCover]}>
         <View style={styles.plus}>
-          <SymbolView name="plus" tintColor={colors.onPrimary} size={18} weight="bold" />
+          <Icon name="plus" tintColor={colors.onPrimary} size={18} weight="bold" />
         </View>
       </View>
       <Text style={styles.title} numberOfLines={1}>
@@ -155,7 +155,7 @@ function CreateListPrompt() {
   return (
     <View style={styles.prompt}>
       <View style={styles.promptIcon}>
-        <SymbolView name="list.star" tintColor={colors.onPrimary} size={20} />
+        <Icon name="list.star" tintColor={colors.onPrimary} size={20} />
       </View>
       <View style={styles.promptText}>
         <Text variant="headline">{t('lists.emptyTitle')}</Text>

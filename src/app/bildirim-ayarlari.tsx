@@ -1,5 +1,4 @@
 import { useFocusEffect } from 'expo-router';
-import type { SFSymbol } from 'expo-symbols';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, Switch } from 'react-native';
@@ -7,6 +6,7 @@ import { ScrollView, Switch } from 'react-native';
 import { showError } from '@/api/errors';
 import { setMutedKinds } from '@/api/notifications';
 import { SettingsGroup, SettingsRow, settingsStyles } from '@/components/settings-list';
+import type { AppSymbol } from '@/constants/icons';
 import { colors } from '@/constants/theme';
 import { useMutedNotifications } from '@/hooks/queries';
 import { haptics } from '@/lib/haptics';
@@ -15,7 +15,7 @@ import { keys, queryClient } from '@/lib/query-client';
 import { useAppStore } from '@/store/app-store';
 import type { NotificationKind } from '@/types';
 
-const KINDS: { kind: NotificationKind; icon: SFSymbol }[] = [
+const KINDS: { kind: NotificationKind; icon: AppSymbol }[] = [
   { kind: 'friend_rated', icon: 'fork.knife' },
   { kind: 'friend_joined', icon: 'person.crop.circle.badge.checkmark' },
   { kind: 'tag', icon: 'person.2.fill' },

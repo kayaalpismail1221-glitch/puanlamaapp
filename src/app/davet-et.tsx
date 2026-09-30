@@ -1,9 +1,9 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { Icon } from '@/components/icon';
 import { Avatar, Button, PressableScale, Text } from '@/components/ui';
 import { colors, radius, spacing } from '@/constants/theme';
 import { usePlace } from '@/data/entities';
@@ -81,7 +81,7 @@ export default function InviteScreen() {
                 </Text>
                 {done && (
                   <View style={styles.sent}>
-                    <SymbolView name="checkmark.circle.fill" tintColor={colors.primary} size={13} />
+                    <Icon name="checkmark.circle.fill" tintColor={colors.primary} size={13} />
                     <Text variant="caption" color={colors.primary}>
                       {t('invite.sent')}
                     </Text>
@@ -93,7 +93,7 @@ export default function InviteScreen() {
                 style={styles.secondary}
                 accessibilityLabel={t('invite.sms')}
                 disabled={!text}>
-                <SymbolView name="message.fill" tintColor={colors.primary} size={16} />
+                <Icon name="message.fill" tintColor={colors.primary} size={16} />
               </PressableScale>
               <Button title={t('invite.whatsapp')} size="sm" onPress={() => send(c, 'whatsapp')} disabled={!text} />
             </View>

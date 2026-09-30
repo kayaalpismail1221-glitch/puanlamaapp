@@ -1,8 +1,8 @@
-import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown, FadeOut } from 'react-native-reanimated';
 
+import { Icon, type AppSymbol } from '@/components/icon';
 import { Button, PlaceImage, PressableScale, Text } from '@/components/ui';
 import { colors, radius, spacing } from '@/constants/theme';
 import type { RankResult } from '@/hooks/use-rank-flow';
@@ -15,7 +15,7 @@ import type { Place, Sentiment } from '@/types';
 
 const SENTIMENTS: Sentiment[] = ['liked', 'fine', 'disliked'];
 
-const SENTIMENT_ICONS: Record<Sentiment, SFSymbol> = {
+const SENTIMENT_ICONS: Record<Sentiment, AppSymbol> = {
   liked: 'hand.thumbsup.fill',
   fine: 'hand.raised.fill',
   disliked: 'hand.thumbsdown.fill',
@@ -29,7 +29,7 @@ export function SentimentChoice({ onChoose, compact }: { onChoose: (s: Sentiment
       <Animated.View entering={FadeIn} style={styles.pills}>
         {SENTIMENTS.map((s) => (
           <PressableScale key={s} onPress={() => onChoose(s)} haptic={false} style={styles.pill}>
-            <SymbolView name={SENTIMENT_ICONS[s]} tintColor={colors.primary} size={20} />
+            <Icon name={SENTIMENT_ICONS[s]} tintColor={colors.primary} size={20} />
             <Text variant="footnote" style={styles.bold} numberOfLines={1}>
               {t(`sentiments.${s}`)}
             </Text>
@@ -47,7 +47,7 @@ export function SentimentChoice({ onChoose, compact }: { onChoose: (s: Sentiment
         <Animated.View key={s} entering={FadeInDown.delay(60 * i).springify()}>
           <PressableScale onPress={() => onChoose(s)} haptic={false} style={styles.sentiment}>
             <View style={styles.sentimentIcon}>
-              <SymbolView name={SENTIMENT_ICONS[s]} tintColor={colors.primary} size={20} />
+              <Icon name={SENTIMENT_ICONS[s]} tintColor={colors.primary} size={20} />
             </View>
             <Text variant="headline">{t(`sentiments.${s}`)}</Text>
           </PressableScale>

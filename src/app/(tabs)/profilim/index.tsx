@@ -1,9 +1,9 @@
 import { router, Stack } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 
+import { Icon } from '@/components/icon';
 import { ProfileLists } from '@/components/list-card';
 import { VisitedMap } from '@/components/visited-map';
 import { PostGrid } from '@/components/post-grid';
@@ -74,8 +74,8 @@ export default function ProfileScreen() {
 
   const shareProfile = () =>
     showMenu(undefined, [
-      { label: t('me.storyCard'), onPress: () => router.push('/hikaye') },
-      { label: t('me.shareLink'), onPress: () => profile && shareProfileLink(profile) },
+      { label: t('me.storyCard'), icon: 'rectangle.portrait.on.rectangle.portrait', onPress: () => router.push('/hikaye') },
+      { label: t('me.shareLink'), icon: 'link', onPress: () => profile && shareProfileLink(profile) },
     ]);
 
   return (
@@ -86,7 +86,7 @@ export default function ProfileScreen() {
           // Paylaşma, profildeki "Paylaş" düğmesinden; başlıkta yalnızca ayarlar
           headerRight: () => (
             <PressableScale onPress={() => router.push('/ayarlar')} hitSlop={hitSlop} accessibilityLabel={t('common.settings')}>
-              <SymbolView name="gearshape" tintColor={colors.primary} size={22} />
+              <Icon name="gearshape" tintColor={colors.primary} size={22} />
             </PressableScale>
           ),
         }}
@@ -181,7 +181,7 @@ export default function ProfileScreen() {
         <View style={styles.postsHeader}>
           <Text variant="title3">{t('me.myPosts')}</Text>
           <PressableScale onPress={() => router.push('/gonderi-olustur')} hitSlop={hitSlop} style={styles.newPost}>
-            <SymbolView name="plus" tintColor={colors.primary} size={14} weight="bold" />
+            <Icon name="plus" tintColor={colors.primary} size={14} weight="bold" />
             <Text variant="subhead" color={colors.primary} style={styles.bold}>
               {t('me.newPost')}
             </Text>

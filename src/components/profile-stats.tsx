@@ -1,9 +1,9 @@
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
+import { Icon } from '@/components/icon';
 import { PressableScale, Text } from '@/components/ui';
 import { colors, spacing } from '@/constants/theme';
 import { useUserProfile, useUserRank } from '@/hooks/queries';
@@ -38,7 +38,7 @@ export function ProfileStats({ userId }: { userId: string }) {
           <Value>#{rank}</Value>
         ) : (
           // İlk değerlendirme paylaşılana kadar sıralama kilitli
-          <SymbolView name="lock.fill" tintColor={colors.textSecondary} size={18} style={styles.lock} />
+          <Icon name="lock.fill" tintColor={colors.textSecondary} size={18} style={styles.lock} />
         )}
       </Stat>
     </View>

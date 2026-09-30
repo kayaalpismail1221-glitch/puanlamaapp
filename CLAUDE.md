@@ -7,14 +7,14 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
 
 ## Geliştirici ortamı
 - Windows PC + iPhone 11 (Mac yok).
-- Test: iPhone'da Expo Go (gerekirse EAS development build).
-- iOS derlemesi: EAS Build (bulutta). Xcode'a veya Mac'e bağımlı adım önerme.
-- Öncelik iOS. Tasarım iOS'a native hissettirmeli; Android sonra gelir.
+- Test: iPhone'da Expo Go (gerekirse EAS development build). Android: Expo Go (Android) ya da Android Studio emülatörü.
+- iOS ve Android derlemesi: EAS Build (bulutta). Xcode'a veya Mac'e bağımlı adım önerme. Android deneme APK'sı: `eas build -p android --profile preview`.
+- iOS örnek platform; Android aynı ekran ve akışları kendi diliyle (Material) sunar — bkz. "Android (kalıcı ilke)", kurulum `docs/android.md`.
 
 ## Teknoloji
 - React Native + Expo (en güncel SDK), TypeScript
 - Navigasyon: Expo Router (dosya tabanlı), alt bar için native tabs
-- Harita: react-native-maps (iOS'ta Apple Haritalar)
+- Harita: react-native-maps (iOS'ta Apple Haritalar, Android'de Google Haritalar; anahtar `GOOGLE_MAPS_ANDROID_API_KEY` → `app.config.js`)
 - Animasyon ve his: react-native-reanimated, expo-haptics, expo-blur
 - Backend: Supabase (auth, Postgres + PostGIS, storage). Apple ile Giriş desteklenmeli. Kurulum: SUPABASE.md
 - Mekân verisi: kendi `places` tablomuz; kullanıcılar mekân ekleyebilir (`mekan-ekle`). İstanbul verisi
@@ -95,7 +95,7 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
 ## Geliştirme notları
 - **Anında güncelleme (EAS Update):** `expo-updates`, kanal `production` (eas.json), `runtimeVersion: appVersion`.
   Yalnızca JS/asset değişikliği → build yok: `npm run update -- --message "…"` (EAS'taki production ortam
-  değişkenleriyle yayınlanır); telefonlar arka planda indirir, bir sonraki açılışta uygular.
+  değişkenleriyle yayınlanır; iOS ve Android'e birlikte gider); telefonlar arka planda indirir, bir sonraki açılışta uygular.
   **Yeni yerel paket / config eklentisi / app.json yerel ayarı değişirse**: `app.json` → `version` artırılır
   (1.0.0 → 1.0.1) ve yeni build alınır; aksi hâlde güncelleme eski ikiliye gider ve çöker. Fingerprint politikası
   kullanılmaz: Windows'taki satır sonları yüzünden yerel parmak izi EAS build'inkiyle tutmayabilir.
@@ -118,7 +118,8 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
    ayrı karşılaştırma ekranı. SMS doğrulaması ertelendi (aşağıdaki not).
 4. Bildirimler: ölü jeton temizliği (Expo yanıtı `DeviceNotRegistered`).
 5. Hikâye kartlarına link/CTA; damak uyumu hikâye kartı; grup oylaması; şehir içi "lezzet rotası" kartı.
-6. App Store çıkışı (`docs/app-store.md`), web yönetim paneli (şikâyet kuyruğu; RPC'ler hazır),
+6. Android ilk build + Google Play (`docs/android.md`: Maps anahtarı, Firebase, veri güvenliği formu); ileride Google ile giriş.
+7. App Store çıkışı (`docs/app-store.md`), web yönetim paneli (şikâyet kuyruğu; RPC'ler hazır),
    Foursquare OS Places ile mekân zenginleştirme.
 
 ## Büyüme: viralite ve ağ etkisi (kalıcı ilke)
@@ -195,7 +196,7 @@ Tutunma tarafı: bildirimler ve rehber eşleştirme olmadan ağın ürettiği de
 - Puan renkleri (her yerde: pin, rozet, ızgara, arkadaş puanı): kırmızı 0–3,3 → sarı 3,4–6,6 → yeşil 6,7–10,
   grup içinde uca doğru koyulaşır (10'a yaklaştıkça koyu yeşil). `theme.ts`: `scoreColor` (dolgu/kenar),
   `scoreInk` (beyaz zeminde yazı), `onScoreColor` (dolgu üstünde yazı).
-- Font: iOS sistem fontu (SF Pro), ayrı font yükleme yok
+- Font: sistem fontu (iOS'ta SF Pro, Android'de Roboto), ayrı font yükleme yok
 - Köşe yarıçapları: kartlar 16, butonlar 12, avatarlar tam yuvarlak
 - Boşluklar 4'ün katları (4, 8, 12, 16, 24, 32)
 - Renkleri ve ölçüleri tek bir `theme.ts` dosyasında token olarak tut. Bileşenlerde sabit renk yazma.
@@ -211,6 +212,25 @@ Tutunma tarafı: bildirimler ve rehber eşleştirme olmadan ağın ürettiği de
 - Her etkileşimde haptik + yay animasyonu (`PressableScale`); stil doğrudan dokunma alanına uygulanır.
 - Kod kalitesi: tip güvenliği, tek sorumluluklu bileşenler, mantık `lib/` altında ve test edilebilir.
   Her adım sonunda `tsc`, `expo lint` ve iOS bundle temiz olmalı.
+
+## Android (kalıcı ilke)
+Durum (2026-09-30): kod hazır, henüz Android build alınmadı; Google Haritalar anahtarı ve Firebase (FCM) bekliyor → `docs/android.md`.
+- iOS'ta davranış değişmez; Android'de iOS'un karşılığı olan Android öğesi kullanılır (kopyası değil).
+- **İkonlar:** `components/icon` (`Icon`): iOS'ta SF Symbols (`icon.ios.tsx`), Android/web'de Material Icons (`icon.tsx`,
+  `@expo/vector-icons`; iOS paketine girmez). Eşleme `constants/icons.ts` → `ANDROID_ICONS`; ikon adı tipi `AppSymbol`
+  (eşlemesi olmayan SF Symbol derlenmez). `expo-symbols`'ı doğrudan kullanma (Android'de SF adlarını çizmez, ikon kaybolur).
+- **Menüler:** `lib/dialogs.ts` → `showMenu` (iOS ActionSheet / Android Material alt sayfa, seçeneklerde `icon`, `selected`) ve
+  `showPrompt` (iOS `Alert.prompt` / Android diyalog); Android pencereleri `components/dialog-host.tsx` (kök düzende).
+  `ActionSheetIOS` ve `Alert.prompt` doğrudan kullanılmaz; Android Alert'i en fazla 3 düğme gösterir.
+- **Yüzeyler ve gezinme:** `GlassSurface` Android'de gölgeli opak yüzey; modal sayfalar Android'de aşağıdan kayar (`_layout` → `modal`);
+  `headerShown: false` modalda Android'de `insets.top` eklenir. Geri tuşu: `hooks/use-hardware-back.ts`
+  (kayıt sonrası adımlar `useBlockHardwareBack`, puanlamada geri = bir adım geri). Başlık yüksekliği `theme.headerHeight`.
+- **Harita:** `constants/map.ts` (`mapBaseProps`/`fullScreenMapProps`/`quietMapProps`: Google araç çubuğu, konum düğmesi, POI stili),
+  özel pin `components/map-marker.tsx` → `ViewMarker` (Android'de çizildikten sonra dondurulur; değişince `redrawKey`).
+  Yol tarifi Android'de kuş uçuşu + Google Haritalar (`openInMaps`); uygulama içi rota yalnızca iOS (MKDirections).
+- **Diğer:** klavye `components/keyboard-avoiding-view.tsx`; haptik Android'de `performAndroidHapticsAsync`; bildirim kanalı `default`
+  (`lib/notifications.ts`); "Paylaş → Puanla" Android'de intent ile gelir, `_layout` → `AndroidShareRedirect`. Apple ile giriş Android'de gizli.
+  Paket adı `app.puanla`; `RECORD_AUDIO` engelli. Sabit metinlerde "iPhone", "Apple Haritalar" gibi platform adı yazma (`mapsAppName()`).
 
 ## Ekranlar ve akış
 ### Onboarding

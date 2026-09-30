@@ -1,9 +1,9 @@
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useTranslation } from 'react-i18next';
 import { Linking, StyleSheet, View } from 'react-native';
 
 import { showError } from '@/api/errors';
+import { Icon } from '@/components/icon';
 import { UserRowsSkeleton } from '@/components/skeleton';
 import { Button, Text } from '@/components/ui';
 import { UserRow } from '@/components/user-row';
@@ -46,7 +46,7 @@ export function ContactFriends() {
   return (
     <View style={styles.card}>
       <View style={styles.title}>
-        <SymbolView name="person.crop.circle.badge.plus" tintColor={colors.primary} size={22} />
+        <Icon name="person.crop.circle.badge.plus" tintColor={colors.primary} size={22} />
         <Text variant="headline" color={colors.primary}>
           {t('contacts.title')}
         </Text>

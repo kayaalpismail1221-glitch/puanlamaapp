@@ -1,5 +1,5 @@
-import type { SFSymbol } from 'expo-symbols';
 
+import type { AppSymbol } from '@/constants/icons';
 import i18n from '@/i18n';
 import type { Meal } from '@/types';
 
@@ -8,7 +8,7 @@ import type { Meal } from '@/types';
  * mekân sayfasında öne çıkan özellikleri hesaplamayı mümkün kılar.
  */
 
-export const MEALS: { key: Meal; icon: SFSymbol }[] = [
+export const MEALS: { key: Meal; icon: AppSymbol }[] = [
   { key: 'kahvalti', icon: 'sunrise' },
   { key: 'ogle', icon: 'sun.max' },
   { key: 'aksam', icon: 'sunset' },

@@ -1,5 +1,4 @@
 import { Image } from 'expo-image';
-import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { useState, type ComponentProps, type ReactNode } from 'react';
 import {
   ActivityIndicator,
@@ -17,6 +16,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 
+import { Icon, type AppSymbol } from '@/components/icon';
 import { colors, radius, scoreColor, scoreInk, spacing, typography, type TypographyVariant } from '@/constants/theme';
 import { formatScore, initials } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
@@ -89,7 +89,7 @@ type ButtonProps = {
   onPress?: () => void;
   variant?: 'primary' | 'secondary' | 'ghost' | 'outline';
   size?: 'md' | 'sm';
-  icon?: SFSymbol;
+  icon?: AppSymbol;
   disabled?: boolean;
   loading?: boolean;
   style?: StyleProp<ViewStyle>;
@@ -132,7 +132,7 @@ export function Button({
         <ActivityIndicator color={fg} />
       ) : (
         <>
-          {icon && <SymbolView name={icon} tintColor={fg} size={size === 'sm' ? 15 : 18} weight="semibold" />}
+          {icon && <Icon name={icon} tintColor={fg} size={size === 'sm' ? 15 : 18} weight="semibold" />}
           <Text variant={size === 'sm' ? 'subhead' : 'headline'} color={fg} style={size === 'sm' && styles.smallText}>
             {title}
           </Text>
@@ -213,7 +213,7 @@ export function PlaceImage({
   if (!uri || failedUri === uri) {
     return (
       <View style={[styles.imageFallback, style]}>
-        <SymbolView name="fork.knife" tintColor={colors.textTertiary} size={24} />
+        <Icon name="fork.knife" tintColor={colors.textTertiary} size={24} />
       </View>
     );
   }
@@ -246,7 +246,7 @@ export function SearchField({
 }) {
   return (
     <View style={styles.search}>
-      <SymbolView name="magnifyingglass" tintColor={colors.textSecondary} size={17} />
+      <Icon name="magnifyingglass" tintColor={colors.textSecondary} size={17} />
       <TextInput
         value={value}
         onChangeText={onChangeText}
@@ -292,7 +292,7 @@ export function ErrorView({
   const { t } = useTranslation();
   return (
     <View style={[styles.state, style]}>
-      <SymbolView name="wifi.exclamationmark" tintColor={colors.textTertiary} size={36} />
+      <Icon name="wifi.exclamationmark" tintColor={colors.textTertiary} size={36} />
       <Text variant="subhead" color={colors.textSecondary} align="center">
         {message ?? t('common.loadFailed')}
       </Text>

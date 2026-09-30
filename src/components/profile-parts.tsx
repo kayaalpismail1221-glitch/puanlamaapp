@@ -1,14 +1,15 @@
 import { router } from 'expo-router';
-import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { useTranslation } from 'react-i18next';
-import { Alert, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { LinearTransition } from 'react-native-reanimated';
 
+import { Icon, type AppSymbol } from '@/components/icon';
 import { Avatar, PlaceImage, PressableScale, Text } from '@/components/ui';
 import { cuisineLabel } from '@/constants/cuisines';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
 import { schoolById, schoolLabel } from '@/data/schools';
 import { useLeaderboard } from '@/hooks/queries';
+import { showPrompt } from '@/lib/dialogs';
 import { formatScore, monthYear } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
 import { showMenu } from '@/lib/moderation';
@@ -67,7 +68,7 @@ export function SchoolChip({ userId, schoolId, editable }: { userId: string; sch
     if (!editable) return null;
     return (
       <PressableScale onPress={() => router.push('/okul-sec')} style={styles.addSchool}>
-        <SymbolView name="plus" tintColor={colors.primary} size={12} weight="bold" />
+        <Icon name="plus" tintColor={colors.primary} size={12} weight="bold" />
         <Text variant="subhead" color={colors.primary} style={styles.bold}>
           {t('profile.addSchool')}
         </Text>
@@ -80,7 +81,7 @@ export function SchoolChip({ userId, schoolId, editable }: { userId: string; sch
       onPress={() => router.push({ pathname: '/siralama', params: { okul: school.id, vurgula: userId } })}
       style={styles.school}
       accessibilityLabel={t('profile.schoolLeaderboard', { school: school.name })}>
-      <SymbolView name="graduationcap.fill" tintColor={colors.primary} size={14} />
+      <Icon name="graduationcap.fill" tintColor={colors.primary} size={14} />
       <Text variant="subhead" style={styles.bold} numberOfLines={1}>
         {schoolLabel(school)}
       </Text>
@@ -89,7 +90,7 @@ export function SchoolChip({ userId, schoolId, editable }: { userId: string; sch
           {t('profile.rankAtSchool', { rank: entry.rank })}
         </Text>
       )}
-      <SymbolView name="chevron.right" tintColor={colors.textTertiary} size={11} weight="semibold" />
+      <Icon name="chevron.right" tintColor={colors.textTertiary} size={11} weight="semibold" />
     </PressableScale>
   );
 }
@@ -104,7 +105,7 @@ export function MenuRow({
   locked,
   onPress,
 }: {
-  icon: SFSymbol;
+  icon: AppSymbol;
   title: string;
   subtitle?: string;
   count?: number;
@@ -113,7 +114,7 @@ export function MenuRow({
 }) {
   return (
     <PressableScale onPress={onPress} scaleTo={0.99} style={styles.menuRow} accessibilityRole="button">
-      <SymbolView name={icon} tintColor={colors.text} size={22} style={styles.menuIcon} />
+      <Icon name={icon} tintColor={colors.text} size={22} style={styles.menuIcon} />
       <View style={{ flex: 1 }}>
         <Text variant="headline">{title}</Text>
         {subtitle && (
@@ -123,7 +124,7 @@ export function MenuRow({
         )}
       </View>
       {locked ? (
-        <SymbolView name="lock.fill" tintColor={colors.textTertiary} size={16} />
+        <Icon name="lock.fill" tintColor={colors.textTertiary} size={16} />
       ) : (
         <>
           {count !== undefined && (
@@ -131,7 +132,7 @@ export function MenuRow({
               {count}
             </Text>
           )}
-          <SymbolView name="chevron.right" tintColor={colors.textTertiary} size={14} weight="semibold" />
+          <Icon name="chevron.right" tintColor={colors.textTertiary} size={14} weight="semibold" />
         </>
       )}
     </PressableScale>
@@ -147,7 +148,7 @@ export function StatCard({
   locked,
   onPress,
 }: {
-  icon: SFSymbol;
+  icon: AppSymbol;
   title: string;
   value?: string;
   locked?: boolean;
@@ -155,13 +156,13 @@ export function StatCard({
 }) {
   return (
     <PressableScale onPress={onPress} disabled={!onPress} scaleTo={0.97} style={styles.statCard}>
-      <SymbolView name={icon} tintColor={colors.primary} size={24} />
+      <Icon name={icon} tintColor={colors.primary} size={24} />
       <View style={{ flex: 1, gap: 2 }}>
         <Text variant="footnote" color={colors.textSecondary}>
           {title}
         </Text>
         {locked ? (
-          <SymbolView name="lock.fill" tintColor={colors.textSecondary} size={15} style={styles.cardLock} />
+          <Icon name="lock.fill" tintColor={colors.textSecondary} size={15} style={styles.cardLock} />
         ) : (
           <Text variant="headline" color={colors.primary} numberOfLines={1}>
             {value}
@@ -197,9 +198,12 @@ export function GoalCard({
         onChange(n);
       }
     };
-    if (Platform.OS === 'ios') {
-      Alert.prompt(t('profile.goalTitle', { year }), t('profile.goalQuestion'), apply, 'plain-text', '', 'number-pad');
-    } else apply('30');
+    showPrompt({
+      title: t('profile.goalTitle', { year }),
+      message: t('profile.goalQuestion'),
+      keyboardType: 'number-pad',
+      onSubmit: apply,
+    });
   };
 
   if (!goal) {
@@ -212,7 +216,7 @@ export function GoalCard({
               {t('profile.goalQuestion')}
             </Text>
           </View>
-          <SymbolView name="trophy.fill" tintColor={colors.primary} size={36} />
+          <Icon name="trophy.fill" tintColor={colors.primary} size={36} />
         </View>
         <View style={styles.goalChips}>
           {GOAL_PRESETS.map((n) => (
@@ -283,9 +287,10 @@ export function TopThree({ items, title, onRemoveScore }: TopThreeProps) {
   const openPlace = (id: string) => router.push({ pathname: '/mekan/[id]', params: { id } });
   const showCardMenu = (place: ScoredPlace['place']) =>
     showMenu(place.name, [
-      { label: t('me.openPlace'), onPress: () => openPlace(place.id) },
+      { label: t('me.openPlace'), icon: 'fork.knife', onPress: () => openPlace(place.id) },
       {
         label: t('place.removeScore'),
+        icon: 'star.slash',
         destructive: true,
         onPress: () => confirmRemoveScore(place.name, () => onRemoveScore?.(place.id)),
       },
@@ -316,7 +321,7 @@ export function TopThree({ items, title, onRemoveScore }: TopThreeProps) {
                 hitSlop={hitSlop}
                 style={styles.topMenu}
                 accessibilityLabel={t('me.topThreeMenu', { place: place.name })}>
-                <SymbolView name="ellipsis" tintColor={colors.onPrimary} size={14} weight="bold" />
+                <Icon name="ellipsis" tintColor={colors.onPrimary} size={14} weight="bold" />
               </PressableScale>
             )}
             <View style={styles.topInfo}>
@@ -403,7 +408,7 @@ export function BadgeStrip({ badges }: { badges: Badge[] }) {
             }
             style={[styles.badge, !b.earned && styles.badgeLocked]}>
             <View style={[styles.badgeIcon, b.earned && styles.badgeIconEarned]}>
-              <SymbolView name={b.icon} tintColor={b.earned ? colors.onPrimary : colors.textTertiary} size={22} />
+              <Icon name={b.icon} tintColor={b.earned ? colors.onPrimary : colors.textTertiary} size={22} />
             </View>
             <Text variant="caption" align="center" numberOfLines={2} style={styles.badgeTitle}>
               {t(`badges.${b.id}.title`)}

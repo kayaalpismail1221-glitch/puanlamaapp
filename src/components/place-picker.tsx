@@ -1,9 +1,9 @@
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, StyleSheet, View } from 'react-native';
 
+import { Icon } from '@/components/icon';
 import { PlaceRow } from '@/components/place-row';
 import { PlaceRowsSkeleton } from '@/components/skeleton';
 import { Button, Divider, ErrorView, SearchField, Text } from '@/components/ui';
@@ -70,7 +70,7 @@ export function PlaceSearchList({ query, onSelect, trailing, exclude, header }: 
           place={item}
           onPress={() => onSelect(item)}
           trailing={
-            trailing ? trailing(item) : <SymbolView name="chevron.right" tintColor={colors.textTertiary} size={14} />
+            trailing ? trailing(item) : <Icon name="chevron.right" tintColor={colors.textTertiary} size={14} />
           }
         />
       )}

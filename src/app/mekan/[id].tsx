@@ -1,12 +1,14 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import { useTranslation } from 'react-i18next';
 import { Linking, ScrollView, StyleSheet, View } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import MapView from 'react-native-maps';
 
+import { Icon } from '@/components/icon';
+import { ViewMarker } from '@/components/map-marker';
 import { PlaceDetailSkeleton, PostGridSkeleton } from '@/components/skeleton';
 import { Avatar, Button, Divider, ErrorView, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { cuisineLabel } from '@/constants/cuisines';
+import { fullScreenMapProps } from '@/constants/map';
 import { colors, hitSlop, onScoreColor, radius, scoreColor, spacing } from '@/constants/theme';
 import { PostGrid } from '@/components/post-grid';
 import { usePlace, useUser } from '@/data/entities';
@@ -65,7 +67,7 @@ export default function PlaceDetailScreen() {
               hitSlop={hitSlop}
               style={styles.headerButton}
               accessibilityLabel={t('share.sharePlace')}>
-              <SymbolView name="square.and.arrow.up" tintColor={colors.primary} size={18} weight="semibold" />
+              <Icon name="square.and.arrow.up" tintColor={colors.primary} size={18} weight="semibold" />
             </PressableScale>
           ),
         }}
@@ -101,7 +103,7 @@ export default function PlaceDetailScreen() {
             {savedEntry.note && <Text variant="subhead">{savedEntry.note}</Text>}
             {source && savedEntry.link && (
               <PressableScale onPress={() => Linking.openURL(savedEntry.link!)} style={styles.sourceChip}>
-                <SymbolView name={source.icon} tintColor={colors.primary} size={14} />
+                <Icon name={source.icon} tintColor={colors.primary} size={14} />
                 <Text variant="footnote" color={colors.primary} style={{ fontWeight: '600' }}>
                   {t('place.openSource', { source: source.label })}
                 </Text>
@@ -211,15 +213,16 @@ export default function PlaceDetailScreen() {
             scrollEnabled={false}
             zoomEnabled={false}
             rotateEnabled={false}
-            pitchEnabled={false}>
-            <Marker coordinate={{ latitude: place.latitude, longitude: place.longitude }}>
+            pitchEnabled={false}
+            {...fullScreenMapProps}>
+            <ViewMarker coordinate={{ latitude: place.latitude, longitude: place.longitude }}>
               <View style={styles.pin}>
-                <SymbolView name="fork.knife" tintColor={colors.onPrimary} size={14} />
+                <Icon name="fork.knife" tintColor={colors.onPrimary} size={14} />
               </View>
-            </Marker>
+            </ViewMarker>
           </MapView>
           <View style={styles.directionsChip}>
-            <SymbolView name="arrow.triangle.turn.up.right.diamond.fill" tintColor={colors.onPrimary} size={15} />
+            <Icon name="arrow.triangle.turn.up.right.diamond.fill" tintColor={colors.onPrimary} size={15} />
             <Text variant="footnote" color={colors.onPrimary} style={{ fontWeight: '600' }}>
               {t('place.directions')}
             </Text>

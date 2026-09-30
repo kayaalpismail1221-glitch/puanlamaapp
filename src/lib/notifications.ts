@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { Alert, Linking, Platform } from 'react-native';
 
 import { registerPushToken, unregisterPushToken } from '@/api/notifications';
+import { colors } from '@/constants/theme';
 import i18n, { currentLanguage } from '@/i18n';
 import { keys, queryClient } from '@/lib/query-client';
 
@@ -31,6 +32,21 @@ if (supported) {
   });
 }
 
+/**
+ * Android 8+ bildirimleri bir kanala bağlar; sunucu kanal belirtmediğinde Expo `default` kanalını kullanır.
+ * Kanal, izin istenmeden önce var olmalı (Android 13+ izin penceresi kanala göre çıkar). Ad kullanıcının dilinde,
+ * önem yüksek: bildirim üstten kayarak görünür.
+ */
+async function ensureAndroidChannel() {
+  if (Platform.OS !== 'android') return;
+  await Notifications.setNotificationChannelAsync('default', {
+    name: i18n.t('notifications.system'),
+    importance: Notifications.AndroidImportance.HIGH,
+    lightColor: colors.primary,
+    showBadge: true,
+  });
+}
+
 /** Bu cihazın jetonu (çıkışta sunucudan silinir) */
 let deviceToken: string | undefined;
 
@@ -47,10 +63,12 @@ export async function pushPermission(): Promise<PushPermission> {
  */
 export async function registerDevice(ask = false): Promise<boolean> {
   if (!supported || !Device.isDevice) return false;
+  await ensureAndroidChannel().catch(() => {});
   let { status } = await Notifications.getPermissionsAsync();
   if (status === 'undetermined' && ask) status = (await Notifications.requestPermissionsAsync()).status;
   if (status !== 'granted') return false;
   const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+  // Android'de jeton Firebase (FCM) ister: google-services.json olmayan derlemede alınamaz (bkz. docs/android.md)
   const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
   deviceToken = data;
   await registerPushToken(data, currentLanguage());
@@ -83,7 +101,7 @@ export async function offerPushPermission() {
   ]);
 }
 
-/** Bildirimler ekranından izin: sorulmadıysa sistem penceresi, reddedildiyse iOS ayarları */
+/** Bildirimler ekranından izin: sorulmadıysa sistem penceresi, reddedildiyse cihazın uygulama ayarları */
 export async function enablePush(): Promise<boolean> {
   const status = await pushPermission();
   if (status === 'denied') {
