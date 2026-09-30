@@ -101,7 +101,7 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
 - **Denetim düzeltmeleri (2026-09-30), `20261014100000_audit_fixes`:** mekân düzeltmesi yalnızca güvenilir hesapların
   (≥ 7 gün, ≥ 5 puan) oyuyla kendiliğinden uygulanır (telefon/web/kapandı 3 kişi), engelliler birbirinin puanlarını
   görmez (`rankings` politikası `block_peer_ids()`), `avatar_path` yalnızca kendi klasörü, `xp_totals` istemciye kapalı.
-  Canlıya uygulanması gerekiyor (SQL Editor, önceki migration'lardan sonra).
+  2026-09-30'da canlıya uygulandı.
 - Auth: e-posta/şifre açık, **Confirm email kapalı**. SMTP yok (Supabase SMTP'siz şablon düzenletmiyor ve
   varsayılan e-posta kod değil bağlantı gönderiyor). Bu yüzden `src/constants/features.ts` →
   `EMAIL_CODES_ENABLED = false` ("Şifremi unuttum" ve kod doğrulama gizli). Alan adı alınınca: Resend SMTP →
