@@ -13,7 +13,7 @@ import { formatScore, initials, monthYear } from '@/lib/format';
 import { possessive } from '@/lib/possessive';
 import type { ScoredPlace } from '@/lib/insights';
 import { placeShortArea } from '@/lib/place';
-import { STORY_SIZE, type MonthRecap } from '@/lib/story';
+import { STORY_SIZE, type GoalProgress, type MonthRecap } from '@/lib/story';
 import type { CityDot, VisitedSummary } from '@/lib/visited';
 import type { ViewBox } from '@/lib/world-projection';
 import type { Place, PlaceList, PlaceListItem, Post } from '@/types';
@@ -416,7 +416,75 @@ export const RecapStoryCard = forwardRef<View, Common & { recap: MonthRecap }>(f
   );
 });
 
+/* ---------- Yıllık mekân hedefi ---------- */
+
+/**
+ * Yıllık mekân hedefi: bu yıl kaç mekân puanlandı, hedefe ne kadar kaldı. Büyük sayı, ilerleme çubuğu,
+ * tamamlanma ve kalan gün; altta "sen de hedef koy" çağrısı (imza ipucu ekrandan gelir).
+ */
+export const GoalStoryCard = forwardRef<View, Common & { progress: GoalProgress }>(function GoalStoryCard(
+  { progress, ...common },
+  ref,
+) {
+  const { t } = useTranslation();
+  const { year, goal, done, daysLeft } = progress;
+  const ratio = Math.min(done / goal, 1);
+  const reached = done >= goal;
+  return (
+    <Frame
+      ref={ref}
+      background={<LinearGradient colors={gradients.share} locations={gradients.shareStops} style={StyleSheet.absoluteFill} />}>
+      <Wordmark />
+      {/* Kısa içerik: ana blok logo ile imza arasında ortalanır */}
+      <View style={styles.spacer} />
+      <View style={styles.titleBlock}>
+        <Kicker>{t('story.goalKicker', { year })}</Kicker>
+        <View style={styles.bigRow}>
+          <Text style={styles.bigNumber}>{done}</Text>
+          <Text style={styles.bigLabel}>{t('story.goalOf', { goal })}</Text>
+        </View>
+      </View>
+      <View style={styles.goalTrack}>
+        <View style={[styles.goalFill, { width: `${ratio * 100}%` }]} />
+      </View>
+      <View style={styles.tiles}>
+        <Tile
+          label={t('story.goalDone')}
+          value={t('profile.percent', { value: Math.round(ratio * 100) })}
+          accent={reached ? scoreColor(9) : undefined}
+        />
+        <Tile label={t('story.goalDaysLeft')} value={String(daysLeft)} />
+      </View>
+      <Text style={styles.goalStatement}>
+        {reached ? t('story.goalReached', { goal }) : t('story.goalStatement', { goal, count: goal - done })}
+      </Text>
+      <View style={styles.spacer} />
+      <Footer {...common} />
+    </Frame>
+  );
+});
+
 const styles = StyleSheet.create({
+  goalTrack: {
+    height: 20,
+    marginTop: 28,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: INK_FAINT,
+  },
+  goalFill: {
+    height: '100%',
+    borderRadius: 10,
+    backgroundColor: scoreColor(9),
+  },
+  goalStatement: {
+    marginTop: 28,
+    fontFamily: fonts.serif,
+    fontSize: 30,
+    lineHeight: 38,
+    fontWeight: '700',
+    color: INK,
+  },
   frame: {
     width: STORY_SIZE.width,
     height: STORY_SIZE.height,

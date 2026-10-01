@@ -79,13 +79,13 @@ export async function readAllContacts(): Promise<DeviceContact[] | 'denied' | 'u
 /* ---------- Davet mesajı ---------- */
 
 /** "İsmail, Çiya'ya 8,7 verdi. Sen kaç verirdin?" + indirme bağlantısı */
-export function inviteText(input: { inviterName: string; placeName: string; score?: number }) {
+export function inviteText(input: { inviterName: string; inviterUsername?: string; placeName: string; score?: number }) {
   const first = input.inviterName.split(' ')[0] ?? input.inviterName;
   const body =
     input.score === undefined
       ? i18n.t('invite.messageNoScore', { name: first, place: input.placeName })
       : i18n.t('invite.message', { name: first, place: input.placeName, score: formatScore(input.score) });
-  return `${body}\n\n${downloadHint()}`;
+  return `${body}\n\n${downloadHint(input.inviterUsername)}`;
 }
 
 /** Davet mesajını doğrudan o kişiye WhatsApp'tan açar; WhatsApp yoksa SMS, o da yoksa paylaşım menüsü */

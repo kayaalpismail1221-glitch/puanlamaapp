@@ -109,17 +109,34 @@ export default function YearGoalScreen() {
                   {t('challenge.daysLeft', { count: daysLeftInYear(year, now) })}
                 </Text>
               </View>
-              <PressableScale onPress={() => editGoal(year, goal, setGoal)} style={styles.heroButton}>
-                <Text variant="subhead" color={fixed.white} style={styles.bold}>
-                  {t('challenge.change')}
-                </Text>
-              </PressableScale>
+              {/* Hedefin ne saydığı: bu yıl puanlanan mekânlar */}
+              <Text variant="footnote" style={styles.heroExplain}>
+                {t('challenge.explain')}
+              </Text>
+              <View style={styles.heroButtons}>
+                <PressableScale onPress={() => editGoal(year, goal, setGoal)} style={styles.heroButton}>
+                  <Text variant="subhead" color={fixed.white} style={styles.bold}>
+                    {t('challenge.change')}
+                  </Text>
+                </PressableScale>
+                <PressableScale
+                  onPress={() => router.push({ pathname: '/hikaye', params: { tur: 'goal' } })}
+                  style={[styles.heroButton, styles.heroButtonFilled]}>
+                  <SymbolView name="square.and.arrow.up" tintColor={fixed.navy} size={14} weight="semibold" />
+                  <Text variant="subhead" color={fixed.navy} style={styles.bold}>
+                    {t('story.shareToStory')}
+                  </Text>
+                </PressableScale>
+              </View>
             </>
           ) : (
             <>
               <Text style={styles.setTitle}>{t('challenge.set')}</Text>
               <Text variant="subhead" style={styles.heroText}>
                 {t('profile.goalQuestion')}
+              </Text>
+              <Text variant="footnote" style={styles.heroExplain}>
+                {t('challenge.explainSet')}
               </Text>
               <View style={styles.chips}>
                 {GOAL_PRESETS.map((n) => (
@@ -266,8 +283,18 @@ const styles = StyleSheet.create({
   heroText: {
     color: 'rgba(255,255,255,0.85)',
   },
+  heroExplain: {
+    color: 'rgba(255,255,255,0.7)',
+  },
+  heroButtons: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
   heroButton: {
-    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
     marginTop: spacing.xs,
     paddingHorizontal: spacing.lg,
     height: 36,
@@ -275,6 +302,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.5)',
     justifyContent: 'center',
+  },
+  heroButtonFilled: {
+    backgroundColor: fixed.white,
+    borderColor: fixed.white,
   },
   setTitle: {
     fontFamily: fonts.serif,

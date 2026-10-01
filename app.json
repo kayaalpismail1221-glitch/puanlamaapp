@@ -128,7 +128,7 @@
     "android": {
       "package": "app.puanla",
       "versionCode": 1,
-      "runtimeVersion": "android-1",
+      "runtimeVersion": "android-2",
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

@@ -99,10 +99,10 @@ export function shareYearGoal(year: number, goal: number, done: number) {
 
 /**
  * Davet mesajının indirme satırı: mağaza bağlantısı, yoksa gönderenin platformundaki mağazada aratma önerisi
- * (Android'den gönderilen davet Google Play der).
+ * (Android'den gönderilen davet Google Play der). `username`: davet eden, bağlantıya eklenir (`inviteLink`).
  */
-export function downloadHint() {
-  const link = inviteLink();
+export function downloadHint(username?: string) {
+  const link = inviteLink(username);
   if (link) return i18n.t('invite.download', { link });
   return Platform.OS === 'android' ? i18n.t('invite.searchStoreAndroid') : i18n.t('invite.searchStore');
 }
@@ -113,8 +113,8 @@ export function downloadHint() {
  * `username` taşımadığı için yok sayılır.
  */
 export function shareInvite(options?: { username?: string }) {
-  const how = downloadHint();
   const username = typeof options?.username === 'string' ? options.username : undefined;
+  const how = downloadHint(username);
   const hint = username ? `\n${i18n.t('invite.xpHint', { username })}` : '';
   return shareMessage(`${i18n.t('settings.inviteMessage')}${hint}\n\n${how}`, 'invite');
 }

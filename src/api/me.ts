@@ -59,6 +59,7 @@ export async function loadMyData(userId: string, email?: string): Promise<MyData
       phoneVerified: !!privateRow?.phone_verified_at,
       discoverable: privateRow?.discoverable ?? true,
       hasInviter: !!privateRow?.invited_by,
+      inviterId: privateRow?.invited_by ?? undefined,
     },
     rankings,
     saved: savedRows.map(toSavedPlace),

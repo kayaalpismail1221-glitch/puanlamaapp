@@ -14,8 +14,23 @@ import { dirname, join } from 'node:path';
 import { after, before, describe, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { SEGMENT_OF } from '../../src/constants/segments.ts';
-import { scoreAt } from '../../src/lib/ranking.ts';
+import { SEGMENT_OF, SEGMENTS } from '../../src/constants/segments.ts';
+import {
+  answerComparison,
+  calibratedScoreAt,
+  comparisonPivot,
+  emptyRankings,
+  flattenRankings,
+  insertEntry,
+  isComparisonDone,
+  levelStarts,
+  placementIndex,
+  removeFromRankings,
+  scoreAt,
+  segmentStanding,
+  startComparison,
+  tieComparison,
+} from '../../src/lib/ranking.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (path) => readFileSync(join(root, path), 'utf8');
@@ -409,7 +424,7 @@ describe('erişim kuralları', () => {
     await rejects(rows(null, 'select * from profiles'), /42501/);
     await rejects(rows(null, 'select * from post_view'), /42501/);
     await rejects(rows(null, `select feed_following()`), /42501/);
-    assert.equal((await rows(null, 'select * from cuisines')).length, 23);
+    assert.equal((await rows(null, 'select * from cuisines')).length, Object.keys(SEGMENT_OF).length);
   });
 
   test('başkasının iletişim bilgisi ve Listem’i görünmez', async () => {
@@ -474,8 +489,8 @@ describe('erişim kuralları', () => {
 });
 
 describe('sıralama', () => {
-  // Seed'de aynı segmentteki (sokak lezzeti) mekânlar: dürümcü, kokoreççi, ciğerci, burgerci, pideci
-  const places = [3, 4, 5, 9, 11].map(PLACE);
+  // Seed'de aynı segmentteki (sokak lezzeti) mekânlar: dürümcü, kokoreççi, ciğerci, pideci, dürümcü (Ankara)
+  const places = [3, 4, 5, 11, 19].map(PLACE);
   const BREAKFAST = [PLACE(1), PLACE(14)];
 
   async function myRankings(me) {
@@ -606,11 +621,170 @@ describe('sıralama', () => {
       `select place_id as "placeId", segment, tied from rankings where user_id = $1 and sentiment = 'liked' order by position`,
       [me],
     );
-    const { flattenRankings } = await import('../../src/lib/ranking.ts');
     const client = Object.fromEntries(
       flattenRankings({ liked: list, fine: [], disliked: [] }).map((e) => [e.placeId, e.score]),
     );
     assert.deepEqual(client, now);
+  });
+
+  const scoresOf = async (me) =>
+    Object.fromEntries(
+      (await rows(me, 'select place_id, score::float as score from rankings where user_id = $1', [me])).map((r) => [
+        r.place_id,
+        r.score,
+      ]),
+    );
+
+  test('eşitlik zinciri: grubun başı çıkınca altındaki eşiti yeni baş olur, üstteki gruba eşitlenmez', async () => {
+    const me = await signUp({ name: 'Zincirci' });
+    const [a, b, c] = places;
+    const setUp = async () => {
+      await as(me, `select rank_place($1, 'liked', 0)`, [a]);
+      await as(me, `select rank_place($1, 'liked', 1)`, [b]);
+      await as(me, `select rank_place($1, 'liked', 2, null, true)`, [c]);
+      const s = await scoresOf(me);
+      assert.ok(s[a] > s[b], 'A > B');
+      assert.equal(s[b], s[c], 'B = C');
+    };
+    // Silme: A > B = C iken B çıkar
+    await setUp();
+    await as(me, 'select unrank_place($1)', [b]);
+    let s = await scoresOf(me);
+    assert.equal(s[a], 10);
+    assert.equal(s[c], scoreAt('liked', 1, 2), 'C, A’ya eşitlenmez');
+    assert.equal((await one(me, 'select tied from rankings where user_id = $1 and place_id = $2', [me, c])).tied, false);
+    // Yeniden puanlama (başka gruba taşıma) aynı yoldan geçer
+    await as(me, 'select unrank_place($1)', [c]);
+    await setUp();
+    await as(me, `select rank_place($1, 'fine', 0)`, [b]);
+    s = await scoresOf(me);
+    assert.equal(s[c], scoreAt('liked', 1, 2));
+    assert.equal(s[b], scoreAt('fine', 0, 1));
+    // Uygulama aynısını yapar
+    let client = emptyRankings();
+    for (const [id, index, tied] of [[a, 0, false], [b, 1, false], [c, 2, true]]) {
+      client = insertEntry(client, { sentiment: 'liked', index, tied }, { placeId: id, segment: 'street', ratedAt: '' });
+    }
+    client = removeFromRankings(client, b);
+    assert.deepEqual(client.liked.map((e) => [e.placeId, !!e.tied]), [[a, false], [c, false]]);
+  });
+
+  test('eşit grubun arasına eşitliksiz giren mekân grubun altına iner (eski uygulamalar)', async () => {
+    const me = await signUp({ name: 'Araya Giren' });
+    const [a, b, c, x] = places;
+    await as(me, `select rank_place($1, 'liked', 0)`, [a]);
+    await as(me, `select rank_place($1, 'liked', 1, null, true)`, [b]);
+    await as(me, `select rank_place($1, 'liked', 2)`, [c]);
+    // A = B > C; X, A ile B'nin arasına eşitliksiz: A'dan kötü, dolayısıyla B'den de kötü
+    await as(me, `select rank_place($1, 'liked', 1)`, [x]);
+    const order = await rows(
+      me,
+      `select place_id, score::float as score from rankings where user_id = $1 and sentiment = 'liked' order by position`,
+      [me],
+    );
+    assert.deepEqual(order.map((r) => r.place_id), [a, b, x, c]);
+    assert.deepEqual(order.map((r) => r.score), [10, 10, scoreAt('liked', 1, 3), scoreAt('liked', 2, 3)], 'A = B korunur');
+    let client = emptyRankings();
+    for (const [id, index, tied] of [[a, 0, false], [b, 1, true], [c, 2, false], [x, 1, false]]) {
+      client = insertEntry(client, { sentiment: 'liked', index, tied }, { placeId: id, segment: 'street', ratedAt: '' });
+    }
+    assert.deepEqual(client.liked.map((e) => e.placeId), [a, b, x, c]);
+  });
+
+  test('ikili arama eşit mekânları tek mekân gibi sorar ve yeni mekânı doğru seviyeye koyar', () => {
+    let seed = 3;
+    const rand = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+    for (let trial = 0; trial < 500; trial++) {
+      const values = Array.from({ length: Math.floor(rand() * 12) }, () => Math.floor(rand() * 6)).sort((p, q) => q - p);
+      const value = Object.fromEntries(values.map((v, i) => [`p${i}`, v]));
+      const list = values.map((v, i) => ({ placeId: `p${i}`, segment: 'street', ratedAt: '', tied: i > 0 && v === values[i - 1] }));
+      const mine = Math.floor(rand() * 6);
+      const levels = levelStarts(list);
+      let c = startComparison(levels.length);
+      let questions = 0;
+      while (!isComparisonDone(c)) {
+        const theirs = value[list[levels[comparisonPivot(c)]].placeId];
+        questions++;
+        c = mine === theirs ? tieComparison(c) : answerComparison(c, mine > theirs);
+      }
+      assert.ok(questions <= Math.ceil(Math.log2(levels.length + 1)), 'eşitler ayrı ayrı sorulmaz');
+      const placed = insertEntry(
+        { ...emptyRankings(), liked: list },
+        { sentiment: 'liked', index: placementIndex(levels, list.length, c), tied: c.tied },
+        { placeId: 'yeni', segment: 'street', ratedAt: '' },
+      ).liked;
+      value.yeni = mine;
+      assert.deepEqual(placed.map((e) => value[e.placeId]), [...values, mine].sort((p, q) => q - p), 'doğru sırada');
+      placed.forEach((e, i) =>
+        assert.equal(i > 0 && !!e.tied, i > 0 && value[e.placeId] === value[placed[i - 1].placeId], 'eşitlik yalnızca eşitlerde'),
+      );
+    }
+  });
+
+  test('listedeki sıra seviyeden: yuvarlamada eşit görünenler ayrı, "İkisi aynı" olanlar aynı sırada', () => {
+    const entries = (ids, tied = []) => ids.map((id) => ({ placeId: id, segment: 'street', ratedAt: '', tied: tied.includes(id) }));
+    const rankings = {
+      liked: entries(Array.from({ length: 10 }, (_, i) => `l${i}`)),
+      fine: entries(['f0', 'f1'], ['f1']),
+      disliked: entries(['b0']).map((e) => ({ ...e, segment: 'cafe' })),
+    };
+    assert.equal(scoreAt('liked', 1, 10), scoreAt('liked', 0, 10), 'ilk ikisi 10,0 görünür');
+    assert.equal(segmentStanding(rankings, 'l0').rank, 1);
+    assert.equal(segmentStanding(rankings, 'l1').rank, 2, 'sıraladığın ikinci, ikinci');
+    assert.equal(segmentStanding(rankings, 'f0').rank, 11);
+    assert.equal(segmentStanding(rankings, 'f1').rank, 11, 'eşitler aynı sırada');
+    assert.deepEqual(segmentStanding(rankings, 'f1'), { segment: 'street', rank: 11, total: 12 });
+    assert.deepEqual(segmentStanding(rankings, 'b0'), { segment: 'cafe', rank: 1, total: 1 });
+    assert.equal(segmentStanding(rankings, 'yok'), undefined);
+  });
+
+  test('uygulama ve sunucu rastgele 300 işlemde aynı sırayı, eşitliği, puanı ve topluluk katkısını verir', async () => {
+    const me = await signUp({ name: 'Rastgele' });
+    const pool = [...places, ...BREAKFAST, PLACE(25), PLACE(9)];
+    const { rows: cuisines } = await db.query('select id, cuisine from places where id = any($1)', [pool]);
+    const segmentOfPlace = Object.fromEntries(cuisines.map((r) => [r.id, SEGMENT_OF[r.cuisine]]));
+    let seed = 11;
+    const rand = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+    const pick = (list) => list[Math.floor(rand() * list.length)];
+    let client = emptyRankings();
+    for (let step = 0; step < 300; step++) {
+      const placeId = pick(pool);
+      const segment = segmentOfPlace[placeId];
+      if (rand() < 0.2) {
+        await as(me, 'select unrank_place($1)', [placeId]);
+        client = removeFromRankings(client, placeId);
+      } else {
+        const sentiment = rand() < 0.6 ? 'liked' : pick(['fine', 'disliked']);
+        const size = client[sentiment].filter((e) => e.segment === segment && e.placeId !== placeId).length;
+        const index = Math.floor(rand() * (size + 2)) - (rand() < 0.05 ? 1 : 0);
+        const tied = rand() < 0.35;
+        await as(me, 'select rank_place($1, $2, $3, null, $4)', [placeId, sentiment, index, tied]);
+        client = insertEntry(client, { sentiment, index, tied }, { placeId, segment, ratedAt: '' });
+      }
+      const { rows: server } = await db.query(
+        `select place_id, sentiment::text, segment::text, position, tied, score::float as score,
+           calibrated_score::float as calibrated
+         from rankings where user_id = $1 order by position`,
+        [me],
+      );
+      const clientScores = Object.fromEntries(flattenRankings(client).map((e) => [e.placeId, e.score]));
+      for (const sentiment of ['liked', 'fine', 'disliked']) {
+        for (const seg of new Set(Object.values(segmentOfPlace))) {
+          const s = server.filter((r) => r.sentiment === sentiment && r.segment === seg);
+          const c = client[sentiment].filter((e) => e.segment === seg);
+          const at = `adım ${step}, ${sentiment}/${seg}`;
+          assert.deepEqual(s.map((r) => r.place_id), c.map((e) => e.placeId), `sıra: ${at}`);
+          assert.deepEqual(s.map((r) => r.position), s.map((_, i) => i), `boşluksuz: ${at}`);
+          assert.deepEqual(s.map((r, i) => i > 0 && r.tied), c.map((e, i) => i > 0 && !!e.tied), `eşitlik: ${at}`);
+          const tiers = [];
+          s.forEach((r, i) => tiers.push(i === 0 ? 0 : tiers[i - 1] + (r.tied ? 0 : 1)));
+          s.forEach((r, i) => {
+            assert.equal(r.score, clientScores[r.place_id], `puan: ${at}`);
+            assert.equal(r.calibrated, calibratedScoreAt(sentiment, tiers[i], tiers.at(-1) + 1), `katkı: ${at}`);
+          });
+        }
+      }
+    }
   });
 
   test('puan formülü uygulamayla birebir aynı', async () => {
@@ -641,9 +815,109 @@ describe('sıralama', () => {
     }
   });
 
+  test('topluluk katkısı: formül uygulamayla aynı; tek mekânın favorisi 8,9; liste katkı ortalaması uzunluktan bağımsız', async () => {
+    const bandMean = { liked: 10 - 3.3 / 3, fine: 6.6 - 3.2 / 3, disliked: 3.3 - 3.3 / 3 };
+    for (const sentiment of ['liked', 'fine', 'disliked']) {
+      for (let count = 1; count <= 40; count++) {
+        const { rows: values } = await db.query(
+          `select i, calibrated_score($1, i, $2)::float as v from generate_series(0, $2 - 1) i`,
+          [sentiment, count],
+        );
+        for (const { i, v } of values) assert.equal(v, calibratedScoreAt(sentiment, i, count), `${sentiment} ${i}/${count}`);
+        const mean = values.reduce((sum, r) => sum + r.v, 0) / count;
+        assert.ok(Math.abs(mean - bandMean[sentiment]) < 0.001, `${sentiment} ${count}: ortalama ${mean}`);
+        for (let i = 1; i < count; i++) assert.ok(values[i].v < values[i - 1].v, 'sıra düştükçe katkı düşer');
+      }
+    }
+    assert.equal(calibratedScoreAt('liked', 0, 1), 8.9, 'tek mekânlık listenin favorisi "beğendim" kadar');
+    assert.equal(calibratedScoreAt('liked', 0, 30), 9.993, 'uzun listenin favorisi tam 10’a yakın');
+    // Uzun listede kişinin gördüğü puana yaklaşır
+    for (let t = 0; t < 30; t++) assert.ok(Math.abs(calibratedScoreAt('liked', t, 30) - scoreAt('liked', t, 30)) < 0.25);
+  });
+
+  test('topluluk puanı kalibre katkıdan: kişinin gördüğü puan 10, ortalamaya 8,9 girer', async () => {
+    const me = await signUp({ name: 'Tek Mekânlı' });
+    const target = PLACE(22);
+    await as(me, `select rank_place($1, 'liked', 0)`, [target]);
+    const mine = await one(
+      me,
+      'select score::float as score, calibrated_score::float as calibrated from rankings where user_id = $1',
+      [me],
+    );
+    assert.deepEqual(mine, { score: 10, calibrated: 8.9 });
+    const expected = await one(
+      me,
+      `select
+         place_community_score(place_id, sum(coalesce(calibrated_score, score) * weight * rating_recency(rated_at)),
+           sum(weight * rating_recency(rated_at))) as calibrated,
+         place_community_score(place_id, sum(score * weight * rating_recency(rated_at)),
+           sum(weight * rating_recency(rated_at))) as raw
+       from rankings where place_id = $1 group by place_id`,
+      [target],
+    );
+    assert.ok(expected.calibrated < expected.raw, 'kısa listenin 10’u tam 10 sayılmaz');
+    const details = (await one(me, 'select place_details($1) as d', [target])).d;
+    assert.equal(details.rating.average, expected.calibrated);
+    const { city, district } = await one(me, 'select city, district from places where id = $1', [target]);
+    const area = await rows(me, 'select id, average from area_top_places($1, $2)', [city, district]);
+    assert.equal(area.find((p) => p.id === target).average, expected.calibrated);
+  });
+
   test('segment eşlemesi veritabanıyla aynı', async () => {
     const { rows: cuisines } = await db.query('select name, segment::text from cuisines');
     assert.deepEqual(Object.fromEntries(cuisines.map((c) => [c.name, c.segment])), SEGMENT_OF);
+  });
+
+  test('segmentler bölünür: börekçi pastaneyle, pizzacı kokoreççiyle, kebapçı restoranla aynı listede değil', async () => {
+    const { rows } = await db.query(`select name, segment::text from cuisines where name = any($1)`, [
+      ['Börekçi', 'Pastane & fırın', 'Tatlıcı', 'Kafe', 'Pizzacı', 'Kokoreççi', 'Pideci', 'Kebapçı', 'Restoran'],
+    ]);
+    const seg = Object.fromEntries(rows.map((r) => [r.name, r.segment]));
+    assert.notEqual(seg['Börekçi'], seg['Pastane & fırın']);
+    assert.notEqual(seg['Börekçi'], seg['Kafe']);
+    assert.notEqual(seg['Tatlıcı'], seg['Kafe']);
+    assert.equal(seg['Tatlıcı'], seg['Pastane & fırın']);
+    assert.notEqual(seg['Pizzacı'], seg['Kokoreççi']);
+    assert.equal(seg['Pideci'], seg['Kokoreççi']);
+    assert.notEqual(seg['Kebapçı'], seg['Restoran']);
+  });
+
+  test('segment eşlemesi değişince listeler sırası ve eşitliği korunarak bölünür', async () => {
+    const me = await signUp({ name: 'Bölünen' });
+    const [kafe1, kafe2, tatli1, tatli2] = [10, 15, 13, 26].map(PLACE);
+    for (const id of [kafe1, kafe2, tatli1, tatli2]) await as(me, `select rank_place($1, 'liked', 99)`, [id]);
+    // Eski düzen: kafe ve tatlıcılar tek listede. K1 = T1 > K2 = T2
+    const oldList = async (list) => {
+      await db.query(
+        `update rankings r set segment = 'cafe', position = v.position, tied = v.tied
+         from (select * from unnest($2::uuid[], $3::int[], $4::bool[]) as t(place_id, position, tied)) v
+         where r.user_id = $1 and r.place_id = v.place_id`,
+        [me, list.map((e) => e[0]), list.map((_, i) => i), list.map((e) => e[1])],
+      );
+      await db.query('select resegment_rankings($1)', [me]);
+      await db.query('select normalize_rankings($1)', [me]);
+      const { rows } = await db.query(
+        `select place_id, segment::text, position, tied, score::float as score from rankings where user_id = $1
+         order by segment, position`,
+        [me],
+      );
+      return Object.fromEntries(rows.map((r) => [r.place_id, r]));
+    };
+    let s = await oldList([[kafe1, false], [tatli1, true], [kafe2, false], [tatli2, true]]);
+    assert.deepEqual([s[kafe1].segment, s[kafe2].segment, s[tatli1].segment, s[tatli2].segment], ['cafe', 'cafe', 'dessert', 'dessert']);
+    assert.deepEqual([s[kafe1].position, s[kafe2].position], [0, 1], 'kafeler sırasını korur');
+    assert.deepEqual([s[tatli1].position, s[tatli2].position], [0, 1], 'tatlıcılar sırasını korur');
+    assert.equal(s[kafe2].tied, false, 'K2, K1’in eşiti değildi');
+    assert.equal(s[tatli2].tied, false, 'T2, T1’in eşiti değildi');
+    assert.equal(s[kafe1].score, 10);
+    assert.equal(s[kafe2].score, scoreAt('liked', 1, 2));
+    // Aynı seviyedekiler bölününce eşitlik kalır: K1 = T1 = K2 > T2
+    s = await oldList([[kafe1, false], [tatli1, true], [kafe2, true], [tatli2, false]]);
+    assert.equal(s[kafe2].tied, true, 'K1 = K2 korunur');
+    assert.equal(s[kafe2].score, 10);
+    assert.equal(s[tatli2].tied, false);
+    assert.equal(s[tatli2].score, scoreAt('liked', 1, 2));
+    assert.equal(s[tatli2].position, 1);
   });
 
   test('topluluk puanı: az puanlı mekân uca gitmez, puan sayısı arttıkça ortalamaya yaklaşır', async () => {
@@ -657,7 +931,7 @@ describe('sıralama', () => {
 
   test('topluluk puanı türün ortalamasından başlar; eski puanlar hafifler', async () => {
     const priors = (await db.query('select segment::text, mean::float as mean from community_priors')).rows;
-    assert.equal(priors.length, 5, 'her tür için başlangıç değeri');
+    assert.equal(priors.length, SEGMENTS.length, 'her tür için başlangıç değeri');
     assert.ok(priors.every((p) => p.mean >= 0 && p.mean <= 10));
     const recency = async (ago) =>
       Number((await db.query(`select rating_recency(now() - $1::interval) as w`, [ago])).rows[0].w);
@@ -1026,7 +1300,7 @@ describe('feed ve arama', () => {
     const moda = pins.find((p) => p.id === PLACE(1));
     const expected = await one(
       me,
-      'select place_community_score(place_id, sum(score * weight * rating_recency(rated_at)), sum(weight * rating_recency(rated_at))) as a, count(*)::int as c from rankings where place_id = $1 group by place_id',
+      'select place_community_score(place_id, sum(coalesce(calibrated_score, score) * weight * rating_recency(rated_at)), sum(weight * rating_recency(rated_at))) as a, count(*)::int as c from rankings where place_id = $1 group by place_id',
       [PLACE(1)],
     );
     assert.equal(moda.rating_count, expected.c);
@@ -1434,7 +1708,7 @@ describe('rehber ve masa döngüsü', () => {
 
 describe('damak uyumu', () => {
   // Aynı segmentteki (restoran) mekânlar: sıralar birbirini etkilesin
-  const ps = [2, 6, 12, 22].map(PLACE);
+  const ps = [2, 6, 16, 22].map(PLACE);
   const rankAll = async (userId, placeIds) => {
     for (const [i, id] of placeIds.entries()) await as(userId, `select rank_place($1, 'liked', $2)`, [id, i]);
   };
@@ -1886,7 +2160,7 @@ describe('semt araması ve bölgenin en iyileri', () => {
     for (let i = 1; i < rated.length; i++) assert.ok(rated[i - 1].average >= rated[i].average);
     const first = await one(
       me,
-      'select place_community_score(place_id, sum(score * weight * rating_recency(rated_at)), sum(weight * rating_recency(rated_at))) as a, count(*)::int as n from rankings where place_id = $1 group by place_id',
+      'select place_community_score(place_id, sum(coalesce(calibrated_score, score) * weight * rating_recency(rated_at)), sum(weight * rating_recency(rated_at))) as a, count(*)::int as n from rankings where place_id = $1 group by place_id',
       [rated[0].id],
     );
     assert.equal(rated[0].average, first.a);
@@ -2198,6 +2472,222 @@ describe('büyüme ölçümü', () => {
     assert.ok(stats.shares_by_kind.story >= 1);
     assert.ok(stats.invited_joins >= 1);
     assert.ok(stats.k > 0 && stats.active_users >= 2);
+  });
+});
+
+/**
+ * Puanla puanı modelinin başvuru uygulaması (migration 20261017100000_place_model'deki `refresh_place_strengths` ile
+ * birebir): Plackett–Luce, listeler + beğendim/beğenmedim çizgileri, MM yinelemesi, sonra gösterilen puan.
+ */
+function fitPlaceModel(rows, iterations) {
+  const BAND = { liked: 0, fine: 2, disliked: 4 };
+  const lists = new Map();
+  for (const r of rows) {
+    const key = `${r.user_id}|${r.segment}`;
+    if (!lists.has(key)) lists.set(key, []);
+    lists.get(key).push(r);
+  }
+  const items = new Map();
+  const listRows = [];
+  for (const entries of lists.values()) {
+    const segment = entries[0].segment;
+    const out = [];
+    for (const sentiment of ['liked', 'fine', 'disliked']) {
+      const group = entries.filter((e) => e.sentiment === sentiment).sort((a, b) => a.position - b.position);
+      let tier = 0;
+      group.forEach((e) => {
+        if (!(e.tied && e.position > 0)) tier++;
+        out.push({ item: e.place_id, isPlace: true, w: e.w, band: BAND[sentiment], tier, segment });
+      });
+    }
+    const w = Math.max(...entries.map((e) => e.weight));
+    out.push({ item: `L:${segment}`, isPlace: false, w, band: 1, tier: 0, segment });
+    out.push({ item: `D:${segment}`, isPlace: false, w, band: 3, tier: 0, segment });
+    const keys = [...new Set(out.map((e) => e.band * 1e6 + e.tier))].sort((a, b) => a - b);
+    for (const e of out) {
+      e.step = keys.indexOf(e.band * 1e6 + e.tier);
+      if (!items.has(e.item)) items.set(e.item, { segment, isPlace: e.isPlace, lg: 0 });
+    }
+    listRows.push(out);
+  }
+  const steps = (list) => Math.max(...list.map((e) => e.step)) + 1;
+  for (let it = 0; it < iterations; it++) {
+    const wins = new Map();
+    const den = new Map();
+    const add = (map, key, v) => map.set(key, (map.get(key) ?? 0) + v);
+    for (const list of listRows) {
+      const n = steps(list);
+      const gamma = (e) => Math.exp(items.get(e.item).lg);
+      const all = Array(n).fill(0);
+      const placesOnly = Array(n).fill(0);
+      for (const e of list) {
+        all[e.step] += gamma(e);
+        if (e.isPlace) placesOnly[e.step] += gamma(e);
+      }
+      const uAll = Array(n).fill(0);
+      const uPlaces = Array(n).fill(0);
+      for (const e of list) {
+        let rest = 0;
+        for (let s = e.step + 1; s < n; s++) rest += e.isPlace ? all[s] : placesOnly[s];
+        e.u = rest > 0 ? e.w / (gamma(e) + rest) : 0;
+        add(wins, e.item, rest > 0 ? e.w : 0);
+        uAll[e.step] += e.u;
+        if (e.isPlace) uPlaces[e.step] += e.u;
+      }
+      for (const e of list) {
+        let above = 0;
+        for (let s = 0; s < e.step; s++) above += e.isPlace ? uAll[s] : uPlaces[s];
+        add(den, e.item, e.u + above);
+      }
+    }
+    for (const [key, item] of items) {
+      item.next = Math.log(((wins.get(key) ?? 0) + 1) / ((den.get(key) ?? 0) + 2 / (Math.exp(item.lg) + 1)));
+    }
+    for (const item of items.values()) item.lg = item.next;
+  }
+  const scores = new Map();
+  const segments = new Set([...items.values()].map((i) => i.segment));
+  const round9 = (x) => (Math.sign(x) * Math.round(Math.abs(x) * 1e9)) / 1e9;
+  for (const segment of segments) {
+    const aL = Math.exp(items.get(`L:${segment}`).lg);
+    const aD = Math.exp(items.get(`D:${segment}`).lg);
+    const places = [...items.entries()]
+      .filter(([, i]) => i.isPlace && i.segment === segment)
+      .map(([id, i]) => {
+        const g = Math.exp(i.lg);
+        const pLiked = g / (g + aL);
+        const pDisliked = aD / (g + aD);
+        const pFine = Math.max(1 - pLiked - pDisliked, 0);
+        const t = pLiked + pFine + pDisliked;
+        return { id, key: round9(i.lg), pl: pLiked / t, pf: pFine / t, pd: pDisliked / t };
+      });
+    const position = (p, band) => {
+      const total = places.reduce((s, q) => s + q[band], 0);
+      if (total === 0) return 0.5;
+      const above = places.filter((q) => q.key > p.key).reduce((s, q) => s + q[band], 0);
+      const peers = places.filter((q) => q.key === p.key).reduce((s, q) => s + q[band], 0);
+      return (above + peers / 2) / total;
+    };
+    for (const p of places) {
+      const [xl, xf, xd] = [position(p, 'pl'), position(p, 'pf'), position(p, 'pd')];
+      const score = p.pl * (10 - 3.3 * xl ** 2) + p.pf * (6.6 - 3.2 * xf ** 2) + p.pd * (3.3 - 3.3 * xd ** 2);
+      scores.set(p.id, Math.min(10, Math.max(0, score)));
+    }
+  }
+  return { items, scores };
+}
+
+describe('Puanla puanı modeli', () => {
+  const resetModel = () =>
+    db.exec(`delete from place_strengths; delete from segment_anchors; update model_state set fitted_at = now();`);
+  after(resetModel);
+
+  /** Kadıköy'de yalnızca bu testlerin puanladığı yeni mekânlar */
+  async function newPlaces(n, cuisine = 'Köfteci') {
+    const ids = [];
+    for (let i = 0; i < n; i++) {
+      const { rows: [row] } = await db.query(
+        `insert into places (name, cuisine, district, city, latitude, longitude)
+         values ($1, $2, 'Kadıköy', 'İstanbul', 40.99 + $3 * 0.0001, 29.03) returning id`,
+        [`Model Yeri ${randomUUID().slice(0, 8)}`, cuisine, i],
+      );
+      ids.push(row.id);
+    }
+    return ids;
+  }
+  const rankList = async (user, list, sentiment = 'liked') => {
+    for (const [i, id] of list.entries()) await as(user, `select rank_place($1, $2, $3)`, [id, sentiment, i]);
+  };
+  const modelScore = async (id) =>
+    (await db.query('select score, strength from place_strengths where place_id = $1', [id])).rows[0];
+
+  test('veritabanındaki model başvuru uygulamasıyla birebir aynı (güç, çizgiler, puan)', async () => {
+    await resetModel();
+    await db.query('select refresh_place_strengths(60)');
+    const { rows } = await db.query(
+      `select user_id, segment::text, place_id, sentiment::text, position, tied, weight::float8 as weight,
+         (weight * rating_recency(rated_at))::float8 as w
+       from rankings`,
+    );
+    const { items, scores } = fitPlaceModel(rows, 60);
+    const { rows: sql } = await db.query('select place_id, strength, score from place_strengths');
+    assert.equal(sql.length, [...items.values()].filter((i) => i.isPlace).length);
+    for (const r of sql) {
+      assert.ok(Math.abs(r.strength - items.get(r.place_id).lg) < 1e-6, `güç ${r.place_id}`);
+      assert.ok(Math.abs(r.score - scores.get(r.place_id)) < 1e-6, `puan ${r.place_id}: ${r.score} / ${scores.get(r.place_id)}`);
+    }
+    const { rows: anchors } = await db.query('select segment::text, liked, disliked from segment_anchors');
+    for (const a of anchors) {
+      assert.ok(Math.abs(a.liked - items.get(`L:${a.segment}`).lg) < 1e-6);
+      assert.ok(Math.abs(a.disliked - items.get(`D:${a.segment}`).lg) < 1e-6);
+    }
+  });
+
+  test('güçlü rakipleri geçen önde: ortalamada eşit iki mekânı model ayırır; puan güçle aynı sırada', async () => {
+    const [x, y, s1, s2, w1, w2] = await newPlaces(6);
+    const users = [];
+    for (let i = 0; i < 9; i++) users.push(await signUp({ name: `Model ${i}` }));
+    for (const u of users.slice(0, 3)) await rankList(u, [x, s1, s2]);
+    for (const u of users.slice(3, 6)) await rankList(u, [y, w1, w2]);
+    for (const u of users.slice(6)) await rankList(u, [s1, s2, w1, w2]);
+    await resetModel();
+    const bayes = async (id) =>
+      (
+        await db.query(
+          `select place_community_score(place_id, sum(coalesce(calibrated_score, score) * weight * rating_recency(rated_at)),
+             sum(weight * rating_recency(rated_at))) as a from rankings where place_id = $1 group by place_id`,
+          [id],
+        )
+      ).rows[0].a;
+    assert.ok(Math.abs((await bayes(x)) - (await bayes(y))) < 1e-9, 'ortalama X ile Y’yi ayıramaz');
+    await db.query('select refresh_place_strengths(300)');
+    const [mx, my, ms1, mw1] = await Promise.all([x, y, s1, w1].map(modelScore));
+    assert.ok(mx.strength > my.strength && mx.score > my.score, `X (${mx.score}) > Y (${my.score})`);
+    assert.ok(ms1.score > mw1.score, 'güçlüler zayıfların önünde');
+    // Segment içinde puan sırası güç sırasıyla aynı; puan 0–10
+    const { rows: seg } = await db.query(
+      `select strength, score from place_strengths where segment = 'street' order by strength desc`,
+    );
+    for (let i = 1; i < seg.length; i++) assert.ok(seg[i].score <= seg[i - 1].score + 1e-12, 'puan güçle azalır');
+    assert.ok(seg.every((r) => r.score >= 0 && r.score <= 10));
+
+    // Son hesaptan sonraki puan hemen yansır (kalibre katkıyla harmanlanır)
+    const late = await signUp({ name: 'Geç Gelen' });
+    const before = (await one(late, 'select place_details($1) as d', [x])).d.rating.average;
+    await as(late, `select rank_place($1, 'disliked', 0)`, [x]);
+    const after = (await one(late, 'select place_details($1) as d', [x])).d.rating.average;
+    const { rows: [ps] } = await db.query('select fit_weight, score from place_strengths where place_id = $1', [x]);
+    const w = 0.2;
+    assert.ok(after < before, 'beğenmeyen yeni puan düşürür');
+    assert.ok(Math.abs(after - (ps.fit_weight * ps.score + w * calibratedScoreAt('disliked', 0, 1)) / (ps.fit_weight + w)) < 1e-9);
+
+    // Modelin görmediği mekân kalibre katkıların ortalamasıyla
+    const [fresh] = await newPlaces(1);
+    await as(late, `select rank_place($1, 'liked', 0)`, [fresh]);
+    const shown = (await one(late, 'select place_details($1) as d', [fresh])).d.rating.average;
+    assert.ok(Math.abs(shown - (await bayes(fresh))) < 1e-9);
+  });
+
+  test('öneriler: tek arkadaşın puanı topluluğu ezmez', async () => {
+    const [loved, hated, filler] = await newPlaces(3, 'Kebapçı');
+    const crowd = [];
+    for (let i = 0; i < 5; i++) crowd.push(await signUp({ name: `Kalabalık ${i}` }));
+    for (const u of crowd) {
+      await rankList(u, [loved, filler]);
+      await rankList(u, [hated], 'disliked');
+    }
+    const friend = await signUp({ name: 'Zevki Farklı' });
+    await rankList(friend, [hated]);
+    await rankList(friend, [loved], 'fine');
+    const me = await signUp({ name: 'Öneri Bekleyen' });
+    await as(me, 'insert into follows (followee_id) values ($1)', [friend]);
+    await resetModel();
+    const recs = await rows(me, 'select * from recommended_places(null, null, 50)');
+    const find = (id) => recs.findIndex((r) => r.id === id);
+    // Eskiden: arkadaşın "idare eder"i (6,6) topluluğun favorisini eliyor, "beğendim"i (10) sevilmeyeni başa koyuyordu
+    assert.ok(find(loved) >= 0, 'topluluğun sevdiği mekân, arkadaş idare eder dese de önerilir');
+    assert.equal(recs[find(loved)].friend_average, scoreAt('fine', 0, 1), 'gösterilen arkadaş puanı onun puanı');
+    assert.ok(find(hated) === -1 || find(hated) > find(loved), 'arkadaşın 10’u sevilmeyeni başa taşıyamaz');
   });
 });
 

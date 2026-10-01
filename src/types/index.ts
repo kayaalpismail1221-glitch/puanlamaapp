@@ -21,7 +21,8 @@ export type Cuisine =
   | 'Büfe & fast food'
   | 'Pastane & fırın'
   | 'Dondurmacı'
-  | 'Bar';
+  | 'Bar'
+  | 'Börekçi';
 
 export type Place = {
   id: string;
@@ -51,7 +52,16 @@ export type Place = {
 export type Sentiment = 'liked' | 'fine' | 'disliked';
 
 /** Birbiriyle kıyaslanan mekân ailesi (bkz. constants/segments) */
-export type Segment = 'restaurant' | 'street' | 'breakfast' | 'cafe' | 'nightlife';
+export type Segment =
+  | 'restaurant'
+  | 'kebab'
+  | 'street'
+  | 'fastfood'
+  | 'breakfast'
+  | 'bakery'
+  | 'cafe'
+  | 'dessert'
+  | 'nightlife';
 
 /** Kullanıcının puanladığı bir mekân. Puan, segmentindeki sıralamadan hesaplanır. */
 export type RankedEntry = {
@@ -123,12 +133,12 @@ export type Profile = {
   discoverable: boolean;
   /** "Seni kim davet etti?" dolduruldu (XP: davet edene +100, sana +50) */
   hasInviter?: boolean;
+  /** Davet eden (elle ya da davet bağlantısıyla, `lib/invite-code`); kurulumda takip önerilerinin başında */
+  inviterId?: string;
 };
 
 /** Kayıt sırasında hesap açılmadan önce toplanan bilgiler (şifre hariç; şifre cihazda saklanmaz) */
 export type SignupDraft = {
-  /** İsteğe bağlı; 10 hane, 5 ile başlar (rehberden arkadaş bulma için) */
-  phone?: string;
   email?: string;
   name?: string;
   username?: string;

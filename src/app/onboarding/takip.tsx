@@ -9,10 +9,11 @@ import { UserRowsSkeleton } from '@/components/skeleton';
 import { Avatar, Button, Divider, ErrorView, PressableScale, Text } from '@/components/ui';
 import { FollowButton } from '@/components/user-row';
 import { colors, spacing } from '@/constants/theme';
+import { useUser } from '@/data/entities';
 import { useSuggestedUsers } from '@/hooks/queries';
 import { useMyInvites } from '@/hooks/use-contact-friends';
 import { haptics } from '@/lib/haptics';
-import { useAppStore } from '@/store/app-store';
+import { useAppSelector, useAppStore } from '@/store/app-store';
 
 const TARGET = 5;
 
@@ -23,10 +24,16 @@ export default function FollowStep() {
   const suggested = useSuggestedUsers(40);
   const [starting, setStarting] = useState(false);
   const invites = useMyInvites();
+  // Davet bağlantısıyla ya da elle kaydedilen davet eden (`lib/invite-code`)
+  const linkInviter = useUser(useAppSelector((s) => s.profile?.inviterId)) ?? undefined;
   // Davet edenler en üstte (davet bağlamı), sonra öneriler. Liste bu ekranda sabit kalsın;
   // takip edilen kişi listeden kaybolmasın
-  const inviterIds = new Set((invites.data ?? []).map((i) => i.inviter.id));
-  const inviters = [...new Map((invites.data ?? []).map((i) => [i.inviter.id, i.inviter])).values()];
+  const inviters = [
+    ...new Map(
+      [...(linkInviter ? [linkInviter] : []), ...(invites.data ?? []).map((i) => i.inviter)].map((u) => [u.id, u]),
+    ).values(),
+  ];
+  const inviterIds = new Set(inviters.map((u) => u.id));
   const suggestions = [...inviters, ...(suggested.data ?? []).filter((u) => !inviterIds.has(u.id))];
   // Uygulamanın ilk günlerinde yeterince kullanıcı olmayabilir
   const required = Math.min(TARGET, suggestions.length);

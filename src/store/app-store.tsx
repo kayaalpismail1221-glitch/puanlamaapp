@@ -245,6 +245,8 @@ export type Actions = {
   updateProfile: (patch: meApi.ProfilePatch) => Promise<boolean>;
   /** Telefon SMS ile doğrulandı (rehber eşleştirme açılır) */
   markPhoneVerified: () => void;
+  /** Davet eden sunucuya yazıldı (`set_inviter`) */
+  markInvited: (inviterId: string) => void;
   /** Rehberinde numaram olanlar beni bulabilir mi */
   setDiscoverable: (discoverable: boolean) => void;
   /** Yeni profil fotoğrafı; null fotoğrafı kaldırır */
@@ -519,6 +521,8 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       },
 
       markPhoneVerified: () => dispatch({ type: 'updateProfile', patch: { phoneVerified: true } }),
+
+      markInvited: (inviterId) => dispatch({ type: 'updateProfile', patch: { hasInviter: true, inviterId } }),
 
       setDiscoverable: (discoverable) => {
         const { profile } = stateRef.current;

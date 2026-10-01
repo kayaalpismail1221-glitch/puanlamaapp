@@ -1,17 +1,19 @@
 import type { ConfigContext, ExpoConfig } from 'expo/config';
 
 /**
- * app.json'un üstüne yalnızca gizli/ortama bağlı ayarlar. Android haritası (react-native-maps → Google Maps SDK)
- * anahtar ister: EAS'ta `GOOGLE_MAPS_ANDROID_API_KEY` ortam değişkeni (production), yerelde `.env.local`.
- * Anahtar yoksa Android'de harita gri kalır; iOS Apple Haritalar kullanır, etkilenmez.
+ * app.json'un üstüne yalnızca gizli/ortama bağlı ayarlar (EAS'ta ortam değişkeni, yerelde `.env.local`).
+ * Android haritası anahtarsız (MapLibre + OpenFreeMap, `components/app-map.android.tsx`).
+ * - `GOOGLE_SERVICES_JSON`: Firebase'in `google-services.json`'u (EAS'ta "file" türü değişken; yerelde
+ *   `.env.local`'a `GOOGLE_SERVICES_JSON=./google-services.json`). Android push (FCM) bunsuz çalışmaz; FCM V1
+ *   hizmet hesabı anahtarı ayrıca EAS'a yüklenir.
  */
 export default ({ config }: ConfigContext): ExpoConfig => {
-  const apiKey = process.env.GOOGLE_MAPS_ANDROID_API_KEY;
+  const googleServicesFile = process.env.GOOGLE_SERVICES_JSON;
   return {
     ...(config as ExpoConfig),
     android: {
       ...config.android,
-      ...(apiKey ? { config: { ...config.android?.config, googleMaps: { apiKey } } } : {}),
+      ...(googleServicesFile ? { googleServicesFile } : {}),
     },
   };
 };

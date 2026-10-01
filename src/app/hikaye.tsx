@@ -8,8 +8,10 @@ import { captureRef } from 'react-native-view-shot';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SegmentedControl } from '@/components/segmented-control';
+import { daysLeftInYear } from '@/components/profile-parts';
 import {
   FavoritesStoryCard,
+  GoalStoryCard,
   ListStoryCard,
   MapStoryCard,
   PostStoryCard,
@@ -30,7 +32,16 @@ import { showAlert } from '@/lib/dialog';
 import { haptics } from '@/lib/haptics';
 import { isMe } from '@/lib/session';
 import type { ScoredPlace } from '@/lib/insights';
-import { monthRecap, recapMonth, STORY_EXPORT, STORY_SIZE, type DatedPlace, type StoryKind } from '@/lib/story';
+import { placesThisYear } from '@/lib/stats';
+import {
+  monthRecap,
+  recapMonth,
+  STORY_EXPORT,
+  STORY_SIZE,
+  type DatedPlace,
+  type GoalProgress,
+  type StoryKind,
+} from '@/lib/story';
 import { cityDots, visitedSummary } from '@/lib/visited';
 import { fitView, MIN_MAP_VIEW_WIDTH } from '@/lib/world-projection';
 import { useAppStore } from '@/store/app-store';
@@ -103,6 +114,15 @@ export default function StoryScreen() {
     return period ? monthRecap(dated, (posts.data ?? []).map((p) => p.createdAt), period) : null;
   }, [dated, posts.data]);
 
+  // Yıllık mekân hedefi (hedef sayfasındaki sayının aynısı: bu yıl puanlanan mekânlar)
+  const [now] = useState(Date.now);
+  const goal = profile?.yearGoal;
+  const goalProgress = useMemo<GoalProgress | null>(() => {
+    if (!goal) return null;
+    const year = new Date(now).getFullYear();
+    return { year, goal, done: placesThisYear(scored), daysLeft: daysLeftInYear(year, now) };
+  }, [goal, scored, now]);
+
   const kinds = useMemo<StoryKind[]>(() => {
     // Silinmiş gönderide boş önizleme yerine "Bu gönderi artık yok"
     if (params.gonderi) return post && postPlace ? ['post'] : [];
@@ -112,8 +132,9 @@ export default function StoryScreen() {
       ...(top.length ? (['top5'] as const) : []),
       ...(visited.items.length ? (['map'] as const) : []),
       ...(recap ? (['recap'] as const) : []),
+      ...(goalProgress ? (['goal'] as const) : []),
     ];
-  }, [params.gonderi, post, postPlace, params.liste, listDetails, favorites.length, top.length, visited.items.length, recap]);
+  }, [params.gonderi, post, postPlace, params.liste, listDetails, favorites.length, top.length, visited.items.length, recap, goalProgress]);
 
   const [picked, setPicked] = useState<StoryKind | undefined>(params.tur);
   const kind = picked && kinds.includes(picked) ? picked : kinds[0];
@@ -135,7 +156,8 @@ export default function StoryScreen() {
           hint: t('story.followHintOther'),
         }
       : undefined;
-  const cardAuthor = listAuthor ?? author;
+  // Hedef kartında imza izleyiciyi de hedef koymaya çağırır
+  const cardAuthor = listAuthor ?? (kind === 'goal' ? { ...author, hint: t('story.goalHint') } : author);
   const expected = [
     cardAuthor.avatarUri,
     kind === 'post' ? post?.photos[0] : undefined,
@@ -169,7 +191,7 @@ export default function StoryScreen() {
         result: 'tmpfile',
       });
       haptics.success();
-      const link = inviteLink();
+      const link = inviteLink(profile?.username);
       if (link) {
         await Clipboard.setStringAsync(link).catch(() => {});
         setLinkCopied(true);
@@ -224,6 +246,8 @@ export default function StoryScreen() {
       <ListStoryCard {...common} list={listDetails.list} items={listDetails.items} />
     ) : kind === 'recap' && recap ? (
       <RecapStoryCard {...common} recap={recap} />
+    ) : kind === 'goal' && goalProgress ? (
+      <GoalStoryCard {...common} progress={goalProgress} />
     ) : null;
 
   return (

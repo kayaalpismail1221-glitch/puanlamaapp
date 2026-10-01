@@ -14,13 +14,13 @@ import Animated, { FadeIn, FadeInDown, useAnimatedStyle, withSpring } from 'reac
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppMapView, PinMarker } from '@/components/app-map';
+import { GoogleSignInButton } from '@/components/google-button';
 import { LegalConsent } from '@/components/legal-consent';
 import { Button, PressableScale, Text } from '@/components/ui';
 import { colors, fixed, fonts, onScoreColor, radius, scoreColor, spacing, withAlpha } from '@/constants/theme';
 import { usePalette } from '@/hooks/use-palette';
 import { formatScore } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
-import { PHONE_VERIFICATION_ENABLED } from '@/constants/features';
 import { useAppSelector } from '@/store/app-store';
 
 const SLIDES = ['remember', 'trust', 'discover'] as const;
@@ -50,11 +50,7 @@ const CAMERA = { latitude: 41.028, longitude: 29.018 };
 export default function WelcomeRoute() {
   // Hesap açılmış ama kurulum yarım kalmışsa kaldığı yerden devam
   const status = useAppSelector((s) => s.status);
-  // Kayıtta numara girildiyse önce SMS koduyla doğrulanır (atlanabilir; atlayınca taslaktan silinir)
-  const verifyPhone = useAppSelector(
-    (s) => PHONE_VERIFICATION_ENABLED && !!s.draft.phone && !s.profile?.phoneVerified,
-  );
-  if (status === 'signedIn') return <Redirect href={verifyPhone ? '/onboarding/telefon-kodu' : '/onboarding/ilk-puan'} />;
+  if (status === 'signedIn') return <Redirect href="/onboarding/ilk-puan" />;
   return <WelcomeScreen />;
 }
 
@@ -134,7 +130,8 @@ function WelcomeScreen() {
         </View>
 
         <Animated.View entering={FadeIn.delay(400)} style={styles.actions}>
-          <Button title={t('onboarding.start')} onPress={() => router.push('/onboarding/telefon')} style={styles.cta} />
+          <Button title={t('onboarding.start')} onPress={() => router.push('/onboarding/eposta')} style={styles.cta} />
+          <GoogleSignInButton />
           <PressableScale
             onPress={() => router.push('/onboarding/giris')}
             style={styles.login}>

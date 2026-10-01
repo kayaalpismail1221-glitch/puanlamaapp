@@ -11,7 +11,7 @@ import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 
 import { segmentOf } from '../../src/constants/segments.ts';
-import { SENTIMENT_ORDER, scoreAt } from '../../src/lib/ranking.ts';
+import { SENTIMENT_ORDER, calibratedScoreAt, scoreAt } from '../../src/lib/ranking.ts';
 
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -204,6 +204,7 @@ for (const [u, map] of Object.entries(ratings)) {
           segment,
           position: index,
           score,
+          calibrated_score: calibratedScoreAt(sentiment, index, group.length),
           rated_at: hoursAgo(r.at),
         });
       });

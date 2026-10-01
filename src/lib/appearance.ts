@@ -25,8 +25,9 @@ const emit = () => listeners.forEach((l) => l());
 /** Koyu görünüm iOS'ta ve Android'de kendi derlememizde (`constants/theme` → `darkModeSupported`); web açık */
 export const appearanceSupported = darkModeSupported;
 
+// Web'de (react-native-web) `setColorScheme` yok; orası hep açık
 const apply = (next: AppearancePreference) =>
-  Appearance.setColorScheme(appearanceSupported ? next : 'light');
+  Appearance.setColorScheme?.(appearanceSupported ? next : 'light');
 
 // İlk karede varsayılan; kayıtlı tercih okunana kadar açılış ekranı bekler (bkz. RootNavigator)
 apply(DEFAULT);

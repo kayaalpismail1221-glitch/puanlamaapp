@@ -4,14 +4,16 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { BottomInsetSpacer } from '@/components/bottom-inset';
 import { Text } from '@/components/ui';
+import { SEGMENTS } from '@/constants/segments';
 import { colors, radius, spacing } from '@/constants/theme';
 
-type SectionKey = 'compare' | 'bands' | 'favorite' | 'same' | 'many' | 'post' | 'community' | 'friends';
+type SectionKey = 'compare' | 'kinds' | 'bands' | 'favorite' | 'same' | 'many' | 'post' | 'community' | 'friends';
 type Section = { key: SectionKey; icon: SFSymbol };
 
 /** Sırayla anlatılan başlıklar; metinler i18n `scoring.<key>.title/body` */
 const SECTIONS: Section[] = [
   { key: 'compare', icon: 'arrow.left.arrow.right' },
+  { key: 'kinds', icon: 'list.bullet' },
   { key: 'bands', icon: 'hand.thumbsup' },
   { key: 'favorite', icon: 'star' },
   { key: 'same', icon: 'equal.circle' },
@@ -40,7 +42,8 @@ export default function ScoringScreen() {
           <View style={styles.flex}>
             <Text variant="headline">{t(`scoring.${key}.title`)}</Text>
             <Text variant="subhead" color={colors.textSecondary} style={styles.body}>
-              {t(`scoring.${key}.body`)}
+              {/* Türler listesi segmentlerden (constants/segments), yeni tür eklenince metin kendiliğinden güncel */}
+              {t(`scoring.${key}.body`, { kinds: SEGMENTS.map((s) => t(`segments.${s}`)).join(' · ') })}
             </Text>
           </View>
         </View>

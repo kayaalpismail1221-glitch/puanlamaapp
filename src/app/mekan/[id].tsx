@@ -80,6 +80,9 @@ export default function PlaceDetailScreen() {
     ? friendScores.reduce((sum, f) => sum + f.score, 0) / friendScores.length
     : undefined;
   const postCount = details.data?.postCount ?? posts.length;
+  // Büyük rozet mekânın Puanla puanı (herkesin kıyaslamalarından); kendi puanın altında küçük
+  const community = details.data?.rating?.average ?? undefined;
+  const communityCount = details.data?.rating?.count ?? 0;
 
   return (
     <View style={styles.container}>
@@ -121,25 +124,45 @@ export default function PlaceDetailScreen() {
                 </View>
               )}
             </View>
-            {myScore !== undefined && <ScoreBadge score={myScore} size="lg" />}
+            {community !== undefined ? (
+              <View
+                style={styles.puanla}
+                accessible
+                accessibilityLabel={t('place.puanlaScoreLabel', { score: formatScore(community), count: communityCount })}>
+                <ScoreBadge score={community} size="lg" />
+                <Text variant="caption" color={colors.textSecondary} style={styles.puanlaLabel}>
+                  {t('place.puanlaScore')}
+                </Text>
+              </View>
+            ) : (
+              details.isPending && <View style={styles.puanlaPlaceholder} />
+            )}
           </View>
 
-          {myEntry && (
-            <Text variant="footnote" color={colors.textSecondary}>
-              {standing &&
-                (standing.total === 1
-                  ? t('place.segmentFirst', { segment: t(`segments.${standing.segment}`) })
-                  : t('place.segmentStanding', {
-                      segment: t(`segments.${standing.segment}`),
-                      rank: standing.rank,
-                      total: standing.total,
-                    }))}
-              {myEntry.note ? ` · “${myEntry.note}”` : ''}
-              {'  '}
-              <Text variant="footnote" color={colors.primary} style={{ fontWeight: '600' }} onPress={confirmUnrank}>
-                {t('place.removeScore')}
+          {myEntry && myScore !== undefined && (
+            <View style={styles.myScore}>
+              <ScoreBadge score={myScore} size="sm" />
+              <Text variant="footnote" color={colors.textSecondary} style={{ flex: 1 }}>
+                <Text variant="footnote" style={{ fontWeight: '600' }}>
+                  {t('place.yourScore')}
+                </Text>
+                {standing &&
+                  ` · ${
+                    standing.total === 1
+                      ? t('place.segmentFirst', { segment: t(`segments.${standing.segment}`) })
+                      : t('place.segmentStanding', {
+                          segment: t(`segments.${standing.segment}`),
+                          rank: standing.rank,
+                          total: standing.total,
+                        })
+                  }`}
+                {myEntry.note ? ` · “${myEntry.note}”` : ''}
+                {'  '}
+                <Text variant="footnote" color={colors.primary} style={{ fontWeight: '600' }} onPress={confirmUnrank}>
+                  {t('place.removeScore')}
+                </Text>
               </Text>
-            </Text>
+            </View>
           )}
 
           {savedEntry && (savedEntry.note || source) && (
@@ -228,14 +251,11 @@ export default function PlaceDetailScreen() {
             </ScrollView>
           )}
 
-          {details.data?.rating && (
+          {community !== undefined && (
             <Text variant="footnote" color={colors.textSecondary}>
-              {t('place.communityAverage', {
-                score: formatScore(details.data.rating.average),
-                count: details.data.rating.count,
-              })}
-              {/* Puan az kişiden geliyorsa neden ham ortalamadan farklı olabileceğini söyle */}
-              {details.data.rating.count < 5 && `\n${t('place.communityHint')}`}
+              {t('place.communityBasis', { score: formatScore(community), count: communityCount })}
+              {/* Puan az kişiden geliyorsa neden bir kişinin puanından farklı olabileceğini söyle */}
+              {communityCount < 5 && `\n${t('place.communityHint')}`}
             </Text>
           )}
           <ScoringGuideLink onPress={guide.open} />
@@ -396,6 +416,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.lg,
+  },
+  puanla: {
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  puanlaLabel: {
+    fontWeight: '600',
+  },
+  // Puan yüklenirken başlık kaymasın: rozet + etiket kadar yer
+  puanlaPlaceholder: {
+    width: 64,
+    height: 64 + spacing.xs + 16,
+  },
+  myScore: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   actions: {
     flexDirection: 'row',

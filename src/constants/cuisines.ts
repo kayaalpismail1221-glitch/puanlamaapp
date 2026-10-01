@@ -28,6 +28,7 @@ export const CUISINES: { name: Cuisine; icon: SFSymbol }[] = [
   { name: 'Pastane & fırın', icon: 'basket' },
   { name: 'Dondurmacı', icon: 'snowflake' },
   { name: 'Bar', icon: 'mug' },
+  { name: 'Börekçi', icon: 'basket' },
 ];
 
 /** Veritabanındaki kategori adını etkin dilde gösterir; bilinmeyen değer olduğu gibi kalır */

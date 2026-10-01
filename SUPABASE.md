@@ -68,6 +68,28 @@ Beta'dan önce **Authentication → Emails → SMTP Settings** bölümünden ken
 3. *Client IDs* alanına uygulamanın bundle kimliğini yaz (ör. `com.puanla.app`). Expo Go'da denemek için
    `host.exp.Exponent` kimliğini de ekle.
 
+**Android: Google ile giriş ve push.** (Harita anahtar istemez: MapLibre + OpenFreeMap.) İkisi de aynı Google Cloud projesinde (Firebase projesi açınca
+otomatik bir Google Cloud projesi de açılır; hepsini onda yap). Değişkenler eksikse ilgili özellik gizlenir,
+uygulama çökmez. Değişkenler derlemeye girer: ekledikten sonra **yeni Android build** gerekir (`npm run update` yetmez).
+1. **İmza parmak izleri (SHA-1):** `eas credentials -p android` → production keystore'un SHA-1'i. Play Console'a
+   yükleyince Play kendi anahtarıyla yeniden imzalar: **Play Console → Test and release → App integrity → App signing**
+   sayfasındaki SHA-1 de eklenmeli. Yerel emülatör derlemesi için `android/app/debug.keystore`'un SHA-1'i
+   (`keytool -list -v -keystore android/app/debug.keystore -storepass android`).
+2. **Google ile giriş:** Google Cloud → APIs & Services → **OAuth consent screen** (uygulama adı Puanla, destek
+   e-postası, gizlilik bağlantısı) → **Credentials → Create OAuth client ID**:
+   - Bir tane **Web application** istemcisi → kimliği `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` (EAS production + preview
+     ortamları, yerelde `.env.local`). Gizli anahtarı (client secret) Supabase'e girilir, uygulamaya girmez.
+   - Her SHA-1 için bir **Android** istemcisi: paket `app.puanla` + SHA-1. Uygulamaya yazılmaz; Google bu eşleşmeyle
+     uygulamayı tanır (eksikse giriş `DEVELOPER_ERROR` verir).
+   - Supabase → **Authentication → Sign In / Providers → Google** → etkinleştir; *Client ID* alanına Web istemci
+     kimliği, *Client Secret*'a onun gizli anahtarı.
+3. **Push (FCM):** Firebase → projeye Android uygulaması ekle (`app.puanla`) → `google-services.json`'u indir →
+   `eas env:create --name GOOGLE_SERVICES_JSON --type file --value ./google-services.json --environment production`
+   (preview için de). Firebase → Project settings → **Service accounts → Generate new private key** →
+   `eas credentials -p android` → *Google Service Account → Push Notifications (FCM V1)* → bu JSON'u yükle.
+   `google-services.json` depoya girmez (`.gitignore`); yerel derlemede `.env.local`'a
+   `GOOGLE_SERVICES_JSON=./google-services.json`. Hizmet hesabı anahtarı gizlidir, yalnızca EAS'a yüklenir.
+
 **Telefon doğrulaması (SMS)** — rehberden arkadaş bulma bunun için gerekli:
 
 > **Şu anki durum:** SMS sağlayıcısı yok, uygulamada `PHONE_VERIFICATION_ENABLED = false`

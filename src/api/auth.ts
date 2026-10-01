@@ -1,5 +1,7 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as Crypto from 'expo-crypto';
+import { Platform } from 'react-native';
 
 import { unwrap } from '@/api/errors';
 import { removeUserFolder } from '@/api/storage';
@@ -7,7 +9,7 @@ import { supabase } from '@/lib/supabase';
 import type { SignupDraft } from '@/types';
 
 /**
- * Hesap işlemleri: kayıt, giriş (e-posta/şifre ve Apple), şifre sıfırlama, hesap silme.
+ * Hesap işlemleri: kayıt, giriş (e-posta/şifre, Apple, Google), şifre sıfırlama, hesap silme.
  * Şifre hiçbir zaman cihazda saklanmaz; doğrudan Supabase Auth'a gider.
  */
 
@@ -19,7 +21,7 @@ export async function signUp(draft: SignupDraft & { email: string }, password: s
     password,
     options: {
       // Veritabanındaki handle_new_user tetikleyicisi profili bu bilgilerle oluşturur
-      data: { name: draft.name, username: draft.username, phone: draft.phone },
+      data: { name: draft.name, username: draft.username },
     },
   });
   if (error) throw error;
@@ -92,6 +94,50 @@ export async function signInWithApple(): Promise<boolean> {
   return true;
 }
 
+/**
+ * Google ile giriş (şimdilik yalnız Android; iOS'ta Apple var). Google Cloud'daki "Web application" istemci
+ * kimliği `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` ile gelir: kimlik jetonunun alıcısı odur ve Supabase'teki Google
+ * sağlayıcısında da kayıtlı olmalı. Paket adı + imza SHA-1'iyle bir "Android" istemcisi de gerekir (bkz. SUPABASE.md).
+ * Değişken yoksa düğme görünmez. Yerel modül Expo Go'da yok; içe aktarma ilk kullanıma kadar ertelenir.
+ */
+const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '';
+
+export const isGoogleSignInAvailable = () =>
+  Platform.OS === 'android' &&
+  GOOGLE_WEB_CLIENT_ID !== '' &&
+  Constants.executionEnvironment !== ExecutionEnvironment.StoreClient;
+
+type GoogleSignInModule = typeof import('@react-native-google-signin/google-signin');
+let googleModule: GoogleSignInModule | undefined;
+
+async function google(): Promise<GoogleSignInModule> {
+  if (!googleModule) {
+    googleModule = await import('@react-native-google-signin/google-signin');
+    googleModule.GoogleSignin.configure({ webClientId: GOOGLE_WEB_CLIENT_ID });
+  }
+  return googleModule;
+}
+
+/**
+ * Google ile giriş; yeni hesapta profil Google'daki adla açılır (`handle_new_user`, `full_name`).
+ * Dönüş: iptal edildiyse false.
+ */
+export async function signInWithGoogle(): Promise<boolean> {
+  const { GoogleSignin, isErrorWithCode, statusCodes } = await google();
+  try {
+    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+    const response = await GoogleSignin.signIn();
+    if (response.type === 'cancelled') return false;
+    if (!response.data.idToken) throw new Error('Google kimlik bilgisi alınamadı');
+    unwrap(await supabase.auth.signInWithIdToken({ provider: 'google', token: response.data.idToken }));
+    return true;
+  } catch (error) {
+    // Çift dokunuşta ikinci istek: ilki sürüyor
+    if (isErrorWithCode(error) && error.code === statusCodes.IN_PROGRESS) return false;
+    throw error;
+  }
+}
+
 /** Şifremi unuttum: e-postaya 6 haneli giriş kodu gönderir (hesap yoksa oluşturmaz) */
 export async function sendLoginCode(email: string) {
   unwrap(await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } }));
@@ -112,6 +158,12 @@ export async function usernameAvailable(username: string): Promise<boolean> {
 export async function signOut() {
   // Sunucuya ulaşılamasa da cihazdaki oturum silinir
   await supabase.auth.signOut({ scope: 'local' });
+  // Google son hesabı hatırlar; çıkılmazsa bir sonraki girişte hesap seçici açılmaz
+  if (isGoogleSignInAvailable()) {
+    await google()
+      .then((m) => m.GoogleSignin.signOut())
+      .catch(() => {});
+  }
 }
 
 /**

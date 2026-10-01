@@ -1,9 +1,9 @@
 import { useLocalSearchParams } from 'expo-router';
 import { SymbolView } from '@/components/symbol';
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, Platform, StyleSheet, TextInput, View } from 'react-native';
-import { useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
+import { KeyboardController, KeyboardEvents, useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
 import Animated, { FadeIn, FadeOut, interpolate, useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -28,6 +28,9 @@ import type { Comment } from '@/types';
 
 /** Bir dizide bu kadar yanıttan fazlası "N yanıt daha gör" ile açılır */
 const VISIBLE_REPLIES = 2;
+
+/** Klavye açılınca listenin sonuna kaydır (yorum kimliği değil) */
+const END = '__end__';
 
 type Row =
   | { type: 'comment'; comment: Comment; reply: boolean; replyingTo?: string }
@@ -79,8 +82,13 @@ export default function PostDetailScreen() {
   const restingBottom = Math.max(insets.bottom, spacing.sm);
   const keyboard = useReanimatedKeyboardAnimation();
   const composerInset = useAnimatedStyle(() => ({
-    paddingBottom: interpolate(keyboard.progress.value, [0, 1], [restingBottom, spacing.sm]),
+    paddingBottom: interpolate(keyboard.progress.value, [0, 1], [restingBottom, spacing.md]),
   }));
+  // iOS: KeyboardAvoidingView'ın payı, ekranın pencerede başladığı yer kadar (durum çubuğu + başlık). Sabit 44 pt
+  // yeni iOS'un daha yüksek başlığında kısa kalıyor, giriş alanı klavyenin altına giriyordu: gerçek konum ölçülür.
+  const screenRef = useRef<View>(null);
+  const [screenTop, setScreenTop] = useState(insets.top + Platform.select({ ios: 44, default: 56 }));
+  const measureScreenTop = () => screenRef.current?.measureInWindow((_x, y) => y > 0 && setScreenTop(y));
   const inputRef = useRef<TextInput>(null);
   const [text, setText] = useState('');
   const [replyTo, setReplyTo] = useState<Comment | null>(null);
@@ -94,6 +102,32 @@ export default function PostDetailScreen() {
 
   const rows = useMemo(() => threadRows(comments.data ?? [], expanded), [comments.data, expanded]);
   const replyAuthor = useUser(replyTo?.userId);
+
+  // Klavye açılınca liste kısalır ama kendiliğinden kaymaz: yanıt verilen yorum klavyenin altında kalır, ekranda
+  // gönderi fotoğrafı görünürdü. Klavye açılınca yazılan yer görünür: yanıtta o yorum giriş çubuğunun hemen üstüne,
+  // yeni yorumda son yorumlar.
+  const listRef = useRef<FlatList<Row>>(null);
+  const revealTarget = useRef<string | null>(null);
+  const rowsRef = useRef(rows);
+  useEffect(() => {
+    rowsRef.current = rows;
+  }, [rows]);
+  const reveal = useCallback(() => {
+    const target = revealTarget.current;
+    revealTarget.current = null;
+    const list = listRef.current;
+    if (!target || !list) return;
+    if (target === END) {
+      list.scrollToEnd({ animated: true });
+      return;
+    }
+    const index = rowsRef.current.findIndex((r) => r.type === 'comment' && r.comment.id === target);
+    if (index >= 0) list.scrollToIndex({ index, viewPosition: 1, animated: true });
+  }, []);
+  useEffect(() => {
+    const subscription = KeyboardEvents.addListener('keyboardDidShow', reveal);
+    return () => subscription.remove();
+  }, [reveal]);
 
   if (post === undefined) {
     // Bildirimden çevrimdışı açılınca sonsuz beklemek yerine "Tekrar dene"
@@ -112,6 +146,9 @@ export default function PostDetailScreen() {
   const startReply = (comment: Comment) => {
     haptics.select();
     setReplyTo(comment);
+    revealTarget.current = comment.id;
+    // Klavye zaten açıksa "açıldı" olayı gelmez: "yanıt veriyorsun" çubuğu yerleşince kaydır
+    if (KeyboardController.isVisible()) setTimeout(reveal, 60);
     inputRef.current?.focus();
   };
 
@@ -187,94 +224,109 @@ export default function PostDetailScreen() {
   const replyName = replyAuthor?.username || replyAuthor?.name || '';
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior="padding"
-      // Başlık yüksekliği: iOS gezinme çubuğu 44, Android üst çubuğu 56 (durum çubuğu altında)
-      keyboardVerticalOffset={insets.top + Platform.select({ ios: 44, default: 56 })}>
-      <FlatList
-        data={rows}
-        keyExtractor={(row) => (row.type === 'comment' ? row.comment.id : `more-${row.rootId}`)}
-        keyboardDismissMode="interactive"
-        keyboardShouldPersistTaps="handled"
-        contentInsetAdjustmentBehavior="automatic"
-        ListHeaderComponent={
-          <>
-            <PostCard post={post} expanded />
-            <Divider />
-            <Text variant="headline" style={styles.commentsTitle}>
-              {t('comments.title')}
-            </Text>
-          </>
-        }
-        ListEmptyComponent={
-          comments.isPending ? (
-            <CommentsSkeleton />
-          ) : (
-            <Text variant="subhead" color={colors.textSecondary} style={styles.empty}>
-              {t('comments.empty')}
-            </Text>
-          )
-        }
-        renderItem={({ item }) =>
-          item.type === 'more' ? (
-            <PressableScale onPress={() => expand(item.rootId)} haptic={false} style={styles.more}>
-              <View style={styles.moreLine} />
-              <Text variant="footnote" color={colors.textSecondary} style={styles.bold}>
-                {t('comments.moreReplies', { count: item.hidden })}
+    <View ref={screenRef} style={styles.container} onLayout={Platform.OS === 'ios' ? measureScreenTop : undefined}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior="padding"
+        // Ekranın pencerede başladığı yer: iOS'ta ölçülen, Android'de üst çubuk 56 (durum çubuğu altında)
+        keyboardVerticalOffset={Platform.OS === 'ios' ? screenTop : insets.top + 56}>
+        <FlatList
+          ref={listRef}
+          data={rows}
+          keyExtractor={(row) => (row.type === 'comment' ? row.comment.id : `more-${row.rootId}`)}
+          keyboardDismissMode="interactive"
+          keyboardShouldPersistTaps="handled"
+          contentInsetAdjustmentBehavior="automatic"
+          onScrollToIndexFailed={({ index, averageItemLength }) => {
+            // Henüz ölçülmemiş satır: yaklaşık yere git, çizilince tam hizala
+            listRef.current?.scrollToOffset({ offset: averageItemLength * index, animated: true });
+            setTimeout(() => listRef.current?.scrollToIndex({ index, viewPosition: 1, animated: true }), 250);
+          }}
+          ListHeaderComponent={
+            <>
+              <PostCard post={post} expanded />
+              <Divider />
+              <Text variant="headline" style={styles.commentsTitle}>
+                {t('comments.title')}
               </Text>
-            </PressableScale>
-          ) : (
-            <CommentRow
-              comment={item.comment}
-              reply={item.reply}
-              replyingTo={item.replyingTo}
-              onReply={() => startReply(item.comment)}
-              onLike={() => like(item.comment)}
-              onActions={() => commentActions(item.comment)}
-            />
-          )
-        }
-      />
+            </>
+          }
+          ListEmptyComponent={
+            comments.isPending ? (
+              <CommentsSkeleton />
+            ) : (
+              <Text variant="subhead" color={colors.textSecondary} style={styles.empty}>
+                {t('comments.empty')}
+              </Text>
+            )
+          }
+          renderItem={({ item }) =>
+            item.type === 'more' ? (
+              <PressableScale onPress={() => expand(item.rootId)} haptic={false} style={styles.more}>
+                <View style={styles.moreLine} />
+                <Text variant="footnote" color={colors.textSecondary} style={styles.bold}>
+                  {t('comments.moreReplies', { count: item.hidden })}
+                </Text>
+              </PressableScale>
+            ) : (
+              <CommentRow
+                comment={item.comment}
+                reply={item.reply}
+                replyingTo={item.replyingTo}
+                onReply={() => startReply(item.comment)}
+                onLike={() => like(item.comment)}
+                onActions={() => commentActions(item.comment)}
+              />
+            )
+          }
+        />
 
-      {/* Yorum yazma çubuğu; yanıt verirken kime yanıt verildiği üstte */}
-      <Animated.View style={[styles.composer, composerInset]}>
-        {replyTo && (
-          <Animated.View entering={FadeIn.duration(150)} exiting={FadeOut.duration(120)} style={styles.replyBar}>
-            <Text variant="footnote" color={colors.textSecondary} style={{ flex: 1 }} numberOfLines={1}>
-              {t('comments.replyingTo', { name: replyName })}
-            </Text>
-            <PressableScale onPress={() => setReplyTo(null)} hitSlop={hitSlop} accessibilityLabel={t('comments.cancelReply')}>
-              <SymbolView name="xmark.circle.fill" tintColor={colors.textTertiary} size={18} />
-            </PressableScale>
-          </Animated.View>
-        )}
-        <View style={styles.inputRow}>
-          <Avatar uri={profile?.avatarUri} name={profile?.name ?? '?'} size={32} />
-          <TextInput
-            ref={inputRef}
-            value={text}
-            onChangeText={setText}
-            placeholder={replyTo ? t('comments.replyPlaceholder', { name: replyName }) : t('comments.placeholder')}
-            placeholderTextColor={colors.textTertiary}
-            multiline
-            maxLength={300}
-            style={[typography.callout, styles.input]}
-          />
-          <PressableScale
-            onPress={send}
-            disabled={!text.trim() || addComment.isPending}
-            hitSlop={hitSlop}
-            accessibilityLabel={t('comments.send')}>
-            <SymbolView
-              name="arrow.up.circle.fill"
-              tintColor={text.trim() ? colors.primary : colors.textTertiary}
-              size={30}
+        {/* Yorum yazma çubuğu; yanıt verirken kime yanıt verildiği üstte */}
+        <Animated.View style={[styles.composer, composerInset]}>
+          {replyTo && (
+            <Animated.View entering={FadeIn.duration(150)} exiting={FadeOut.duration(120)} style={styles.replyBar}>
+              <Text variant="footnote" color={colors.textSecondary} style={{ flex: 1 }} numberOfLines={1}>
+                {t('comments.replyingTo', { name: replyName })}
+              </Text>
+              <PressableScale
+                onPress={() => setReplyTo(null)}
+                hitSlop={hitSlop}
+                accessibilityLabel={t('comments.cancelReply')}>
+                <SymbolView name="xmark.circle.fill" tintColor={colors.textTertiary} size={18} />
+              </PressableScale>
+            </Animated.View>
+          )}
+          <View style={styles.inputRow}>
+            <Avatar uri={profile?.avatarUri} name={profile?.name ?? '?'} size={32} />
+            <TextInput
+              ref={inputRef}
+              value={text}
+              onChangeText={setText}
+              onFocus={() => {
+                // Yanıt değilse son yorumlar görünsün (yanıtta hedef zaten yorumun kendisi)
+                revealTarget.current ??= END;
+              }}
+              placeholder={replyTo ? t('comments.replyPlaceholder', { name: replyName }) : t('comments.placeholder')}
+              placeholderTextColor={colors.textTertiary}
+              multiline
+              maxLength={300}
+              style={[typography.callout, styles.input]}
             />
-          </PressableScale>
-        </View>
-      </Animated.View>
-    </KeyboardAvoidingView>
+            <PressableScale
+              onPress={send}
+              disabled={!text.trim() || addComment.isPending}
+              hitSlop={hitSlop}
+              accessibilityLabel={t('comments.send')}>
+              <SymbolView
+                name="arrow.up.circle.fill"
+                tintColor={text.trim() ? colors.primary : colors.textTertiary}
+                size={30}
+              />
+            </PressableScale>
+          </View>
+        </Animated.View>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 

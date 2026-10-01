@@ -105,6 +105,16 @@ describe('kategori ve ayıklama', () => {
     assert.equal(overtureCategory('hookah_bar'), null);
   });
 
+  test('börek/simit/poğaça börekçidir; adında pastane de geçen pastane kalır', () => {
+    assert.equal(categorize('Tarihi Karaköy Börekçisi'), 'Börekçi');
+    assert.equal(categorize('Simit Sarayı', { fallbacks: ['Kafe'] }), 'Börekçi');
+    assert.equal(categorize('Poğaça Dünyası'), 'Börekçi');
+    assert.equal(categorize('Baylan Pastanesi'), 'Pastane & fırın');
+    assert.equal(categorize('Özsüt Pastane & Börek'), 'Pastane & fırın');
+    assert.equal(categorize('Kuru Kahveci Fırın'), 'Pastane & fırın');
+    assert.equal(categorize('Adı Yok', { osmCuisine: 'simit' }), 'Börekçi');
+  });
+
   test('mekân olmayanlar ve ekmek fırınları ayıklanır', () => {
     assert.equal(isVenueName('Dostlar Kıraathanesi'), false);
     assert.equal(isVenueName('Keyf Nargile'), false);

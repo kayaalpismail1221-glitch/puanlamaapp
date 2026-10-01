@@ -9,13 +9,14 @@ import { OnboardingStep } from '@/components/onboarding-step';
 import { PlaceSearchList } from '@/components/place-picker';
 import type { Invite } from '@/api/contacts';
 import { Avatar, Button, PlaceImage, ScoreBadge, SearchField, Text } from '@/components/ui';
+import { PHONE_VERIFICATION_ENABLED } from '@/constants/features';
 import { colors, radius, spacing } from '@/constants/theme';
 import { usePlace } from '@/data/entities';
 import { useUserPosts } from '@/hooks/queries';
 import { useMyInvites } from '@/hooks/use-contact-friends';
 import { formatScore } from '@/lib/format';
 import { placeSubtitle } from '@/lib/place';
-import { useAppStore } from '@/store/app-store';
+import { useAppSelector, useAppStore } from '@/store/app-store';
 
 // Puanlayınca doğrudan gönderi ekranı açılır (fotoğraf isteğe bağlı)
 const rate = (id: string) => router.push({ pathname: '/degerlendir/[id]', params: { id, sonra: 'gonderi' } });
@@ -23,7 +24,10 @@ const rate = (id: string) => router.push({ pathname: '/degerlendir/[id]', params
 /** 5. En son gidilen restoranı puanla */
 export default function FirstRatingStep() {
   const { scored, scoreOf, userId } = useAppStore();
+  // SMS doğrulaması açıksa numarası doğrulanmamış herkese telefon adımı isteğe bağlı sorulur
+  const askPhone = useAppSelector((s) => PHONE_VERIFICATION_ENABLED && !s.profile?.phoneVerified);
   const { t } = useTranslation();
+  const next = () => router.push(askPhone ? '/onboarding/telefon' : '/onboarding/takip');
   const [query, setQuery] = useState('');
   const myPosts = useUserPosts(userId);
   // Davetle gelen: onboarding davet edenin mekânıyla başlar ("Sen kaç verirdin?")
@@ -39,9 +43,9 @@ export default function FirstRatingStep() {
       subtitle={t('onboarding.firstRateSubtitle')}
       footer={
         firstPlace ? (
-          <Button title={t('onboarding.next')} onPress={() => router.push('/onboarding/takip')} />
+          <Button title={t('onboarding.next')} onPress={next} />
         ) : (
-          <Button title={t('onboarding.skip')} variant="ghost" onPress={() => router.push('/onboarding/takip')} />
+          <Button title={t('onboarding.skip')} variant="ghost" onPress={next} />
         )
       }>
       {invite && <InviteCard invite={invite} myScore={scoreOf(invite.place.id)} />}

@@ -5,18 +5,30 @@ import type { Cuisine, Segment } from '@/types';
 /**
  * Segmentler: birbiriyle kıyaslanması anlamlı mekân aileleri. Puanlamada yeni mekân yalnızca aynı
  * segmentteki mekânlarla karşılaştırılır ve puanı o segmentteki sırasından hesaplanır (kokoreççi
- * meyhaneyle değil, kokoreççiler ve dürümcülerle yarışır). Veritabanındaki `cuisines.segment` ile aynı.
- * Saf modül (i18n yok): demo betikleri de kullanır. Ekrandaki adı: `t(`segments.${segment}`)`.
+ * meyhaneyle ya da pizzacıyla değil, kokoreççiler ve dürümcülerle yarışır). Veritabanındaki `cuisines.segment` ile
+ * aynı (migration 20261016110000_segment_split). Saf modül (i18n yok): demo betikleri de kullanır. Ekrandaki adı:
+ * `t(`segments.${segment}`)`.
  */
-export const SEGMENTS: Segment[] = ['restaurant', 'street', 'breakfast', 'cafe', 'nightlife'];
+export const SEGMENTS: Segment[] = [
+  'restaurant',
+  'kebab',
+  'street',
+  'fastfood',
+  'breakfast',
+  'bakery',
+  'cafe',
+  'dessert',
+  'nightlife',
+];
 
 export const SEGMENT_OF: Record<Cuisine, Segment> = {
   Restoran: 'restaurant',
   'Esnaf lokantası': 'restaurant',
-  Kebapçı: 'restaurant',
   Balıkçı: 'restaurant',
   'Uzak Doğu': 'restaurant',
   'Dünya mutfağı': 'restaurant',
+
+  Kebapçı: 'kebab',
 
   Dürümcü: 'street',
   Dönerci: 'street',
@@ -25,16 +37,20 @@ export const SEGMENT_OF: Record<Cuisine, Segment> = {
   Köfteci: 'street',
   'Çiğ köfteci': 'street',
   Pideci: 'street',
-  Pizzacı: 'street',
-  Burgerci: 'street',
-  'Büfe & fast food': 'street',
+
+  Pizzacı: 'fastfood',
+  Burgerci: 'fastfood',
+  'Büfe & fast food': 'fastfood',
 
   Kahvaltıcı: 'breakfast',
 
+  Börekçi: 'bakery',
+
   Kafe: 'cafe',
-  Tatlıcı: 'cafe',
-  'Pastane & fırın': 'cafe',
-  Dondurmacı: 'cafe',
+
+  Tatlıcı: 'dessert',
+  'Pastane & fırın': 'dessert',
+  Dondurmacı: 'dessert',
 
   Meyhane: 'nightlife',
   Bar: 'nightlife',
@@ -42,9 +58,13 @@ export const SEGMENT_OF: Record<Cuisine, Segment> = {
 
 export const SEGMENT_ICONS: Record<Segment, SFSymbol> = {
   restaurant: 'fork.knife',
-  street: 'flame',
+  kebab: 'flame',
+  street: 'figure.walk',
+  fastfood: 'takeoutbag.and.cup.and.straw',
   breakfast: 'sun.horizon',
+  bakery: 'basket',
   cafe: 'cup.and.saucer',
+  dessert: 'birthday.cake',
   nightlife: 'wineglass',
 };
 

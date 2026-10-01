@@ -169,7 +169,7 @@ export function useRankResultText() {
     if (result.displaced && displacedPlace) {
       lines.push(t('rate.displaced', { place: displacedPlace.name, score: formatScore(result.displaced.to) }));
     }
-    if (result.total < FULL_SPREAD_AT) lines.push(t('rate.provisional'));
+    if (result.levels < FULL_SPREAD_AT) lines.push(t('rate.provisional'));
     return lines.join('\n');
   };
 }

@@ -10,7 +10,10 @@ import type { Cuisine } from '@/types';
 export const STORY_SIZE = { width: 540, height: 960 } as const;
 export const STORY_EXPORT = { width: 1080, height: 1920 } as const;
 
-export type StoryKind = 'favorites' | 'top5' | 'map' | 'recap' | 'post' | 'list';
+export type StoryKind = 'favorites' | 'top5' | 'map' | 'recap' | 'post' | 'list' | 'goal';
+
+/** Yıllık mekân hedefi: bu yıl puanlanan mekân sayısı (`placesThisYear`) ve yıl sonuna kalan gün */
+export type GoalProgress = { year: number; goal: number; done: number; daysLeft: number };
 
 /** Puanlanma tarihiyle birlikte mekân (aylık özet için) */
 export type DatedPlace = ScoredPlace & { ratedAt: string };

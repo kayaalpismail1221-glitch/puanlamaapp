@@ -5,6 +5,25 @@ Kullanıcılar gittikleri restoranları puanlar ve sıralar, arkadaşlarının n
 arkadaş tavsiyesine dayalı öneriler alır. Hedef kitle: Türkiye'de 18–35 yaş, şehirli, genç kullanıcılar.
 Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
 
+## Yayın öncesi kontrol listesi (kullanıcı isteği 2026-10-01: hatırlat)
+Kullanıcı mağazaya çıkmayı, yayını, App Store/Play kaydını ya da production build'i açtığında bu listeyi kendiliğinden
+hatırlat; biten maddeyi listeden sil. Ayrıntılar SUPABASE.md ve ilgili bölümlerde.
+- [ ] **SMS doğrulama:** sağlayıcı (Twilio ya da Netgsm + Send SMS hook) → `PHONE_VERIFICATION_ENABLED = true`.
+  Yoksa rehber eşleştirmesi ve telefonla davetin "arkadaşın katıldı" eşleşmesi hiç çalışmaz (ilk dalga kaçar).
+- [ ] **Mağaza bağlantıları:** `APP_STORE_URL`, `PLAY_STORE_URL` (`constants/app.ts`). `PLAY_STORE_URL` dolmadan
+  Android davet bağlantısı davet edeni taşımaz.
+- [ ] **Alan adı + davet sayfası (iOS davet bağlantısı için şart):** `https://puanla.app/davet/<kullanıcı adı>` web
+  sayfası (mağazaya yönlendirir), iOS Universal Links + Android App Links, `appLink` https'e. App Store kaynak
+  taşımadığı için iOS'ta davet edenin kendiliğinden bağlanması ancak bununla olur (bkz. "Davet bağlantısı").
+- [ ] **E-posta:** alan adıyla Resend SMTP → şablonlar → *Confirm email* açık → `EMAIL_CODES_ENABLED = true`.
+  Kapalıyken aynı e-postalı hesaplar Google girişinde birleşebilir. Destek adresi `destek@puanla.app` çalışır olmalı.
+- [ ] **Android konsol ayarları:** Google ile giriş (Web + Android OAuth istemcileri, Supabase Google sağlayıcısı),
+  Firebase + FCM V1; Play App Signing SHA-1'i de Google Cloud'a (SUPABASE.md → "Android: …"). Harita anahtar istemez.
+- [ ] **Apple ile giriş:** Apple Developer + Supabase Apple sağlayıcısı → `APPLE_SIGN_IN_ENABLED = true`.
+- [ ] **Demo hesapları sil:** gerçek mekânlara kurgusal puan veriyorlar.
+- [ ] **Yasal:** KVKK veri sorumlusu gerçek kişi/şirket ve adres; `legal.ts`'teki "devredilemeyen" içerik izni ve
+  birleşme/devir maddesi (avukat onayıyla).
+
 ## Geliştirici ortamı
 - Windows PC + iPhone 11 (Mac yok).
 - Test: iPhone'da Expo Go (gerekirse EAS development build).
@@ -102,6 +121,11 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
   (≥ 7 gün, ≥ 5 puan) oyuyla kendiliğinden uygulanır (telefon/web/kapandı 3 kişi), engelliler birbirinin puanlarını
   görmez (`rankings` politikası `block_peer_ids()`), `avatar_path` yalnızca kendi klasörü, `xp_totals` istemciye kapalı.
   2026-09-30'da canlıya uygulandı.
+- **Puanlama doğruluğu, `20261015100000_calibrated_scores`** (kalibre topluluk katkısı, eşitlik zinciri): 2026-10-01'de
+  canlıda (`calibrated_score()` canlıda 8,900 / 9,993 döndü); aynı gün istemci OTA güncellemesi gönderildi.
+- **Segment bölme ve Puanla modeli** (`20261016100000_segment_values`, `20261016110000_segment_split`,
+  `20261017100000_place_model`): 2026-10-01'de canlıda (9 tür eşlemesi, `Börekçi`, `place_strengths` doğrulandı);
+  aynı gün OTA güncellemesi (mekân sayfası Puanla puanı, hedef hikâye kartı, yorum klavye kaydırma) gönderildi.
 - Auth: e-posta/şifre açık, **Confirm email kapalı**. SMTP yok (Supabase SMTP'siz şablon düzenletmiyor ve
   varsayılan e-posta kod değil bağlantı gönderiyor). Bu yüzden `src/constants/features.ts` →
   `EMAIL_CODES_ENABLED = false` ("Şifremi unuttum" ve kod doğrulama gizli). Alan adı alınınca: Resend SMTP →
@@ -119,7 +143,7 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
   beğeni/kaydetme/yorum, şikâyet), RLS + sütun yetkileri, günlük sınırlar, sayaç tetikleyicileri; RPC'ler:
   `rank_place`, `create_post`, `feed_popular` (3→10→30 km, yoksa en yakın şehir), `feed_following`,
   `place_details`, `search_places` (Türkçe katlama + trigram + popülerlik), `search_users`, `suggested_users`,
-  `leaderboard`/`user_rank`, `saved_posts`, `delete_account`. PGlite+PostGIS ile 97 DB testi (`npm run test:db`).
+  `leaderboard`/`user_rank`, `saved_posts`, `delete_account`. PGlite+PostGIS ile 109 DB testi (`npm run test:db`).
 - **Keşfet araması (2026-09-26):** mekân, kişi ve semt/ilçe; her harfte canlı (120 ms gecikme, önceki sonuç yenisi
   gelene kadar kalır, eşleşen kısım `HighlightText` ile vurgulu, Türkçe harfsiz yazım `lib/fold.ts` = `tr_fold`).
   `search_areas` şehir/ilçe/mahalle; semt tam yazılınca oranın en yüksek puanlıları Keşfet'te (5), tümü `bolge`
@@ -130,24 +154,45 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
   Puanla/Gittiklerim/Listem. Mekân seçilince harita süzülür (uzaksa önce uzaklaşıp yaklaşır) ve kartı açılır, katmanda
   olmasa da pini görünür; bölge seçilince `area_bounds` (mekânlarının %2–98 alanı) sınırına oturur ve "X'in en yüksek
   puanlıları" kısayolu çıkar. Migration `20261007120000_area_bounds`.
+- **Mekân sayfası puanı (2026-10-01, kullanıcı: "önemli hata"):** başlıktaki büyük rozet mekânın Puanla puanı (altında
+  "Puanla"); kendi puanın altında küçük rozetle "Senin puanın · Kahvaltıcılar: 12 mekân arasında 2.". Eskiden büyük
+  rozet kendi puanındı, Puanla puanı en altta küçük satırdaydı.
 - Yorumlar (2026-09-26): yanıt (`comments.parent_id`, yanıtın yanıtı olabilir; ekranda ilk yorumun altında toplanır,
   2'den fazla yanıt "N yanıt daha gör"), yorum beğenme (`comment_likes`, kimin beğendiği gizli, sayaç `like_count`).
+  Klavye açılınca liste kaydırılır (2026-10-01): yanıtta yanıtlanan yorum giriş çubuğunun hemen üstüne, yeni yorumda
+  son yorumlar (`KeyboardEvents` `keyboardDidShow`; eskiden yorum klavyenin altında kalıp ekranda fotoğraf görünüyordu).
   Bildirim türleri `reply` (yanıtlanan yorumun yazarına) ve `comment_like`. Bildirim merkezinde ilk 3 bildirimden sonra
   **Tanıyor olabileceğin kişiler** (`people_you_may_know`: seni takip eden > rehber > birlikte etiketlenen > ortak
   arkadaş > etkileşen > okul > popüler; gerekçesiyle, Takip et + ✕). ✕ `suggestion_dismissals`'a yazılır, kişi hiçbir
   öneri listesinde (`suggested_users` dahil) bir daha çıkmaz.
 - Puan formülü istemci (`lib/ranking.ts` `scoreAt`) ve sunucu (`sentiment_score`) birebir aynı (tam sayı onda birlik).
-- **Segment bazlı sıralama (2026-09-26, kullanıcı isteği: "aynı segmentteki mekânlarla kıyasla"):** 23 kategori 5
-  segmente ayrılır (`constants/segments.ts` = `cuisines.segment`): restoran, sokak lezzeti, kahvaltı, kafe/tatlı,
-  meyhane/bar. Karşılaştırma ve puan yalnızca segment + izlenim listesi içinde; `rankings.segment` mekânın
-  kategorisinden tetikleyiciyle gelir, kategori segment değiştirirse mekân yeni listenin sonuna taşınır.
+- **Segment bazlı sıralama (2026-09-26, kullanıcı isteği: "aynı segmentteki mekânlarla kıyasla"):** 24 kategori 9
+  segmente ayrılır (`constants/segments.ts` = `cuisines.segment`): restoran · kebapçı · sokak lezzeti (dürüm, döner,
+  kokoreç, ciğer, köfte, çiğ köfte, pide) · pizza ve burger (+ büfe) · kahvaltı · börekçi ve fırın · kafe · tatlıcı ve
+  pastane (+ dondurma) · meyhane ve bar. İlk hâli 5 segmentti; 2026-10-01 kullanıcı kararıyla bölündü ("börekçi kafe ve
+  tatlıcıyla, pizzacı kokoreççiyle aynı listede olmasın"; migration `20261016100000_segment_values` (enum değerleri, ayrı
+  çalıştırılır) + `20261016110000_segment_split`). Yeni "Börekçi" kategorisi: adında börek/simit/poğaça geçen, pastane
+  geçmeyen ve kategorisi kilitli olmayan pastaneler taşındı; içe aktarım kuralı `scripts/places/lib.mjs` aynı. Mevcut
+  listeler `resegment_rankings()` ile bölündü: her yeni liste tek bir eski listeden gelir (Pideci bu yüzden sokak
+  lezzetinde kaldı), sıra aynen korunur, eşitlik yalnızca eski listede aynı seviyedeki komşuyla kalır. Öne çıkanların
+  segment listeleri (`lib/post-meta.ts`) yeni segmentlere göre. Segment ikonları yalnızca Android karşılığı olan SF
+  sembollerinden (yeni sembol yazı tipi ister). Karşılaştırma ve puan yalnızca segment + izlenim listesi içinde;
+  `rankings.segment` mekânın kategorisinden tetikleyiciyle gelir, kategori segment değiştirirse mekân yeni listenin
+  sonuna taşınır.
   Segmentteki favorin her zaman grubun üst sınırı (Beğendim 10,0 · İdare eder 6,6 · Beğenmedim 3,3; kullanıcı kararı
   2026-09-30: 8,4 görünen favori paylaşılmıyordu). Puan **seviyeden** ve **eğriyle**: iniş = (üst − alt) ×
   (seviye / max(seviye sayısı − 1, 4))²; 5 seviye 10 · 9,8 · 9,2 · 8,1 · 6,7, 30 seviyede ilk 20'si 8,4 üstü (çok
   puanlayan dezavantajlı kalmasın). **"İkisi aynı"** (eski "Emin değilim" yerine, aşağı yanlılık yoktu olsun):
   `rankings.tied` = listede bir üsttekiyle aynı seviye, puan eşit; başa eşitlik konmaz, kayan kayıt bayrağını korur
-  (`rank_place(…, p_tie)`, istemci `tieComparison`/`insertEntry`). Sonuç ekranı eşitliği ve eski favorinin yeni puanını
-  söyler (`RankResult.displaced`); mekân sayfasında "Kahvaltıcılar: 12 mekân arasında 2." (`segmentStanding`) ve
+  (`rank_place(…, p_tie)`, istemci `tieComparison`/`insertEntry`). **Eşit grup bütün kalır** (migration
+  `20261015100000_calibrated_scores`): ikili arama seviyeler üzerinde yürür (`levelStarts`, `placementIndex`; eşitler
+  tek soru, yeni mekân grubu bölemez); grubun başı çıkınca altındaki eşiti yeni baş olur (`detach_ranking` /
+  `removeFromRankings`; eskiden A > B = C iken B çıkınca C, A'ya eşitleniyordu); eşitliksiz sıra grubun içine düşerse
+  grubun sonuna iner (`rank_place` / `insertEntry`, eski uygulamalar için). Uzun listede 10,0 · 10,0 gibi yuvarlama
+  eşitliği kaçınılmaz (0,1 çözünürlükte 8,4–10 arası 17 değer; "ilk 20'si 8,4 üstü" kararıyla birlikte), ama sıra
+  seviyeden: "12 mekân arasında 2." yalnızca "İkisi aynı" denenleri aynı sıraya koyar (`segmentStanding`,
+  `RankResult.rank`); "puan netleşecek" notu seviye sayısına bakar (`RankResult.levels`). Sonuç ekranı eşitliği ve eski
+  favorinin yeni puanını söyler (`RankResult.displaced`); mekân sayfasında "Kahvaltıcılar: 12 mekân arasında 2." ve
   "Puanlar nasıl hesaplanır?". **Puanlama rehberi** (`components/scoring-guide`): 4 kısa görsel sayfa (his aralığı →
   kıyasla/"İkisi aynı" → favorin 10 merdiveni → Puanla puanı neden güvenilir); ilk puanlamada (`degerlendir`,
   gönderi ekranı) cihazda bir kez kendiliğinden, sonra ?/mekân sayfası/Ayarlar'dan; son sayfada "Tüm ayrıntılar"
@@ -160,6 +205,35 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
   tetikleyiciyle) puanlayanın puanladığı mekân sayısından: min(n, 5)/5 — yeni/sahte hesaplar ve herkesin otomatik
   8,4'lük ilk puanı ortalamayı oynatamaz (migration `20261013100000_trusted_community_score`). Arkadaş puanı düz
   ortalama kalır. Segment/formül değişirse iki taraf ve testler birlikte değişir.
+  **Kalibre katkı (kullanıcı kararı 2026-09-30: "kişisel ve genel puan çok doğru olsun"):** topluluk ortalamasına
+  kişinin gördüğü puan değil `rankings.calibrated_score` girer = seviyenin uzun listede beklenen puanı:
+  üst − (üst − alt) × (s+1)(s+2) / ((n+1)(n+2)) (sunucu `calibrated_score()`, istemci `calibratedScoreAt`, binde
+  birlik tam sayı). Tek mekânlık listenin favorisi 8,9, 30'luk listeninki 9,993; bir listenin katkı ortalaması
+  uzunluktan bağımsız (Beğendim 8,9). `recompute_group_scores`/`normalize_rankings` ikisini birlikte yazar; toplayan
+  her yer (`place_details`, `map_places`, `area_top_places`, `recommended_places`, `refresh_community_priors`)
+  `coalesce(calibrated_score, score)` kullanır (doğrudan eklenen satırda boşsa puan; demo betiği katkıyı kendisi
+  yazar). Simülasyon (400 mekân, az/orta/çok puanlayan karışımı): az puanlayanların gittiği yerlerin ~5 yüzdelik puanlık
+  kayrılması sıfırlandı, kaliteyle uyum 0,957 → 0,965; C = 2 en iyisi (3 ve 5 kötü).
+  **Puanla puanı modeli (kullanıcı kararı 2026-10-01, migration `20261017100000_place_model`):** gösterilen topluluk
+  puanı artık Bayes ortalaması değil, tüm listelerden global karşılaştırma modeli (Plackett–Luce): her (kişi, segment)
+  listesi tek sıralama = beğendikleri > beğendim çizgisi > idare ettikleri > beğenmedim çizgisi > beğenmedikleri;
+  mekân kendinden aşağıdaki her şeyi, çizgi yalnızca aşağıdaki mekânları geçer (çizgiler yarışmaz), eşitler aynı
+  basamakta; ağırlık = deneyim × tazelik; öncül: güç 1'lik sanal mekânla bir galibiyet + bir yenilgi. MM yinelemesi
+  SQL'de (`refresh_place_strengths(n)`, önceki çözümden ısınır; geçici tablolar), sonuç `place_strengths` (log güç,
+  puan, `fit_weight` = 2 + Σ ağırlık) ve `segment_anchors`. Gösterilen puan = çok mekân puanlamış tipik kullanıcının
+  beklenen puanı: grup olasılıkları çizgilerden (γ/(γ+γ_beğendim) …), grup içindeki yer o gruba girme olasılığıyla
+  tartılmış yüzdelik (eşitlere orta nokta), puan kişisel eğriyle (üst − (üst − alt) × yer²); güçle aynı sırada. Okuma:
+  `puanla_score(mekân, Σ, Σ ağırlık, Σ yeni, Σ yeni ağırlık)`: model gördüyse model puanı, son hesaptan (`model_state`,
+  `model_fitted_at()`, dahil) sonraki puanların kalibre katkısıyla harmanlanır; görmediyse kalibre Bayes. Yenileme: pg_cron
+  varsa 15 dakikada bir `puanla-place-model` görevi, yoksa puan değişince en fazla 15 dakikada bir tetikleyici
+  (`rankings_place_model`). Testteki `fitPlaceModel` başvuru uygulamasıyla birebir (güç, çizgi, puan < 1e-6). Gerçekçi
+  sentetik veride (400 mekân, 1.860 kullanıcı, 8,3 bin puan) gerçek ilk 20'yi bulma 11 → 15 / 20, kaliteyle uyum 0,965 →
+  0,968, turistik yanlılık ~0; seyrekte (1,5 bin puan) 11,7 → 14,3. PGlite'ta 8 yineleme 8,3 bin puanda 0,9 sn;
+  ~100 bin puanı geçince tetikleyici yerine pg_cron şart (istekte beklenmesin).
+  **Öneriler:** tahmin = (topluluk ağırlığı × Puanla puanı + 2 × Σ arkadaşların kalibre katkısı) / (topluluk ağırlığı +
+  2 × arkadaş sayısı); arkadaş toplulukta zaten bir kez var, toplam üç kat. Tek arkadaşın 6,6'sı topluluğun favorisini
+  eleyemez, 10'u sevilmeyeni başa taşıyamaz (eskiden `coalesce(arkadaş, topluluk)` topluluğu tamamen eziyordu). Güven
+  çarpanı kalktı; süzgeç tahmin ≥ 6,7; gösterilen arkadaş ortalaması arkadaşların kendi puanı.
 - Puanlama Beli tarzı kalır (kullanıcı kararı 2026-09-25; direkt 0–10 kaydırıcı denendi, vazgeçildi). Akış mantığı
   `hooks/use-rank-flow.ts`, görünüm `components/rank-steps.tsx` (`compact`). `degerlendir` tam ekran; gönderi ekranında
   aynı akış "Puanın" bölümüne gömülü ve zorunlu (puanlıysa rozet + "Değiştir"); yeni puan paylaşırken kaydedilir.
@@ -184,6 +258,9 @@ Uygulama Türkçe ve İngilizce (kaynak dil Türkçe; bkz. "Çok dillilik").
   **Yeni yerel paket / config eklentisi / app.json yerel ayarı değişirse**: `app.json` → `version` artırılır
   (1.0.0 → 1.0.1) ve yeni build alınır; aksi hâlde güncelleme eski ikiliye gider ve çöker. Fingerprint politikası
   kullanılmaz: Windows'taki satır sonları yüzünden yerel parmak izi EAS build'inkiyle tutmayabilir.
+  Android'in kendi `android.runtimeVersion`'ı var (`android-N`): yerel değişiklik yalnız Android'i etkiliyorsa
+  (ör. JS'te yalnız Android'de yüklenen paket) yalnızca o artırılır, iOS'a güncelleme gitmeye devam eder.
+  `android-2` (2026-10-01): Google ile giriş paketi.
 - Web'de hızlı akış testi: `npx expo start --web --port 8090` (8081 kullanıcının Expo Go sunucusu olabilir, dokunma).
   Web için: `metro.config.js` react-native-maps'i `src/shims/react-native-maps.web.tsx` yer tutucusuyla değiştirir;
   SwiftUI bileşeni `segmented-control.ios.tsx`'e ayrıldı; `app.json` web çıktısı `single`.
@@ -322,18 +399,29 @@ Aynı ekran iki platformda o platformun diliyle: iOS dosyası/dalı olduğu gibi
   (`SearchField`, temizle düğmeli); cam yüzey yerine opak yükseltilmiş yüzey; yenileme göstergesi marka renginde.
 - **Klavye:** `KeyboardProvider` pencereyi küçültmez. Alt çubuklu formlar `useKeyboardFooterStyle`; diğer formlar
   `FormScrollView`, altta sabit girişli ekranlar `components/keyboard-avoiding-view` (Android'de keyboard-controller).
-- **Harita:** Google Maps (`components/app-map`: sade stil `constants/map-style`, pinler `PinMarker` ile yalnızca
-  değişince yeniden çizilir). Anahtar EAS'ta `GOOGLE_MAPS_ANDROID_API_KEY` (app.config.ts); yoksa harita gri.
+- **Harita (kullanıcı kararı 2026-10-01: Google Maps faturalandırması/ön ödemesi istenmedi):** MapLibre +
+  OpenFreeMap (ücretsiz OpenStreetMap vektör karoları; anahtar, kart, kota yok). `components/app-map.android.tsx`
+  ekranların kullandığı react-native-maps arayüzünü (`initialRegion`/`initialCamera`, `onRegionChangeComplete`,
+  `onPress`, dokunma kilitleri, `showsUserLocation`, ref'te `animateToRegion`/`fitToCoordinates`/`animateCamera`,
+  `PinMarker`) MapLibre'ye çevirir; ekranlar değişmez. Pin `ViewAnnotation`: görünüm bit eşlem olarak haritanın
+  içinde çizilir (MapLibre `Marker` haritanın üstünde ayrı görünüm, kaydırırken geride kalıyordu); görünüm değişince
+  `redraw` değeri değişmeli (yeniden çizim). MapLibre yakınlığı Google/Apple'ınkinin bir eksiği (512 px
+  karo). Stil `constants/map-style` (Puanla renkleri, POI yok, yerel adlar, açık/koyu); atıf ⓘ düğmesi kalır (süs
+  haritada gizli). Karo kaynağı değişirse (kendi sunucu, MapTiler) yalnızca `TILES`/`GLYPHS`. MapLibre iOS'a
+  bağlanmaz (`react-native.config.js`). react-native-maps Android'de bağlı kalır ama çizilmez.
   Uygulama içi rota yok (Apple servisi): yol tarifi Google Haritalar'da açılır (`openInMaps`).
 - **Paylaşım/davet:** "Paylaş → Puanla" ACTION_SEND ile gelir, `useShareIntentRedirect` karşılama ekranına götürür.
   Davet ve hikâye kartı Android'den Google Play der (`PLAY_STORE_URL`, yayınlanınca doldur).
 - **İzinler:** kamera açık; medya okuma izinleri engelli (Play politikası; kaydetme yalnız yazma ister).
-  Bildirim kanalı `default` (Android 13+ izin penceresi için şart). Push için Firebase (`google-services.json`) +
-  EAS'a FCM V1 anahtarı gerekir — henüz yok.
+  Bildirim kanalı `default` (Android 13+ izin penceresi için şart). Push için Firebase: `google-services.json`
+  (`app.config.ts`, EAS'ta `GOOGLE_SERVICES_JSON` dosya değişkeni) + EAS'a FCM V1 hizmet hesabı anahtarı.
+- **Google ile giriş** (yalnız Android; iOS'ta Apple): `@react-native-google-signin/google-signin` → Supabase
+  `signInWithIdToken` (`api/auth.ts`), düğme `components/google-button` (Google marka kuralı) karşılamada "Başla"nın
+  altında ve giriş ekranında. `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` yoksa ya da Expo Go'daysa düğme görünmez; yerel modül
+  ilk kullanımda içe aktarılır. Config eklentisi eklenmez (Android'de gerekmiyor; iOS'ta `iosUrlScheme` olmadan prebuild
+  patlar). Kurulum adımları SUPABASE.md → "Android: Google ile giriş ve push".
 - **Yazı:** Roboto; ölçek Material 3'e yakın (`typography`, gövde 16).
-- **Bilinen tuzaklar (2026-09-30 emülatör testinde bulundu):** Google Maps anahtarı yoksa harita çizilince uygulama
-  ÇÖKER (gri kalmaz) → `AppMapView` anahtar yoksa yedek yüzey çizer (`mapsAvailable`, süs haritada `decorative`).
-  expo-image `PlatformColor` kabul etmez → görseller `components/image` (tema rengini düz değere çevirir), `expo-image`
+- **Bilinen tuzaklar (2026-09-30 emülatör testinde bulundu):** expo-image `PlatformColor` kabul etmez → görseller `components/image` (tema rengini düz değere çevirir), `expo-image`
   doğrudan içe aktarılmaz. Başlıksız modal ve RN `Modal` Android'de tam ekran: üst boşluk `insets.top` (iOS'ta sayfa).
   Saydam başlıkta `headerStyle: { backgroundColor: 'transparent' }` şart (yoksa Android üst çubuk zemini ezer).
   Konum izni: Android'de kapatılan pencere "denied" görünür ama sorulabilir; düğmeyle her zaman yeniden istenir
@@ -346,8 +434,9 @@ Aynı ekran iki platformda o platformun diliyle: iOS dosyası/dalı olduğu gibi
 - Denendi (2026-09-30, emülatör, Android 14): karşılama/giriş/kayıt adımları, 5 sekme, açık/koyu geçişi (ekran yerinde
   kalıyor), feed + menüler + geri tuşu, yorum + klavye, Ara, gönderi oluşturma + kamera + kırpma, mekân sayfası,
   puanlama ve rehber, profil düzenle, hikâye kartı + paylaşım sayfası, lig, bildirimler, ayarlar/görünüm.
-  Denenmedi: harita (anahtar yok), push (FCM yok), "Paylaş → Puanla" ile gelen paylaşım, rehberden kişi seçme.
-- Henüz yok: Google ile giriş, FCM, Google Maps anahtarı, Play Store kaydı.
+  Denenmedi: push (FCM yok), "Paylaş → Puanla" ile gelen paylaşım, rehberden kişi seçme.
+- Kodda hazır, kurulum bekliyor (2026-10-01): Google ile giriş, FCM (SUPABASE.md). Henüz yok:
+  Play Store kaydı (`PLAY_STORE_URL`).
 
 ## Kalite ve premium his (kalıcı ilke)
 - Uygulama premium hissettirmeli; güncel iOS tasarım dili ve yetenekleri tercih edilir.
@@ -362,7 +451,7 @@ Aynı ekran iki platformda o platformun diliyle: iOS dosyası/dalı olduğu gibi
 ### Onboarding
 1. Karşılama: süzülen İstanbul haritası ve puan pinleri, beyaza eriyen geçiş, serif "puanla" logosu,
    otomatik ilerleyen 3 slayt (Hatırla · Güven · Keşfet), "Başla" (oksuz) ve "Giriş yap" (`onboarding/giris`).
-2. Telefon (isteğe bağlı) → E-posta → 3. Ad ve soyad (kullanıcı adı otomatik türetilir, boşta mı kontrol edilir;
+2. E-posta → 3. Ad ve soyad (kullanıcı adı otomatik türetilir, boşta mı kontrol edilir;
    istenirse aynı ekranda "Değiştir" ile elle seçilir, zorunlu değil) → 4. Şifre + koşulları kabul cümlesi →
    Supabase `signUp` (taslak AsyncStorage'da, şifre asla saklanmaz).
    Doğrulama açıksa `onboarding/dogrula` (6 haneli kod). Oturum açılınca kök düzen yarım kalan kuruluma
@@ -370,6 +459,9 @@ Aynı ekran iki platformda o platformun diliyle: iOS dosyası/dalı olduğu gibi
    Her adımda tek soru, büyük giriş alanı, adım ikonu ve ince ilerleme çubuğu.
 5. En son gidilen 1 restoranı Beli tarzı puanla ("Beğendim / İdare eder / Beğenmedim" + ikili karşılaştırma),
    ardından normal gönderi ekranı açılır (fotoğraf isteğe bağlı, "Şimdilik atla" var). Adım atlanabilir.
+   Telefon (kullanıcı kararı 2026-10-01): kaydın başından kaldırıldı; SMS doğrulaması (`PHONE_VERIFICATION_ENABLED`)
+   açılınca numarası doğrulanmamış herkese (e-posta da Google da) ilk puandan sonra `onboarding/telefon` isteğe bağlı
+   (`PhoneVerification`). Kapalıyken numara hiç sorulmaz.
 6. En az 5 kişiyi takip et ("Hepsini takip et" kısayolu) → Başla; "Şimdilik geç" ile atlanabilir.
 
 ### Alt bar (5 sekme)
@@ -408,13 +500,23 @@ Aynı ekran iki platformda o platformun diliyle: iOS dosyası/dalı olduğu gibi
   düşer). Seviyeler: Çaylak 0 · Meraklı 100 · Gurme 300 · Usta 800 · Efsane 2000. Ligler Genel / Okulum /
   Arkadaşlar, tüm zamanlar ya da bu ay (İstanbul saatiyle ayın 1'i). Profildeki "Sıralama" = genel XP sırası
   (`user_rank`). Davet eden: `set_inviter` ("Seni kim davet etti?", ilk 30 gün, bir kez, davet eden daha eski üye;
-  `profile_private.invited_by` yalnızca sahibine görünür); davet mesajı kullanıcı adını söyler. İlk girişte 4 adımlı
+  `profile_private.invited_by` yalnızca sahibine görünür); davet mesajı kullanıcı adını söyler.
+  **Davet bağlantısı (2026-10-01, telefondan bağımsız):** davet eden kendiliğinden bağlanır (`lib/invite-code`,
+  biçim `lib/invite-referrer`): Android'den giden davetlerde Play bağlantısı `referrer=…davet=<kullanıcı adı>` taşır
+  (`inviteLink(username)`; `PLAY_STORE_URL` dolunca çalışır), ilk açılışta Play yükleme kaynağı bir kez okunur
+  (`expo-application`); uygulama yüklüyse `puanla://davet/<kullanıcı adı>` (`+native-intent`, sayfa değil). Kod
+  cihazda saklanır, oturum açılınca `set_inviter` (kök düzen `useInviteCode`; kalıcı ret kodu siler, ağ hatası
+  bekletir) ve davet eden `takip` önerilerinin başına gelir (`Profile.inviterId`). iOS'tan giden davette App Store
+  kaynak taşımaz: alan adı gelince `https://puanla.app/davet/<kullanıcı adı>` sayfası + evrensel bağlantı aynı yolu
+  kullanır; o zamana dek "@kullanıcı adı yaz" ipucu. İlk girişte 4 adımlı
   tanıtım (`leaderboard-intro`, cihazda bir kez; ⓘ ile tekrar). Migration `20261008100000_xp`.
 - **Yıllık hedef sayfası (2026-09-29, `hedef`):** profildeki hedef kartından (dokun; basılı tut = değiştir/kaldır)
   açılır. Üstte lacivert kartta kendi hedefin, altında sen + takip ettiklerin tamamlanma oranına göre (`year_challenge`:
   o yılın `rated_at`'ı, İstanbul yılı, engellenenler yok; kendi satırın cihazdaki `placesThisYear` ile). Hedefsiz
   arkadaşlar yalnızca sayı olarak; paylaş metni hedef sayfasına bağlanır. Migration `20261009100000_year_challenge`
-  (2026-09-29 canlıda).
+  (2026-09-29 canlıda). 2026-10-01 (kullanıcı isteği): adı "Yıllık mekân hedefi", kartta ne saydığı yazar ("bu yıl
+  puanladığın her mekân"); **hedef hikâye kartı** (`GoalStoryCard`, `hikaye?tur=goal`, profil kartları arasında da;
+  büyük sayı + ilerleme + tamamlanma/kalan gün + "Sen de Puanla'da hedef koy" imzası), hedef kartında "Hikâyede paylaş".
 - **Liderlik tablosu sponsoru** (`constants/sponsors.ts`, `components/sponsor-card.tsx`): ilk ortak Culinora (gastronomi
   kursları; kullanıcının kendi uygulaması). Genel · bu ay tablosunun ilk 10'una Culinora Premium %20 indirimli; kart Culinora'nın tasarım dilinde (siyah, turuncu #FE6E00, logo `assets/images/partners`, "Sponsor" etiketi yok), her
   sekmede, uygunluk hep o tabloya göre. Üç durum: kazanan (tebrik, kod varsa kopyala), yakın ("ilk 10'a N değerlendirme
@@ -453,9 +555,9 @@ Aynı ekran iki platformda o platformun diliyle: iOS dosyası/dalı olduğu gibi
   yazılır. Telefon SMS koduyla doğrulanır (Supabase Auth `phone_change`; `PHONE_VERIFICATION_ENABLED`, SMS sağlayıcısı
   bağlanınca açılır → SUPABASE.md); eşleşmede yalnızca doğrulanmış numara, bir numara tek hesapta. Doğrulanınca
   `on_auth_user_phone` → davet edenlere ve rehberinde numara olanlara `friend_joined` bildirimi (oturumsuz bağlam:
-  `notify_system`). Davetli aynı mekânı puanlayınca davet edene `friend_rated` karşılaştırması. Onboarding: kayıtta
-  numara girildiyse `onboarding/telefon-kodu` (atlanabilir) → `ilk-puan` davet kartı (davet edenin mekânı, puanlayınca
-  "Sen 7,9 · İsmail 8,7") → `takip`'te davet eden en üstte + "Rehberinden bul" kartı (`components/contact-friends.tsx`,
+  `notify_system`). Davetli aynı mekânı puanlayınca davet edene `friend_rated` karşılaştırması. Onboarding:
+  `ilk-puan` davet kartı (davet edenin mekânı, puanlayınca
+  "Sen 7,9 · İsmail 8,7") → SMS açıksa ve numara doğrulanmamışsa `telefon` (atlanabilir) → `takip`'te davet eden en üstte + "Rehberinden bul" kartı (`components/contact-friends.tsx`,
   Arkadaş bul'da da). Rehber sunucuda yalnızca SHA-256 özeti (`contact_hashes`, `match_contacts(p_save)`), günde 30
   eşleştirme; Ayarlar → "Rehberden bulunabilirim" (`discoverable`). Telefon hâlâ isteğe bağlı (kullanıcı kararı 2026-09-25).
   **SMS ertelendi (kullanıcı kararı 2026-09-25):** SMS sağlayıcısı (Twilio vb., SMS başına ücretli) şimdilik entegre

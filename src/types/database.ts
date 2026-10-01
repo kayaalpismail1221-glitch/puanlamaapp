@@ -7,7 +7,16 @@
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 type Sentiment = 'liked' | 'fine' | 'disliked';
-type Segment = 'restaurant' | 'street' | 'breakfast' | 'cafe' | 'nightlife';
+type Segment =
+  | 'restaurant'
+  | 'kebab'
+  | 'street'
+  | 'fastfood'
+  | 'breakfast'
+  | 'bakery'
+  | 'cafe'
+  | 'dessert'
+  | 'nightlife';
 type SaveOrigin = 'social' | 'app';
 type PriceBucket = 'u250' | '250-500' | '500-1000' | '1000-2000' | 'o2000';
 type Meal = 'kahvalti' | 'ogle' | 'aksam' | 'gece';
@@ -345,6 +354,10 @@ export type Database = {
         note: string | null;
         rated_at: string;
         segment: Segment;
+        tied: boolean;
+        weight: number;
+        /** Topluluk puanına katkı (sunucu hesaplar; boşsa `score` sayılır) */
+        calibrated_score: number | null;
       }>;
       saved_places: Table<
         {

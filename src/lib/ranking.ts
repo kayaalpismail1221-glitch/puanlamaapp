@@ -3,8 +3,9 @@ import type { RankedEntry, Rankings, Segment, Sentiment } from '@/types';
 /**
  * Beli tarzı sıralama, segment bazında.
  * Her ilk izlenim grubunun kendi puan aralığı vardır. Yeni mekân yalnızca aynı segmentteki (bkz.
- * constants/segments) aynı gruptaki mekânlarla ikili karşılaştırılır (ikili arama); "İkisi aynı" denirse
- * karşılaştırılan mekânla aynı seviyeye (eşit puan) konur. Puan o listedeki seviyeden hesaplanır.
+ * constants/segments) aynı gruptaki mekânlarla ikili karşılaştırılır (ikili arama, eşitler tek mekân gibi);
+ * "İkisi aynı" denirse karşılaştırılan mekânla aynı seviyeye (eşit puan) konur. Puan o listedeki seviyeden
+ * hesaplanır. Sunucudaki `rank_place` / `detach_ranking` / `recompute_group_scores` ile aynı kurallar.
  */
 
 export const SENTIMENT_RANGES: Record<Sentiment, { min: number; max: number }> = {
@@ -42,6 +43,23 @@ export function scoreAt(sentiment: Sentiment, tier: number, tiers: number): numb
   return (hi - drop) / 10;
 }
 
+/**
+ * Seviyenin topluluk puanına katkısı (yalnızca sunucuda toplanır; uygulamada test ve betikler için): bu seviyedeki
+ * mekânın çok mekân puanlamış birinin listesinde alacağı beklenen puan. Tek mekânlık listenin favorisi 8,9, uzun
+ * listenin favorisi 10,0 sayılır; bir listenin katkılarının ortalaması uzunluğundan bağımsızdır. Sunucudaki
+ * `calibrated_score` ile birebir aynı: binde birler cinsinden tam sayılarla, yarım değerler yukarı.
+ */
+export function calibratedScoreAt(sentiment: Sentiment, tier: number, tiers: number): number {
+  const hi = Math.round(SENTIMENT_RANGES[sentiment].max * 10);
+  const lo = Math.round(SENTIMENT_RANGES[sentiment].min * 10);
+  const n = Math.max(tiers, 1);
+  const t = Math.min(Math.max(tier, 0), n - 1);
+  // E[P²] = (t + 1)(t + 2) / ((n + 1)(n + 2)); puan × 1000 = 100 × (hi × D − (hi − lo) × N) / D
+  const d = (n + 1) * (n + 2);
+  const num = 100 * (hi * d - (hi - lo) * (t + 1) * (t + 2));
+  return Math.floor((2 * num + d) / (2 * d)) / 1000;
+}
+
 /** Bir grubun yalnızca verilen segmentteki kayıtları (sırası korunur) */
 export const segmentEntries = (list: RankedEntry[], segment: Segment, exceptPlaceId?: string) =>
   list.filter((e) => e.segment === segment && e.placeId !== exceptPlaceId);
@@ -54,6 +72,18 @@ function tiersOf(list: RankedEntry[]) {
   const tiers: number[] = [];
   list.forEach((e, i) => tiers.push(i === 0 ? 0 : tiers[i - 1]! + (e.tied ? 0 : 1)));
   return { tiers, count: list.length ? tiers.at(-1)! + 1 : 0 };
+}
+
+/** Her seviyenin listedeki ilk sırası: [A, B = A, C] → [0, 2]. Eşit mekânlar karşılaştırmada tek mekân sayılır. */
+export function levelStarts(list: RankedEntry[]): number[] {
+  return list.flatMap((e, i) => (i === 0 || !e.tied ? [i] : []));
+}
+
+/** Kaydın bulunduğu seviyenin ilk sırası (eşitler aynı sırada: 1, 2, 2, 4) */
+function levelStartOf(list: RankedEntry[], index: number) {
+  let start = index;
+  while (start > 0 && list[start]!.tied) start--;
+  return start;
 }
 
 export type ScoredEntry = RankedEntry & { sentiment: Sentiment; score: number; rank: number };
@@ -97,39 +127,58 @@ export function scoreInRankings(rankings: Rankings, placeId: string): number | u
 
 /**
  * Mekânın kendi segmentindeki yeri, tüm izlenimler birlikte: "Kahvaltıda 12 mekân arasında 2."
- * Sıra yarışma usulü (eşit puanlılar aynı sırada: 1, 2, 2, 4).
+ * Sıra listedeki seviyeden, yarışma usulü: yalnızca "İkisi aynı" dediklerin aynı sırada (1, 2, 2, 4); puanı
+ * yuvarlamada eşit görünse de (uzun listede 10,0 · 10,0) sıraladığın mekânlar ayrı sırada.
  */
 export function segmentStanding(
   rankings: Rankings,
   placeId: string,
 ): { segment: Segment; rank: number; total: number } | undefined {
-  const all = flattenRankings(rankings);
-  const me = all.find((e) => e.placeId === placeId);
-  if (!me) return undefined;
-  const peers = all.filter((e) => e.segment === me.segment);
-  return {
-    segment: me.segment,
-    rank: 1 + peers.filter((e) => e.score > me.score).length,
-    total: peers.length,
-  };
+  const mine = SENTIMENT_ORDER.find((s) => rankings[s].some((e) => e.placeId === placeId));
+  if (!mine) return undefined;
+  const segment = rankings[mine].find((e) => e.placeId === placeId)!.segment;
+  let above = 0;
+  let rank = 0;
+  let total = 0;
+  for (const sentiment of SENTIMENT_ORDER) {
+    const peers = segmentEntries(rankings[sentiment], segment);
+    if (sentiment === mine) rank = above + levelStartOf(peers, peers.findIndex((e) => e.placeId === placeId)) + 1;
+    else if (!rank) above += peers.length;
+    total += peers.length;
+  }
+  return { segment, rank, total };
 }
 
+/**
+ * Mekânı sıralamadan çıkarır. Çıkan kayıt eşit grubunun başıysa, segmentte altındaki eşiti grubun yeni başı olur;
+ * yoksa üstteki gruba eşit sayılırdı (A > B = C iken B çıkınca C, A'ya eşitlenmez). Sunucudaki `detach_ranking`
+ * ile aynı.
+ */
 export function removeFromRankings(rankings: Rankings, placeId: string): Rankings {
-  return {
-    liked: rankings.liked.filter((e) => e.placeId !== placeId),
-    fine: rankings.fine.filter((e) => e.placeId !== placeId),
-    disliked: rankings.disliked.filter((e) => e.placeId !== placeId),
+  const without = (list: RankedEntry[]) => {
+    const i = list.findIndex((e) => e.placeId === placeId);
+    if (i < 0) return list;
+    const removed = list[i]!;
+    const rest = list.filter((_, j) => j !== i);
+    const wasHead = !removed.tied || !list.slice(0, i).some((e) => e.segment === removed.segment);
+    const below = rest.findIndex((e, j) => j >= i && e.segment === removed.segment);
+    if (wasHead && below >= 0 && rest[below]!.tied) rest[below] = { ...rest[below]!, tied: false };
+    return rest;
   };
+  return { liked: without(rankings.liked), fine: without(rankings.fine), disliked: without(rankings.disliked) };
 }
 
-/** İkili arama durumu: yeni mekân [low, high) aralığında bir yere girecek */
+/**
+ * İkili arama durumu: yeni mekân [low, high) aralığındaki bir seviyeye girecek. Arama seviyeler üzerinde
+ * yürür (bkz. `levelStarts`): eşit mekânlar tek mekân gibi bir kez sorulur, yeni mekân eşit grubu bölemez.
+ */
 export type Comparison = { low: number; high: number; tied?: boolean };
 
-export const startComparison = (count: number): Comparison => ({ low: 0, high: count });
+export const startComparison = (levels: number): Comparison => ({ low: 0, high: levels });
 
 export const isComparisonDone = (c: Comparison) => c.low >= c.high;
 
-/** Şu an karşılaştırılacak mevcut mekânın indeksi */
+/** Şu an karşılaştırılacak seviye (mekânı: `levelStarts(liste)[pivot]`) */
 export const comparisonPivot = (c: Comparison) => Math.floor((c.low + c.high) / 2);
 
 /** Kullanıcının cevabına göre aralığı daraltır */
@@ -139,16 +188,23 @@ export function answerComparison(c: Comparison, newIsBetter: boolean): Compariso
 }
 
 /**
- * "İkisi aynı" (ya da karar verilemedi): yeni mekân karşılaştırılanın hemen altına, onunla aynı seviyeye
- * (eşit puan). Eski "Emin değilim" hep bir alta koyup puanı düşürüyordu; eşitlik yönsüz.
+ * "İkisi aynı" (ya da karar verilemedi): yeni mekân karşılaştırılan seviyeye, eşitlerinin sonuna (eşit puan).
+ * Eski "Emin değilim" hep bir alta koyup puanı düşürüyordu; eşitlik yönsüz.
  */
 export const tieComparison = (c: Comparison): Comparison => {
   const at = comparisonPivot(c) + 1;
   return { low: at, high: at, tied: true };
 };
 
-/** Karşılaştırmalar kabaca kaç soru sürer (ilerleme göstergesi için) */
-export const expectedSteps = (count: number) => (count === 0 ? 0 : Math.ceil(Math.log2(count + 1)));
+/**
+ * Bitmiş aramanın listedeki karşılığı: `low` seviyesinin ilk sırası (yoksa listenin sonu). Eşitlikte bu,
+ * karşılaştırılan seviyenin hemen altıdır; yeni mekân `tied` ile o seviyeye katılır.
+ */
+export const placementIndex = (levels: number[], count: number, c: Comparison) =>
+  c.low < levels.length ? levels[c.low]! : count;
+
+/** Karşılaştırmalar kabaca kaç soru sürer (ilerleme göstergesi için; eşit mekânlar tek soru) */
+export const expectedSteps = (levels: number) => (levels === 0 ? 0 : Math.ceil(Math.log2(levels + 1)));
 
 /**
  * Puanlamanın sonucu: izlenim grubu, o gruptaki segment listesinde sıra (0 = en iyi) ve bir üstteki
@@ -158,13 +214,17 @@ export type Placement = { sentiment: Sentiment; index: number; tied?: boolean };
 
 /**
  * Mekânı grubuna, kendi segmentinin `index`. sırasına yerleştirir (varsa eski yerinden çıkarır).
- * Sunucudaki `rank_place` ile aynı davranır: listenin başına eşitlik konmaz; kayan kayıtlar bayraklarını korur.
+ * Sunucudaki `rank_place` ile aynı davranır: listenin başına eşitlik konmaz; eşitliksiz eklemede sıra eşit grubun
+ * içine düşerse grubun sonuna iner (yeni mekân üstündekinden kötü, o da altındaki eşitleriyle aynı); kayan
+ * kayıtlar bayraklarını korur.
  */
 export function insertEntry(rankings: Rankings, { sentiment, index, tied }: Placement, entry: RankedEntry): Rankings {
   const next = removeFromRankings(rankings, entry.placeId);
   const list = [...next[sentiment]];
   const peers = list.flatMap((e, i) => (e.segment === entry.segment ? [i] : []));
-  const at = index < peers.length ? peers[Math.max(index, 0)]! : peers.length ? peers.at(-1)! + 1 : list.length;
-  list.splice(at, 0, { ...entry, tied: !!tied && index > 0 && peers.length > 0 });
+  let target = Math.min(Math.max(index, 0), peers.length);
+  if (!tied && target > 0) while (target < peers.length && list[peers[target]!]!.tied) target++;
+  const at = target < peers.length ? peers[target]! : peers.length ? peers.at(-1)! + 1 : list.length;
+  list.splice(at, 0, { ...entry, tied: !!tied && target > 0 });
   return { ...next, [sentiment]: list };
 }

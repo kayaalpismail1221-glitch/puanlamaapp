@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, TextInput, View } from 'react-native';
 
-import { isAppleSignInAvailable, resendSignupCode, signIn, signInWithApple } from '@/api/auth';
+import { isAppleSignInAvailable, isGoogleSignInAvailable, resendSignupCode, signIn, signInWithApple } from '@/api/auth';
 import { showError } from '@/api/errors';
+import { GoogleSignInButton } from '@/components/google-button';
 import { BigInput, OnboardingStep } from '@/components/onboarding-step';
 import { Button, PressableScale, Text } from '@/components/ui';
 import { APPLE_SIGN_IN_ENABLED, EMAIL_CODES_ENABLED } from '@/constants/features';
@@ -15,7 +16,7 @@ import { haptics } from '@/lib/haptics';
 import { isValidEmail } from '@/lib/validation';
 
 /**
- * Giriş: e-posta + şifre ya da Apple ile.
+ * Giriş: e-posta + şifre ya da Apple (iOS) / Google (Android) ile.
  * Başarılı olunca oturum açılır; kök düzen kullanıcıyı sekmelere (ya da yarım kalan kuruluma) taşır.
  */
 export default function SignInScreen() {
@@ -111,7 +112,7 @@ export default function SignInScreen() {
           </PressableScale>
         )}
 
-        {appleAvailable && (
+        {(appleAvailable || isGoogleSignInAvailable()) && (
           <View style={styles.apple}>
             <View style={styles.or}>
               <View style={styles.line} />
@@ -120,17 +121,20 @@ export default function SignInScreen() {
               </Text>
               <View style={styles.line} />
             </View>
-            <AppleAuthentication.AppleAuthenticationButton
-              buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-              buttonStyle={
-                scheme === 'dark'
-                  ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
-                  : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
-              }
-              cornerRadius={radius.button}
-              style={styles.appleButton}
-              onPress={apple}
-            />
+            <GoogleSignInButton />
+            {appleAvailable && (
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                buttonStyle={
+                  scheme === 'dark'
+                    ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
+                    : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
+                }
+                cornerRadius={radius.button}
+                style={styles.appleButton}
+                onPress={apple}
+              />
+            )}
           </View>
         )}
       </View>

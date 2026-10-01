@@ -42,11 +42,14 @@ export default function InviteScreen() {
   const place = usePlace(params.mekan);
   const retryPlace = useEntityRetry('place', params.mekan);
   const myName = useAppSelector((s) => s.profile?.name ?? '');
+  const myUsername = useAppSelector((s) => s.profile?.username);
   const scoreOf = useScoreOf();
   const contacts = useMemo(() => parseContacts(params.kisiler), [params.kisiler]);
   const [sent, setSent] = useState<string[]>([]);
 
-  const text = place ? inviteText({ inviterName: myName, placeName: place.name, score: scoreOf(place.id) }) : '';
+  const text = place
+    ? inviteText({ inviterName: myName, inviterUsername: myUsername, placeName: place.name, score: scoreOf(place.id) })
+    : '';
 
   const send = async (contact: DeviceContact, via: 'whatsapp' | 'sms') => {
     haptics.tap();

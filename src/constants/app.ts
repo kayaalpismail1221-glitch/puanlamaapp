@@ -1,5 +1,7 @@
 import { Platform } from 'react-native';
 
+import { playInviteUrl } from '@/lib/invite-referrer';
+
 /**
  * Uygulama geneli sabitler. Alan adı alınınca yalnızca buradaki değerler güncellenir.
  */
@@ -33,5 +35,12 @@ export const appLink = (path: string) => `${APP_SCHEME}://${path}`;
 export const APP_STORE_URL = '';
 /** Google Play sayfası (yayınlanınca: https://play.google.com/store/apps/details?id=app.puanla) */
 export const PLAY_STORE_URL = '';
-/** Davet eden kişinin platformunun mağazası: Android'den gönderilen davetin alıcısı da büyük olasılıkla Android'de */
-export const inviteLink = () => (Platform.OS === 'android' ? PLAY_STORE_URL : APP_STORE_URL);
+/**
+ * Davet eden kişinin platformunun mağazası: Android'den gönderilen davetin alıcısı da büyük olasılıkla Android'de.
+ * Kullanıcı adı verilirse Google Play bağlantısı onu taşır; katılan kişi davet edene kendiliğinden bağlanır
+ * (`lib/invite-code`). App Store kaynak taşımaz.
+ */
+export function inviteLink(username?: string) {
+  if (Platform.OS !== 'android') return APP_STORE_URL;
+  return PLAY_STORE_URL && username ? playInviteUrl(PLAY_STORE_URL, username) : PLAY_STORE_URL;
+}

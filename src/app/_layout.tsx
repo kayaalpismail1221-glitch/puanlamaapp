@@ -27,6 +27,7 @@ import { usePalette, useScheme } from '@/hooks/use-palette';
 import { useShareIntentRedirect } from '@/hooks/use-share-intent-redirect';
 import { useLanguageLoaded } from '@/i18n';
 import { useAppearanceLoaded } from '@/lib/appearance';
+import { applyPendingInviter, checkInstallReferrer, onInviterRemembered } from '@/lib/invite-code';
 import { usePushNotifications } from '@/lib/notifications';
 import { isSamePath, takeLink } from '@/lib/pending-link';
 import { queryClient } from '@/lib/query-client';
@@ -69,6 +70,7 @@ function RootNavigator() {
   const ready = useAppSelector((s) => s.ready);
   const loadError = useAppSelector((s) => s.loadError);
   const onboarded = useAppSelector((s) => !!s.profile?.onboardedAt);
+  const hasInviter = useAppSelector((s) => !!s.profile?.hasInviter);
   const actions = useAppActions();
   const { t } = useTranslation();
   const languageLoaded = useLanguageLoaded();
@@ -94,6 +96,7 @@ function RootNavigator() {
   usePushNotifications(!deciding && !showOnboarding);
   useShareIntentRedirect(!deciding && !showOnboarding);
   usePendingLink(!deciding && !showOnboarding);
+  useInviteCode(!deciding && status === 'signedIn', hasInviter);
 
   useEffect(() => {
     if (splashDone) SplashScreen.hideAsync();
@@ -215,6 +218,29 @@ function usePendingLink(ready: boolean) {
     // Korunan rotalar bu çizimde kaydolur; yönlendirme bir kare sonra (iptal edilmez: bağlantı zaten alındı)
     requestAnimationFrame(() => router.push(link as Href));
   }, [ready, pathname]);
+}
+
+/**
+ * Davet bağlantısıyla gelen davet edeni (`lib/invite-code`) oturum açılınca hesaba bağlar. Kurulum sırasında da
+ * çalışır: davet eden takip önerilerinin başına gelir. Kod sonradan gelirse (Play kaynağı geç yanıt verir ya da
+ * bağlantı uygulama açıkken açılır) yeniden denenir.
+ */
+function useInviteCode(signedIn: boolean, hasInviter: boolean) {
+  const actions = useAppActions();
+  useEffect(() => {
+    checkInstallReferrer();
+  }, []);
+  useEffect(() => {
+    if (!signedIn || hasInviter) return;
+    const apply = () =>
+      applyPendingInviter().then((inviter) => {
+        if (!inviter) return;
+        actions.markInvited(inviter.id);
+        queryClient.invalidateQueries({ queryKey: ['leaderboard'] });
+      });
+    apply();
+    return onInviterRemembered(apply);
+  }, [signedIn, hasInviter, actions]);
 }
 
 export default function RootLayout() {
