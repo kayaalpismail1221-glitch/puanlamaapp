@@ -122,6 +122,8 @@ body.layer .slide::after{display:none}
 body.layer-copy .phone,body.layer-copy .float,body.layer-copy .callout,body.layer-copy svg.leaders{visibility:hidden}
 body.layer-phone .copy,body.layer-phone .float,body.layer-phone .callout,body.layer-phone svg.leaders{visibility:hidden}
 body.layer-float .copy,body.layer-float .phone{visibility:hidden}
+body.layer-nocopy .copy{visibility:hidden} /* web sitesi: telefon + açıklama etiketleri; gölgeyi site çizer */
+body.layer-nocopy .phone{box-shadow:inset 0 0 0 1.6px rgba(255,255,255,.22),inset 0 0 0 5px #0b0b0c}
 .wordmark{font-family:Newsreader,serif;font-weight:700;letter-spacing:-.5px;display:inline-flex;align-items:flex-end;gap:3px}
 .wordmark i{display:inline-block;border-radius:50%;background:#56A83B}
 </style>

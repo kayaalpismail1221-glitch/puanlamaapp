@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Expeat’e davet edildin</title>
+<meta name="description" content="Gittiğin yerleri puanla, arkadaşlarının nerede ne yediğini gerçek puanlarıyla gör.">
+<meta name="robots" content="noindex">
+
+<meta name="theme-color" content="#0F1E3D">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Expeat">
+<meta property="og:locale" content="tr_TR">
+<meta property="og:title" content="Expeat’e davet edildin">
+<meta property="og:description" content="Gittiğin yerleri puanla, arkadaşlarının nerede ne yediğini gerçek puanlarıyla gör.">
+<meta property="og:url" content="https://expeat.app/davet">
+<meta property="og:image" content="https://expeat.app/img/og-tr.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="apple-itunes-app" content="app-id=6815859231">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..800&family=Newsreader:ital,opsz,wght@0,6..72,500..700;1,6..72,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/site.css">
+<script>document.documentElement.classList.add('js')</script>
+</head>
+<body class="invite">
+<main class="invite-in">
+  <div class="hero-glow" aria-hidden="true"></div>
+  <a class="wordmark light" href="/">Expeat</a>
+  <div class="invite-card">
+    <div class="invite-av" id="av" aria-hidden="true">E</div>
+    <p class="invite-user" id="user" hidden></p>
+    <h1 class="title" id="title">Expeat’e davet edildin</h1>
+    <p class="lead" id="text">Gittiğin yerleri puanla, arkadaşlarının nerede ne yediğini gerçek puanlarıyla gör.</p>
+    <div class="stores light"><span class="store soon" data-os="ios" aria-disabled="true"><svg viewBox="0 0 384 512" aria-hidden="true"><path fill="currentColor" d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg><span><small>Yakında · iPhone için</small><b>App Store</b></span></span><span class="store soon" data-os="android" aria-disabled="true"><svg viewBox="0 0 512 512" aria-hidden="true"><path fill="#00D7FE" d="M48 59.5v393c0 6 2.4 11 6.4 14.6L271 256 54.4 44.9c-4 3.6-6.4 8.6-6.4 14.6z"/><path fill="#FFCE00" d="M354.6 339.4 271 256l83.6-83.4 94.3 53.6c22.4 12.7 22.4 33 0 45.7z"/><path fill="#FF3A44" d="M354.6 339.4 271 256 54.4 467.1c8 7.2 21.1 7.8 35.3-.3z"/><path fill="#00F076" d="M354.6 172.6 89.7 20.2c-14.2-8.1-27.3-7.5-35.3-.3L271 256z"/></svg><span><small>Yakında · Android için</small><b>Google Play</b></span></span></div>
+    <a class="btn ghost" id="open" href="expeat://" hidden>Uygulamada aç<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+    <small class="muted" id="have" hidden>Expeat yüklü mü? Davetle birlikte açmak için dokun.</small>
+  </div>
+  <img class="invite-shot" src="/img/ekran-1.webp" alt="" width="872" height="1484">
+</main>
+<script>
+(() => {
+  const L = {"tr":{"title":"Seni Expeat’e davet ediyor","fallbackTitle":"Expeat’e davet edildin","text":"Gittiğin yerleri puanla, arkadaşlarının nerede ne yediğini gerçek puanlarıyla gör.","open":"Uygulamada aç","have":"Expeat yüklü mü? Davetle birlikte açmak için dokun."},"en":{"title":"is inviting you to Expeat","fallbackTitle":"You’re invited to Expeat","text":"Rate the places you go and see where your friends eat, with their real scores.","open":"Open in the app","have":"Already have Expeat? Tap to open it with the invite."}};
+  const lang = (navigator.language || 'tr').toLowerCase().startsWith('tr') ? 'tr' : 'en';
+  document.documentElement.lang = lang;
+  const m = location.pathname.match(/^\/davet\/([^/?#]+)/);
+  let u = '';
+  try { u = decodeURIComponent(m ? m[1] : '').trim().replace(/^@/, '').toLowerCase(); } catch {}
+  if (!/^[a-z0-9._]{3,24}$/.test(u)) u = '';
+  const $ = (id) => document.getElementById(id);
+  $('text').textContent = L[lang].text;
+  $('open').firstChild.textContent = L[lang].open;
+  $('have').textContent = L[lang].have;
+  if (u) {
+    $('user').hidden = false;
+    $('user').textContent = '@' + u;
+    $('av').textContent = u[0].toUpperCase();
+    $('title').textContent = lang === 'tr' ? L.tr.title : L.en.title;
+    document.title = '@' + u + ' · Expeat';
+    $('open').href = 'expeat://davet/' + encodeURIComponent(u);
+  } else {
+    $('title').textContent = L[lang].fallbackTitle;
+  }
+  $('open').hidden = false;
+  $('have').hidden = false;
+  // Google Play: davet eden kişi referrer ile uygulamaya taşınır (src/lib/invite-referrer.ts ile aynı biçim)
+  const play = document.querySelector('a.store[data-os="android"]');
+  if (play && u) {
+    const ref = 'utm_source=davet&utm_medium=invite&davet=' + u;
+    play.href += (play.href.includes('?') ? '&' : '?') + 'referrer=' + encodeURIComponent(ref);
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://expeat.app/sitemap.xml
