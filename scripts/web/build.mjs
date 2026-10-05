@@ -11,16 +11,24 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { SUPPORT_EMAIL } from '../../src/constants/contact.ts';
+import { SUPPORT_EMAIL, WEB_URL } from '../../src/constants/contact.ts';
 import { legalText } from '../../src/constants/legal.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const out = join(root, 'web');
 
-/** Alan adı alınınca güncellenir (paylaşım önizlemeleri ve site haritası mutlak adres ister) */
-const SITE = 'https://expeat.app';
+/** Sitenin adresi (paylaşım önizlemeleri ve site haritası mutlak adres ister): src/constants/contact.ts */
+const SITE = WEB_URL;
 /** Mağaza sayfaları yayınlanınca: `src/constants/app.ts` APP_STORE_URL / PLAY_STORE_URL ile aynı tutulur */
 const STORES = { ios: '', android: '' };
+/**
+ * Evrensel bağlantılar (yalnızca davet: /davet/<kullanıcı adı>). Uygulamada app.json → `ios.associatedDomains` ve
+ * `android.intentFilters` bu alan adını gösterir. Apple: Developer → Membership → Team ID; Android: imza
+ * sertifikalarının SHA-256 parmak izleri (EAS yükleme anahtarı + Play App Signing). Boşken dosya yazılmaz.
+ */
+const APPLE_TEAM_ID = '';
+const ANDROID_SHA256 = [];
+const BUNDLE_ID = 'app.puanla';
 const APP_SCHEME = 'expeat';
 const YEAR = new Date().getFullYear();
 
@@ -1354,6 +1362,7 @@ const VERCEL = {
   ],
   headers: [
     { source: '/img/(.*)', headers: [{ key: 'Cache-Control', value: 'public, max-age=604800' }] },
+    { source: '/.well-known/apple-app-site-association', headers: [{ key: 'Content-Type', value: 'application/json' }] },
     {
       source: '/(.*)',
       headers: [
@@ -1398,6 +1407,14 @@ const rootVercel = {
 };
 writeFileSync(join(root, 'vercel.json'), JSON.stringify(rootVercel, null, 2) + '\n');
 console.log('vercel.json');
+if (APPLE_TEAM_ID) {
+  const details = [{ appIDs: [`${APPLE_TEAM_ID}.${BUNDLE_ID}`], components: [{ '/': '/davet/*', comment: 'Davet' }] }];
+  write('.well-known/apple-app-site-association', JSON.stringify({ applinks: { details } }, null, 2) + '\n');
+}
+if (ANDROID_SHA256.length) {
+  const target = { namespace: 'android_app', package_name: BUNDLE_ID, sha256_cert_fingerprints: ANDROID_SHA256 };
+  write('.well-known/assetlinks.json', JSON.stringify([{ relation: ['delegate_permission/common.handle_all_urls'], target }], null, 2) + '\n');
+}
 write('robots.txt', `User-agent: *\nAllow: /\n\nSitemap: ${SITE}/sitemap.xml\n`);
 const urls = ['/', '/en', ...Object.values(ALT).flatMap((a) => [a.tr, a.en])];
 write(
