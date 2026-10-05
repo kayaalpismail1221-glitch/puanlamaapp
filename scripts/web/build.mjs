@@ -11,14 +11,14 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { SUPPORT_EMAIL, WEB_URL } from '../../src/constants/contact.ts';
+import { SUPPORT_EMAIL } from '../../src/constants/contact.ts';
 import { legalText } from '../../src/constants/legal.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const out = join(root, 'web');
 
-/** Sitenin adresi (paylaşım önizlemeleri ve site haritası mutlak adres ister): src/constants/contact.ts */
-const SITE = WEB_URL;
+/** Sitenin adresi (paylaşım önizlemeleri ve site haritası mutlak adres ister); src/constants/contact.ts → WEB_URL ile aynı */
+const SITE = 'https://expeat.app';
 /** Mağaza sayfaları yayınlanınca: `src/constants/app.ts` APP_STORE_URL / PLAY_STORE_URL ile aynı tutulur */
 const STORES = { ios: '', android: '' };
 /**
