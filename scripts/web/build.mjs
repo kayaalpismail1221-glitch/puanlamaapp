@@ -1018,6 +1018,17 @@ write('404.html', notFoundPage());
 write('site.css', CSS.trim() + '\n');
 write('site.js', JS);
 write('vercel.json', JSON.stringify(VERCEL, null, 2) + '\n');
+// Depo kökü: Vercel projesinin kök dizini depo köküyse (ayar yapılmadıysa) web/'i derlemeden yayınlar.
+// Kök dizin `web` seçilirse bu dosya okunmaz, web/vercel.json geçerli olur.
+const rootVercel = {
+  ...VERCEL,
+  framework: null,
+  installCommand: 'echo "kurulum yok"',
+  buildCommand: 'echo "derleme yok: site web/ altında hazır"',
+  outputDirectory: 'web',
+};
+writeFileSync(join(root, 'vercel.json'), JSON.stringify(rootVercel, null, 2) + '\n');
+console.log('vercel.json');
 write('robots.txt', `User-agent: *\nAllow: /\n\nSitemap: ${SITE}/sitemap.xml\n`);
 const urls = ['/', '/en', ...Object.values(ALT).flatMap((a) => [a.tr, a.en])];
 write(
