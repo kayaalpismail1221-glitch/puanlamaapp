@@ -104,7 +104,6 @@ const T = {
       [70000, '+', 'mekân'],
       [8, '', 'şehir'],
       [10, '', 'üzerinden kıyas puanı'],
-      [0, '', 'yıldız'],
     ],
     feed: { label: 'Arkadaşların bu hafta nereleri puanladı', rated: 'puanladı' },
     trust: {
@@ -258,7 +257,6 @@ const T = {
       [70000, '+', 'places'],
       [8, '', 'cities'],
       [10, '', 'point comparison score'],
-      [0, '', 'stars'],
     ],
     feed: { label: 'What your friends rated this week', rated: 'rated' },
     trust: {
@@ -979,7 +977,7 @@ body.home{background:var(--deep) var(--noise);color:#fff;color-scheme:dark}
 .hero-art .side{height:84%;top:12%}
 .hero-art .left{left:-6%;transform:rotate(-7deg)}
 .hero-art .right{right:-6%;transform:rotate(7deg)}
-.stats{position:relative;display:grid;grid-template-columns:repeat(4,1fr);margin:60px 0 0;padding:30px 0 40px;border-top:1px solid var(--w10)}
+.stats{position:relative;display:grid;grid-template-columns:repeat(3,1fr);margin:60px 0 0;padding:30px 0 40px;border-top:1px solid var(--w10)}
 .stats div{text-align:center}
 .stats dt{font:600 clamp(32px,3.8vw,46px)/1 var(--serif);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
 .stats dd{margin:10px 0 0;font-size:14.5px;color:var(--w55)}
@@ -995,7 +993,7 @@ body.home{background:var(--deep) var(--noise);color:#fff;color-scheme:dark}
   .hero-art{height:430px}
   .hero-art .side{height:74%;top:18%}
   .hero-art .left{left:-16%}.hero-art .right{right:-16%}
-  .stats{grid-template-columns:repeat(2,1fr);row-gap:28px}
+  .stats dd{font-size:13px}
   .stores{width:100%;max-width:340px;margin-inline:auto}
   .store{flex:1 1 100%;justify-content:center}
 }
