@@ -7,7 +7,7 @@
 <meta name="description" content="Aradığın sayfa taşınmış ya da hiç olmamış olabilir.">
 <meta name="robots" content="noindex">
 
-<meta name="theme-color" content="#0F1E3D">
+<meta name="theme-color" content="#081227">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Expeat">
 <meta property="og:locale" content="tr_TR">
@@ -23,12 +23,12 @@
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..800&family=Newsreader:ital,opsz,wght@0,6..72,500..700;1,6..72,500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..800&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/site.css">
 <script>document.documentElement.classList.add('js')</script>
 </head>
 <body class="doc">
-<header class="nav solid">
+<header class="nav">
   <div class="wrap nav-in">
     <a class="wordmark" href="/" aria-label="Expeat">Expeat</a>
     <nav class="links" aria-label="Ana menü">
@@ -39,15 +39,26 @@
     </nav>
     <div class="nav-end">
       <a class="lang" href="/en" hreflang="en">EN</a>
-      <a class="btn small" href="/#indir">İndir</a>
+      <a class="btn light small" href="/#indir">İndir</a>
     </div>
   </div>
 </header>
-<main class="wrap narrow doc-in nf">
-  <p class="nf-code">404</p>
-  <h1 class="title">Bu sayfa bulunamadı</h1>
-  <p class="intro">Aradığın sayfa taşınmış ya da hiç olmamış olabilir.</p>
-  <p><a class="btn" href="/">Ana sayfaya dön</a> <a class="btn ghost dark" href="/en">Back to home (EN)</a></p>
+<header class="doc-hero">
+  <div class="glow" aria-hidden="true"></div>
+  <div class="wrap doc-hero-in single">
+    <p class="kicker">404</p>
+    <h1 class="display">Bu sayfa bulunamadı</h1>
+    <p class="lead">Aradığın sayfa taşınmış ya da hiç olmamış olabilir.</p>
+    
+  </div>
+</header>
+<main class="doc-main">
+  <div class="wrap doc-grid single">
+    
+    <article class="doc-body">
+  <p class="nf"><a class="btn" href="/">Ana sayfaya dön</a> <a class="btn outline" href="/en">Back to home (EN)</a></p>
+    </article>
+  </div>
 </main>
 <footer class="foot">
   <div class="wrap foot-in">
@@ -79,6 +90,8 @@
     <span>© 2026 Expeat</span>
     <span>Mekân verisi © OpenStreetMap katkıcıları</span>
   </div>
+  <div class="foot-mark" aria-hidden="true">Expeat</div>
 </footer>
+<script src="/site.js" defer></script>
 </body>
 </html>

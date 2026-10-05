@@ -8,7 +8,7 @@
 <link rel="canonical" href="https://expeat.app/en">
 <link rel="alternate" hreflang="tr" href="https://expeat.app">
 <link rel="alternate" hreflang="en" href="https://expeat.app/en">
-<meta name="theme-color" content="#0F1E3D">
+<meta name="theme-color" content="#081227">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Expeat">
 <meta property="og:locale" content="en_US">
@@ -24,7 +24,7 @@
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..800&family=Newsreader:ital,opsz,wght@0,6..72,500..700;1,6..72,500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..800&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/site.css">
 <script>document.documentElement.classList.add('js')</script>
 </head>
@@ -40,13 +40,13 @@
     </nav>
     <div class="nav-end">
       <a class="lang" href="/" hreflang="tr">TR</a>
-      <a class="btn small" href="/en/#indir">Download</a>
+      <a class="btn light small" href="/en/#indir">Download</a>
     </div>
   </div>
 </header>
 <main>
   <section class="hero">
-    <div class="hero-glow" aria-hidden="true"></div>
+    <div class="glow" aria-hidden="true"></div>
     <div class="wrap hero-in">
       <div class="hero-copy">
         <h1 class="display">Rate the places you go, <em>discover with friends</em></h1>
@@ -62,31 +62,134 @@
     </div>
     <div class="wrap">
       <dl class="stats">
-        <div><dt>70,000+</dt><dd>places</dd></div>
-        <div><dt>8</dt><dd>cities</dd></div>
-        <div><dt>10</dt><dd>point comparison score</dd></div>
+        <div><dt data-count="70000" data-suffix="+">70,000+</dt><dd>places</dd></div>
+        <div><dt data-count="8" data-suffix="">8</dt><dd>cities</dd></div>
+        <div><dt data-count="10" data-suffix="">10</dt><dd>point comparison score</dd></div>
         <div><dt>0</dt><dd>stars</dd></div>
       </dl>
     </div>
   </section>
 
-  <section class="trust reveal">
+  <section class="feedband" aria-label="What your friends rated this week">
+    <p class="band-label reveal"><span class="live"></span>What your friends rated this week</p>
+    <div class="marquee">
+      <div class="track">
+        <article class="post">
+          <img src="/img/yemek-kebap.webp" alt="" width="520" height="600" loading="lazy" decoding="async">
+          <div class="post-top"><span class="av" style="--s:30px;background:linear-gradient(140deg,#3B82F6,#1E3A8A)">K</span><span><b>Kaan</b> rated</span></div>
+          <div class="post-bottom"><div><b>Zübeyir Ocakbaşı</b><small>Grill house · Beyoğlu</small></div><span class="disc" style="--c:#2f8939;--s:46px">9.2</span></div>
+        </article>
+        <article class="post">
+          <img src="/img/yemek-meze.webp" alt="" width="520" height="600" loading="lazy" decoding="async">
+          <div class="post-top"><span class="av" style="--s:30px;background:linear-gradient(140deg,#10B981,#047857)">S</span><span><b>Selin</b> rated</span></div>
+          <div class="post-bottom"><div><b>Asmalı Cavit</b><small>Meyhane · Beyoğlu</small></div><span class="disc" style="--c:#29833a;--s:46px">9.5</span></div>
+        </article>
+        <article class="post">
+          <img src="/img/yemek-kahvalti.webp" alt="" width="520" height="600" loading="lazy" decoding="async">
+          <div class="post-top"><span class="av" style="--s:30px;background:linear-gradient(140deg,#EF4444,#991B1B)">E</span><span><b>Ece</b> rated</span></div>
+          <div class="post-bottom"><div><b>Van Kahvaltı Evi</b><small>Breakfast · Beyoğlu</small></div><span class="disc" style="--c:#2d8739;--s:46px">9.3</span></div>
+        </article>
+        <article class="post">
+          <img src="/img/yemek-esnaf.webp" alt="" width="520" height="600" loading="lazy" decoding="async">
+          <div class="post-top"><span class="av" style="--s:30px;background:linear-gradient(140deg,#F59E0B,#C2410C)">M</span><span><b>Melis</b> rated</span></div>
+          <div class="post-bottom"><div><b>Çiya Sofrası</b><small>Home cooking · Kadıköy</small></div><span class="disc" style="--c:#227e3b;--s:46px">9.8</span></div>
+        </article>
+        <article class="post">
+          <img src="/img/yemek-balik.webp" alt="" width="520" height="600" loading="lazy" decoding="async">
+          <div class="post-top"><span class="av" style="--s:30px;background:linear-gradient(140deg,#10B981,#047857)">B</span><span><b>Burak</b> rated</span></div>
+          <div class="post-bottom"><div><b>Arnavutköy Balıkçısı</b><small>Seafood · Beşiktaş</small></div><span class="disc" style="--c:#348c38;--s:46px">9.0</span></div>
+        </article>
+        <article class="post">
+          <img src="/img/yemek-doner.webp" alt="" width="520" height="600" loading="lazy" decoding="async">
+          <div class="post-top"><span class="av" style="--s:30px;background:linear-gradient(140deg,#F59E0B,#C2410C)">D</span><span><b>Defne</b> rated</span></div>
+          <div class="post-bottom"><div><b>Şehzade Cağ Kebap</b><small>Kebab · Fatih</small></div><span class="disc" style="--c:#2b8539;--s:46px">9.4</span></div>
+        </article>
+        <article class="post">
+          <img src="/img/yemek-tatli.webp" alt="" width="520" height="600" loading="lazy" decoding="async">
+          <div class="post-top"><span class="av" style="--s:30px;background:linear-gradient(140deg,#E8618C,#B83280)">O</span><span><b>Onur</b> rated</span></div>
+          <div class="post-bottom"><div><b>Baylan Pastanesi</b><small>Desserts · Kadıköy</small></div><span class="disc" style="--c:#368e37;--s:46px">8.9</span></div>
+        </article>
+        <article class="post">
+          <img src="/img/yemek-pilav.webp" alt="" width="520" height="600" loading="lazy" decoding="async">
+          <div class="post-top"><span class="av" style="--s:30px;background:linear-gradient(140deg,#8B5CF6,#5B21B6)">A</span><span><b>Arda</b> rated</span></div>
+          <div class="post-bottom"><div><b>Karaköy Lokantası</b><small>Home cooking · Beyoğlu</small></div><span class="disc" style="--c:#388f37;--s:46px">8.8</span></div>
+        </article>
+        <article class="post">
+          <img src="/img/yemek-restoran.webp" alt="" width="520" height="600" loading="lazy" decoding="async">
+          <div class="post-top"><span class="av" style="--s:30px;background:linear-gradient(140deg,#EF4444,#991B1B)">Z</span><span><b>Zeynep</b> rated</span></div>
+          <div class="post-bottom"><div><b>Pandeli</b><small>Restaurant · Fatih</small></div><span class="disc" style="--c:#348c38;--s:46px">9.0</span></div>
+        </article>
+      </div>
+      <div class="track" aria-hidden="true">
+        <article class="post">
+          <img src="/img/yemek-kebap.webp" alt="" width="520" height="600" loading="lazy" decoding="async">
+          <div class="post-top"><span class="av" style="--s:30px;background:linear-gradient(140deg,#3B82F6,#1E3A8A)">K</span><span><b>Kaan</b> rated</span></div>
+          <div class="post-bottom"><div><b>Zübeyir Ocakbaşı</b><small>Grill house · Beyoğlu</small></div><span class="disc" style="--c:#2f8939;--s:46px">9.2</span></div>
+        </article>
+        <article class="post">
+          <img src="/img/yemek-meze.webp" alt="" width="520" height="600" loading="lazy" decoding="async">
+          <div class="post-top"><span class="av" style="--s:30px;background:linear-gradient(140deg,#10B981,#047857)">S</span><span><b>Selin</b> rated</span></div>
+          <div class="post-bottom"><div><b>Asmalı Cavit</b><small>Meyhane · Beyoğlu</small></div><span class="disc" style="--c:#29833a;--s:46px">9.5</span></div>
+        </article>
+        <article class="post">
+          <img src="/img/yemek-kahvalti.webp" alt="" width="520" height="600" loading="lazy" decoding="async">
+          <div class="post-top"><span class="av" style="--s:30px;background:linear-gradient(140deg,#EF4444,#991B1B)">E</span><span><b>Ece</b> rated</span></div>
+          <div class="post-bottom"><div><b>Van Kahvaltı Evi</b><small>Breakfast · Beyoğlu</small></div><span class="disc" style="--c:#2d8739;--s:46px">9.3</span></div>
+        </article>
+        <article class="post">
+          <img src="/img/yemek-esnaf.webp" alt="" width="520" height="600" loading="lazy" decoding="async">
+          <div class="post-top"><span class="av" style="--s:30px;background:linear-gradient(140deg,#F59E0B,#C2410C)">M</span><span><b>Melis</b> rated</span></div>
+          <div class="post-bottom"><div><b>Çiya Sofrası</b><small>Home cooking · Kadıköy</small></div><span class="disc" style="--c:#227e3b;--s:46px">9.8</span></div>
+        </article>
+        <article class="post">
+          <img src="/img/yemek-balik.webp" alt="" width="520" height="600" loading="lazy" decoding="async">
+          <div class="post-top"><span class="av" style="--s:30px;background:linear-gradient(140deg,#10B981,#047857)">B</span><span><b>Burak</b> rated</span></div>
+          <div class="post-bottom"><div><b>Arnavutköy Balıkçısı</b><small>Seafood · Beşiktaş</small></div><span class="disc" style="--c:#348c38;--s:46px">9.0</span></div>
+        </article>
+        <article class="post">
+          <img src="/img/yemek-doner.webp" alt="" width="520" height="600" loading="lazy" decoding="async">
+          <div class="post-top"><span class="av" style="--s:30px;background:linear-gradient(140deg,#F59E0B,#C2410C)">D</span><span><b>Defne</b> rated</span></div>
+          <div class="post-bottom"><div><b>Şehzade Cağ Kebap</b><small>Kebab · Fatih</small></div><span class="disc" style="--c:#2b8539;--s:46px">9.4</span></div>
+        </article>
+        <article class="post">
+          <img src="/img/yemek-tatli.webp" alt="" width="520" height="600" loading="lazy" decoding="async">
+          <div class="post-top"><span class="av" style="--s:30px;background:linear-gradient(140deg,#E8618C,#B83280)">O</span><span><b>Onur</b> rated</span></div>
+          <div class="post-bottom"><div><b>Baylan Pastanesi</b><small>Desserts · Kadıköy</small></div><span class="disc" style="--c:#368e37;--s:46px">8.9</span></div>
+        </article>
+        <article class="post">
+          <img src="/img/yemek-pilav.webp" alt="" width="520" height="600" loading="lazy" decoding="async">
+          <div class="post-top"><span class="av" style="--s:30px;background:linear-gradient(140deg,#8B5CF6,#5B21B6)">A</span><span><b>Arda</b> rated</span></div>
+          <div class="post-bottom"><div><b>Karaköy Lokantası</b><small>Home cooking · Beyoğlu</small></div><span class="disc" style="--c:#388f37;--s:46px">8.8</span></div>
+        </article>
+        <article class="post">
+          <img src="/img/yemek-restoran.webp" alt="" width="520" height="600" loading="lazy" decoding="async">
+          <div class="post-top"><span class="av" style="--s:30px;background:linear-gradient(140deg,#EF4444,#991B1B)">Z</span><span><b>Zeynep</b> rated</span></div>
+          <div class="post-bottom"><div><b>Pandeli</b><small>Restaurant · Fatih</small></div><span class="disc" style="--c:#348c38;--s:46px">9.0</span></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="trust">
     <div class="wrap">
-      <h2 class="title center">Before you go, <em>who do you trust?</em></h2>
-      <p class="sub center">Five stars from a stranger, or a score from a friend whose taste you know?</p>
-      <div class="versus">
-        <div class="side-col strangers">
+      <div class="sec-head center reveal">
+        <p class="kicker">Why Expeat</p>
+        <h2 class="title">Before you go, <em>who do you trust?</em></h2>
+        <p class="sub">Five stars from a stranger, or a score from a friend whose taste you know?</p>
+      </div>
+      <div class="versus glass reveal">
+        <div class="vcol strangers">
           <h3>Strangers</h3>
-          <div class="anon" style="--r:-3deg"><div class="anon-top"><span class="q">?</span><div><b>Anonymous</b><small>1 review</small></div></div><span class="stars" aria-label="5/5"><i class="on"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg></i><i class="on"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg></i><i class="on"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg></i><i class="on"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg></i><i class="on"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg></i></span><p>“Amazing! Must go!!!”</p></div>
-          <div class="anon" style="--r:2.5deg"><div class="anon-top"><span class="q">?</span><div><b>User 4821</b><small>3 reviews</small></div></div><span class="stars" aria-label="1/5"><i class="on"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg></i><i class=""><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg></i><i class=""><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg></i><i class=""><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg></i><i class=""><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg></i></span><p>“Awful, never again.”</p></div>
-          <div class="anon" style="--r:-1.5deg"><div class="anon-top"><span class="q">?</span><div><b>Guest</b><small>Local guide</small></div></div><span class="stars" aria-label="3/5"><i class="on"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg></i><i class="on"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg></i><i class="on"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg></i><i class=""><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg></i><i class=""><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg></i></span><p>“It’s okay, prices are a bit…”</p></div>
+          <div class="anon" style="--r:-2.5deg"><div class="anon-top"><span class="q">?</span><div><b>Anonymous</b><small>1 review</small></div><span class="stars" aria-label="5/5"><i class="on"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg></i><i class="on"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg></i><i class="on"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg></i><i class="on"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg></i><i class="on"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg></i></span></div><p>“Amazing! Must go!!!”</p></div>
+          <div class="anon" style="--r:2deg"><div class="anon-top"><span class="q">?</span><div><b>User 4821</b><small>3 reviews</small></div><span class="stars" aria-label="1/5"><i class="on"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg></i><i class=""><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg></i><i class=""><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg></i><i class=""><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg></i><i class=""><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg></i></span></div><p>“Awful, never again.”</p></div>
+          <div class="anon" style="--r:-1.2deg"><div class="anon-top"><span class="q">?</span><div><b>Guest</b><small>Local guide</small></div><span class="stars" aria-label="3/5"><i class="on"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg></i><i class="on"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg></i><i class="on"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg></i><i class=""><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg></i><i class=""><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg></i></span></div><p>“It’s okay, prices are a bit…”</p></div>
         </div>
-        <div class="vs-mark" aria-hidden="true">vs</div>
-        <div class="side-col friends">
+        <div class="vdiv" aria-hidden="true"><span>vs</span></div>
+        <div class="vcol friends">
           <h3>Your friends</h3>
-          <div class="friend"><span class="av av-S">S</span><div><b>Selin</b><small>Ranked Çiya Sofrası 2nd</small></div><span class="disc" style="--c:#27823a;--si:#1f682e;--s:46px">9.6</span></div>
-          <div class="friend"><span class="av av-K">K</span><div><b>Kaan</b><small>Top 3 in grill houses</small></div><span class="disc" style="--c:#2d8739;--si:#246c2e;--s:46px">9.3</span></div>
-          <div class="friend"><span class="av av-E">E</span><div><b>Ece</b><small>Among 24 places she liked</small></div><span class="disc" style="--c:#2b8539;--si:#226a2e;--s:46px">9.4</span></div>
+          <div class="friend"><span class="av" style="--s:46px;background:linear-gradient(140deg,#10B981,#047857)">S</span><div><b>Selin</b><small>Ranked Çiya Sofrası 2nd</small></div><span class="disc" style="--c:#27823a;--s:48px">9.6</span></div>
+          <div class="friend"><span class="av" style="--s:46px;background:linear-gradient(140deg,#3B82F6,#1E3A8A)">K</span><div><b>Kaan</b><small>Top 3 among grill houses</small></div><span class="disc" style="--c:#2d8739;--s:48px">9.3</span></div>
+          <div class="friend"><span class="av" style="--s:46px;background:linear-gradient(140deg,#EF4444,#991B1B)">E</span><div><b>Ece</b><small>Among 24 places she liked</small></div><span class="disc" style="--c:#2b8539;--s:48px">9.4</span></div>
         </div>
       </div>
     </div>
@@ -94,117 +197,153 @@
 
   <section class="how" id="nasil">
     <div class="wrap">
-      <p class="kicker reveal">How it works</p>
-      <h2 class="title reveal">Don’t score it, <em>compare it</em></h2>
+      <div class="sec-head reveal">
+        <p class="kicker">How it works</p>
+        <h2 class="title">Don’t score it, <em>compare it</em></h2>
+        <p class="sub">Stars mean something different to everyone. Comparing is easy: which one was better?</p>
+      </div>
       <ol class="steps">
-        <li class="step reveal">
-          <span class="num">1</span>
+        <li class="step glass reveal" style="--i:0">
+          <span class="step-num">01</span>
           <h3>How was it?</h3>
           <p>Find the place you went to. Did you like it, was it fine, or didn’t you like it?</p>
-          <div class="demo chips"><span class="chip on">I liked it</span><span class="chip">It was fine</span><span class="chip">I didn’t like it</span></div>
+          <div class="demo chips"><span class="chip pick-me">I liked it</span><span class="chip">It was fine</span><span class="chip">I didn’t like it</span></div>
         </li>
-        <li class="step reveal">
-          <span class="num">2</span>
+        <li class="step glass reveal" style="--i:1">
+          <span class="step-num">02</span>
           <h3>Which was better?</h3>
           <p>Compare it with places of the same kind, two at a time. A few taps is all it takes.</p>
-          <div class="demo pair"><span class="pick on">Şehzade Cağ Kebap</span><em>or</em><span class="pick">Karaköy Lokantası</span></div>
+          <div class="demo pair"><span class="pick pick-me"><img src="/img/yemek-doner.webp" alt="" loading="lazy" width="520" height="600">Şehzade Cağ Kebap</span><em>or</em><span class="pick"><img src="/img/yemek-pilav.webp" alt="" loading="lazy" width="520" height="600">Karaköy Lokantası</span></div>
         </li>
-        <li class="step reveal">
-          <span class="num">3</span>
+        <li class="step glass reveal" style="--i:2">
+          <span class="step-num">03</span>
           <h3>Your score is ready</h3>
           <p>Your ranking turns into a score out of 10. Your favorite is always a 10; scores sharpen as your list grows.</p>
-          <div class="demo result"><span class="disc" style="--c:#2b8539;--si:#226a2e;--s:52px">9.4</span><div><b>Şehzade Cağ Kebap</b><small>2nd on your “liked” list</small></div></div>
+          <div class="demo result">
+            <div class="ring" style="--c:#2b8539;--p:94"><svg viewBox="0 0 64 64" aria-hidden="true"><circle class="ring-track" cx="32" cy="32" r="28"/><circle class="ring-bar" cx="32" cy="32" r="28" pathLength="100"/></svg><span data-count="9.4" data-dec="1">9.4</span></div>
+            <div><b>Şehzade Cağ Kebap</b><small>2nd on your “liked” list</small></div>
+          </div>
         </li>
       </ol>
     </div>
   </section>
 
-  <section class="features" id="ozellikler">
+  <section class="showcase" id="ozellikler">
     <div class="wrap">
-      <h2 class="title center reveal">Places your friends love, <em>in one app</em></h2>
-      <article class="feature reveal">
-        <div class="feature-art"><img class="shot " src="/img/ekran-1.webp" alt="Restaurant reviews, now in your feed" width="872" height="1484" loading="lazy" decoding="async"></div>
-        <div class="feature-copy">
-          <h3 class="title">Restaurant reviews, <em>now in your feed</em></h3>
-          <p>See where friends and people nearby eat, who they went with and what score they gave. Tap “I’ve been” on any post to add it to your ranking.</p>
+      <div class="sec-head center reveal">
+        <p class="kicker">Features</p>
+        <h2 class="title">Places your friends love, <em>in one app</em></h2>
+      </div>
+      <div class="show">
+        <div class="show-steps">
+          <article class="show-step on" data-i="0">
+            <div class="m-art"><img class="shot " src="/img/ekran-1.webp" alt="Restaurant reviews, now in your feed" width="872" height="1484" loading="lazy" decoding="async"></div>
+            <p class="step-label"><span>01</span>Feed</p>
+            <h3 class="title">Restaurant reviews, <em>now in your feed</em></h3>
+            <p class="show-text">See where friends and people nearby eat, who they went with and what score they gave.</p>
+            <ul class="points"><li><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m5 12.5 4.2 4.2L19 7"/></svg>Who they went with</li><li><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m5 12.5 4.2 4.2L19 7"/></svg>Your friend’s score</li><li><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m5 12.5 4.2 4.2L19 7"/></svg>Add it to your ranking with “I’ve been”</li></ul>
+          </article>
+          <article class="show-step" data-i="1">
+            <div class="m-art"><img class="shot " src="/img/ekran-2.webp" alt="Compare, and your score writes itself" width="866" height="1484" loading="lazy" decoding="async"></div>
+            <p class="step-label"><span>02</span>Rating</p>
+            <h3 class="title">Compare, and your score <em>writes itself</em></h3>
+            <p class="show-text">No more agonizing over stars. Compare a new place with ones you’ve been to, and Expeat turns your ranking into a score out of 10.</p>
+            <ul class="points"><li><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m5 12.5 4.2 4.2L19 7"/></svg>Only against places of the same kind</li><li><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m5 12.5 4.2 4.2L19 7"/></svg>Can’t choose? “About the same”</li><li><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m5 12.5 4.2 4.2L19 7"/></svg>Your favorite is always a 10</li></ul>
+          </article>
+          <article class="show-step" data-i="2">
+            <div class="m-art"><img class="shot " src="/img/ekran-5.webp" alt="Which friend gave it what score?" width="690" height="1484" loading="lazy" decoding="async"></div>
+            <p class="step-label"><span>03</span>Place</p>
+            <h3 class="title">Which friend gave it <em>what score?</em></h3>
+            <p class="show-text">Every place page shows your friends’ scores first, then the community’s. You choose whose taste to trust.</p>
+            <ul class="points"><li><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m5 12.5 4.2 4.2L19 7"/></svg>Your friends’ scores</li><li><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m5 12.5 4.2 4.2L19 7"/></svg>Score from Expeat users</li><li><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m5 12.5 4.2 4.2L19 7"/></svg>Where it sits in your ranking</li></ul>
+          </article>
+          <article class="show-step" data-i="3">
+            <div class="m-art"><img class="shot " src="/img/ekran-3.webp" alt="Never forget a place you want to try" width="868" height="1484" loading="lazy" decoding="async"></div>
+            <p class="step-label"><span>04</span>My List</p>
+            <h3 class="title">Never forget a place <em>you want to try</em></h3>
+            <p class="show-text">Save spots you see on social media to your list with one tap from the share menu. Rate it once you go and your list updates itself.</p>
+            <ul class="points"><li><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m5 12.5 4.2 4.2L19 7"/></svg>One tap from the share menu</li><li><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m5 12.5 4.2 4.2L19 7"/></svg>Catches links you copy</li><li><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m5 12.5 4.2 4.2L19 7"/></svg>Sorted by kind of place</li></ul>
+          </article>
         </div>
-      </article>
-      <article class="feature flip reveal">
-        <div class="feature-art"><img class="shot " src="/img/ekran-2.webp" alt="Compare, and your score writes itself" width="866" height="1484" loading="lazy" decoding="async"></div>
-        <div class="feature-copy">
-          <h3 class="title">Compare, and your score <em>writes itself</em></h3>
-          <p>No more agonizing over stars. Compare a new place with ones you’ve been to, and Expeat turns your ranking into a score out of 10.</p>
+        <div class="show-stage" aria-hidden="true">
+          <div class="stage-img on" data-i="0"><img class="shot " src="/img/ekran-1.webp" alt="" width="872" height="1484" loading="lazy" decoding="async"></div>
+          <div class="stage-img" data-i="1"><img class="shot " src="/img/ekran-2.webp" alt="" width="866" height="1484" loading="lazy" decoding="async"></div>
+          <div class="stage-img" data-i="2"><img class="shot " src="/img/ekran-5.webp" alt="" width="690" height="1484" loading="lazy" decoding="async"></div>
+          <div class="stage-img" data-i="3"><img class="shot " src="/img/ekran-3.webp" alt="" width="868" height="1484" loading="lazy" decoding="async"></div>
+          <div class="stage-dots"><i class="on"></i><i class=""></i><i class=""></i><i class=""></i></div>
         </div>
-      </article>
-      <article class="feature reveal">
-        <div class="feature-art"><img class="shot " src="/img/ekran-5.webp" alt="Which friend gave it what score?" width="690" height="1484" loading="lazy" decoding="async"></div>
-        <div class="feature-copy">
-          <h3 class="title">Which friend gave it <em>what score?</em></h3>
-          <p>Every place page shows your friends’ scores first, then the community’s. You choose whose taste to trust.</p>
-        </div>
-      </article>
-      <article class="feature flip reveal">
-        <div class="feature-art"><img class="shot " src="/img/ekran-3.webp" alt="Never forget a place you want to try" width="868" height="1484" loading="lazy" decoding="async"></div>
-        <div class="feature-copy">
-          <h3 class="title">Never forget a place <em>you want to try</em></h3>
-          <p>Save spots you see on social media to your list with one tap from the share menu. Rate it once you go and your list updates itself.</p>
-        </div>
-      </article>
+      </div>
     </div>
   </section>
 
   <section class="more">
     <div class="wrap">
-      <h2 class="title reveal">And there’s more</h2>
+      <div class="sec-head reveal">
+        <h2 class="title">And there’s more</h2>
+        <p class="sub">A map, lists, a league and a map of everywhere you’ve eaten.</p>
+      </div>
+      <div class="bento">
+        <article class="tile glass reveal wide" style="--i:0">
+          <div class="tile-copy"><h3>The city’s best, <em>on the map</em></h3><p>The best places near you, colored by score. If it’s green, go with confidence.</p></div>
+          <div class="tile-art"><img class="shot " src="/img/ekran-4.webp" alt="The city’s best, on the map" width="690" height="1484" loading="lazy" decoding="async"></div>
+        </article>
+        <article class="tile glass reveal" style="--i:1">
+          <div class="tile-copy"><h3>Whose taste <em>matches yours?</em></h3><p>A match percentage from places you’ve both rated.</p></div>
+          <div class="tile-art"><img class="shot " src="/img/ekran-7.webp" alt="Whose taste matches yours?" width="690" height="1484" loading="lazy" decoding="async"></div>
+        </article>
+        <article class="tile glass reveal" style="--i:2">
+          <div class="tile-copy"><h3>Build your favorites, <em>let friends see</em></h3><p>Lists live on your profile; share them to your story too.</p></div>
+          <div class="tile-art"><img class="shot " src="/img/ekran-6.webp" alt="Build your favorites, let friends see" width="690" height="1484" loading="lazy" decoding="async"></div>
+        </article>
+        <article class="tile glass reveal" style="--i:0">
+          <div class="tile-copy"><h3>Rate, earn XP, <em>climb to the top</em></h3><p>Compete with friends; +100 XP for every invite.</p></div>
+          <div class="tile-art"><img class="shot " src="/img/ekran-8.webp" alt="Rate, earn XP, climb to the top" width="690" height="1484" loading="lazy" decoding="async"></div>
+        </article>
+        <article class="tile glass reveal" style="--i:1">
+          <div class="tile-copy"><h3>Your food map, <em>city by city</em></h3><p>Every city and place you’ve been, on one map.</p></div>
+          <div class="tile-art"><img class="shot " src="/img/ekran-9.webp" alt="Your food map, city by city" width="690" height="1484" loading="lazy" decoding="async"></div>
+        </article>
+      </div>
     </div>
-    <div class="rail reveal" tabindex="0" aria-label="And there’s more">
-      <article class="card">
-        <div class="card-art"><img class="shot " src="/img/ekran-4.webp" alt="The city’s best, on the map" width="690" height="1484" loading="lazy" decoding="async"></div>
-        <h3>The city’s best, <em>on the map</em></h3>
-        <p>The best places near you, colored by score.</p>
-      </article>
-      <article class="card">
-        <div class="card-art"><img class="shot " src="/img/ekran-6.webp" alt="Build your favorites, let friends see" width="690" height="1484" loading="lazy" decoding="async"></div>
-        <h3>Build your favorites, <em>let friends see</em></h3>
-        <p>Lists live on your profile; share them to your story too.</p>
-      </article>
-      <article class="card">
-        <div class="card-art"><img class="shot " src="/img/ekran-7.webp" alt="Whose taste matches yours?" width="690" height="1484" loading="lazy" decoding="async"></div>
-        <h3>Whose taste <em>matches yours?</em></h3>
-        <p>A match percentage from places you’ve both rated.</p>
-      </article>
-      <article class="card">
-        <div class="card-art"><img class="shot " src="/img/ekran-8.webp" alt="Rate, earn XP, climb to the top" width="690" height="1484" loading="lazy" decoding="async"></div>
-        <h3>Rate, earn XP, <em>climb to the top</em></h3>
-        <p>Compete with friends; +100 XP for every invite.</p>
-      </article>
-      <article class="card">
-        <div class="card-art"><img class="shot " src="/img/ekran-9.webp" alt="Your food map, city by city" width="690" height="1484" loading="lazy" decoding="async"></div>
-        <h3>Your food map, <em>city by city</em></h3>
-        <p>Every city and place you’ve been, on one map.</p>
-      </article>
+  </section>
+
+  <section class="cities">
+    <div class="wrap sec-head center reveal">
+      <h2 class="title"><em>70,000+</em> places in 8 cities</h2>
+      <p class="sub">Ready from Istanbul to Trabzon; add a missing place yourself in a few taps.</p>
+    </div>
+    <div class="marquee slow" aria-hidden="true">
+      <div class="track"><span class="city">Istanbul</span><i class="sep"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2c.6 4.6 2.4 6.4 7 7-4.6.6-6.4 2.4-7 7-.6-4.6-2.4-6.4-7-7 4.6-.6 6.4-2.4 7-7z" transform="translate(0 3)"/></svg></i><span class="city outline">Ankara</span><i class="sep"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2c.6 4.6 2.4 6.4 7 7-4.6.6-6.4 2.4-7 7-.6-4.6-2.4-6.4-7-7 4.6-.6 6.4-2.4 7-7z" transform="translate(0 3)"/></svg></i><span class="city">Izmir</span><i class="sep"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2c.6 4.6 2.4 6.4 7 7-4.6.6-6.4 2.4-7 7-.6-4.6-2.4-6.4-7-7 4.6-.6 6.4-2.4 7-7z" transform="translate(0 3)"/></svg></i><span class="city outline">Bursa</span><i class="sep"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2c.6 4.6 2.4 6.4 7 7-4.6.6-6.4 2.4-7 7-.6-4.6-2.4-6.4-7-7 4.6-.6 6.4-2.4 7-7z" transform="translate(0 3)"/></svg></i><span class="city">Kocaeli</span><i class="sep"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2c.6 4.6 2.4 6.4 7 7-4.6.6-6.4 2.4-7 7-.6-4.6-2.4-6.4-7-7 4.6-.6 6.4-2.4 7-7z" transform="translate(0 3)"/></svg></i><span class="city outline">Eskişehir</span><i class="sep"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2c.6 4.6 2.4 6.4 7 7-4.6.6-6.4 2.4-7 7-.6-4.6-2.4-6.4-7-7 4.6-.6 6.4-2.4 7-7z" transform="translate(0 3)"/></svg></i><span class="city">Trabzon</span><i class="sep"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2c.6 4.6 2.4 6.4 7 7-4.6.6-6.4 2.4-7 7-.6-4.6-2.4-6.4-7-7 4.6-.6 6.4-2.4 7-7z" transform="translate(0 3)"/></svg></i><span class="city outline">Adana</span><i class="sep"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2c.6 4.6 2.4 6.4 7 7-4.6.6-6.4 2.4-7 7-.6-4.6-2.4-6.4-7-7 4.6-.6 6.4-2.4 7-7z" transform="translate(0 3)"/></svg></i></div>
+      <div class="track"><span class="city">Istanbul</span><i class="sep"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2c.6 4.6 2.4 6.4 7 7-4.6.6-6.4 2.4-7 7-.6-4.6-2.4-6.4-7-7 4.6-.6 6.4-2.4 7-7z" transform="translate(0 3)"/></svg></i><span class="city outline">Ankara</span><i class="sep"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2c.6 4.6 2.4 6.4 7 7-4.6.6-6.4 2.4-7 7-.6-4.6-2.4-6.4-7-7 4.6-.6 6.4-2.4 7-7z" transform="translate(0 3)"/></svg></i><span class="city">Izmir</span><i class="sep"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2c.6 4.6 2.4 6.4 7 7-4.6.6-6.4 2.4-7 7-.6-4.6-2.4-6.4-7-7 4.6-.6 6.4-2.4 7-7z" transform="translate(0 3)"/></svg></i><span class="city outline">Bursa</span><i class="sep"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2c.6 4.6 2.4 6.4 7 7-4.6.6-6.4 2.4-7 7-.6-4.6-2.4-6.4-7-7 4.6-.6 6.4-2.4 7-7z" transform="translate(0 3)"/></svg></i><span class="city">Kocaeli</span><i class="sep"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2c.6 4.6 2.4 6.4 7 7-4.6.6-6.4 2.4-7 7-.6-4.6-2.4-6.4-7-7 4.6-.6 6.4-2.4 7-7z" transform="translate(0 3)"/></svg></i><span class="city outline">Eskişehir</span><i class="sep"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2c.6 4.6 2.4 6.4 7 7-4.6.6-6.4 2.4-7 7-.6-4.6-2.4-6.4-7-7 4.6-.6 6.4-2.4 7-7z" transform="translate(0 3)"/></svg></i><span class="city">Trabzon</span><i class="sep"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2c.6 4.6 2.4 6.4 7 7-4.6.6-6.4 2.4-7 7-.6-4.6-2.4-6.4-7-7 4.6-.6 6.4-2.4 7-7z" transform="translate(0 3)"/></svg></i><span class="city outline">Adana</span><i class="sep"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2c.6 4.6 2.4 6.4 7 7-4.6.6-6.4 2.4-7 7-.6-4.6-2.4-6.4-7-7 4.6-.6 6.4-2.4 7-7z" transform="translate(0 3)"/></svg></i></div>
     </div>
   </section>
 
   <section class="faq" id="sss">
-    <div class="wrap narrow">
-      <h2 class="title center reveal">FAQ</h2>
-      <details class="reveal"><summary>Is Expeat free?<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M12 5v14M5 12h14"/></svg></summary><p>Yes. Expeat is free to download and use.</p></details>
-      <details class="reveal"><summary>Where is it available?<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M12 5v14M5 12h14"/></svg></summary><p>More than 70,000 places are ready in Istanbul, Ankara, Izmir, Bursa, Kocaeli, Eskişehir, Trabzon and Adana. You can add a missing place yourself in a few taps.</p></details>
-      <details class="reveal"><summary>How are scores calculated?<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M12 5v14M5 12h14"/></svg></summary><p>You don’t type a score: you say whether you liked a place and compare it with places of the same kind. Your favorite becomes a 10 and the rest follow your ranking. A place’s Expeat score comes from everyone’s comparisons.</p></details>
-      <details class="reveal"><summary>Who can see my ratings?<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M12 5v14M5 12h14"/></svg></summary><p>Your ratings and posts appear on your profile, and your followers see them in their feed. Your location is not stored on our servers and your phone number is never shown to anyone.</p></details>
-      <details class="reveal"><summary>How do I delete my account?<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M12 5v14M5 12h14"/></svg></summary><p>Go to Profile > Settings > Delete account to permanently delete your account and all your data. See <a href="/en/delete-account">account deletion</a> for details.</p></details>
+    <div class="wrap faq-in">
+      <div class="faq-head reveal">
+        <h2 class="title">FAQ</h2>
+        <p class="sub">Can’t find what you’re looking for? Write to us; we usually reply within 1 business day.</p>
+        <a class="btn ghost" href="/en/support">Support<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+      </div>
+      <div class="faq-list">
+        <details class="glass reveal" style="--i:0"><summary>Is Expeat free?<span class="plus"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M12 5v14M5 12h14"/></svg></span></summary><p>Yes. Expeat is free to download and use.</p></details>
+        <details class="glass reveal" style="--i:1"><summary>Where is it available?<span class="plus"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M12 5v14M5 12h14"/></svg></span></summary><p>More than 70,000 places are ready in Istanbul, Ankara, Izmir, Bursa, Kocaeli, Eskişehir, Trabzon and Adana. You can add a missing place yourself in a few taps.</p></details>
+        <details class="glass reveal" style="--i:2"><summary>How are scores calculated?<span class="plus"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M12 5v14M5 12h14"/></svg></span></summary><p>You don’t type a score: you say whether you liked a place and compare it with places of the same kind. Your favorite becomes a 10 and the rest follow your ranking. A place’s Expeat score comes from everyone’s comparisons.</p></details>
+        <details class="glass reveal" style="--i:3"><summary>Who can see my ratings?<span class="plus"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M12 5v14M5 12h14"/></svg></span></summary><p>Your ratings and posts appear on your profile, and your followers see them in their feed. Your location is not stored on our servers and your phone number is never shown to anyone.</p></details>
+        <details class="glass reveal" style="--i:4"><summary>How do I delete my account?<span class="plus"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M12 5v14M5 12h14"/></svg></span></summary><p>Go to Profile > Settings > Delete account to permanently delete your account and all your data. See <a href="/en/delete-account">account deletion</a> for details.</p></details>
+      </div>
     </div>
   </section>
 
   <section class="cta" id="indir">
-    <div class="hero-glow" aria-hidden="true"></div>
+    <div class="glow" aria-hidden="true"></div>
     <div class="wrap cta-in reveal">
-      <img class="app-icon" src="/img/icon-192.png" alt="" width="96" height="96">
+      <div class="halo"><img class="app-icon" src="/img/icon-192.png" alt="" width="104" height="104"></div>
       <h2 class="display">Eat the <em>experience.</em></h2>
       <p class="lead">Rate the places you go, discover the places your friends love.</p>
       <div class="stores"><span class="store soon" data-os="ios" aria-disabled="true"><svg viewBox="0 0 384 512" aria-hidden="true"><path fill="currentColor" d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg><span><small>Coming soon · For iPhone</small><b>App Store</b></span></span><span class="store soon" data-os="android" aria-disabled="true"><svg viewBox="0 0 512 512" aria-hidden="true"><path fill="#00D7FE" d="M48 59.5v393c0 6 2.4 11 6.4 14.6L271 256 54.4 44.9c-4 3.6-6.4 8.6-6.4 14.6z"/><path fill="#FFCE00" d="M354.6 339.4 271 256l83.6-83.4 94.3 53.6c22.4 12.7 22.4 33 0 45.7z"/><path fill="#FF3A44" d="M354.6 339.4 271 256 54.4 467.1c8 7.2 21.1 7.8 35.3-.3z"/><path fill="#00F076" d="M354.6 172.6 89.7 20.2c-14.2-8.1-27.3-7.5-35.3-.3L271 256z"/></svg><span><small>Coming soon · For Android</small><b>Google Play</b></span></span></div>
     </div>
+    <div class="cta-phones" aria-hidden="true"><img class="shot p1" src="/img/ekran-4.webp" alt="" width="690" height="1484" loading="lazy" decoding="async"><img class="shot p2" src="/img/ekran-1.webp" alt="" width="872" height="1484" loading="lazy" decoding="async"><img class="shot p3" src="/img/ekran-6.webp" alt="" width="690" height="1484" loading="lazy" decoding="async"></div>
   </section>
 </main>
 <footer class="foot">
@@ -237,6 +376,7 @@
     <span>© 2026 Expeat</span>
     <span>Place data © OpenStreetMap contributors</span>
   </div>
+  <div class="foot-mark" aria-hidden="true">Expeat</div>
 </footer>
 <script src="/site.js" defer></script>
 </body>

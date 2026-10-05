@@ -1,7 +1,7 @@
 /**
  * Expeat web sitesi (tanıtım + mağazaların istediği sayfalar) → web/ (statik; Vercel kök dizini `web`).
  * Yasal metinler uygulamadakiyle aynı kaynaktan (src/constants/legal.ts) üretilir; metin değişince yeniden çalıştır.
- * Görseller: `bash scripts/web/shots.sh` (telefonlar), `python scripts/web/icons.py` (ikonlar + paylaşım görseli).
+ * Görseller: `bash scripts/web/shots.sh` (telefonlar, yemek fotoğrafları, paylaşım görseli), `python scripts/web/icons.py`.
  *
  * Çalıştırma: npm run web:build
  * Sayfalar: / · /en · /gizlilik · /kosullar · /destek · /hesap-silme (+ /en/privacy, /en/terms, /en/support,
@@ -27,6 +27,7 @@ const YEAR = new Date().getFullYear();
 const esc = (s) => String(s).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 /** Başlıklarda `*vurgu*` → <em> */
 const em = (s) => esc(s).replace(/\*(.+?)\*/g, '<em>$1</em>');
+const plain = (s) => s.replaceAll('*', '');
 const mail = (s) => s.replaceAll(SUPPORT_EMAIL, `<a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a>`);
 
 /* ---------- Puan renkleri (src/constants/theme.ts ile aynı) ---------- */
@@ -42,10 +43,8 @@ function scoreColor(s) {
   const b = BANDS.find((x) => s >= x.min) ?? BANDS[2];
   return mix(b.from, b.to, Math.min(1, Math.max(0, (s - b.min) / (b.max - b.min))));
 }
-const scoreInk = (s) => mix(scoreColor(s), '#000000', s >= 3.4 && s < 6.7 ? 0.38 : 0.2);
-const fmt = (s) => s.toFixed(1).replace('.', ',');
-const disc = (s, size = 44, en = false) =>
-  `<span class="disc" style="--c:${scoreColor(s)};--si:${scoreInk(s)};--s:${size}px">${en ? s.toFixed(1) : fmt(s)}</span>`;
+const num = (s, lang) => (lang === 'en' ? s.toFixed(1) : s.toFixed(1).replace('.', ','));
+const disc = (s, lang, size = 44) => `<span class="disc" style="--c:${scoreColor(s)};--s:${size}px">${num(s, lang)}</span>`;
 
 /* ---------- İkonlar (satır içi SVG) ---------- */
 const ICON = {
@@ -54,10 +53,32 @@ const ICON = {
   play:
     '<svg viewBox="0 0 512 512" aria-hidden="true"><path fill="#00D7FE" d="M48 59.5v393c0 6 2.4 11 6.4 14.6L271 256 54.4 44.9c-4 3.6-6.4 8.6-6.4 14.6z"/><path fill="#FFCE00" d="M354.6 339.4 271 256l83.6-83.4 94.3 53.6c22.4 12.7 22.4 33 0 45.7z"/><path fill="#FF3A44" d="M354.6 339.4 271 256 54.4 467.1c8 7.2 21.1 7.8 35.3-.3z"/><path fill="#00F076" d="M354.6 172.6 89.7 20.2c-14.2-8.1-27.3-7.5-35.3-.3L271 256z"/></svg>',
   arrow: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M13 6l6 6-6 6"/></svg>',
-  plus: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>',
+  check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m5 12.5 4.2 4.2L19 7"/></svg>',
   mail: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" d="M3.5 6.5h17v11h-17z"/><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" d="m4 7 8 6.2L20 7"/></svg>',
   star: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg>',
+  spark: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2c.6 4.6 2.4 6.4 7 7-4.6.6-6.4 2.4-7 7-.6-4.6-2.4-6.4-7-7 4.6-.6 6.4-2.4 7-7z" transform="translate(0 3)"/></svg>',
 };
+
+/** İsimden avatar rengi (baş harf + degrade) */
+const AV = ['#E8618C,#B83280', '#3B82F6,#1E3A8A', '#F59E0B,#C2410C', '#10B981,#047857', '#8B5CF6,#5B21B6', '#EF4444,#991B1B'];
+const avatar = (name, size = 36) => {
+  const g = AV[[...name].reduce((a, c) => a + c.charCodeAt(0), 0) % AV.length];
+  return `<span class="av" style="--s:${size}px;background:linear-gradient(140deg,${g})">${esc(name[0])}</span>`;
+};
+
+/* ---------- Yemek akışı (fotoğraflar App Store görselleriyle aynı; gerçek mekân adları yalnızca yüksek puanla) ---------- */
+const POSTS = [
+  { photo: 'kebap', place: 'Zübeyir Ocakbaşı', area: 'Beyoğlu', cat: ['Kebapçı', 'Grill house'], who: 'Kaan', score: 9.2 },
+  { photo: 'meze', place: 'Asmalı Cavit', area: 'Beyoğlu', cat: ['Meyhane', 'Meyhane'], who: 'Selin', score: 9.5 },
+  { photo: 'kahvalti', place: 'Van Kahvaltı Evi', area: 'Beyoğlu', cat: ['Kahvaltıcı', 'Breakfast'], who: 'Ece', score: 9.3 },
+  { photo: 'esnaf', place: 'Çiya Sofrası', area: 'Kadıköy', cat: ['Esnaf lokantası', 'Home cooking'], who: 'Melis', score: 9.8 },
+  { photo: 'balik', place: 'Arnavutköy Balıkçısı', area: 'Beşiktaş', cat: ['Balıkçı', 'Seafood'], who: 'Burak', score: 9.0 },
+  { photo: 'doner', place: 'Şehzade Cağ Kebap', area: 'Fatih', cat: ['Kebapçı', 'Kebab'], who: 'Defne', score: 9.4 },
+  { photo: 'tatli', place: 'Baylan Pastanesi', area: 'Kadıköy', cat: ['Tatlıcı', 'Desserts'], who: 'Onur', score: 8.9 },
+  { photo: 'pilav', place: 'Karaköy Lokantası', area: 'Beyoğlu', cat: ['Esnaf lokantası', 'Home cooking'], who: 'Arda', score: 8.8 },
+  { photo: 'restoran', place: 'Pandeli', area: 'Fatih', cat: ['Restoran', 'Restaurant'], who: 'Zeynep', score: 9.0 },
+];
 
 /* ---------- Metinler ---------- */
 const T = {
@@ -67,7 +88,7 @@ const T = {
     home: '/',
     other: { label: 'English', href: '/en' },
     paths: { privacy: '/gizlilik', terms: '/kosullar', support: '/destek', deletion: '/hesap-silme' },
-    nav: { how: 'Nasıl çalışır', features: 'Özellikler', faq: 'SSS', support: 'Destek', download: 'İndir' },
+    nav: { how: 'Nasıl çalışır', features: 'Özellikler', faq: 'SSS', support: 'Destek', download: 'İndir', menu: 'Ana menü' },
     meta: {
       title: 'Expeat · Gittiğin yerleri puanla, arkadaşlarınla keşfet',
       description:
@@ -80,12 +101,14 @@ const T = {
     },
     stores: { ios: 'İndir', android: 'Şimdi al', soon: 'Yakında', iosSmall: 'iPhone için', androidSmall: 'Android için' },
     stats: [
-      ['70.000+', 'mekân'],
-      ['8', 'şehir'],
-      ['10', 'üzerinden kıyas puanı'],
-      ['0', 'yıldız'],
+      [70000, '+', 'mekân'],
+      [8, '', 'şehir'],
+      [10, '', 'üzerinden kıyas puanı'],
+      [0, '', 'yıldız'],
     ],
+    feed: { label: 'Arkadaşların bu hafta nereleri puanladı', rated: 'puanladı' },
     trust: {
+      kicker: 'Neden Expeat',
       title: 'Gitmeden önce *kime güveniyorsun?*',
       text: 'Tanımadığın birinin beş yıldızı mı, damak zevkini bildiğin arkadaşının puanı mı?',
       strangers: 'Yabancılar',
@@ -96,14 +119,15 @@ const T = {
         ['Misafir', 'Yerel rehber', 3, '“İdare eder, fiyatlar biraz…”'],
       ],
       people: [
-        ['Selin', 'S', 9.6, 'Çiya Sofrası’nı 2. sıraya koydu'],
-        ['Kaan', 'K', 9.3, 'Ocakbaşı listesinde ilk 3’te'],
-        ['Ece', 'E', 9.4, '“Beğendim” listesinde 24 mekân arasında'],
+        ['Selin', 9.6, 'Çiya Sofrası’nı 2. sıraya koydu'],
+        ['Kaan', 9.3, 'Ocakbaşı listesinde ilk 3’te'],
+        ['Ece', 9.4, '“Beğendim” listesinde 24 mekân arasında'],
       ],
     },
     how: {
       kicker: 'Nasıl çalışır',
       title: 'Puan yazmazsın, *kıyaslarsın*',
+      text: 'Yıldızlar herkes için başka anlama gelir. Kıyaslamak ise kolay: hangisi daha iyiydi?',
       steps: [
         ['Nasıldı?', 'Gittiğin mekânı bul; beğendin mi, idare eder miydi, beğenmedin mi?'],
         ['Hangisi daha iyiydi?', 'Aynı türden gittiğin yerlerle ikişer ikişer karşılaştır. Birkaç dokunuş yeter.'],
@@ -113,22 +137,59 @@ const T = {
       vs: 'veya',
       result: '“Beğendim” listende 2. sırada',
     },
-    featuresTitle: 'Arkadaşlarının sevdiği yerler, *tek uygulamada*',
-    features: [
-      { img: 1, title: 'Mekân yorumları *artık feed’de*', text: 'Arkadaşlarının ve çevrendekilerin nerede ne yediğini, kiminle gittiğini ve kaç puan verdiğini akışında gör. Beğendiğin gönderide “Ben de gittim” de, sıralamana ekle.' },
-      { img: 2, title: 'Kıyasla, puanın *kendiliğinden* çıksın', text: 'Yıldız düşünmek yok. Yeni mekânı daha önce gittiklerinle karşılaştırırsın; Expeat sıralamanı 10 üzerinden puana çevirir.' },
-      { img: 5, title: 'Hangi arkadaşın *kaç puan* verdi?', text: 'Her mekânın sayfasında önce arkadaşlarının puanları görünür, sonra topluluğun. Kime güvendiğini sen seçersin.' },
-      { img: 3, title: 'Gitmek istediğin yeri *artık unutma*', text: 'Sosyal medyada gördüğün mekânı paylaş menüsünden tek dokunuşla Listem’e kaydet. Gittiğinde puanla, listen kendiliğinden güncellensin.' },
-    ],
-    moreTitle: 'Dahası da var',
-    more: [
-      { img: 4, title: 'Şehrin en iyileri, *haritada*', text: 'Yakınındaki en iyi mekânlar, puan renkleriyle.' },
-      { img: 6, title: 'Favori listeni oluştur, *arkadaşların görsün*', text: 'Listelerin profilinde; istersen hikâyende de paylaş.' },
-      { img: 7, title: 'Zevkin kiminle *uyuşuyor?*', text: 'Ortak mekânlardaki puanlarınızdan uyum yüzdesi.' },
-      { img: 8, title: 'Puanla, XP kazan, *zirveye* çık', text: 'Arkadaşlarınla yarış; her davete +100 XP.' },
-      { img: 9, title: 'Lezzet haritan, *şehir şehir*', text: 'Gittiğin şehirler ve mekânlar, tek haritada.' },
-    ],
+    showcase: {
+      kicker: 'Özellikler',
+      title: 'Arkadaşlarının sevdiği yerler, *tek uygulamada*',
+      items: [
+        {
+          img: 1,
+          label: 'Feed',
+          title: 'Mekân yorumları *artık feed’de*',
+          text: 'Arkadaşlarının ve çevrendekilerin nerede ne yediğini, kiminle gittiğini ve kaç puan verdiğini akışında gör.',
+          points: ['Kiminle gittiği', 'Arkadaşının puanı', '“Ben de gittim” ile sıralamana ekle'],
+        },
+        {
+          img: 2,
+          label: 'Puanlama',
+          title: 'Kıyasla, puanın *kendiliğinden* çıksın',
+          text: 'Yıldız düşünmek yok. Yeni mekânı daha önce gittiklerinle karşılaştırırsın; Expeat sıralamanı 10 üzerinden puana çevirir.',
+          points: ['Yalnızca aynı türdeki mekânlarla', 'Seçemiyorsan “İkisi aynı”', 'Favorin hep 10'],
+        },
+        {
+          img: 5,
+          label: 'Mekân',
+          title: 'Hangi arkadaşın *kaç puan* verdi?',
+          text: 'Her mekânın sayfasında önce arkadaşlarının puanları görünür, sonra topluluğun. Kime güvendiğini sen seçersin.',
+          points: ['Arkadaşlarının puanları', 'Expeat kullanıcılarına göre puan', 'Senin sıralamandaki yeri'],
+        },
+        {
+          img: 3,
+          label: 'Listem',
+          title: 'Gitmek istediğin yeri *artık unutma*',
+          text: 'Sosyal medyada gördüğün mekânı paylaş menüsünden tek dokunuşla Listem’e kaydet. Gittiğinde puanla, listen kendiliğinden güncellensin.',
+          points: ['Paylaş menüsünden tek dokunuş', 'Kopyaladığın bağlantıyı yakalar', 'Türüne göre ayrılır'],
+        },
+      ],
+    },
+    more: {
+      title: 'Dahası da var',
+      text: 'Harita, listeler, lig ve gittiğin her yerin haritası.',
+      items: [
+        { img: 4, title: 'Şehrin en iyileri, *haritada*', text: 'Yakınındaki en iyi mekânlar, puan renkleriyle. Yeşil gördüğün yere gönül rahatlığıyla git.', wide: true },
+        { img: 7, title: 'Zevkin kiminle *uyuşuyor?*', text: 'Ortak mekânlardaki puanlarınızdan uyum yüzdesi.' },
+        { img: 6, title: 'Favori listeni oluştur, *arkadaşların görsün*', text: 'Listelerin profilinde; istersen hikâyende de paylaş.' },
+        { img: 8, title: 'Puanla, XP kazan, *zirveye* çık', text: 'Arkadaşlarınla yarış; her davete +100 XP.' },
+        { img: 9, title: 'Lezzet haritan, *şehir şehir*', text: 'Gittiğin şehirler ve mekânlar, tek haritada.' },
+      ],
+    },
+    cities: {
+      title: '8 şehirde *70.000’den fazla* mekân',
+      text: 'İstanbul’dan Trabzon’a hazır; listede olmayan yeri birkaç dokunuşla sen ekle.',
+      names: ['İstanbul', 'Ankara', 'İzmir', 'Bursa', 'Kocaeli', 'Eskişehir', 'Trabzon', 'Adana'],
+    },
     faqTitle: 'Sık sorulanlar',
+    faqText: 'Aradığını bulamadın mı? Bize yaz; genellikle 1 iş günü içinde yanıt veriyoruz.',
+    faqLink: 'Destek',
     faq: [
       ['Expeat ücretli mi?', 'Hayır. Expeat’i indirmek ve kullanmak ücretsiz.'],
       ['Hangi şehirlerde var?', 'İstanbul, Ankara, İzmir, Bursa, Kocaeli, Eskişehir, Trabzon ve Adana’da 70.000’den fazla mekân hazır. Listede olmayan bir yeri birkaç dokunuşla sen ekleyebilirsin.'],
@@ -148,6 +209,8 @@ const T = {
       deletion: 'Hesap silme',
       osm: 'Mekân verisi © OpenStreetMap katkıcıları',
     },
+    docKicker: { legal: 'Yasal', support: 'Destek', account: 'Hesap' },
+    toc: 'Bu sayfada',
     deletion: {
       title: 'Hesabını silme',
       intro: 'Expeat hesabını ve tüm verilerini istediğin zaman kalıcı olarak silebilirsin.',
@@ -172,7 +235,6 @@ const T = {
       have: 'Expeat yüklü mü? Davetle birlikte açmak için dokun.',
     },
     notFound: { title: 'Bu sayfa bulunamadı', text: 'Aradığın sayfa taşınmış ya da hiç olmamış olabilir.', back: 'Ana sayfaya dön' },
-    updated: 'Güncellendi',
   },
   en: {
     lang: 'en',
@@ -180,7 +242,7 @@ const T = {
     home: '/en',
     other: { label: 'Türkçe', href: '/' },
     paths: { privacy: '/en/privacy', terms: '/en/terms', support: '/en/support', deletion: '/en/delete-account' },
-    nav: { how: 'How it works', features: 'Features', faq: 'FAQ', support: 'Support', download: 'Download' },
+    nav: { how: 'How it works', features: 'Features', faq: 'FAQ', support: 'Support', download: 'Download', menu: 'Main menu' },
     meta: {
       title: 'Expeat · Rate the places you go, discover with friends',
       description:
@@ -193,12 +255,14 @@ const T = {
     },
     stores: { ios: 'Download on the', android: 'Get it on', soon: 'Coming soon', iosSmall: 'For iPhone', androidSmall: 'For Android' },
     stats: [
-      ['70,000+', 'places'],
-      ['8', 'cities'],
-      ['10', 'point comparison score'],
-      ['0', 'stars'],
+      [70000, '+', 'places'],
+      [8, '', 'cities'],
+      [10, '', 'point comparison score'],
+      [0, '', 'stars'],
     ],
+    feed: { label: 'What your friends rated this week', rated: 'rated' },
     trust: {
+      kicker: 'Why Expeat',
       title: 'Before you go, *who do you trust?*',
       text: 'Five stars from a stranger, or a score from a friend whose taste you know?',
       strangers: 'Strangers',
@@ -209,14 +273,15 @@ const T = {
         ['Guest', 'Local guide', 3, '“It’s okay, prices are a bit…”'],
       ],
       people: [
-        ['Selin', 'S', 9.6, 'Ranked Çiya Sofrası 2nd'],
-        ['Kaan', 'K', 9.3, 'Top 3 in grill houses'],
-        ['Ece', 'E', 9.4, 'Among 24 places she liked'],
+        ['Selin', 9.6, 'Ranked Çiya Sofrası 2nd'],
+        ['Kaan', 9.3, 'Top 3 among grill houses'],
+        ['Ece', 9.4, 'Among 24 places she liked'],
       ],
     },
     how: {
       kicker: 'How it works',
       title: 'Don’t score it, *compare it*',
+      text: 'Stars mean something different to everyone. Comparing is easy: which one was better?',
       steps: [
         ['How was it?', 'Find the place you went to. Did you like it, was it fine, or didn’t you like it?'],
         ['Which was better?', 'Compare it with places of the same kind, two at a time. A few taps is all it takes.'],
@@ -226,22 +291,59 @@ const T = {
       vs: 'or',
       result: '2nd on your “liked” list',
     },
-    featuresTitle: 'Places your friends love, *in one app*',
-    features: [
-      { img: 1, title: 'Restaurant reviews, *now in your feed*', text: 'See where friends and people nearby eat, who they went with and what score they gave. Tap “I’ve been” on any post to add it to your ranking.' },
-      { img: 2, title: 'Compare, and your score *writes itself*', text: 'No more agonizing over stars. Compare a new place with ones you’ve been to, and Expeat turns your ranking into a score out of 10.' },
-      { img: 5, title: 'Which friend gave it *what score?*', text: 'Every place page shows your friends’ scores first, then the community’s. You choose whose taste to trust.' },
-      { img: 3, title: 'Never forget a place *you want to try*', text: 'Save spots you see on social media to your list with one tap from the share menu. Rate it once you go and your list updates itself.' },
-    ],
-    moreTitle: 'And there’s more',
-    more: [
-      { img: 4, title: 'The city’s best, *on the map*', text: 'The best places near you, colored by score.' },
-      { img: 6, title: 'Build your favorites, *let friends see*', text: 'Lists live on your profile; share them to your story too.' },
-      { img: 7, title: 'Whose taste *matches yours?*', text: 'A match percentage from places you’ve both rated.' },
-      { img: 8, title: 'Rate, earn XP, *climb to the top*', text: 'Compete with friends; +100 XP for every invite.' },
-      { img: 9, title: 'Your food map, *city by city*', text: 'Every city and place you’ve been, on one map.' },
-    ],
+    showcase: {
+      kicker: 'Features',
+      title: 'Places your friends love, *in one app*',
+      items: [
+        {
+          img: 1,
+          label: 'Feed',
+          title: 'Restaurant reviews, *now in your feed*',
+          text: 'See where friends and people nearby eat, who they went with and what score they gave.',
+          points: ['Who they went with', 'Your friend’s score', 'Add it to your ranking with “I’ve been”'],
+        },
+        {
+          img: 2,
+          label: 'Rating',
+          title: 'Compare, and your score *writes itself*',
+          text: 'No more agonizing over stars. Compare a new place with ones you’ve been to, and Expeat turns your ranking into a score out of 10.',
+          points: ['Only against places of the same kind', 'Can’t choose? “About the same”', 'Your favorite is always a 10'],
+        },
+        {
+          img: 5,
+          label: 'Place',
+          title: 'Which friend gave it *what score?*',
+          text: 'Every place page shows your friends’ scores first, then the community’s. You choose whose taste to trust.',
+          points: ['Your friends’ scores', 'Score from Expeat users', 'Where it sits in your ranking'],
+        },
+        {
+          img: 3,
+          label: 'My List',
+          title: 'Never forget a place *you want to try*',
+          text: 'Save spots you see on social media to your list with one tap from the share menu. Rate it once you go and your list updates itself.',
+          points: ['One tap from the share menu', 'Catches links you copy', 'Sorted by kind of place'],
+        },
+      ],
+    },
+    more: {
+      title: 'And there’s more',
+      text: 'A map, lists, a league and a map of everywhere you’ve eaten.',
+      items: [
+        { img: 4, title: 'The city’s best, *on the map*', text: 'The best places near you, colored by score. If it’s green, go with confidence.', wide: true },
+        { img: 7, title: 'Whose taste *matches yours?*', text: 'A match percentage from places you’ve both rated.' },
+        { img: 6, title: 'Build your favorites, *let friends see*', text: 'Lists live on your profile; share them to your story too.' },
+        { img: 8, title: 'Rate, earn XP, *climb to the top*', text: 'Compete with friends; +100 XP for every invite.' },
+        { img: 9, title: 'Your food map, *city by city*', text: 'Every city and place you’ve been, on one map.' },
+      ],
+    },
+    cities: {
+      title: '*70,000+* places in 8 cities',
+      text: 'Ready from Istanbul to Trabzon; add a missing place yourself in a few taps.',
+      names: ['Istanbul', 'Ankara', 'Izmir', 'Bursa', 'Kocaeli', 'Eskişehir', 'Trabzon', 'Adana'],
+    },
     faqTitle: 'FAQ',
+    faqText: 'Can’t find what you’re looking for? Write to us; we usually reply within 1 business day.',
+    faqLink: 'Support',
     faq: [
       ['Is Expeat free?', 'Yes. Expeat is free to download and use.'],
       ['Where is it available?', 'More than 70,000 places are ready in Istanbul, Ankara, Izmir, Bursa, Kocaeli, Eskişehir, Trabzon and Adana. You can add a missing place yourself in a few taps.'],
@@ -261,6 +363,8 @@ const T = {
       deletion: 'Delete account',
       osm: 'Place data © OpenStreetMap contributors',
     },
+    docKicker: { legal: 'Legal', support: 'Support', account: 'Account' },
+    toc: 'On this page',
     deletion: {
       title: 'Deleting your account',
       intro: 'You can permanently delete your Expeat account and all of your data at any time.',
@@ -285,7 +389,6 @@ const T = {
       have: 'Already have Expeat? Tap to open it with the invite.',
     },
     notFound: { title: 'Page not found', text: 'The page you’re looking for may have moved or never existed.', back: 'Back to home' },
-    updated: 'Updated',
   },
 };
 
@@ -301,7 +404,7 @@ function head(t, { title, description, path, alt, noindex = false }) {
 <meta name="description" content="${esc(description)}">
 ${noindex ? '<meta name="robots" content="noindex">' : `<link rel="canonical" href="${url}">`}
 ${alt ? `<link rel="alternate" hreflang="tr" href="${SITE}${alt.tr === '/' ? '' : alt.tr}">\n<link rel="alternate" hreflang="en" href="${SITE}${alt.en}">` : ''}
-<meta name="theme-color" content="#0F1E3D">
+<meta name="theme-color" content="#081227">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Expeat">
 <meta property="og:locale" content="${t.locale}">
@@ -317,33 +420,33 @@ ${alt ? `<link rel="alternate" hreflang="tr" href="${SITE}${alt.tr === '/' ? '' 
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..800&family=Newsreader:ital,opsz,wght@0,6..72,500..700;1,6..72,500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..800&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/site.css">
 <script>document.documentElement.classList.add('js')</script>
 </head>`;
 }
 
-function nav(t, { solid = false, alt } = {}) {
+function nav(t, alt) {
   const h = t.home === '/' ? '' : t.home;
-  const otherHref = alt ? alt[t.lang === 'tr' ? 'en' : 'tr'] : t.other.href;
-  return `<header class="nav${solid ? ' solid' : ''}">
+  const otherLang = t.lang === 'tr' ? 'en' : 'tr';
+  return `<header class="nav">
   <div class="wrap nav-in">
     <a class="wordmark" href="${t.home}" aria-label="Expeat">Expeat</a>
-    <nav class="links" aria-label="${t.lang === 'tr' ? 'Ana menü' : 'Main menu'}">
+    <nav class="links" aria-label="${t.nav.menu}">
       <a href="${h}/#nasil">${t.nav.how}</a>
       <a href="${h}/#ozellikler">${t.nav.features}</a>
       <a href="${h}/#sss">${t.nav.faq}</a>
       <a href="${t.paths.support}">${t.nav.support}</a>
     </nav>
     <div class="nav-end">
-      <a class="lang" href="${otherHref}" hreflang="${t.lang === 'tr' ? 'en' : 'tr'}">${t.lang === 'tr' ? 'EN' : 'TR'}</a>
-      <a class="btn small" href="${h}/#indir">${t.nav.download}</a>
+      <a class="lang" href="${alt ? alt[otherLang] : t.other.href}" hreflang="${otherLang}">${otherLang.toUpperCase()}</a>
+      <a class="btn light small" href="${h}/#indir">${t.nav.download}</a>
     </div>
   </div>
 </header>`;
 }
 
-function stores(t, { light = false } = {}) {
+function stores(t) {
   const badge = (os) => {
     const url = STORES[os];
     const icon = os === 'ios' ? ICON.apple : ICON.play;
@@ -354,10 +457,11 @@ function stores(t, { light = false } = {}) {
       ? `<a class="store" href="${url}" data-os="${os}">${inner}</a>`
       : `<span class="store soon" data-os="${os}" aria-disabled="true">${inner}</span>`;
   };
-  return `<div class="stores${light ? ' light' : ''}">${badge('ios')}${badge('android')}</div>`;
+  return `<div class="stores">${badge('ios')}${badge('android')}</div>`;
 }
 
 function footer(t) {
+  const h = t.home === '/' ? '' : t.home;
   return `<footer class="foot">
   <div class="wrap foot-in">
     <div class="foot-brand">
@@ -367,9 +471,9 @@ function footer(t) {
     </div>
     <div class="foot-col">
       <h3>${t.footer.app}</h3>
-      <a href="${t.home === '/' ? '' : t.home}/#nasil">${t.nav.how}</a>
-      <a href="${t.home === '/' ? '' : t.home}/#ozellikler">${t.nav.features}</a>
-      <a href="${t.home === '/' ? '' : t.home}/#sss">${t.nav.faq}</a>
+      <a href="${h}/#nasil">${t.nav.how}</a>
+      <a href="${h}/#ozellikler">${t.nav.features}</a>
+      <a href="${h}/#sss">${t.nav.faq}</a>
     </div>
     <div class="foot-col">
       <h3>${t.footer.legal}</h3>
@@ -388,25 +492,35 @@ function footer(t) {
     <span>© ${YEAR} Expeat</span>
     <span>${t.footer.osm}</span>
   </div>
+  <div class="foot-mark" aria-hidden="true">Expeat</div>
 </footer>`;
 }
 
 /** Telefon görselleri ve boyutları (scripts/web/shots.sh üretir) */
 const SHOTS = JSON.parse(readFileSync(join(out, 'img/ekran.json'), 'utf8'));
-const shot = (n, alt, cls = '', eager = false) =>
+const shot = (n, alt = '', cls = '', eager = false) =>
   `<img class="shot ${cls}" src="/img/ekran-${n}.webp" alt="${esc(alt)}" width="${SHOTS[n][0]}" height="${SHOTS[n][1]}"${eager ? ' fetchpriority="high"' : ' loading="lazy"'} decoding="async">`;
-const plain = (s) => s.replaceAll('*', '');
 
 /* ---------- Ana sayfa ---------- */
 function home(t) {
-  const en = t.lang === 'en';
-  const stars = (n) => `<span class="stars" aria-label="${n}/5">${[1, 2, 3, 4, 5].map((i) => `<i class="${i <= n ? 'on' : ''}">${ICON.star}</i>`).join('')}</span>`;
+  const L = t.lang;
+  const h = t.home === '/' ? '' : t.home;
+  const stars = (n) =>
+    `<span class="stars" aria-label="${n}/5">${[1, 2, 3, 4, 5].map((i) => `<i class="${i <= n ? 'on' : ''}">${ICON.star}</i>`).join('')}</span>`;
+  const post = (p) => `<article class="post">
+          <img src="/img/yemek-${p.photo}.webp" alt="" width="520" height="600" loading="lazy" decoding="async">
+          <div class="post-top">${avatar(p.who, 30)}<span><b>${esc(p.who)}</b> ${t.feed.rated}</span></div>
+          <div class="post-bottom"><div><b>${esc(p.place)}</b><small>${esc(p.cat[L === 'tr' ? 0 : 1])} · ${esc(p.area)}</small></div>${disc(p.score, L, 46)}</div>
+        </article>`;
+  const posts = POSTS.map(post).join('\n        ');
+  const cities = t.cities.names.map((c, i) => `<span class="city${i % 2 ? ' outline' : ''}">${esc(c)}</span><i class="sep">${ICON.spark}</i>`).join('');
+  const sc = t.showcase.items;
   return `${head(t, { title: t.meta.title, description: t.meta.description, path: t.home, alt: { tr: '/', en: '/en' } })}
 <body class="home">
-${nav(t, { alt: { tr: '/', en: '/en' } })}
+${nav(t, { tr: '/', en: '/en' })}
 <main>
   <section class="hero">
-    <div class="hero-glow" aria-hidden="true"></div>
+    <div class="glow" aria-hidden="true"></div>
     <div class="wrap hero-in">
       <div class="hero-copy">
         <h1 class="display">${em(t.hero.title)}</h1>
@@ -422,24 +536,39 @@ ${nav(t, { alt: { tr: '/', en: '/en' } })}
     </div>
     <div class="wrap">
       <dl class="stats">
-        ${t.stats.map(([n, l]) => `<div><dt>${esc(n)}</dt><dd>${esc(l)}</dd></div>`).join('\n        ')}
+        ${t.stats.map(([n, suf, l]) => `<div><dt${n ? ` data-count="${n}" data-suffix="${suf}"` : ''}>${n.toLocaleString(L === 'tr' ? 'tr-TR' : 'en-US')}${suf}</dt><dd>${esc(l)}</dd></div>`).join('\n        ')}
       </dl>
     </div>
   </section>
 
-  <section class="trust reveal">
+  <section class="feedband" aria-label="${esc(t.feed.label)}">
+    <p class="band-label reveal"><span class="live"></span>${esc(t.feed.label)}</p>
+    <div class="marquee">
+      <div class="track">
+        ${posts}
+      </div>
+      <div class="track" aria-hidden="true">
+        ${posts}
+      </div>
+    </div>
+  </section>
+
+  <section class="trust">
     <div class="wrap">
-      <h2 class="title center">${em(t.trust.title)}</h2>
-      <p class="sub center">${esc(t.trust.text)}</p>
-      <div class="versus">
-        <div class="side-col strangers">
+      <div class="sec-head center reveal">
+        <p class="kicker">${t.trust.kicker}</p>
+        <h2 class="title">${em(t.trust.title)}</h2>
+        <p class="sub">${esc(t.trust.text)}</p>
+      </div>
+      <div class="versus glass reveal">
+        <div class="vcol strangers">
           <h3>${t.trust.strangers}</h3>
-          ${t.trust.cards.map(([n, m, s, q], i) => `<div class="anon" style="--r:${[-3, 2.5, -1.5][i]}deg"><div class="anon-top"><span class="q">?</span><div><b>${esc(n)}</b><small>${esc(m)}</small></div></div>${stars(s)}<p>${esc(q)}</p></div>`).join('\n          ')}
+          ${t.trust.cards.map(([n, m, s, q], i) => `<div class="anon" style="--r:${[-2.5, 2, -1.2][i]}deg"><div class="anon-top"><span class="q">?</span><div><b>${esc(n)}</b><small>${esc(m)}</small></div>${stars(s)}</div><p>${esc(q)}</p></div>`).join('\n          ')}
         </div>
-        <div class="vs-mark" aria-hidden="true">vs</div>
-        <div class="side-col friends">
+        <div class="vdiv" aria-hidden="true"><span>vs</span></div>
+        <div class="vcol friends">
           <h3>${t.trust.friends}</h3>
-          ${t.trust.people.map(([n, i, s, d]) => `<div class="friend"><span class="av av-${i}">${i}</span><div><b>${esc(n)}</b><small>${esc(d)}</small></div>${disc(s, 46, en)}</div>`).join('\n          ')}
+          ${t.trust.people.map(([n, s, d]) => `<div class="friend">${avatar(n, 46)}<div><b>${esc(n)}</b><small>${esc(d)}</small></div>${disc(s, L, 48)}</div>`).join('\n          ')}
         </div>
       </div>
     </div>
@@ -447,80 +576,117 @@ ${nav(t, { alt: { tr: '/', en: '/en' } })}
 
   <section class="how" id="nasil">
     <div class="wrap">
-      <p class="kicker reveal">${t.how.kicker}</p>
-      <h2 class="title reveal">${em(t.how.title)}</h2>
+      <div class="sec-head reveal">
+        <p class="kicker">${t.how.kicker}</p>
+        <h2 class="title">${em(t.how.title)}</h2>
+        <p class="sub">${esc(t.how.text)}</p>
+      </div>
       <ol class="steps">
-        <li class="step reveal">
-          <span class="num">1</span>
+        <li class="step glass reveal" style="--i:0">
+          <span class="step-num">01</span>
           <h3>${esc(t.how.steps[0][0])}</h3>
           <p>${esc(t.how.steps[0][1])}</p>
-          <div class="demo chips"><span class="chip on">${t.how.sentiments[0]}</span><span class="chip">${t.how.sentiments[1]}</span><span class="chip">${t.how.sentiments[2]}</span></div>
+          <div class="demo chips"><span class="chip pick-me">${t.how.sentiments[0]}</span><span class="chip">${t.how.sentiments[1]}</span><span class="chip">${t.how.sentiments[2]}</span></div>
         </li>
-        <li class="step reveal">
-          <span class="num">2</span>
+        <li class="step glass reveal" style="--i:1">
+          <span class="step-num">02</span>
           <h3>${esc(t.how.steps[1][0])}</h3>
           <p>${esc(t.how.steps[1][1])}</p>
-          <div class="demo pair"><span class="pick on">Şehzade Cağ Kebap</span><em>${t.how.vs}</em><span class="pick">Karaköy Lokantası</span></div>
+          <div class="demo pair"><span class="pick pick-me"><img src="/img/yemek-doner.webp" alt="" loading="lazy" width="520" height="600">Şehzade Cağ Kebap</span><em>${t.how.vs}</em><span class="pick"><img src="/img/yemek-pilav.webp" alt="" loading="lazy" width="520" height="600">Karaköy Lokantası</span></div>
         </li>
-        <li class="step reveal">
-          <span class="num">3</span>
+        <li class="step glass reveal" style="--i:2">
+          <span class="step-num">03</span>
           <h3>${esc(t.how.steps[2][0])}</h3>
           <p>${esc(t.how.steps[2][1])}</p>
-          <div class="demo result">${disc(9.4, 52, en)}<div><b>Şehzade Cağ Kebap</b><small>${esc(t.how.result)}</small></div></div>
+          <div class="demo result">
+            <div class="ring" style="--c:${scoreColor(9.4)};--p:94"><svg viewBox="0 0 64 64" aria-hidden="true"><circle class="ring-track" cx="32" cy="32" r="28"/><circle class="ring-bar" cx="32" cy="32" r="28" pathLength="100"/></svg><span data-count="9.4" data-dec="1">${num(9.4, L)}</span></div>
+            <div><b>Şehzade Cağ Kebap</b><small>${esc(t.how.result)}</small></div>
+          </div>
         </li>
       </ol>
     </div>
   </section>
 
-  <section class="features" id="ozellikler">
+  <section class="showcase" id="ozellikler">
     <div class="wrap">
-      <h2 class="title center reveal">${em(t.featuresTitle)}</h2>
-      ${t.features
-        .map(
-          (f, i) => `<article class="feature${i % 2 ? ' flip' : ''} reveal">
-        <div class="feature-art">${shot(f.img, plain(f.title))}</div>
-        <div class="feature-copy">
-          <h3 class="title">${em(f.title)}</h3>
-          <p>${esc(f.text)}</p>
+      <div class="sec-head center reveal">
+        <p class="kicker">${t.showcase.kicker}</p>
+        <h2 class="title">${em(t.showcase.title)}</h2>
+      </div>
+      <div class="show">
+        <div class="show-steps">
+          ${sc
+            .map(
+              (f, i) => `<article class="show-step${i === 0 ? ' on' : ''}" data-i="${i}">
+            <div class="m-art">${shot(f.img, plain(f.title))}</div>
+            <p class="step-label"><span>0${i + 1}</span>${esc(f.label)}</p>
+            <h3 class="title">${em(f.title)}</h3>
+            <p class="show-text">${esc(f.text)}</p>
+            <ul class="points">${f.points.map((p) => `<li>${ICON.check}${esc(p)}</li>`).join('')}</ul>
+          </article>`,
+            )
+            .join('\n          ')}
         </div>
-      </article>`,
-        )
-        .join('\n      ')}
+        <div class="show-stage" aria-hidden="true">
+          ${sc.map((f, i) => `<div class="stage-img${i === 0 ? ' on' : ''}" data-i="${i}">${shot(f.img)}</div>`).join('\n          ')}
+          <div class="stage-dots">${sc.map((_, i) => `<i class="${i === 0 ? 'on' : ''}"></i>`).join('')}</div>
+        </div>
+      </div>
     </div>
   </section>
 
   <section class="more">
     <div class="wrap">
-      <h2 class="title reveal">${esc(t.moreTitle)}</h2>
+      <div class="sec-head reveal">
+        <h2 class="title">${esc(t.more.title)}</h2>
+        <p class="sub">${esc(t.more.text)}</p>
+      </div>
+      <div class="bento">
+        ${t.more.items
+          .map(
+            (f, i) => `<article class="tile glass reveal${f.wide ? ' wide' : ''}" style="--i:${i % 3}">
+          <div class="tile-copy"><h3>${em(f.title)}</h3><p>${esc(f.text)}</p></div>
+          <div class="tile-art">${shot(f.img, plain(f.title))}</div>
+        </article>`,
+          )
+          .join('\n        ')}
+      </div>
     </div>
-    <div class="rail reveal" tabindex="0" aria-label="${esc(t.moreTitle)}">
-      ${t.more
-        .map(
-          (f) => `<article class="card">
-        <div class="card-art">${shot(f.img, plain(f.title))}</div>
-        <h3>${em(f.title)}</h3>
-        <p>${esc(f.text)}</p>
-      </article>`,
-        )
-        .join('\n      ')}
+  </section>
+
+  <section class="cities">
+    <div class="wrap sec-head center reveal">
+      <h2 class="title">${em(t.cities.title)}</h2>
+      <p class="sub">${esc(t.cities.text)}</p>
+    </div>
+    <div class="marquee slow" aria-hidden="true">
+      <div class="track">${cities}</div>
+      <div class="track">${cities}</div>
     </div>
   </section>
 
   <section class="faq" id="sss">
-    <div class="wrap narrow">
-      <h2 class="title center reveal">${esc(t.faqTitle)}</h2>
-      ${t.faq.map(([q, a]) => `<details class="reveal"><summary>${esc(q)}${ICON.plus}</summary><p>${a}</p></details>`).join('\n      ')}
+    <div class="wrap faq-in">
+      <div class="faq-head reveal">
+        <h2 class="title">${esc(t.faqTitle)}</h2>
+        <p class="sub">${esc(t.faqText)}</p>
+        <a class="btn ghost" href="${t.paths.support}">${t.faqLink}${ICON.arrow}</a>
+      </div>
+      <div class="faq-list">
+        ${t.faq.map(([q, a], i) => `<details class="glass reveal" style="--i:${i}"><summary>${esc(q)}<span class="plus">${ICON.plus}</span></summary><p>${a}</p></details>`).join('\n        ')}
+      </div>
     </div>
   </section>
 
   <section class="cta" id="indir">
-    <div class="hero-glow" aria-hidden="true"></div>
+    <div class="glow" aria-hidden="true"></div>
     <div class="wrap cta-in reveal">
-      <img class="app-icon" src="/img/icon-192.png" alt="" width="96" height="96">
+      <div class="halo"><img class="app-icon" src="/img/icon-192.png" alt="" width="104" height="104"></div>
       <h2 class="display">${em(t.cta.title)}</h2>
       <p class="lead">${esc(t.cta.text)}</p>
       ${stores(t)}
     </div>
+    <div class="cta-phones" aria-hidden="true">${shot(4, '', 'p1')}${shot(1, '', 'p2')}${shot(6, '', 'p3')}</div>
   </section>
 </main>
 ${footer(t)}
@@ -531,14 +697,33 @@ ${footer(t)}
 }
 
 /* ---------- Metin sayfaları (yasal, destek, hesap silme) ---------- */
-function docPage(t, { path, alt, title, description, updated, body }) {
+const ALT = {
+  privacy: { tr: '/gizlilik', en: '/en/privacy' },
+  terms: { tr: '/kosullar', en: '/en/terms' },
+  support: { tr: '/destek', en: '/en/support' },
+  deletion: { tr: '/hesap-silme', en: '/en/delete-account' },
+};
+
+function docPage(t, { path, alt, kicker, title, description, updated, intro, body, toc }) {
   return `${head(t, { title: `${title} · Expeat`, description, path, alt })}
 <body class="doc">
-${nav(t, { solid: true, alt })}
-<main class="wrap narrow doc-in">
-  <h1 class="title">${esc(title)}</h1>
-  ${updated ? `<p class="updated">${esc(updated)}</p>` : ''}
+${nav(t, alt)}
+<header class="doc-hero">
+  <div class="glow" aria-hidden="true"></div>
+  <div class="wrap doc-hero-in${toc ? '' : ' single'}">
+    ${kicker ? `<p class="kicker">${esc(kicker)}</p>` : ''}
+    <h1 class="display">${esc(title)}</h1>
+    ${intro ? `<p class="lead">${intro}</p>` : ''}
+    ${updated ? `<p class="updated">${esc(updated)}</p>` : ''}
+  </div>
+</header>
+<main class="doc-main">
+  <div class="wrap doc-grid${toc ? '' : ' single'}">
+    ${toc ? `<aside class="toc"><p>${t.toc}</p><nav>${toc.map(([id, label]) => `<a href="#${id}">${esc(label)}</a>`).join('')}</nav></aside>` : ''}
+    <article class="doc-body">
   ${body}
+    </article>
+  </div>
 </main>
 ${footer(t)}
 <script src="/site.js" defer></script>
@@ -547,17 +732,11 @@ ${footer(t)}
 `;
 }
 
-const ALT = {
-  privacy: { tr: '/gizlilik', en: '/en/privacy' },
-  terms: { tr: '/kosullar', en: '/en/terms' },
-  support: { tr: '/destek', en: '/en/support' },
-  deletion: { tr: '/hesap-silme', en: '/en/delete-account' },
-};
-
 function legalPage(t, doc) {
   const text = legalText(t.lang, doc, SUPPORT_EMAIL);
+  const ids = text.sections.map((_, i) => `b${i + 1}`);
   const sections = text.sections
-    .map((s) => {
+    .map((s, si) => {
       const items = [];
       let list = [];
       const flush = () => {
@@ -572,20 +751,23 @@ function legalPage(t, doc) {
         }
       }
       flush();
-      return `<section><h2>${esc(s.heading)}</h2>${items.join('')}</section>`;
+      return `<section id="${ids[si]}"><h2>${esc(s.heading)}</h2>${items.join('')}</section>`;
     })
     .join('\n  ');
   const extra =
     doc === 'support'
-      ? `<div class="contact-card"><div><h2>${t.supportExtra.title}</h2><p>${t.supportExtra.text}</p></div><a class="btn" href="mailto:${SUPPORT_EMAIL}">${ICON.mail}${t.supportExtra.button}</a></div>`
+      ? `<div class="contact-card"><div><h2>${t.supportExtra.title}</h2><p>${t.supportExtra.text}</p></div><a class="btn light" href="mailto:${SUPPORT_EMAIL}">${ICON.mail}${t.supportExtra.button}</a></div>`
       : '';
   return docPage(t, {
     path: t.paths[doc],
     alt: ALT[doc],
+    kicker: doc === 'support' ? t.docKicker.support : t.docKicker.legal,
     title: text.title,
     description: text.intro,
     updated: text.updated,
-    body: `${extra}<p class="intro">${mail(esc(text.intro))}</p>\n  ${sections}`,
+    intro: mail(esc(text.intro)),
+    toc: text.sections.length >= 4 ? text.sections.map((s, i) => [ids[i], s.heading]) : null,
+    body: `${extra}\n  ${sections}`,
   });
 }
 
@@ -595,10 +777,11 @@ function deletionPage(t) {
   return docPage(t, {
     path: t.paths.deletion,
     alt: ALT.deletion,
+    kicker: t.docKicker.account,
     title: d.title,
     description: d.intro,
-    body: `<p class="intro">${esc(d.intro)}</p>
-  <section class="box"><h2>${d.appTitle}</h2><ol class="numbered">${d.appSteps.map((s) => `<li>${esc(s)}</li>`).join('')}</ol><p class="muted">${esc(d.appNote)}</p></section>
+    intro: esc(d.intro),
+    body: `<section class="box"><h2>${d.appTitle}</h2><ol class="numbered">${d.appSteps.map((s) => `<li>${esc(s)}</li>`).join('')}</ol><p class="muted">${esc(d.appNote)}</p></section>
   <section class="box"><h2>${d.mailTitle}</h2><p>${mail(esc(d.mailText))}</p><a class="btn" href="${href}">${ICON.mail}${d.mailButton}</a></section>
   <section><h2>${d.deletedTitle}</h2><p>${esc(d.deleted)}</p></section>
   <section><h2>${d.keptTitle}</h2><p>${esc(d.kept).replace(t.lang === 'tr' ? 'Gizlilik Politikası' : 'Privacy Policy', (m) => `<a href="${t.paths.privacy}">${m}</a>`)}</p></section>`,
@@ -608,21 +791,20 @@ function deletionPage(t) {
 /* ---------- Davet: /davet/<kullanıcı adı> (vercel.json yeniden yazımı) ---------- */
 function invitePage() {
   const tr = T.tr;
-  const en = T.en;
-  const L = { tr: tr.invite, en: en.invite };
+  const L = { tr: tr.invite, en: T.en.invite };
   return `${head(tr, { title: 'Expeat’e davet edildin', description: tr.invite.text, path: '/davet', noindex: true })}
 <body class="invite">
 <main class="invite-in">
-  <div class="hero-glow" aria-hidden="true"></div>
-  <a class="wordmark light" href="/">Expeat</a>
+  <div class="glow" aria-hidden="true"></div>
+  <a class="wordmark" href="/">Expeat</a>
   <div class="invite-card">
     <div class="invite-av" id="av" aria-hidden="true">E</div>
     <p class="invite-user" id="user" hidden></p>
     <h1 class="title" id="title">${L.tr.fallbackTitle}</h1>
     <p class="lead" id="text">${L.tr.text}</p>
-    ${stores(tr, { light: true })}
+    ${stores(tr)}
     <a class="btn ghost" id="open" href="${APP_SCHEME}://" hidden>${L.tr.open}${ICON.arrow}</a>
-    <small class="muted" id="have" hidden>${L.tr.have}</small>
+    <small id="have" hidden>${L.tr.have}</small>
   </div>
   <img class="invite-shot" src="/img/ekran-1.webp" alt="" width="${SHOTS[1][0]}" height="${SHOTS[1][1]}">
 </main>
@@ -643,7 +825,7 @@ function invitePage() {
     $('user').hidden = false;
     $('user').textContent = '@' + u;
     $('av').textContent = u[0].toUpperCase();
-    $('title').textContent = lang === 'tr' ? L.tr.title : L.en.title;
+    $('title').textContent = L[lang].title;
     document.title = '@' + u + ' · Expeat';
     $('open').href = '${APP_SCHEME}://davet/' + encodeURIComponent(u);
   } else {
@@ -667,7 +849,7 @@ function invitePage() {
 /* ---------- /indir: cihazın mağazasına yönlendirir, mağaza yoksa ana sayfaya ---------- */
 function downloadPage() {
   return `${head(T.tr, { title: 'Expeat’i indir', description: T.tr.meta.description, path: '/indir', noindex: true })}
-<body class="doc">
+<body class="invite">
 <script>
 (() => {
   const S = ${JSON.stringify(STORES)};
@@ -686,289 +868,439 @@ function downloadPage() {
 
 function notFoundPage() {
   const t = T.tr;
-  return `${head(t, { title: `${t.notFound.title} · Expeat`, description: t.notFound.text, path: '/404', noindex: true })}
-<body class="doc">
-${nav(t, { solid: true })}
-<main class="wrap narrow doc-in nf">
-  <p class="nf-code">404</p>
-  <h1 class="title">${t.notFound.title}</h1>
-  <p class="intro">${t.notFound.text}</p>
-  <p><a class="btn" href="/">${t.notFound.back}</a> <a class="btn ghost dark" href="/en">${T.en.notFound.back} (EN)</a></p>
-</main>
-${footer(t)}
-</body>
-</html>
-`;
+  return docPage(t, {
+    path: '/404',
+    kicker: '404',
+    title: t.notFound.title,
+    description: t.notFound.text,
+    intro: esc(t.notFound.text),
+    body: `<p class="nf"><a class="btn" href="/">${t.notFound.back}</a> <a class="btn outline" href="/en">${T.en.notFound.back} (EN)</a></p>`,
+  }).replace('<link rel="canonical" href="https://expeat.app/404">', '<meta name="robots" content="noindex">');
 }
 
 /* ---------- Stil ---------- */
+const NOISE =
+  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")";
+
 const CSS = String.raw`
 :root{
-  --navy:#0F1E3D;--navy2:#22386A;--navy3:#5670AE;--deep:#0A1530;
-  --ink:#111827;--muted:#6B7280;--faint:#9CA3AF;--line:#E5E7EB;--surface:#F5F6F8;--bg:#FFFFFF;--card:#FFFFFF;
-  --green:#65B32E;--green2:#1E7B3C;--accent:var(--navy);
+  --navy:#0F1E3D;--navy2:#22386A;--navy3:#5670AE;--deep:#081227;--deeper:#050B1A;
+  --ink:#111827;--muted:#5B6474;--faint:#9CA3AF;--line:#E6E8EC;--surface:#F5F6F8;--bg:#FFFFFF;--card:#FFFFFF;--accent:var(--navy);
+  --green:#65B32E;--green-l:#8FD16A;--gold:#F5B301;
+  --w:#fff;--w85:rgba(255,255,255,.85);--w70:rgba(255,255,255,.7);--w55:rgba(255,255,255,.55);--w40:rgba(255,255,255,.4);
+  --w14:rgba(255,255,255,.14);--w10:rgba(255,255,255,.1);--w06:rgba(255,255,255,.06);
   --serif:Newsreader,"New York",Georgia,serif;--sans:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-  --r:22px;--wrap:1160px;--gut:24px;
+  --wrap:1200px;--gut:24px;--ease:cubic-bezier(.2,.7,.2,1);--noise:${NOISE};
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root{
-  --ink:#F3F4F6;--muted:#A1A7B3;--faint:#6B7280;--line:#24262D;--surface:#121318;--bg:#0B0B0D;--card:#141519;--accent:#C7D2FE;
+  --ink:#F3F4F6;--muted:#A3AAB8;--faint:#6B7280;--line:#22252C;--surface:#111318;--bg:#0A0B0E;--card:#14161B;--accent:#C7D2FE;
   color-scheme:dark;
 }}
 *{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%;scroll-behavior:smooth;scroll-padding-top:84px}
-body{margin:0;background:var(--bg);color:var(--ink);font:400 17px/1.6 var(--sans);-webkit-font-smoothing:antialiased;font-feature-settings:"cv11","ss03";overflow-x:hidden}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth;scroll-padding-top:90px}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 17px/1.6 var(--sans);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;font-feature-settings:"cv11","ss03";overflow-x:hidden}
 img{max-width:100%;height:auto;display:block}
 a{color:inherit}
+::selection{background:#5670AE;color:#fff}
 .wrap{width:100%;max-width:var(--wrap);margin:0 auto;padding:0 var(--gut)}
-.wrap.narrow{max-width:760px}
 .center{text-align:center}
 .muted{color:var(--muted)}
+section{position:relative}
 
 /* Yazı */
-.wordmark{font:700 27px/1 var(--serif);letter-spacing:-.6px;text-decoration:none;color:var(--accent)}
-.display{font:600 clamp(40px,6.2vw,72px)/1.02 var(--serif);letter-spacing:-.025em;margin:0;text-wrap:balance}
+.wordmark{font:700 27px/1 var(--serif);letter-spacing:-.6px;text-decoration:none;color:#fff}
+.display{font:600 clamp(42px,6.4vw,78px)/1 var(--serif);letter-spacing:-.03em;margin:0;text-wrap:balance}
 .display em,.title em{font-style:italic;font-weight:500}
-.title{font:600 clamp(30px,4.2vw,48px)/1.08 var(--serif);letter-spacing:-.02em;margin:0;text-wrap:balance}
-.lead{font-size:clamp(17px,1.6vw,20px);line-height:1.55;margin:22px 0 0;max-width:560px}
-.sub{color:var(--muted);font-size:18px;margin:14px auto 0;max-width:560px}
-.kicker{font-size:13px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--green2);margin:0 0 12px}
-@media (prefers-color-scheme:dark){.kicker{color:var(--green)}}
-.slogan{font:italic 500 19px/1 var(--serif);opacity:.7;margin:26px 0 0;letter-spacing:-.01em}
+.title{font:600 clamp(34px,4.6vw,58px)/1.04 var(--serif);letter-spacing:-.025em;margin:0;text-wrap:balance}
+.lead{font-size:clamp(17px,1.5vw,20px);line-height:1.55;margin:24px 0 0;max-width:560px;color:var(--w70)}
+.sub{font-size:clamp(17px,1.4vw,19px);line-height:1.55;margin:18px 0 0;max-width:580px;color:var(--w55);text-wrap:pretty}
+.center .sub,.sub.center{margin-inline:auto}
+.kicker{display:inline-flex;align-items:center;gap:10px;font-size:12.5px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--green-l);margin:0 0 18px}
+.kicker::before{content:"";width:22px;height:1px;background:currentColor;opacity:.7}
+.center .kicker::after{content:"";width:22px;height:1px;background:currentColor;opacity:.7}
+.slogan{font:italic 500 20px/1 var(--serif);color:var(--w55);margin:28px 0 0;letter-spacing:-.01em}
+.sec-head{max-width:760px}
+.sec-head.center{margin-inline:auto}
 
 /* Düğmeler */
-.btn{display:inline-flex;align-items:center;gap:9px;background:var(--navy);color:#fff;text-decoration:none;font-weight:600;font-size:16px;padding:13px 22px;border-radius:999px;border:0;transition:transform .2s,background .2s}
-.btn:hover{transform:translateY(-1px);background:var(--navy2)}
-.btn svg{width:19px;height:19px}
-.btn.small{padding:9px 16px;font-size:15px}
-.btn.ghost{background:transparent;border:1.5px solid rgba(255,255,255,.4);color:#fff}
-.btn.ghost.dark{border-color:var(--line);color:var(--ink)}
-@media (prefers-color-scheme:dark){.btn{background:#fff;color:var(--navy)}.btn:hover{background:#E8ECF6}.btn.ghost.dark{background:transparent;color:var(--ink)}}
+.btn{display:inline-flex;align-items:center;gap:9px;background:var(--navy);color:#fff;text-decoration:none;font-weight:600;font-size:16px;padding:13px 22px;border-radius:999px;border:0;transition:transform .25s var(--ease),background .25s,box-shadow .25s}
+.btn:hover{transform:translateY(-1px)}
+.btn svg{width:18px;height:18px}
+.btn.small{padding:9px 17px;font-size:15px}
+.btn.light{background:#fff;color:var(--navy);box-shadow:0 8px 24px -10px rgba(255,255,255,.5)}
+.btn.light:hover{background:#EEF1F8}
+.btn.ghost{background:var(--w06);border:1px solid var(--w14);color:#fff;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.btn.ghost:hover{background:var(--w10)}
+.btn.outline{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
+@media (prefers-color-scheme:dark){.doc-main .btn:not(.outline):not(.light){background:#fff;color:var(--navy)}}
 
 /* Mağaza düğmeleri */
-.stores{display:flex;flex-wrap:wrap;gap:12px;margin-top:32px}
-.store{display:inline-flex;align-items:center;gap:11px;min-width:184px;padding:11px 20px 11px 16px;border-radius:14px;background:#000;color:#fff;text-decoration:none;border:1px solid rgba(255,255,255,.22);transition:transform .2s}
-a.store:hover{transform:translateY(-2px)}
+.stores{display:flex;flex-wrap:wrap;gap:12px;margin-top:34px}
+.store{display:inline-flex;align-items:center;gap:12px;min-width:188px;padding:11px 20px 11px 16px;border-radius:15px;background:#000;color:#fff;text-decoration:none;border:1px solid var(--w14);transition:transform .25s var(--ease),border-color .25s}
+a.store:hover{transform:translateY(-2px);border-color:var(--w40)}
 .store svg{width:26px;height:26px;flex:none}
 .store span{display:flex;flex-direction:column;line-height:1.1;white-space:nowrap}
-.store small{font-size:11.5px;opacity:.78;letter-spacing:.01em}
+.store small{font-size:11.5px;color:var(--w70);letter-spacing:.01em}
 .store b{font-size:19px;font-weight:600;letter-spacing:-.01em}
-.store.soon{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.18);cursor:default}
-.stores.light .store.soon{background:rgba(255,255,255,.1)}
+.store.soon{background:var(--w06);cursor:default;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
 
-/* Üst menü */
-.nav{position:fixed;inset:0 0 auto;z-index:50;transition:background .3s,box-shadow .3s,color .3s;color:#fff}
-.nav-in{display:flex;align-items:center;gap:28px;height:68px}
-.nav .wordmark{color:#fff}
-.links{display:flex;gap:26px;margin-left:12px}
-.links a,.lang{text-decoration:none;font-size:15px;font-weight:500;opacity:.82;transition:opacity .2s}
-.links a:hover,.lang:hover{opacity:1}
-.nav-end{margin-left:auto;display:flex;align-items:center;gap:16px}
-.nav .btn{background:#fff;color:var(--navy)}
-.nav .btn:hover{background:#E8ECF6}
-.nav.scrolled,.nav.solid{background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:saturate(1.6) blur(18px);-webkit-backdrop-filter:saturate(1.6) blur(18px);box-shadow:0 1px 0 var(--line);color:var(--ink)}
-.nav.scrolled .wordmark,.nav.solid .wordmark{color:var(--accent)}
-.nav.scrolled .btn,.nav.solid .btn{background:var(--navy);color:#fff}
-@media (prefers-color-scheme:dark){.nav.scrolled .btn,.nav.solid .btn{background:#fff;color:var(--navy)}}
-@media (max-width:820px){.links{display:none}}
+/* Cam kart */
+.glass{background:linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.025));border:1px solid var(--w10);box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 40px 80px -48px rgba(0,0,0,.8);backdrop-filter:blur(22px) saturate(1.3);-webkit-backdrop-filter:blur(22px) saturate(1.3)}
+
+/* Parıltı (bölüm arka planları) */
+.glow{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.glow::before{content:"";position:absolute;inset:0;background:radial-gradient(60% 50% at 85% 18%,rgba(86,112,174,.42),transparent 70%),radial-gradient(42% 42% at 8% 92%,rgba(101,179,46,.14),transparent 70%)}
+.glow::after{content:"";position:absolute;inset:0;opacity:.32;background-image:radial-gradient(rgba(255,255,255,.14) 1px,transparent 1px);background-size:22px 22px;mask-image:linear-gradient(180deg,#000,transparent 75%);-webkit-mask-image:linear-gradient(180deg,#000,transparent 75%)}
+
+/* Puan diski */
+.disc{--s:44px;width:var(--s);height:var(--s);flex:none;border-radius:50%;border:2.5px solid var(--c);display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:calc(var(--s)*.33);letter-spacing:-.02em;color:color-mix(in srgb,var(--c) 55%,#fff);background:rgba(8,18,39,.55);box-shadow:0 0 22px -4px color-mix(in srgb,var(--c) 70%,transparent),inset 0 0 12px -4px color-mix(in srgb,var(--c) 60%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.av{--s:36px;width:var(--s);height:var(--s);flex:none;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:calc(var(--s)*.4);box-shadow:0 0 0 2px rgba(255,255,255,.85)}
+
+/* Üst menü (koyu zemin üstünde) */
+.nav{position:fixed;inset:0 0 auto;z-index:50;color:#fff;transition:background .35s,box-shadow .35s,backdrop-filter .35s}
+.nav-in{display:flex;align-items:center;gap:28px;height:70px}
+.links{display:flex;gap:28px;margin-left:14px}
+.links a,.lang{text-decoration:none;font-size:15px;font-weight:500;color:var(--w70);transition:color .2s}
+.links a:hover,.lang:hover{color:#fff}
+.nav-end{margin-left:auto;display:flex;align-items:center;gap:18px}
+.nav.scrolled{background:rgba(6,13,30,.72);backdrop-filter:saturate(1.6) blur(20px);-webkit-backdrop-filter:saturate(1.6) blur(20px);box-shadow:0 1px 0 var(--w10)}
+@media (max-width:840px){.links{display:none}}
+
+/* ===== Ana sayfa: baştan sona lacivert ===== */
+body.home{background:var(--deep) var(--noise);color:#fff;color-scheme:dark}
 
 /* Kahraman */
-.hero{position:relative;overflow:hidden;color:#fff;background:linear-gradient(170deg,#1B2F5E 0%,var(--navy) 45%,var(--deep) 100%);padding:128px 0 0}
-.hero-glow{position:absolute;inset:0;pointer-events:none;background:
-  radial-gradient(60% 50% at 85% 20%,rgba(86,112,174,.45),transparent 70%),
-  radial-gradient(40% 40% at 10% 90%,rgba(101,179,46,.16),transparent 70%)}
-.hero-glow::after{content:"";position:absolute;inset:0;opacity:.35;background-image:radial-gradient(rgba(255,255,255,.14) 1px,transparent 1px);background-size:22px 22px;mask-image:linear-gradient(180deg,#000,transparent 75%);-webkit-mask-image:linear-gradient(180deg,#000,transparent 75%)}
+.hero{overflow:hidden;background:var(--noise),linear-gradient(170deg,#1B2F5E 0%,var(--navy) 45%,var(--deep) 100%);padding:132px 0 0}
 .hero-in{position:relative;display:grid;grid-template-columns:1.02fr 1fr;gap:40px;align-items:center}
-.hero .lead{color:rgba(255,255,255,.78)}
-.hero-art{position:relative;height:640px}
-.hero-art .shot{position:absolute;top:0;width:auto;height:100%;filter:drop-shadow(0 40px 60px rgba(0,0,0,.45))}
+.hero-art{position:relative;height:650px}
+.hero-art .shot{position:absolute;top:0;width:auto;height:100%;max-width:none;filter:drop-shadow(0 40px 60px rgba(0,0,0,.5))}
 .hero-art .main{left:50%;transform:translateX(-50%);z-index:2}
-.hero-art .side{height:84%;top:12%;opacity:.95}
-.hero-art .left{left:-4%;transform:rotate(-7deg)}
-.hero-art .right{right:-4%;transform:rotate(7deg)}
-.stats{position:relative;display:grid;grid-template-columns:repeat(4,1fr);margin:56px 0 0;padding:28px 0 34px;border-top:1px solid rgba(255,255,255,.12)}
+.hero-art .side{height:84%;top:12%}
+.hero-art .left{left:-6%;transform:rotate(-7deg)}
+.hero-art .right{right:-6%;transform:rotate(7deg)}
+.stats{position:relative;display:grid;grid-template-columns:repeat(4,1fr);margin:60px 0 0;padding:30px 0 40px;border-top:1px solid var(--w10)}
 .stats div{text-align:center}
-.stats dt{font:600 clamp(30px,3.6vw,42px)/1 var(--serif);letter-spacing:-.02em}
-.stats dd{margin:8px 0 0;font-size:14.5px;color:rgba(255,255,255,.62)}
+.stats dt{font:600 clamp(32px,3.8vw,46px)/1 var(--serif);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.stats dd{margin:10px 0 0;font-size:14.5px;color:var(--w55)}
 @media (max-width:960px){
-  .hero{padding-top:108px}
+  .hero{padding-top:110px}
   .hero-in{grid-template-columns:1fr;text-align:center}
   .hero-copy{display:flex;flex-direction:column;align-items:center}
-  .stores{justify-content:center}
-  .hero-art{height:520px;margin-top:8px}
+  .hero .stores{justify-content:center}
+  .hero-art{height:520px;margin-top:10px}
   .hero-art .left{left:2%}.hero-art .right{right:2%}
 }
 @media (max-width:600px){
   .hero-art{height:430px}
   .hero-art .side{height:74%;top:18%}
-  .hero-art .left{left:-14%}.hero-art .right{right:-14%}
-  .stats{grid-template-columns:repeat(2,1fr);row-gap:26px}
+  .hero-art .left{left:-16%}.hero-art .right{right:-16%}
+  .stats{grid-template-columns:repeat(2,1fr);row-gap:28px}
   .stores{width:100%;max-width:340px;margin-inline:auto}
   .store{flex:1 1 100%;justify-content:center}
 }
 
-/* Puan diski */
-.disc{--s:44px;width:var(--s);height:var(--s);flex:none;border-radius:50%;border:2.5px solid var(--c);color:var(--si);display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:calc(var(--s)*.34);letter-spacing:-.02em;background:var(--card)}
-@media (prefers-color-scheme:dark){.disc{color:color-mix(in srgb,var(--c) 88%,#fff)}}
+/* Kayan şeritler */
+.marquee{display:flex;overflow:hidden;mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
+.track{display:flex;flex:none;gap:18px;padding-right:18px;animation:slide 70s linear infinite}
+.marquee:hover .track{animation-play-state:paused}
+.marquee.slow .track{animation-duration:55s;gap:34px;padding-right:34px;align-items:center}
+@keyframes slide{to{transform:translateX(-100%)}}
+
+/* Yemek akışı */
+.feedband{padding:84px 0 40px}
+.band-label{display:flex;align-items:center;justify-content:center;gap:10px;margin:0 0 30px;font-size:14px;font-weight:600;letter-spacing:.04em;color:var(--w55)}
+.live{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 rgba(101,179,46,.6);animation:pulse 2.2s infinite}
+@keyframes pulse{70%{box-shadow:0 0 0 10px rgba(101,179,46,0)}100%{box-shadow:0 0 0 0 rgba(101,179,46,0)}}
+.post{position:relative;flex:none;width:250px;height:310px;border-radius:24px;overflow:hidden;background:var(--navy);box-shadow:0 30px 60px -30px rgba(0,0,0,.8),0 0 0 1px var(--w10)}
+.post>img{width:100%;height:100%;object-fit:cover;transition:transform 1.2s var(--ease)}
+.post:hover>img{transform:scale(1.05)}
+.post::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.45),transparent 28%,transparent 48%,rgba(5,11,26,.92));pointer-events:none}
+.post-top{position:absolute;z-index:1;top:14px;left:14px;right:14px;display:flex;align-items:center;gap:9px;font-size:13px;color:var(--w85)}
+.post-top .av{box-shadow:0 0 0 1.5px rgba(255,255,255,.9)}
+.post-bottom{position:absolute;z-index:1;left:16px;right:14px;bottom:15px;display:flex;align-items:flex-end;gap:10px}
+.post-bottom>div{flex:1;min-width:0}
+.post-bottom b{display:block;font:600 19px/1.15 var(--serif);letter-spacing:-.01em}
+.post-bottom small{display:block;margin-top:3px;font-size:12.5px;color:var(--w70);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:600px){.post{width:210px;height:262px}}
 
 /* Kime güveniyorsun */
-section{position:relative}
-.trust{padding:110px 0 100px}
-.versus{display:grid;grid-template-columns:1fr auto 1fr;gap:28px;align-items:center;margin-top:56px}
-.side-col h3{font-size:13px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin:0 0 18px;text-align:center}
-.strangers{filter:grayscale(1);opacity:.75}
-.anon{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px 18px;margin:0 auto 14px;max-width:360px;transform:rotate(var(--r));box-shadow:0 10px 30px rgba(15,30,61,.06)}
+.trust{padding:110px 0 120px}
+.versus{display:grid;grid-template-columns:1fr auto 1fr;gap:32px;align-items:center;margin-top:60px;padding:48px;border-radius:36px}
+.vcol h3{font-size:12.5px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--w40);margin:0 0 22px;text-align:center}
+.strangers .anon{filter:saturate(.25);opacity:.62}
+.anon{background:rgba(255,255,255,.04);border:1px solid var(--w10);border-radius:20px;padding:16px 18px;margin:0 auto 14px;max-width:380px;transform:rotate(var(--r))}
 .anon-top{display:flex;gap:12px;align-items:center}
-.anon .q{width:36px;height:36px;border-radius:50%;background:var(--surface);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--faint)}
-.anon b,.friend b{display:block;font-size:15.5px}
-.anon small,.friend small{display:block;color:var(--muted);font-size:13.5px;line-height:1.35}
-.anon p{margin:6px 0 0;font-size:15px}
-.stars{display:flex;gap:2px;margin-top:10px}
-.stars i{width:16px;height:16px;color:var(--line)}
-.stars i.on{color:#F5B301}
-.stars svg{width:100%;height:100%}
-.vs-mark{font:italic 600 34px/1 var(--serif);color:var(--faint)}
-.friend{display:flex;align-items:center;gap:14px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px 16px;margin:0 auto 14px;max-width:380px;box-shadow:0 14px 40px rgba(15,30,61,.08)}
+.anon-top>div{flex:1}
+.anon .q{width:38px;height:38px;border-radius:50%;background:var(--w06);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--w40)}
+.anon b,.friend b{display:block;font-size:15.5px;font-weight:600}
+.anon small,.friend small{display:block;color:var(--w55);font-size:13.5px;line-height:1.35}
+.anon p{margin:10px 0 0;font-size:15px;color:var(--w70)}
+.stars{display:flex;gap:2px}
+.stars i{width:15px;height:15px;color:var(--w14)}
+.stars i.on{color:var(--gold)}
+.stars svg{width:100%;height:100%;display:block}
+.vdiv{align-self:stretch;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.vdiv::before,.vdiv::after{content:"";flex:1;width:1px;background:linear-gradient(180deg,transparent,var(--w14),transparent)}
+.vdiv span{margin:14px 0;width:58px;height:58px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:italic 600 24px/1 var(--serif);color:var(--w70);border:1px solid var(--w14);background:var(--deep)}
+.friend{display:flex;align-items:center;gap:14px;border-radius:20px;padding:14px 16px;margin:0 auto 14px;max-width:400px;background:linear-gradient(180deg,rgba(255,255,255,.09),rgba(255,255,255,.04));border:1px solid var(--w14);box-shadow:0 20px 50px -24px rgba(0,0,0,.7),0 0 40px -20px rgba(101,179,46,.35)}
 .friend>div{flex:1;min-width:0}
-.av{width:44px;height:44px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:17px}
-.av-S{background:linear-gradient(140deg,#E8618C,#B83280)}.av-K{background:linear-gradient(140deg,#3B82F6,#1E3A8A)}.av-E{background:linear-gradient(140deg,#F59E0B,#C2410C)}
-@media (max-width:820px){.versus{grid-template-columns:1fr;gap:18px}.vs-mark{text-align:center}}
+@media (max-width:860px){.versus{grid-template-columns:1fr;padding:32px 20px}.vdiv{flex-direction:row}.vdiv::before,.vdiv::after{height:1px;width:auto;background:linear-gradient(90deg,transparent,var(--w14),transparent)}.vdiv span{margin:0 14px}}
 
 /* Nasıl çalışır */
-.how{background:var(--surface);padding:110px 0}
-.steps{list-style:none;padding:0;margin:52px 0 0;display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
-.step{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:30px 28px 28px;display:flex;flex-direction:column}
-.step .num{font:600 15px/1 var(--sans);width:32px;height:32px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center}
-@media (prefers-color-scheme:dark){.step .num{background:#fff;color:var(--navy)}}
-.step h3{font:600 26px/1.15 var(--serif);letter-spacing:-.015em;margin:20px 0 8px}
-.step p{margin:0;color:var(--muted);font-size:16px}
-.demo{margin-top:auto;padding-top:26px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.chip{font-size:14px;font-weight:600;padding:8px 13px;border-radius:999px;border:1.5px solid var(--line);color:var(--muted)}
-.chip.on{background:var(--navy);border-color:var(--navy);color:#fff}
-@media (prefers-color-scheme:dark){.chip.on{background:#fff;border-color:#fff;color:var(--navy)}}
-.pair{flex-wrap:nowrap}
-.pick{flex:1;font-size:14px;font-weight:600;padding:12px;border-radius:14px;border:1.5px solid var(--line);text-align:center;line-height:1.25}
-.pick.on{border-color:var(--green);box-shadow:0 0 0 3px color-mix(in srgb,var(--green) 22%,transparent)}
-.pair em{font-size:13px;color:var(--faint);font-style:normal}
-.result{gap:14px}
-.result b{display:block;font-size:16px}.result small{color:var(--muted);font-size:14px}
-@media (max-width:900px){.steps{grid-template-columns:1fr}}
+.how{padding:110px 0}
+.how::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(50% 60% at 0% 50%,rgba(86,112,174,.18),transparent 70%)}
+.steps{position:relative;list-style:none;padding:0;margin:60px 0 0;display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.step{border-radius:30px;padding:34px 30px 30px;display:flex;flex-direction:column;min-height:400px}
+.step-num{font:italic 500 64px/1 var(--serif);letter-spacing:-.03em;background:linear-gradient(180deg,#fff,rgba(255,255,255,.18));-webkit-background-clip:text;background-clip:text;color:transparent}
+.step h3{font:600 28px/1.12 var(--serif);letter-spacing:-.015em;margin:22px 0 10px}
+.step p{margin:0;color:var(--w55);font-size:16px}
+.demo{margin-top:auto;padding-top:28px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.chip{font-size:14px;font-weight:600;padding:9px 14px;border-radius:999px;border:1px solid var(--w14);color:var(--w55);transition:all .5s var(--ease) .5s}
+:root:not(.js) .chip.pick-me,.in .chip.pick-me{background:#fff;border-color:#fff;color:var(--navy)}
+.pair{flex-wrap:nowrap;gap:10px}
+.pick{flex:1;display:flex;flex-direction:column;gap:8px;font-size:13px;font-weight:600;line-height:1.25;padding:8px 8px 10px;border-radius:16px;border:1px solid var(--w14);background:var(--w06);transition:all .6s var(--ease) .6s}
+.pick img{width:100%;aspect-ratio:1.3;object-fit:cover;border-radius:10px}
+:root:not(.js) .pick.pick-me,.in .pick.pick-me{border-color:var(--green);box-shadow:0 0 0 3px rgba(101,179,46,.25),0 0 30px -6px rgba(101,179,46,.55)}
+.pair em{font-size:13px;color:var(--w40);font-style:italic;font-family:var(--serif)}
+.result{gap:16px}
+.result b{display:block;font-size:16px}.result small{color:var(--w55);font-size:14px}
+.ring{position:relative;width:72px;height:72px;flex:none}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:4.5}
+.ring-track{stroke:var(--w10)}
+.ring-bar{stroke:var(--c);stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:calc(100 - var(--p));filter:drop-shadow(0 0 6px color-mix(in srgb,var(--c) 80%,transparent))}
+.js .ring-bar{stroke-dashoffset:100;transition:stroke-dashoffset 1.6s var(--ease) .4s}
+.js .in .ring-bar{stroke-dashoffset:calc(100 - var(--p))}
+.ring span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:21px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+@media (max-width:960px){.steps{grid-template-columns:1fr}.step{min-height:0}}
 
-/* Özellikler */
-.features{padding:120px 0 40px}
-.feature{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center;margin-top:90px}
-.feature-art{position:relative;height:580px;border-radius:32px;overflow:hidden;display:flex;justify-content:center;padding-top:60px;
-  background:radial-gradient(70% 60% at 50% 0%,rgba(86,112,174,.55),transparent 70%),linear-gradient(165deg,#22386A,#0F1E3D 70%)}
-.feature-art .shot{height:680px;width:auto;max-width:none;filter:drop-shadow(0 30px 40px rgba(0,0,0,.45))}
-.feature.flip .feature-art{order:2}
-.feature-copy p{font-size:19px;color:var(--muted);margin:20px 0 0;max-width:470px}
-@media (max-width:860px){
-  .feature{grid-template-columns:1fr;gap:34px;margin-top:70px;text-align:center}
-  .feature.flip .feature-art{order:0}
-  .feature-copy p{margin-inline:auto}
-  .feature-art{height:470px;padding-top:44px}
-  .feature-art .shot{height:560px}
+/* Özellikler: kaydırdıkça değişen sabit telefon */
+.showcase{padding:110px 0 60px}
+.show{display:grid;grid-template-columns:1fr 1fr;gap:72px;margin-top:40px}
+.show-step{min-height:84vh;display:flex;flex-direction:column;justify-content:center;transition:opacity .6s var(--ease)}
+.js .show-step:not(.on){opacity:.22}
+.step-label{display:flex;align-items:center;gap:12px;margin:0 0 18px;font-size:13px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--w55)}
+.step-label span{font:italic 500 16px/1 var(--serif);letter-spacing:0;color:var(--green-l)}
+.show-step .title{font-size:clamp(32px,3.6vw,50px)}
+.show-text{font-size:19px;color:var(--w70);margin:22px 0 0;max-width:500px}
+.points{list-style:none;padding:0;margin:26px 0 0;display:grid;gap:12px}
+.points li{display:flex;align-items:center;gap:12px;font-size:16px;color:var(--w85)}
+.points svg{width:24px;height:24px;flex:none;padding:5px;border-radius:50%;color:var(--green-l);background:rgba(101,179,46,.14);border:1px solid rgba(101,179,46,.3)}
+.show-stage{position:sticky;top:10vh;height:80vh;align-self:start}
+.show-stage::before{content:"";position:absolute;left:50%;top:50%;width:min(560px,90%);aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,rgba(86,112,174,.5),rgba(86,112,174,.12) 45%,transparent 70%);filter:blur(10px)}
+.show-stage::after{content:"";position:absolute;left:50%;top:50%;width:min(440px,80%);aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;border:1px solid var(--w10);box-shadow:0 0 0 70px rgba(255,255,255,.015),0 0 0 140px rgba(255,255,255,.01)}
+.stage-img{position:absolute;inset:0;z-index:1;display:flex;justify-content:center;align-items:center;opacity:0;transform:translateY(24px) scale(.96);transition:opacity .7s var(--ease),transform .9s var(--ease)}
+.stage-img.on{opacity:1;transform:none}
+.stage-img .shot{height:100%;width:auto;max-width:none;filter:drop-shadow(0 40px 60px rgba(0,0,0,.55))}
+.stage-dots{position:absolute;z-index:2;right:0;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:10px}
+.stage-dots i{width:6px;height:6px;border-radius:3px;background:var(--w14);transition:all .4s var(--ease)}
+.stage-dots i.on{height:26px;background:#fff}
+.m-art{display:none}
+@media (max-width:900px){
+  .show{display:block;margin-top:10px}
+  .show-stage{display:none}
+  .show-step{min-height:0;margin-top:80px}
+  .js .show-step:not(.on){opacity:1}
+  .m-art{display:flex;justify-content:center;position:relative;height:480px;margin-bottom:34px;border-radius:30px;overflow:hidden;padding-top:40px;background:radial-gradient(70% 60% at 50% 0%,rgba(86,112,174,.5),transparent 70%),linear-gradient(165deg,#1B2F5E,#0F1E3D 70%);border:1px solid var(--w10)}
+  .m-art .shot{height:560px;width:auto;max-width:none;filter:drop-shadow(0 30px 40px rgba(0,0,0,.5))}
 }
 
-/* Dahası */
-.more{padding:90px 0 110px}
-.rail{--rp:max(var(--gut),calc((100vw - var(--wrap))/2 + var(--gut)));display:grid;grid-auto-flow:column;grid-auto-columns:minmax(260px,300px);gap:20px;overflow-x:auto;scroll-snap-type:x proximity;scroll-padding-inline:var(--rp);padding:40px var(--rp) 20px;scrollbar-width:thin;outline:none}
-.card{scroll-snap-align:start;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:22px 22px 26px;display:flex;flex-direction:column}
-.card-art{border-radius:16px;background:radial-gradient(70% 60% at 50% 0%,rgba(86,112,174,.55),transparent 70%),linear-gradient(165deg,#22386A,#0F1E3D 70%);height:340px;overflow:hidden;display:flex;justify-content:center;padding-top:26px}
-.card-art .shot{width:auto;height:430px;max-width:none;filter:drop-shadow(0 20px 30px rgba(0,0,0,.4))}
-.card h3{font:600 23px/1.15 var(--serif);letter-spacing:-.015em;margin:22px 0 6px}
-.card h3 em{font-style:italic;font-weight:500}
-.card p{margin:0;color:var(--muted);font-size:15.5px}
+/* Bento */
+.more{padding:110px 0}
+.bento{display:grid;grid-template-columns:repeat(6,1fr);gap:20px;margin-top:52px}
+.tile{grid-column:span 2;position:relative;border-radius:32px;overflow:hidden;display:flex;flex-direction:column;min-height:540px}
+.tile:hover{border-color:var(--w14)}
+.tile::before{content:"";position:absolute;inset:auto 0 0;height:70%;background:radial-gradient(70% 70% at 50% 100%,rgba(86,112,174,.35),transparent 70%);pointer-events:none}
+.tile.wide{grid-column:span 4;flex-direction:row}
+.tile-copy{position:relative;padding:34px 34px 0}
+.tile h3{font:600 clamp(25px,2.2vw,30px)/1.1 var(--serif);letter-spacing:-.015em;margin:0}
+.tile h3 em{font-style:italic;font-weight:500}
+.tile p{margin:12px 0 0;color:var(--w55);font-size:16px;max-width:360px}
+.tile-art{position:relative;flex:1;display:flex;justify-content:center;margin-top:30px;min-height:300px}
+.tile-art .shot{position:absolute;top:0;width:auto;height:560px;max-width:none;filter:drop-shadow(0 30px 40px rgba(0,0,0,.5));transition:transform .8s var(--ease)}
+.tile:hover .tile-art .shot{transform:translateY(-10px)}
+.tile.wide .tile-copy{flex:1;align-self:center;padding:44px}
+.tile.wide .tile-copy h3{font-size:clamp(30px,3vw,42px)}
+.tile.wide .tile-copy p{font-size:18px}
+.tile.wide .tile-art{flex:1;margin-top:44px}
+@media (max-width:1020px){.bento{grid-template-columns:1fr 1fr}.tile{grid-column:span 1}.tile.wide{grid-column:span 2}}
+@media (max-width:660px){.bento{grid-template-columns:1fr}.tile,.tile.wide{grid-column:span 1;flex-direction:column;min-height:500px}.tile.wide .tile-copy{padding:34px 34px 0;align-self:stretch}.tile.wide .tile-art{margin-top:30px}}
+
+/* Şehirler */
+.cities{padding:90px 0 110px;overflow:hidden}
+.cities .marquee{margin-top:56px}
+.city{font:italic 500 clamp(48px,7vw,96px)/1.1 var(--serif);letter-spacing:-.03em;white-space:nowrap;color:#fff}
+.city.outline{color:transparent;-webkit-text-stroke:1px rgba(255,255,255,.45)}
+.sep{display:flex;color:var(--green-l)}
+.sep svg{width:26px;height:26px}
 
 /* SSS */
-.faq{padding:40px 0 120px}
-.faq .title{margin-bottom:36px}
-details{border-bottom:1px solid var(--line)}
-summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:22px 0;font-size:19px;font-weight:600}
+.faq{padding:100px 0 120px}
+.faq-in{display:grid;grid-template-columns:.85fr 1.15fr;gap:64px;align-items:start}
+.faq-head{position:sticky;top:120px}
+.faq-head .btn{margin-top:28px}
+.faq-list{display:grid;gap:12px}
+details{border-radius:22px}
+summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:22px 24px;font-size:18px;font-weight:600}
 summary::-webkit-details-marker{display:none}
-summary svg{width:22px;height:22px;flex:none;color:var(--muted);transition:transform .25s}
-details[open] summary svg{transform:rotate(45deg)}
-details p{margin:-6px 0 24px;color:var(--muted);font-size:17px;max-width:660px}
-details a{color:var(--accent)}
+.plus{width:34px;height:34px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;border:1px solid var(--w14);transition:transform .35s var(--ease),background .3s}
+.plus svg{width:16px;height:16px}
+details[open] .plus{transform:rotate(45deg);background:var(--w10)}
+details p{margin:-6px 24px 24px;color:var(--w70);font-size:16.5px;max-width:620px}
+details a{color:#fff}
+@media (max-width:900px){.faq-in{grid-template-columns:1fr;gap:36px}.faq-head{position:static}}
 
 /* Kapanış */
-.cta{position:relative;overflow:hidden;color:#fff;background:linear-gradient(170deg,#1B2F5E 0%,var(--navy) 50%,var(--deep) 100%);padding:110px 0 120px;text-align:center}
+.cta{overflow:hidden;text-align:center;padding:120px 0 0;background:var(--noise),linear-gradient(180deg,var(--deep),#13254F 60%,#1B2F5E)}
 .cta-in{position:relative;display:flex;flex-direction:column;align-items:center}
-.cta .lead{color:rgba(255,255,255,.75)}
-.app-icon{width:96px;height:96px;border-radius:22px;margin-bottom:30px;box-shadow:0 20px 50px rgba(0,0,0,.4),0 0 0 1px rgba(255,255,255,.12)}
+.cta .glow{mask-image:linear-gradient(180deg,transparent,#000 35%);-webkit-mask-image:linear-gradient(180deg,transparent,#000 35%)}
+.cta::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.18),transparent)}
 .cta .stores{justify-content:center}
+.halo{position:relative;margin-bottom:34px}
+.halo::before{content:"";position:absolute;inset:-40px;border-radius:50%;background:radial-gradient(circle,rgba(86,112,174,.6),transparent 65%);animation:breathe 5s ease-in-out infinite}
+@keyframes breathe{50%{transform:scale(1.15);opacity:.7}}
+.app-icon{position:relative;width:104px;height:104px;border-radius:24px;box-shadow:0 24px 60px rgba(0,0,0,.5),0 0 0 1px var(--w14)}
+.cta-phones{position:relative;height:330px;margin-top:70px;display:flex;justify-content:center}
+.cta-phones .shot{position:absolute;top:0;width:auto;max-width:none;height:600px;filter:drop-shadow(0 -20px 60px rgba(0,0,0,.45))}
+.cta-phones .p2{left:50%;transform:translateX(-50%);z-index:2}
+.cta-phones .p1{left:50%;top:70px;transform:translateX(-128%) rotate(-8deg)}
+.cta-phones .p3{left:50%;top:70px;transform:translateX(28%) rotate(8deg)}
+@media (max-width:600px){.cta-phones{height:240px}.cta-phones .shot{height:440px}.cta-phones .p1{transform:translateX(-112%) rotate(-8deg)}.cta-phones .p3{transform:translateX(12%) rotate(8deg)}}
 
-/* Alt bilgi */
-.foot{border-top:1px solid var(--line);padding:64px 0 28px;font-size:15px}
+/* Alt bilgi (her sayfada koyu) */
+.foot{position:relative;overflow:hidden;background:var(--deeper) var(--noise);color:#fff;padding:72px 0 0;font-size:15px;border-top:1px solid var(--w06)}
 .foot-in{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:32px}
-.foot-brand p{margin:12px 0 0;color:var(--muted);max-width:300px}
-.foot-brand .slogan{margin-top:14px;font-size:17px}
-.foot-col h3{font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin:4px 0 14px}
-.foot-col a{display:block;text-decoration:none;color:var(--muted);margin:0 0 10px;word-break:break-word}
-.foot-col a:hover{color:var(--ink)}
-.foot-base{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-top:48px;padding-top:22px;border-top:1px solid var(--line);color:var(--faint);font-size:13.5px}
+.foot-brand p{margin:14px 0 0;color:var(--w55);max-width:300px}
+.foot-brand .slogan{margin-top:14px;font-size:18px}
+.foot-col h3{font-size:12.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--w40);margin:4px 0 16px}
+.foot-col a{display:block;text-decoration:none;color:var(--w70);margin:0 0 11px;word-break:break-word;transition:color .2s}
+.foot-col a:hover{color:#fff}
+.foot-base{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-top:56px;padding-top:22px;border-top:1px solid var(--w10);color:var(--w40);font-size:13.5px}
+.foot-mark{font:700 clamp(120px,24vw,360px)/.78 var(--serif);letter-spacing:-.05em;text-align:center;margin-top:28px;color:transparent;background:linear-gradient(180deg,rgba(255,255,255,.09),rgba(255,255,255,0) 80%);-webkit-background-clip:text;background-clip:text;user-select:none;transform:translateY(12%)}
 @media (max-width:760px){.foot-in{grid-template-columns:1fr 1fr}.foot-brand{grid-column:1/-1}}
 
-/* Metin sayfaları */
-.doc-in{padding-top:128px;padding-bottom:96px}
-.doc-in .title{font-size:clamp(34px,5vw,48px)}
-.updated{color:var(--faint);font-size:15px;margin:12px 0 0}
-.doc-in .intro{font-size:20px;line-height:1.55;margin:28px 0 8px}
-.doc-in section{margin-top:40px}
-.doc-in h2{font:600 24px/1.2 var(--serif);letter-spacing:-.01em;margin:0 0 12px}
-.doc-in p{margin:0 0 14px}
-.doc-in ul,.doc-in ol{margin:0 0 14px;padding-left:22px}
-.doc-in li{margin:0 0 8px}
-.doc-in a:not(.btn){color:var(--accent);text-underline-offset:3px}
-.box{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:26px 28px}
-.box .btn{margin-top:6px}
+/* ===== Metin sayfaları ===== */
+.doc-hero{position:relative;overflow:hidden;color:#fff;background:var(--noise),linear-gradient(170deg,#1B2F5E 0%,var(--navy) 55%,var(--deep) 100%);padding:150px 0 70px}
+.doc-hero-in{position:relative;max-width:1080px}
+.doc-hero-in.single{max-width:808px}
+.doc-hero .display{font-size:clamp(40px,5.6vw,68px)}
+.doc-hero .lead{max-width:680px}
+.updated{color:var(--w40);font-size:14.5px;margin:22px 0 0}
+.doc-main{padding:72px 0 110px}
+.doc-grid{display:grid;grid-template-columns:240px minmax(0,720px);gap:72px;justify-content:center}
+.doc-grid.single{grid-template-columns:minmax(0,760px)}
+.toc{position:sticky;top:100px;align-self:start;font-size:14.5px}
+.toc p{font-size:12.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin:6px 0 14px}
+.toc a{display:block;text-decoration:none;color:var(--muted);padding:7px 0 7px 14px;border-left:2px solid var(--line);line-height:1.35;transition:color .2s,border-color .2s}
+.toc a:hover,.toc a.on{color:var(--ink);border-color:var(--accent)}
+.doc-body section{margin-top:44px}
+.doc-body section:first-child{margin-top:0}
+.doc-body h2{font:600 26px/1.2 var(--serif);letter-spacing:-.015em;margin:0 0 14px;color:var(--ink)}
+.doc-body p{margin:0 0 14px;color:var(--ink)}
+.doc-body p.muted{color:var(--muted)}
+.doc-body ul,.doc-body ol{margin:0 0 14px;padding-left:22px}
+.doc-body li{margin:0 0 9px}
+.doc-body a:not(.btn){color:var(--accent);text-underline-offset:3px}
+.box{background:var(--surface);border:1px solid var(--line);border-radius:26px;padding:30px 32px}
+.box+.box{margin-top:18px}
+.box .btn{margin-top:8px}
 .numbered li::marker{font-weight:700;color:var(--accent)}
-.contact-card{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-top:32px;background:linear-gradient(160deg,#22386A,#0F1E3D);color:#fff;border-radius:var(--r);padding:28px}
-.contact-card h2{color:#fff;margin:0 0 4px}.contact-card p{margin:0;color:rgba(255,255,255,.75)}
-.contact-card .btn{background:#fff;color:var(--navy)}
-.nf{text-align:center}.nf .intro{margin-inline:auto}
-.nf-code{font:600 120px/1 var(--serif);color:var(--line);margin:0}
-.nf .btn{margin:8px 4px}
+.contact-card{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-bottom:48px;background:var(--noise),linear-gradient(160deg,#22386A,#0F1E3D);color:#fff;border-radius:26px;padding:30px 32px;box-shadow:0 30px 60px -30px rgba(15,30,61,.6)}
+.contact-card h2{color:#fff!important;margin:0 0 4px!important}
+.contact-card p{margin:0!important;color:var(--w70)!important}
+.nf{display:flex;gap:10px;flex-wrap:wrap}
+@media (max-width:900px){.doc-grid{grid-template-columns:minmax(0,1fr);gap:0}.toc{display:none}.doc-hero{padding:120px 0 56px}}
 
-/* Davet */
-.invite{background:linear-gradient(170deg,#1B2F5E 0%,var(--navy) 50%,var(--deep) 100%);color:#fff;min-height:100vh}
+/* ===== Davet ===== */
+.invite{background:var(--noise),linear-gradient(170deg,#1B2F5E 0%,var(--navy) 50%,var(--deep) 100%);color:#fff;min-height:100vh;color-scheme:dark}
 .invite-in{position:relative;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:36px var(--gut) 0;overflow:hidden;text-align:center}
-.wordmark.light{color:#fff;position:relative}
+.invite-in .wordmark{position:relative}
 .invite-card{position:relative;margin-top:56px;display:flex;flex-direction:column;align-items:center;max-width:520px}
-.invite-av{width:84px;height:84px;border-radius:50%;background:linear-gradient(140deg,#5670AE,#22386A);border:3px solid rgba(255,255,255,.85);display:flex;align-items:center;justify-content:center;font:600 36px/1 var(--serif)}
-.invite-user{font-size:18px;font-weight:600;margin:16px 0 4px;opacity:.9}
-.invite .title{margin-top:10px}
-.invite .lead{color:rgba(255,255,255,.75);margin-inline:auto}
+.invite-av{width:88px;height:88px;border-radius:50%;background:linear-gradient(140deg,#5670AE,#22386A);border:3px solid rgba(255,255,255,.85);display:flex;align-items:center;justify-content:center;font:600 38px/1 var(--serif);box-shadow:0 0 50px -10px rgba(86,112,174,.8)}
+.invite-user{font-size:18px;font-weight:600;margin:16px 0 4px;color:var(--w85)}
+.invite .title{margin-top:10px;font-size:clamp(32px,7vw,46px)}
+.invite .lead{margin-inline:auto}
 .invite .stores{justify-content:center}
 .invite .btn.ghost{margin-top:18px}
-.invite small{margin-top:12px;color:rgba(255,255,255,.55);font-size:14px}
+.invite small{margin-top:12px;color:var(--w55);font-size:14px}
 .invite-shot{position:relative;width:min(340px,80vw);margin-top:48px;filter:drop-shadow(0 30px 60px rgba(0,0,0,.5));mask-image:linear-gradient(180deg,#000 55%,transparent);-webkit-mask-image:linear-gradient(180deg,#000 55%,transparent)}
 
-/* Kayarak beliren bölümler (JS yoksa hepsi görünür) */
-.js .reveal{opacity:0;transform:translateY(26px);transition:opacity .8s cubic-bezier(.2,.7,.2,1),transform .8s cubic-bezier(.2,.7,.2,1)}
+/* ===== Hareket (JS yoksa her şey görünür) ===== */
+.js .reveal{opacity:0;transform:translateY(28px);transition:opacity .9s var(--ease),transform .9s var(--ease)}
 .js .reveal.in{opacity:1;transform:none}
-.js .hero-copy>*{animation:rise .9s cubic-bezier(.2,.7,.2,1) both}
+.js .reveal[style*="--i"]{transition-delay:calc(var(--i)*.09s)}
+.js .hero-copy>*{animation:rise .9s var(--ease) both}
 .js .hero-copy>:nth-child(2){animation-delay:.08s}.js .hero-copy>:nth-child(3){animation-delay:.16s}.js .hero-copy>:nth-child(4){animation-delay:.24s}
-.js .hero-art .shot{animation:rise 1.1s .15s cubic-bezier(.2,.7,.2,1) both}
+.js .hero-art .shot{animation:rise 1.1s .15s var(--ease) both}
 .js .hero-art .side{animation-delay:.3s}
+.js .doc-hero-in>*{animation:rise .8s var(--ease) both}
 @keyframes rise{from{opacity:0;translate:0 30px}to{opacity:1;translate:0 0}}
-@media (prefers-reduced-motion:reduce){.js .reveal{opacity:1;transform:none;transition:none}.js .hero-copy>*,.js .hero-art .shot{animation:none}html{scroll-behavior:auto}}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .js .reveal{opacity:1;transform:none;transition:none}
+  .js .hero-copy>*,.js .hero-art .shot,.js .doc-hero-in>*{animation:none}
+  .track{animation:none}.marquee{overflow-x:auto}.marquee .track+.track{display:none}
+  .halo::before,.live{animation:none}
+  .js .ring-bar{transition:none}
+}
 `;
 
-const JS = `// Menü kaydırınca katılaşır; bölümler görünüme girince belirir
+const JS = `// Menü, beliren bölümler, sayaçlar, sabit telefon ve içindekiler
 (() => {
-  const nav = document.querySelector('.nav:not(.solid)');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const nav = document.querySelector('.nav');
   if (nav) {
     const on = () => nav.classList.toggle('scrolled', scrollY > 24);
     on();
     addEventListener('scroll', on, { passive: true });
   }
-  const els = document.querySelectorAll('.reveal');
-  if (!('IntersectionObserver' in window)) return els.forEach((e) => e.classList.add('in'));
-  const io = new IntersectionObserver((entries) => {
-    for (const e of entries) if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
-  }, { rootMargin: '0px 0px -8% 0px', threshold: 0.08 });
-  els.forEach((e) => io.observe(e));
+  const IO = 'IntersectionObserver' in window;
+  const once = (els, fn, opts) => {
+    if (!IO) return els.forEach(fn);
+    const io = new IntersectionObserver((es) => {
+      for (const e of es) if (e.isIntersecting) { fn(e.target); io.unobserve(e.target); }
+    }, opts);
+    els.forEach((e) => io.observe(e));
+  };
+  once(document.querySelectorAll('.reveal'), (e) => e.classList.add('in'), { rootMargin: '0px 0px -8% 0px', threshold: 0.06 });
+
+  // Sayaçlar: 0'dan hedefe (yazı başta son değerle gelir; JS'siz ve arama motorlarında doğru görünür)
+  const lang = document.documentElement.lang === 'tr' ? 'tr-TR' : 'en-US';
+  once(document.querySelectorAll('[data-count]'), (el) => {
+    if (reduce) return;
+    const to = parseFloat(el.dataset.count), dec = +(el.dataset.dec || 0), suf = el.dataset.suffix || '';
+    const f = (v) => v.toLocaleString(lang, { minimumFractionDigits: dec, maximumFractionDigits: dec }) + suf;
+    const t0 = performance.now(), dur = 1600;
+    const tick = (t) => {
+      const p = Math.min(1, (t - t0) / dur);
+      el.textContent = f(to * (1 - Math.pow(1 - p, 3)));
+      if (p < 1) requestAnimationFrame(tick);
+    };
+    el.textContent = f(0);
+    setTimeout(() => requestAnimationFrame(tick), el.closest('.ring') ? 400 : 0);
+  }, { threshold: 0.6 });
+
+  // Özellikler: ekranın ortasından geçen adım etkin, telefon o ekrana geçer
+  const show = document.querySelector('.show');
+  if (show && IO) {
+    const groups = [show.querySelectorAll('.show-step'), show.querySelectorAll('.stage-img'), show.querySelectorAll('.stage-dots i')];
+    const set = (i) => groups.forEach((g) => g.forEach((el, j) => el.classList.toggle('on', j === i)));
+    const io = new IntersectionObserver((es) => {
+      for (const e of es) if (e.isIntersecting) set(+e.target.dataset.i);
+    }, { rootMargin: '-50% 0px -50% 0px' });
+    groups[0].forEach((s) => io.observe(s));
+  }
+
+  // İçindekiler: okunan bölümü işaretle
+  const toc = document.querySelectorAll('.toc a');
+  if (toc.length && IO) {
+    const map = new Map([...toc].map((a) => [a.getAttribute('href').slice(1), a]));
+    const io = new IntersectionObserver((es) => {
+      for (const e of es) if (e.isIntersecting) toc.forEach((a) => a.classList.toggle('on', a === map.get(e.target.id)));
+    }, { rootMargin: '-30% 0px -60% 0px' });
+    map.forEach((_, id) => { const s = document.getElementById(id); if (s) io.observe(s); });
+  }
 })();
 `;
 

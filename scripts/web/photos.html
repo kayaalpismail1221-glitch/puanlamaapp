@@ -1,0 +1,12 @@
+<!doctype html>
+<!-- Web sitesi yemek fotoğrafları (App Store görselleriyle aynı Unsplash fotoğrafları): shots.sh 3×3 ızgarayı çizer, photos.py kareleri ayırır -->
+<html><head><meta charset="utf-8"><style>
+html,body{margin:0;background:#0F1E3D}
+.g{display:grid;grid-template-columns:repeat(3,520px);grid-auto-rows:600px}
+.g img{width:520px;height:600px;object-fit:cover;display:block}
+</style></head><body><div class="g" id="g"></div>
+<script>
+// Sıra photos.py'deki PHOTOS ile aynı
+const IDS = ['1555939594-58d7cb561ad1', '1540189549336-e6e99c3679fe', '1533089860892-a7c6f0a88666', '1504674900247-0877df9cc836', '1519708227418-c8fd9a32b7a2', '1488477181946-6428a0291777', '1529006557810-274b9b2fc783', '1603133872878-684f208fb84b', '1414235077428-338989a2e8c0'];
+document.getElementById('g').innerHTML = IDS.map((id) => `<img src="https://images.unsplash.com/photo-${id}?w=1040&h=1200&q=80&auto=format&fit=crop">`).join('');
+</script></body></html>

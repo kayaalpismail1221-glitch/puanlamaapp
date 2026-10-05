@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Web sitesi görselleri: App Store slaytlarının telefon + açıklama etiketleri (başlıksız, şeffaf) → web/img/ekran-N.webp
+# Web sitesi görselleri (telefonlar, paylaşım görseli, yemek fotoğrafları): App Store slaytlarının telefon + açıklama etiketleri (başlıksız, şeffaf) → web/img/ekran-N.webp
 # Kaynak docs/app-store-screenshots/screens.html (?layer=nocopy). Kullanım: bash scripts/web/shots.sh [slayt numaraları]
 cd "$(dirname "$0")/../.."
 EDGE="/c/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"
@@ -22,3 +22,8 @@ for l in tr en; do
 done
 sleep 4
 echo web/img/og-tr.png web/img/og-en.png
+# Yemek fotoğrafları (yemek akışı ve kıyaslama kartı)
+"$EDGE" --headless=new --user-data-dir="$(cygpath -w "$TMPD/expeat-photos")" --hide-scrollbars --window-size=1560,1800 \
+  --virtual-time-budget=20000 --screenshot="$(cygpath -w "$RAW")\photos.png" "file:///$(cygpath -m "$PWD")/scripts/web/photos.html" 2>/dev/null
+sleep 5
+python scripts/web/photos.py "$RAW/photos.png" web/img
