@@ -34,26 +34,14 @@
   }, { threshold: 0.6 });
 
   // Özellikler: ekranın ortasından geçen adım etkin, telefon o ekrana geçer
-  // Masaüstü: ekranın ortasından geçen adım; mobil: alttan gelen kart ekranın %72'sine ulaşınca
   const show = document.querySelector('.show');
   if (show && IO) {
     const groups = [show.querySelectorAll('.show-step'), show.querySelectorAll('.stage-img'), show.querySelectorAll('.stage-dots i')];
-    const set = (i) => {
-      groups.forEach((g) => g.forEach((el, j) => el.classList.toggle('on', j === i)));
-      groups[0][i].classList.add('seen');
-    };
-    set(0);
-    const mobile = matchMedia('(max-width: 900px)');
-    let io;
-    const observe = () => {
-      if (io) io.disconnect();
-      io = new IntersectionObserver((es) => {
-        for (const e of es) if (e.isIntersecting) set(+e.target.dataset.i);
-      }, { rootMargin: mobile.matches ? '-72% 0px -28% 0px' : '-50% 0px -50% 0px' });
-      groups[0].forEach((s) => io.observe(s));
-    };
-    observe();
-    if (mobile.addEventListener) mobile.addEventListener('change', observe);
+    const set = (i) => groups.forEach((g) => g.forEach((el, j) => el.classList.toggle('on', j === i)));
+    const io = new IntersectionObserver((es) => {
+      for (const e of es) if (e.isIntersecting) set(+e.target.dataset.i);
+    }, { rootMargin: '-50% 0px -50% 0px' });
+    groups[0].forEach((s) => io.observe(s));
   }
 
   // İçindekiler: okunan bölümü işaretle
