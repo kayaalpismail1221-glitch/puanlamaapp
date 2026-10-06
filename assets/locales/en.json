@@ -1,10 +1,10 @@
 {
-  "CFBundleDisplayName": "Puanla",
-  "NSLocationWhenInUseUsageDescription": "Puanla uses your location to show popular places and posts near you. Your location is not stored on our servers.",
-  "NSLocationAlwaysAndWhenInUseUsageDescription": "Puanla uses your location to show popular places and posts near you. Puanla never uses your location in the background.",
-  "NSLocationAlwaysUsageDescription": "Puanla uses your location to show popular places and posts near you. Puanla never uses your location in the background.",
+  "CFBundleDisplayName": "Expeat",
+  "NSLocationWhenInUseUsageDescription": "Expeat uses your location to show popular places and posts near you. Your location is not stored on our servers.",
+  "NSLocationAlwaysAndWhenInUseUsageDescription": "Expeat uses your location to show popular places and posts near you. Expeat never uses your location in the background.",
+  "NSLocationAlwaysUsageDescription": "Expeat uses your location to show popular places and posts near you. Expeat never uses your location in the background.",
   "NSCameraUsageDescription": "Camera access lets you take food photos for your posts.",
   "NSPhotoLibraryUsageDescription": "Photo access lets you choose profile and post photos. Only the photos you pick are uploaded.",
   "NSPhotoLibraryAddUsageDescription": "Permission lets you save share images (like your food map) to your photos.",
-  "NSContactsUsageDescription": "Puanla uses your contacts to find friends already on Puanla and to invite people you ate with. Numbers are sent only for matching and stored on our servers as hashes; names never leave your device."
+  "NSContactsUsageDescription": "Expeat uses your contacts to find friends already on Expeat and to invite people you ate with. Numbers are sent only for matching and stored on our servers as hashes; names never leave your device."
 }

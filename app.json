@@ -1,11 +1,14 @@
 {
   "expo": {
-    "name": "Puanla",
+    "name": "Expeat",
     "slug": "puanla",
-    "version": "1.0.1",
+    "version": "1.0.5",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "puanla",
+    "scheme": [
+      "expeat",
+      "puanla"
+    ],
     "userInterfaceStyle": "automatic",
     "backgroundColor": "#FFFFFF",
     "ios": {
@@ -13,6 +16,9 @@
       "icon": "./assets/images/icon.png",
       "supportsTablet": false,
       "usesAppleSignIn": true,
+      "associatedDomains": [
+        "applinks:expeat.app"
+      ],
       "infoPlist": {
         "CFBundleDevelopmentRegion": "tr",
         "CFBundleLocalizations": [
@@ -20,7 +26,8 @@
           "en"
         ],
         "CFBundleAllowMixedLocalizations": true,
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIStatusBarStyle": "UIStatusBarStyleLightContent"
       },
       "config": {
         "usesNonExemptEncryption": false
@@ -129,6 +136,23 @@
       "package": "app.puanla",
       "versionCode": 1,
       "runtimeVersion": "android-2",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "expeat.app",
+              "pathPrefix": "/davet"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -189,9 +213,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#FFFFFF",
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "backgroundColor": "#0F1E3D",
+          "image": "./assets/images/splash-wordmark.png",
+          "imageWidth": 150
         }
       ],
       "expo-localization",
@@ -207,7 +231,7 @@
         "./plugins/with-share-extension-display-name",
         {
           "target": "PuanlaShare",
-          "displayName": "Puanla"
+          "displayName": "Expeat"
         }
       ],
       [
@@ -234,7 +258,7 @@
       [
         "expo-contacts",
         {
-          "contactsPermission": "Rehberindeki arkadaşlarından Puanla'da olanları bulmak ve birlikte yemek yediklerini davet etmek için. Numaralar yalnızca eşleştirme için gönderilir ve sunucuda özet (hash) olarak saklanır; isimler cihazından çıkmaz."
+          "contactsPermission": "Rehberindeki arkadaşlarından Expeat'te olanları bulmak ve birlikte yemek yediklerini davet etmek için. Numaralar yalnızca eşleştirme için gönderilir ve sunucuda özet (hash) olarak saklanır; isimler cihazından çıkmaz."
         }
       ]
     ],

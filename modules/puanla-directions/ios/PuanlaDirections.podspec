@@ -5,7 +5,7 @@ Pod::Spec.new do |s|
   s.description    = 'Puanla için Apple rota servisi köprüsü: rota çizgisi, süre, mesafe ve adımlar.'
   s.license        = 'UNLICENSED'
   s.author         = 'Puanla'
-  s.homepage       = 'https://puanla.app'
+  s.homepage       = 'https://expeat.app'
   s.platforms      = {
     :ios => '16.4'
   }
