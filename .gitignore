@@ -55,3 +55,6 @@ docs/app-store-screenshots/**/*.pdf
 
 # Firebase (Android push); EAS'ta GOOGLE_SERVICES_JSON dosya değişkeni
 google-services.json
+
+# Python önbelleği
+__pycache__/

@@ -1,6 +1,6 @@
 # App Store'a çıkış rehberi
 
-Bu belge Puanla'nın App Store incelemesinden geçmesi için gerekenleri toplar: kodda
+Bu belge Expeat'in App Store incelemesinden geçmesi için gerekenleri toplar: kodda
 yapılanlar, senin yapman gerekenler ve App Store Connect'e yapıştırılacak hazır metinler.
 
 ## 1. Kodda hazır olanlar
@@ -13,7 +13,7 @@ yapılanlar, senin yapman gerekenler ve App Store Connect'e yapıştırılacak h
 | 1.2 Şikâyetlerin işlenmesi | Sunucu fonksiyonları hazır (`admin_reports`, `admin_resolve_report`: ihlal yok / içeriği kaldır / hesabı yasakla). Yönetim için ayrı web paneli yapılacak. |
 | 1.2 Kullanım koşulları (EULA) | Kayıtta "Hesap oluşturarak Kullanım Koşulları'nı (topluluk kuralları dahil) kabul edersin", sıfır tolerans maddesi. |
 | 2.1 Uygulama bütünlüğü | Ayarlanmamış Apple ile giriş kapalı (`APPLE_SIGN_IN_ENABLED`). Onboarding'de zorunlu adımlar atlanabilir. |
-| 2.3.8 Uygulama ikonu | Expo varsayılanı yerine Puanla ikonu ve açılış görseli. |
+| 2.3.8 Uygulama ikonu | Expo varsayılanı yerine Expeat ikonu ve açılış görseli. |
 | 5.1.1 Hesap silme | **Ayarlar → Hesabı sil** (iki onay, tüm veriler silinir). |
 | 5.1.1 Gereksiz veri | Telefon numarası isteğe bağlı ("Şimdilik geç"), amacı ekranda yazıyor: rehberden arkadaş bulma. Rehber eşleştirme gelene kadar zorunlu yapılmamalı. |
 | 5.1.1 İzin açıklamaları | Konum, kamera, fotoğraf, rehber açıklamaları Türkçe + İngilizce. |
@@ -25,11 +25,11 @@ yapılanlar, senin yapman gerekenler ve App Store Connect'e yapıştırılacak h
 
 ## 2. Senin yapman gerekenler (sırasıyla)
 
-1. **Destek e-postası.** `destek@puanla.app` şu an çalışmıyor. Apple inceleme ekibi bu adrese yazabilir, çalışan bir adres şart.
-   Alan adını alıp e-postayı kur. Başka bir adres kullanacaksan `src/constants/app.ts` → `SUPPORT_EMAIL`'i değiştir,
-   sonra `npm run legal:build -- --upload` çalıştır.
+1. **Alan adı ve destek e-postası.** Alan adı `expeat.app`, destek adresi `destek@expeat.app` (uygulamada, yasal
+   metinlerde ve sitede bu adres yazıyor). Alan adı alınıp e-posta yönlendirmesi kurulana kadar çalışmaz; Apple inceleme
+   ekibi bu adrese yazabilir, çalışan bir adres şart. Alan adını Vercel projesine de bağla (site `web/`).
 2. **Apple Developer Program** üyeliği (yıllık 99 $): developer.apple.com/programs.
-3. **Bundle ID** seçimi. İlk `eas build` sırasında sorulur ve sonradan değişmez (ör. `com.puanla.app`).
+3. **Bundle ID:** `app.puanla` (seçildi, değişmez).
 4. **İnceleme hesabı.** Uygulamadan normal şekilde bir hesap aç (ör. `inceleme@…`), birkaç mekân puanla, bir gönderi paylaş.
    E-posta ve şifreyi App Store Connect → App Review Information'a yaz.
 5. **Derleme ve yükleme:**
@@ -48,13 +48,14 @@ yapılanlar, senin yapman gerekenler ve App Store Connect'e yapıştırılacak h
 ## 3. App Store Connect metinleri
 
 ### Genel
-- **Ad:** Puanla
+- **Ad:** Expeat
 - **Birincil kategori:** Yemek ve İçecek (Food & Drink) · **İkincil:** Sosyal Ağ (Social Networking)
-- **Gizlilik Politikası URL:** https://kzedsqgegrzmngxvhmfk.supabase.co/storage/v1/object/public/legal/privacy-tr.txt
-- **Destek URL:** https://kzedsqgegrzmngxvhmfk.supabase.co/storage/v1/object/public/legal/support-tr.txt
+- **Gizlilik Politikası URL:** https://expeat.app/gizlilik (İngilizce: https://expeat.app/en/privacy)
+- **Destek URL:** https://expeat.app/destek (İngilizce: https://expeat.app/en/support)
+- **Pazarlama URL:** https://expeat.app (İngilizce: https://expeat.app/en)
 - **EULA:** App Store Connect'te "Standard Apple EULA" kalabilir; kendi koşullarımız uygulama içinde ve
-  https://kzedsqgegrzmngxvhmfk.supabase.co/storage/v1/object/public/legal/terms-tr.txt
-- (İngilizce sayfalar: aynı adreslerde `-tr` yerine `-en`.)
+  https://expeat.app/kosullar
+- Alan adı bağlanana kadar aynı sayfalar Vercel adresinde; düz metin yedekleri Supabase Storage `legal/*.txt`.
 
 ### Türkçe (tr)
 - **Alt başlık (30):** Gittiğin yerleri puanla, sırala
@@ -62,10 +63,10 @@ yapılanlar, senin yapman gerekenler ve App Store Connect'e yapıştırılacak h
 - **Anahtar kelimeler (100):** restoran,kafe,yemek,mekan,puan,liste,kahvaltı,meyhane,kebap,lezzet,harita,arkadaş,öneri
 - **Açıklama:**
   ```
-  Puanla, gittiğin restoran ve kafeleri puanlayıp sıraladığın, arkadaşlarının gerçekten sevdiği yerleri keşfettiğin sosyal bir lezzet uygulaması.
+  Expeat, gittiğin restoran ve kafeleri puanlayıp sıraladığın, arkadaşlarının gerçekten sevdiği yerleri keşfettiğin sosyal bir lezzet uygulaması.
 
   PUANLA VE SIRALA
-  Beğendim, idare eder ya da beğenmedim de; ardından iki mekânı karşılaştır. Puanla her yeri senin zevkine göre 10 üzerinden sıralar.
+  Beğendim, idare eder ya da beğenmedim de; ardından iki mekânı karşılaştır. Expeat her yeri senin zevkine göre 10 üzerinden sıralar.
 
   ARKADAŞLARINA GÜVEN
   Tanımadığın yorumcular yerine takip ettiğin kişilerin puanlarını gör. Kimlerle gittiğini etiketle, fotoğraflarını paylaş.
@@ -88,10 +89,10 @@ yapılanlar, senin yapman gerekenler ve App Store Connect'e yapıştırılacak h
 - **Keywords (100):** restaurant,cafe,food,foodie,rating,ranking,list,breakfast,kebab,istanbul,map,friends
 - **Description:**
   ```
-  Puanla is a social food app for rating and ranking the restaurants and cafés you visit — and discovering the places your friends truly love.
+  Expeat is a social food app for rating and ranking the restaurants and cafés you visit — and discovering the places your friends truly love.
 
   RATE AND RANK
-  Say whether you liked it, then compare it with places you've been. Puanla ranks every spot by your own taste on a 10-point scale.
+  Say whether you liked it, then compare it with places you've been. Expeat ranks every spot by your own taste on a 10-point scale.
 
   TRUST YOUR FRIENDS
   See scores from people you follow instead of strangers. Tag who you were with and share your photos.
@@ -127,7 +128,7 @@ yapılanlar, senin yapman gerekenler ve App Store Connect'e yapıştırılacak h
 
 ### App Review notları (İngilizce yapıştır)
 ```
-Puanla is a social app for rating restaurants. Sign-in is required to use it; please use the demo account below.
+Expeat is a social app for rating restaurants. Sign-in is required to use it; please use the demo account below.
 
 User-generated content safeguards (Guideline 1.2):
 - Terms of Use with zero tolerance for objectionable content are accepted at sign-up (links on the welcome and password screens; also Settings > Terms of Use).
@@ -145,5 +146,5 @@ Location is optional; without it the feed falls back to a city. Language: Settin
 - **Şikâyetler.** Web yönetim paneli gelene kadar: Supabase → Table Editor → `reports` (`resolved_at` boş olanlar).
   24 saat içinde bakılmalı. Panelin kullanacağı yönetici yetkisi SQL ile verilir:
   `update profiles set is_admin = true where id = '<kullanıcı id>';`
-- **Alan adı gelince** yasal sayfaları HTML olarak barındır. `scripts/.cache/legal/*.html` hazır, Cloudflare Pages
-  ya da GitHub Pages'e koyulabilir. Sonra `legalUrl` ve App Store Connect linklerini güncelle.
+- **Yasal sayfalar** web sitesinde (`npm run web:build`, Vercel). Metin değişince siteyi yeniden üret ve yayınla;
+  Supabase'teki düz metin yedeği için `npm run legal:build -- --upload`.

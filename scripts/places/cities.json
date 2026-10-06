@@ -1,0 +1,80 @@
+{
+  "istanbul": {
+    "city": "İstanbul",
+    "iso": "TR-34",
+    "bbox": { "south": 40.8, "west": 27.95, "north": 41.6, "east": 29.95 },
+    "districts": [
+      "Adalar", "Arnavutköy", "Ataşehir", "Avcılar", "Bağcılar", "Bahçelievler", "Bakırköy", "Başakşehir",
+      "Bayrampaşa", "Beşiktaş", "Beykoz", "Beylikdüzü", "Beyoğlu", "Büyükçekmece", "Çatalca", "Çekmeköy",
+      "Esenler", "Esenyurt", "Eyüpsultan", "Fatih", "Gaziosmanpaşa", "Güngören", "Kadıköy", "Kâğıthane",
+      "Kartal", "Küçükçekmece", "Maltepe", "Pendik", "Sancaktepe", "Sarıyer", "Silivri", "Sultanbeyli",
+      "Sultangazi", "Şile", "Şişli", "Tuzla", "Ümraniye", "Üsküdar", "Zeytinburnu"
+    ]
+  },
+  "ankara": {
+    "city": "Ankara",
+    "iso": "TR-06",
+    "bbox": { "south": 38.6, "west": 30.7, "north": 40.8, "east": 34.0 },
+    "districts": [
+      "Akyurt", "Altındağ", "Ayaş", "Balâ", "Beypazarı", "Çamlıdere", "Çankaya", "Çubuk", "Elmadağ", "Etimesgut",
+      "Evren", "Gölbaşı", "Güdül", "Haymana", "Kahramankazan", "Kalecik", "Keçiören", "Kızılcahamam", "Mamak",
+      "Nallıhan", "Polatlı", "Pursaklar", "Sincan", "Şereflikoçhisar", "Yenimahalle"
+    ]
+  },
+  "izmir": {
+    "city": "İzmir",
+    "iso": "TR-35",
+    "bbox": { "south": 37.75, "west": 26.15, "north": 39.45, "east": 28.55 },
+    "districts": [
+      "Aliağa", "Balçova", "Bayındır", "Bayraklı", "Bergama", "Beydağ", "Bornova", "Buca", "Çeşme", "Çiğli",
+      "Dikili", "Foça", "Gaziemir", "Güzelbahçe", "Karabağlar", "Karaburun", "Karşıyaka", "Kemalpaşa", "Kınık",
+      "Kiraz", "Konak", "Menderes", "Menemen", "Narlıdere", "Ödemiş", "Seferihisar", "Selçuk", "Tire", "Torbalı",
+      "Urla"
+    ]
+  },
+  "bursa": {
+    "city": "Bursa",
+    "iso": "TR-16",
+    "bbox": { "south": 39.55, "west": 28.1, "north": 40.7, "east": 30.1 },
+    "districts": [
+      "Büyükorhan", "Gemlik", "Gürsu", "Harmancık", "İnegöl", "İznik", "Karacabey", "Keles", "Kestel", "Mudanya",
+      "Mustafakemalpaşa", "Nilüfer", "Orhaneli", "Orhangazi", "Osmangazi", "Yenişehir", "Yıldırım"
+    ]
+  },
+  "kocaeli": {
+    "city": "Kocaeli",
+    "iso": "TR-41",
+    "bbox": { "south": 40.45, "west": 29.25, "north": 41.25, "east": 30.4 },
+    "districts": [
+      "Başiskele", "Çayırova", "Darıca", "Derince", "Dilovası", "Gebze", "Gölcük", "İzmit", "Kandıra",
+      "Karamürsel", "Kartepe", "Körfez"
+    ]
+  },
+  "eskisehir": {
+    "city": "Eskişehir",
+    "iso": "TR-26",
+    "bbox": { "south": 38.65, "west": 29.8, "north": 40.25, "east": 32.25 },
+    "districts": [
+      "Alpu", "Beylikova", "Çifteler", "Günyüzü", "Han", "İnönü", "Mahmudiye", "Mihalgazi", "Mihalıççık",
+      "Odunpazarı", "Sarıcakaya", "Seyitgazi", "Sivrihisar", "Tepebaşı"
+    ]
+  },
+  "trabzon": {
+    "city": "Trabzon",
+    "iso": "TR-61",
+    "bbox": { "south": 40.35, "west": 39.05, "north": 41.15, "east": 40.55 },
+    "districts": [
+      "Akçaabat", "Araklı", "Arsin", "Beşikdüzü", "Çarşıbaşı", "Çaykara", "Dernekpazarı", "Düzköy", "Hayrat",
+      "Köprübaşı", "Maçka", "Of", "Ortahisar", "Sürmene", "Şalpazarı", "Tonya", "Vakfıkebir", "Yomra"
+    ]
+  },
+  "adana": {
+    "city": "Adana",
+    "iso": "TR-01",
+    "bbox": { "south": 36.55, "west": 34.75, "north": 38.45, "east": 36.35 },
+    "districts": [
+      "Aladağ", "Ceyhan", "Çukurova", "Feke", "İmamoğlu", "Karaisalı", "Karataş", "Kozan", "Pozantı", "Saimbeyli",
+      "Sarıçam", "Seyhan", "Tufanbeyli", "Yumurtalık", "Yüreğir"
+    ]
+  }
+}

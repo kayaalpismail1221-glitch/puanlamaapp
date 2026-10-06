@@ -190,6 +190,8 @@ await measure('place_details', `select place_details($1)`, [place]);
 await measure('search_places (boş)', `select * from search_places('')`);
 await measure('search_places (boş, konum)', `select * from search_places('', $1, $2)`, KADIKOY);
 await measure('search_places ("kebap")', `select * from search_places('kebap', $1, $2)`, KADIKOY);
+// İki kelime: yakındaki tür/şehir eşleşmesi (20261019180000_search_near_words) 50 km içinde tüm kelimelere bakar
+await measure('search_places ("istanbul kebap")', `select * from search_places('istanbul kebap', $1, $2)`, KADIKOY);
 await measure('search_users ("user12")', `select * from search_users('user12')`);
 await measure('suggested_users', `select * from suggested_users(30)`);
 await measure('leaderboard (genel)', `select * from leaderboard('all', 'all')`);

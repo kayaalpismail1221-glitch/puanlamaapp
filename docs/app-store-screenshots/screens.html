@@ -2,11 +2,15 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
-<title>Puanla App Store</title>
+<title>Expeat App Store</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,500&display=block" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js"></script>
 <script src="region-map.js"></script>
+<script>/* Android haritası: uygulamadaki gibi MapLibre + OpenFreeMap + Puanla stili (map-style.js) */
+if(new URLSearchParams(location.search).get('os')==='android')document.write(
+  '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css">'+
+  '<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"><\/script><script src="map-style.js"><\/script>');</script>
 <style>
 :root{
   --navy:#0F1E3D; --navy2:#22386A; --navy3:#5670AE;
@@ -122,8 +126,74 @@ body.layer .slide::after{display:none}
 body.layer-copy .phone,body.layer-copy .float,body.layer-copy .callout,body.layer-copy svg.leaders{visibility:hidden}
 body.layer-phone .copy,body.layer-phone .float,body.layer-phone .callout,body.layer-phone svg.leaders{visibility:hidden}
 body.layer-float .copy,body.layer-float .phone{visibility:hidden}
+body.layer-nocopy .copy{visibility:hidden} /* web sitesi: telefon + açıklama etiketleri; gölgeyi site çizer */
+body.layer-nocopy .phone{box-shadow:inset 0 0 0 1.6px rgba(255,255,255,.22),inset 0 0 0 5px #0b0b0c}
 .wordmark{font-family:Newsreader,serif;font-weight:700;letter-spacing:-.5px;display:inline-flex;align-items:flex-end;gap:3px}
 .wordmark i{display:inline-block;border-radius:50%;background:#56A83B}
+
+/* ---------- Google Play (Android) modu: ?os=android ----------
+   450×800 CSS px × 2,4 = 1080×1920 (9:16; Play en fazla 2:1 kabul eder). Telefonun içi uygulamanın Android
+   arayüzü: Material 3 (constants/navigation.tsx, segmented-control.android.tsx, sekme çubuğu), Roboto,
+   Material Symbols Rounded (constants/android-symbols.ts eşlemesi). Metin ve içerik iOS setiyle aynı. */
+body.android .slide{width:450px;height:800px}
+body.android .copy{top:40px}
+body.android .phone{top:178px;width:420px;height:892px;transform:translateX(-50%) scale(.68);border-radius:46px;padding:9px;
+  background:linear-gradient(150deg,#3a3d42 0%,#1d1e21 25%,#151618 60%,#2e3136 100%)}
+body.android .phone::before{left:auto;right:-3px;top:170px;height:92px;box-shadow:none}
+body.android .phone::after{right:-3px;top:292px;height:54px}
+body.android .screen{border-radius:38px;font-family:Roboto,system-ui,sans-serif;font-feature-settings:normal}
+body.android .notif,body.android .callout{font-family:Roboto,system-ui,sans-serif}
+body.android .island{top:15px;width:15px;height:15px;border-radius:50%;background:#050506;box-shadow:inset 0 0 0 2.5px #1b1d22}
+body.android .sb{height:46px;padding:6px 24px 0 26px}
+body.android .sb .t{font-size:14.5px;font-weight:500;letter-spacing:.1px}
+body.android .home{width:104px;height:4px;bottom:9px;border-radius:2px;background:#111827;opacity:.55}
+body.android .home.light{background:#fff;opacity:.8}
+/* Üst çubuk: düz, gölgesiz, başlık solda (sekme kökünde 24/700, diğerlerinde 20/600) */
+body.android .navrow{top:46px;height:56px;padding:0 4px;justify-content:flex-start;gap:0}
+body.android .navrow > span:empty{display:none}
+body.android .navtitle{position:static;flex:1;text-align:left;padding:0 12px;font-size:20px;font-weight:600;color:var(--navy);letter-spacing:0}
+body.android .navtitle.large{font-size:24px;font-weight:700}
+body.android .navrow .gbtn,body.android .navrow .gbtn.glass{width:48px;height:48px;border-radius:24px;background:none;box-shadow:none;border:0;-webkit-backdrop-filter:none;backdrop-filter:none}
+body.android .navrow .spacer{flex:1}
+/* Fotoğraf üstündeki başlık: yüzen yuvarlak düğmeler (FloatingBackButton) */
+body.android .sb.light ~ .navrow{padding:0 12px;gap:8px}
+body.android .sb.light ~ .navrow .gbtn.glass{width:40px;height:40px;background:rgba(255,255,255,.92);box-shadow:0 1px 4px rgba(15,30,61,.25)}
+/* Cam yerine opak, yükseltilmiş yüzey */
+body.android .glass{background:#fff;-webkit-backdrop-filter:none;backdrop-filter:none;border:0;
+  box-shadow:0 1px 3px rgba(15,30,61,.16),0 4px 12px rgba(15,30,61,.08)}
+body.android .notif{background:#fff;-webkit-backdrop-filter:none;backdrop-filter:none;border-radius:16px;
+  box-shadow:0 24px 50px -12px rgba(0,0,0,.55)}
+body.android .msearch{height:56px!important;border-radius:28px!important;padding:0 18px!important;gap:14px!important}
+/* Material 3 segment düğmeleri */
+.mseg{display:flex;height:40px;border:1px solid var(--border);border-radius:20px;overflow:hidden;background:#fff}
+.mseg div{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;font-size:14px;font-weight:500;color:var(--text2);letter-spacing:.1px}
+.mseg div+div{border-left:1px solid var(--border)}
+.mseg .on{background:#E3E8F1;color:var(--navy);font-weight:600}
+.mseg .ms{font-size:18px}
+/* Material 3 gezinme çubuğu */
+body.android .tabbar{left:0;right:0;bottom:0;height:94px;border-radius:0;padding:12px 0 0;align-items:flex-start;
+  background:#fff;box-shadow:0 -1px 0 #EEF0F3}
+body.android .tab{height:auto;border-radius:0;gap:4px;color:var(--text2);background:none}
+body.android .tab .ind{width:64px;height:32px;border-radius:16px;display:flex;align-items:center;justify-content:center}
+body.android .tab.on .ind{background:#E3E8F1}
+body.android .tab span.l{font-size:12px;font-weight:500;letter-spacing:.3px}
+body.android .tab.on{color:var(--navy)}
+body.android .tab.on span.l{font-weight:700}
+.ms{font-family:'Material Symbols Rounded';font-weight:normal;font-style:normal;font-size:24px;line-height:1;width:1em;height:1em;
+  display:inline-flex;align-items:center;justify-content:center;overflow:hidden;flex:none;white-space:nowrap;letter-spacing:0;
+  font-feature-settings:'liga';-webkit-font-smoothing:antialiased;font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24}
+.ms.fill{font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24}
+
+/* ---------- Google Play tanıtım görseli (1024×500): ?os=android&s=feature ---------- */
+#sfeature{width:1024px;height:500px}
+body:not(.android) #sfeature{display:none}
+#sfeature .fcopy{position:absolute;left:72px;top:0;bottom:0;width:470px;display:flex;flex-direction:column;justify-content:center;z-index:5}
+#sfeature .wordmark{font-size:64px;color:#fff;line-height:1}
+#sfeature .wordmark i{width:13px;height:13px;margin-bottom:12px}
+#sfeature .fh{font-family:Newsreader,serif;font-weight:600;font-size:44px;line-height:1.08;letter-spacing:-.8px;color:#fff;margin-top:26px}
+#sfeature .fh em{font-style:italic;font-weight:500}
+#sfeature .fsub{margin-top:16px;font-size:19px;line-height:1.4;color:rgba(255,255,255,.74)}
+#sfeature .phone{left:auto;transform:scale(.56) rotate(var(--rot,0deg));transform-origin:top left}
 </style>
 </head>
 <body>
@@ -215,7 +285,7 @@ body.layer-float .copy,body.layer-float .phone{visibility:hidden}
   <div class="float notif" style="left:18px;right:18px;top:548px">
     <div class="appicon">p</div>
     <div style="flex:1;min-width:0">
-      <div class="row" style="justify-content:space-between"><span style="font-size:14px;font-weight:600;color:#111">Puanla</span><span style="font-size:12px;color:#6b7280">şimdi</span></div>
+      <div class="row" style="justify-content:space-between"><span style="font-size:14px;font-weight:600;color:#111">Expeat</span><span style="font-size:12px;color:#6b7280">şimdi</span></div>
       <div style="font-size:14px;line-height:1.3;color:#111">Selin, <b style="font-weight:600">Çiya Sofrası</b> için 9,6 verdi. Sen kaç verirdin?</div>
     </div>
   </div>
@@ -321,8 +391,8 @@ body.layer-float .copy,body.layer-float .phone{visibility:hidden}
       <div id="map" style="position:absolute;inset:0;overflow:hidden;background:#e9edf2"></div>
       <div style="position:absolute;top:58px;left:16px;right:16px;z-index:20;display:flex;flex-direction:column;gap:10px">
         <div class="glass row" style="height:48px;border-radius:24px;padding:0 16px;gap:10px;color:var(--text2)"><i data-lucide="search" style="width:19px;height:19px;stroke-width:2.2"></i><span class="f17" style="color:#8a909c">Mekân, semt, ilçe ara</span></div>
-        <div class="glass" style="height:36px;border-radius:18px;display:flex;padding:3px">
-          <div style="flex:1;border-radius:15px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.1);display:flex;align-items:center;justify-content:center;font-size:13.5px;font-weight:600">Puanla</div>
+        <div class="glass" data-seg style="height:36px;border-radius:18px;display:flex;padding:3px">
+          <div class="on" style="flex:1;border-radius:15px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.1);display:flex;align-items:center;justify-content:center;font-size:13.5px;font-weight:600">Expeat</div>
           <div style="flex:1;display:flex;align-items:center;justify-content:center;font-size:13.5px;font-weight:500">Gittiklerim</div>
           <div style="flex:1;display:flex;align-items:center;justify-content:center;font-size:13.5px;font-weight:500">Listem</div>
         </div>
@@ -330,7 +400,7 @@ body.layer-float .copy,body.layer-float .phone{visibility:hidden}
       <div id="pins" style="position:absolute;inset:0;z-index:10"></div>
       <div class="row" style="position:absolute;left:16px;right:16px;bottom:104px;z-index:25;gap:12px;padding:12px;border-radius:22px;background:#fff;box-shadow:0 12px 36px rgba(15,30,61,.22)">
         <div style="width:64px;height:64px;border-radius:12px;overflow:hidden;flex:none"><img class="ph" data-ph="1540189549336-e6e99c3679fe" data-w="300"></div>
-        <div style="flex:1;min-width:0"><div class="f17 bold">Asmalı Cavit</div><div class="f13 muted">Meyhane · Asmalı Mescit, Beyoğlu</div><div class="f13" style="margin-top:3px;color:var(--text2)">Puanla puanı · 86 kişi</div></div>
+        <div style="flex:1;min-width:0"><div class="f17 bold">Asmalı Cavit</div><div class="f13 muted">Meyhane · Asmalı Mescit, Beyoğlu</div><div class="f13" style="margin-top:3px;color:var(--text2)">Expeat puanı · 86 kişi</div></div>
         <span class="badge md" data-s="9.1"></span>
       </div>
       <div class="tabbar glass" data-tabs="2"></div>
@@ -364,7 +434,7 @@ body.layer-float .copy,body.layer-float .phone{visibility:hidden}
         </div>
         <div class="row" style="gap:12px;padding:2px 2px">
           <span class="badge md" data-s="9.2"></span>
-          <div><div class="f15 bold">Puanla kullanıcılarına göre</div><div class="f13 muted">Puanla puanı 9,2 · 214 kişi</div></div>
+          <div><div class="f15 bold">Expeat kullanıcılarına göre</div><div class="f13 muted">Expeat puanı 9,2 · 214 kişi</div></div>
         </div>
         <div style="font-size:20px;font-weight:600;margin-top:4px">Gönderiler (38)</div>
         <div id="grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin:-4px -16px 0;"></div>
@@ -477,7 +547,7 @@ body.layer-float .copy,body.layer-float .phone{visibility:hidden}
     <div class="screen">
       <div class="island"></div>
       <div class="sb" data-sb></div>
-      <div class="navrow"><div class="gbtn glass"><i data-lucide="chevron-left" style="stroke-width:2.6"></i></div><div class="navtitle">Puanla Ligi</div><div class="gbtn glass"><i data-lucide="user-plus"></i></div></div>
+      <div class="navrow"><div class="gbtn glass"><i data-lucide="chevron-left" style="stroke-width:2.6"></i></div><div class="navtitle">Expeat Ligi</div><div class="gbtn glass"><i data-lucide="user-plus"></i></div></div>
       <div style="position:absolute;top:112px;left:0;right:0">
         <div class="seg" style="margin-top:0"><div class="on">Bu ay</div><div>Tüm zamanlar</div></div>
         <div class="row" style="gap:8px;padding:12px 16px 0">
@@ -498,7 +568,36 @@ body.layer-float .copy,body.layer-float .phone{visibility:hidden}
   </div>
 </section>
 
+<!-- ===================== Google Play tanıtım görseli (yalnızca ?os=android) ===================== -->
+<section class="slide" id="sfeature">
+  <div class="fcopy">
+    <div class="wordmark">expeat</div>
+    <div class="fh">Gittiğin yerleri puanla,<br><em>arkadaşlarınla</em> keşfet</div>
+    <div class="fsub">Arkadaşlarının gerçekten sevdiği mekânlar, puan renkleriyle haritada.</div>
+  </div>
+  <div id="fphones"></div>
+</section>
+
 <script>
+/* ---------- Platform: varsayılan iOS (App Store), ?os=android Google Play ---------- */
+const ANDROID=new URLSearchParams(location.search).get('os')==='android';
+/* Lucide → Material Symbols Rounded (uygulamanın Android eşlemesi: constants/android-symbols.ts) */
+const MS={bell:'notifications',ellipsis:'more_vert',users:'group',heart:'favorite','message-circle':'chat_bubble',plus:'add',
+  bookmark:'bookmark',x:'close','undo-2':'undo','thumbs-up':'thumb_up',utensils:'restaurant',map:'map',camera:'photo_camera',
+  'clipboard-paste':'content_paste','chevron-right':'chevron_right','arrow-up-down':'swap_vert',search:'search',
+  'chevron-left':'arrow_back',share:'share','refresh-cw':'refresh',navigation:'near_me','chevron-down':'keyboard_arrow_down',
+  'user-plus':'person_add',crown:'crown',music:'music_note','arrow-up-right':'north_east','bookmark-check':'bookmark_added',
+  house:'home',user:'person'};
+if(ANDROID){
+  document.body.classList.add('android');
+  // Yalnızca kullanılan simgeler (Google Fonts icon_names alfabetik ister)
+  const names=[...new Set([...Object.values(MS),'check'])].sort();
+  for(const href of['https://fonts.googleapis.com/css2?family=Roboto:wght@400..700&display=block',
+    `https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0..1,0&icon_names=${names.join(',')}&display=block`]){
+    const l=document.createElement('link');l.rel='stylesheet';l.href=href;document.head.appendChild(l);
+    (window.__fontCss??=[]).push(new Promise(r=>{l.onload=l.onerror=r}))}
+}
+
 /* ---------- Puan renkleri (src/constants/theme.ts ile birebir) ---------- */
 const BANDS=[{min:6.7,max:10,from:'#65B32E',to:'#1E7B3C'},{min:3.4,max:6.6,from:'#F2A516',to:'#F5C518'},{min:0,max:3.3,from:'#B42318',to:'#EF4B3C'}];
 const h2r=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16));
@@ -518,10 +617,18 @@ const SB=`<span class="t">9:41</span><span class="r">
 <svg width="19" height="12" viewBox="0 0 19 12" fill="currentColor"><rect x="0" y="8" width="3.2" height="4" rx="1"/><rect x="5" y="5.5" width="3.2" height="6.5" rx="1"/><rect x="10" y="3" width="3.2" height="9" rx="1"/><rect x="15" y="0" width="3.2" height="12" rx="1"/></svg>
 <svg width="17" height="12" viewBox="0 0 17 12" fill="currentColor"><path d="M8.5 2.3c2.4 0 4.6.9 6.2 2.5l1.2-1.2C14 1.7 11.4.6 8.5.6S3 1.7 1.1 3.6l1.2 1.2C3.9 3.2 6.1 2.3 8.5 2.3zm0 3.4c1.5 0 2.8.6 3.8 1.5l1.2-1.2C12.2 4.8 10.4 4 8.5 4S4.8 4.8 3.5 6l1.2 1.2c1-.9 2.3-1.5 3.8-1.5zm0 3.4c.6 0 1.1.2 1.5.6L8.5 11.2 7 9.7c.4-.4.9-.6 1.5-.6z"/></svg>
 <svg width="28" height="13" viewBox="0 0 28 13"><rect x=".5" y=".5" width="24" height="12" rx="3.8" fill="none" stroke="currentColor" opacity=".4"/><rect x="2.3" y="2.3" width="20.4" height="8.4" rx="2.3" fill="currentColor"/><path d="M26 4.4v4.2c.8-.3 1.4-1.1 1.4-2.1s-.6-1.8-1.4-2.1z" fill="currentColor" opacity=".45"/></svg></span>`;
-document.querySelectorAll('[data-sb]').forEach(e=>e.innerHTML=SB);
+/* Android durum çubuğu: Wi-Fi, hücresel, dikey pil */
+const SB_ANDROID=`<span class="t">9:41</span><span class="r" style="gap:6px">
+<svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.5 1.2 9.1C4.1 6.3 7.9 4.6 12 4.6s7.9 1.7 10.8 4.5z"/></svg>
+<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M2.5 21.5 21.5 2.5v19z"/></svg>
+<svg width="9" height="16" viewBox="0 0 9 16" fill="currentColor"><rect x="2.6" y="0" width="3.8" height="2" rx=".6"/><rect x="0" y="1.6" width="9" height="14.4" rx="1.8"/></svg></span>`;
+document.querySelectorAll('[data-sb]').forEach(e=>e.innerHTML=ANDROID?SB_ANDROID:SB);
 const TABS=[['house','Feed'],['search','Ara'],['map','Harita'],['bookmark','Listem'],['user','Profilim']];
 document.querySelectorAll('[data-tabs]').forEach(e=>{const on=+e.dataset.tabs;
-  e.innerHTML=TABS.map(([ic,l],i)=>`<div class="tab ${i===on?'on':''}"><i data-lucide="${ic}" ${ic==='search'&&i===on?'class="nofill"':''}></i><span>${l}</span></div>`).join('')});
+  e.innerHTML=ANDROID
+    // Material 3: seçili sekmede lacivert tonlu hap ve dolu simge, etiket kalın
+    ? TABS.map(([ic,l],i)=>`<div class="tab ${i===on?'on':''}"><div class="ind"><i class="ms ${i===on?'fill':''}">${MS[ic]}</i></div><span class="l">${l}</span></div>`).join('')
+    : TABS.map(([ic,l],i)=>`<div class="tab ${i===on?'on':''}"><i data-lucide="${ic}" ${ic==='search'&&i===on?'class="nofill"':''}></i><span>${l}</span></div>`).join('')});
 
 /* ---------- Harita (OSM karoları, Beyoğlu–Karaköy) ---------- */
 (function(){
@@ -530,19 +637,33 @@ document.querySelectorAll('[data-tabs]').forEach(e=>{const on=+e.dataset.tabs;
   const n=2**Z, xt=(lon+180)/360*n, yt=(1-Math.log(Math.tan(lat*Math.PI/180)+1/Math.cos(lat*Math.PI/180))/Math.PI)/2*n;
   const px0=xt*TS-W/2, py0=yt*TS-H/2+40;
   window.MAPPROJ=(la,lo)=>{const x=(lo+180)/360*n*TS-px0;const y=(1-Math.log(Math.tan(la*Math.PI/180)+1/Math.cos(la*Math.PI/180))/Math.PI)/2*n*TS-py0;return[x,y]};
+  if(ANDROID&&window.maplibregl){
+    // Uygulamadaki harita: vektör karolar, Puanla stili, ⓘ atıf düğmesi. Harita gezinme çubuğunun üstünde biter.
+    // 512 px karolarla z14 = yukarıdaki 128 px'lik z16 dünyası: pinler (MAPPROJ) aynı yerde kalır.
+    const NAV=94,MH=H-NAV,world=n*TS;box.style.bottom=NAV+'px';
+    const cx=px0+W/2,cy=py0+MH/2;
+    const map=new maplibregl.Map({container:box,style:PUANLA_MAP_STYLE,zoom:14,interactive:false,fadeDuration:0,
+      attributionControl:{compact:true},
+      center:[cx/world*360-180,Math.atan(Math.sinh(Math.PI*(1-2*cy/world)))*180/Math.PI]});
+    // Uygulamadaki gibi yalnızca kapalı ⓘ düğmesi (MapLibre ilk açılışta atıf metnini açık gösterir)
+    const fold=()=>box.querySelectorAll('.maplibregl-compact-show').forEach(e=>e.classList.remove('maplibregl-compact-show'));
+    map.on('load',fold);map.on('idle',fold);
+    window.__mapIdle=new Promise(r=>map.once('idle',r)); // karolar yüklenip çizildi
+  }else{
   const layer=document.createElement('div');layer.style.cssText='position:absolute;inset:0;filter:saturate(.55) brightness(1.06) contrast(.88)';
   for(let tx=Math.floor(px0/TS);tx*TS<px0+W;tx++)for(let ty=Math.floor(py0/TS);ty*TS<py0+H;ty++){
     const i=document.createElement('img');i.src=`https://tile.openstreetmap.org/${Z}/${tx}/${ty}.png`;
     i.style.cssText=`position:absolute;left:${tx*TS-px0}px;top:${ty*TS-py0}px;width:${TS+.5}px;height:${TS+.5}px`;layer.appendChild(i)}
   box.appendChild(layer);
   const att=document.createElement('div');att.textContent='© OpenStreetMap';att.style.cssText='position:absolute;right:30px;bottom:92px;font-size:9px;color:#6b7280;z-index:2';box.appendChild(att);
+  }
   const pins=[ // [enlem, boylam, puan, seçili]
     [41.03190,28.97535,9.1,1],[41.02475,28.97860,8.5],[41.03185,28.98300,8.4],[41.03330,28.97950,8.7],[41.03580,28.98180,8.9],
     [41.02860,28.97480,9.5],[41.03430,28.97660,7.2],[41.02680,28.98250,8.8],[41.02960,28.97960,9.0],[41.02350,28.97420,8.1],
     [41.02660,28.97680,5.8],[41.03060,28.98560,9.3],[41.03750,28.98520,7.8],[41.03880,28.97950,8.6],[41.02900,28.98800,8.2],
     [41.03520,28.98840,9.4],[41.02150,28.97760,9.2],[41.03960,28.98320,7.5],[41.03300,28.98620,8.0],[41.03720,28.97620,9.0]];
-  const pl=document.getElementById('pins');
-  pins.forEach(([a,o,s,act])=>{const[x,y]=MAPPROJ(a,o);if(y<150||y>700)return;const c=scoreColor(s);const d=document.createElement('div');
+  const pl=document.getElementById('pins'); // Android'de arama çubuğu ve segment daha yüksek: üstteki pinler gizlenir
+  pins.forEach(([a,o,s,act])=>{const[x,y]=MAPPROJ(a,o);if(y<(ANDROID?185:150)||y>(ANDROID?640:700))return;const c=scoreColor(s);const d=document.createElement('div');
     d.textContent=fmt(s);d.style.cssText=`position:absolute;left:${x}px;top:${y}px;transform:translate(-50%,-50%) scale(${act?1.28:1});min-width:38px;height:28px;padding:0 8px;border-radius:14px;border:2px solid #fff;background:${c};color:${onScore(s)};font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(15,30,61,.3);font-variant-numeric:tabular-nums;${act?'z-index:3;box-shadow:0 0 0 6px rgba(101,179,46,.25),0 4px 10px rgba(15,30,61,.35)':''}`;pl.appendChild(d)});
   // Mavi konum noktası
   const [ux,uy]=MAPPROJ(41.0288,28.9772);const me=document.createElement('div');me.style.cssText=`position:absolute;left:${ux}px;top:${uy}px;transform:translate(-50%,-50%);width:18px;height:18px;border-radius:50%;background:#0A84FF;border:3px solid #fff;box-shadow:0 0 0 14px rgba(10,132,255,.14),0 2px 6px rgba(0,0,0,.25)`;pl.appendChild(me);
@@ -589,12 +710,12 @@ document.getElementById('grid').innerHTML=[P.meze,P.pilav,P.kebap,P.izgara,P.tat
   const disc=s=>`<div style="width:40px;height:40px;border-radius:50%;background:${scoreColor(s)};color:${onScore(s)};display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex:none">${fmt(s)}</div>`;
   const sc=document.getElementById('storycard');if(sc)sc.innerHTML=`<div style="position:absolute;inset:0;background:linear-gradient(160deg,#0F1E3D 0%,#22386A 55%,#5670AE 100%)"></div>
   <div style="position:absolute;inset:0;padding:30px 22px 22px;color:#fff;display:flex;flex-direction:column">
-    <div class="wordmark" style="font-size:22px">puanla<i style="width:6px;height:6px;margin-bottom:6px"></i></div>
+    <div class="wordmark" style="font-size:22px">expeat</div>
     <div style="margin-top:24px;font-size:10px;font-weight:700;letter-spacing:1.8px;color:rgba(255,255,255,.7)">EN İYİ MEKÂNLARIM</div>
     <div style="font-family:Newsreader,serif;font-weight:700;font-size:33px;line-height:1.05;letter-spacing:-.5px;margin-top:6px;white-space:nowrap">Favori 5 mekânım</div>
     <div style="margin-top:14px">${rows.map(([n,s,sc],i)=>`<div class="row" style="gap:12px;padding:12px 0;${i?'border-top:1px solid rgba(255,255,255,.14)':''}"><div style="width:20px;font-family:Newsreader,serif;font-size:24px;font-weight:700;color:rgba(255,255,255,.4)">${i+1}</div><div style="flex:1;min-width:0"><div style="font-size:15.5px;font-weight:700">${n}</div><div style="font-size:11.5px;color:rgba(255,255,255,.7);margin-top:1px">${s}</div></div>${disc(sc)}</div>`).join('')}</div>
     <div style="flex:1"></div>
-    <div class="row" style="gap:10px;padding-top:12px;border-top:1px solid rgba(255,255,255,.14)"><img class="av" src="${av(32)}" style="width:32px;height:32px;border:1.5px solid rgba(255,255,255,.7)"><div><div style="font-size:13px;font-weight:700">@defneaydin</div><div style="font-size:11px;color:rgba(255,255,255,.7)">Puanla’da beni takip et</div></div></div>
+    <div class="row" style="gap:10px;padding-top:12px;border-top:1px solid rgba(255,255,255,.14)"><img class="av" src="${av(32)}" style="width:32px;height:32px;border:1.5px solid rgba(255,255,255,.7)"><div><div style="font-size:13px;font-weight:700">@defneaydin</div><div style="font-size:11px;color:rgba(255,255,255,.7)">Expeat’te beni takip et</div></div></div>
   </div>`;
 })();
 
@@ -670,7 +791,58 @@ document.querySelectorAll('[data-s]').forEach(e=>{const s=+e.dataset.s;e.textCon
 document.querySelectorAll('img[data-ph]').forEach(e=>e.src=ph(e.dataset.ph,e.dataset.w||1000));
 document.querySelectorAll('img[data-av]').forEach(e=>e.src=av(e.dataset.av));
 document.querySelectorAll('[data-alt]').forEach(e=>e.setAttribute('data-lucide',e.dataset.alt));
+if(ANDROID)androidize();
 lucide.createIcons();
+if(ANDROID)featurePhones();
+
+/* ---------- Android arayüzü: iOS kopyasını Material 3 karşılığına çevirir ---------- */
+function androidize(){
+  // Simgeler: Material Symbols Rounded, boyut ve renk aynı; dolu (fill) olanlar dolu
+  document.querySelectorAll('[data-lucide]').forEach(el=>{const name=MS[el.dataset.lucide];if(!name)return;
+    const ms=document.createElement('i');ms.className='ms'+(el.classList.contains('fill')?' fill':'');ms.textContent=name;
+    ms.style.cssText=el.style.cssText;ms.style.transform='';ms.style.strokeWidth='';
+    const size=parseFloat(el.style.width)||24;Object.assign(ms.style,{fontSize:size+'px',width:size+'px',height:size+'px'});
+    el.replaceWith(ms)});
+
+  // Üst çubuk: başlık solda (geri/kapat düğmesinden sonra), eylemler sağda; iOS büyük başlığı çubuğa taşınır
+  document.querySelectorAll('.slide').forEach(sl=>{const nav=sl.querySelector('.navrow');if(!nav)return;
+    const lead=nav.firstElementChild?.classList.contains('gbtn')&&/arrow_back|close/.test(nav.firstElementChild.textContent)?nav.firstElementChild:null;
+    let title=nav.querySelector('.navtitle');const large=sl.querySelector('.lt');
+    if(large){title=document.createElement('div');title.className='navtitle';title.textContent=large.textContent;large.remove()}
+    const slot=title||Object.assign(document.createElement('div'),{className:'spacer'});
+    if(title)title.classList.toggle('large',!!large||!!sl.querySelector('.tabbar'));
+    lead?lead.after(slot):nav.prepend(slot)});
+
+  // Segment: Material 3 SegmentedButton (seçili bölüm tonlu zemin + onay işareti)
+  document.querySelectorAll('.seg,[data-seg]').forEach(seg=>{
+    const m=document.createElement('div');m.className='mseg';
+    m.innerHTML=[...seg.children].map(c=>{const on=c.classList.contains('on');return `<div class="${on?'on':''}">${on?'<i class="ms">check</i>':''}${c.textContent.trim()}</div>`}).join('');
+    if(seg.classList.contains('seg'))m.style.margin=seg.style.marginTop==='0px'?'0 16px':'10px 16px 0';
+    else m.style.boxShadow='0 1px 3px rgba(15,30,61,.16),0 4px 12px rgba(15,30,61,.08)'; // harita üstünde
+    seg.replaceWith(m)});
+
+  // Harita: her zaman görünen hap arama çubuğu
+  const search=document.querySelector('#s4 .glass.row');search.classList.add('msearch');
+  search.querySelector('.f17').style.fontSize='16px';
+  // Durum çubuğu harita yazılarının üstünde okunsun (kenardan kenara harita)
+  const scrim=document.createElement('div');scrim.style.cssText='position:absolute;top:0;left:0;right:0;height:56px;z-index:12;background:linear-gradient(180deg,rgba(255,255,255,.92),rgba(255,255,255,0))';
+  document.querySelector('#s4 #map').after(scrim);
+  // Mekân kartı ⓘ atıf düğmesinin üstünde dursun
+  document.querySelector('#s4 .row[style*="bottom:104px"]').style.bottom='128px';
+
+  // Telefon dışındaki etiketler ve kartlar telefonun yeni yerine/ölçeğine taşınır
+  const remap=y=>178+(9+((y-214)/.8-11))*.68;
+  document.querySelectorAll('.callout,.float').forEach(e=>{const t=parseFloat(e.style.top);if(!isNaN(t))e.style.top=remap(t).toFixed(1)+'px'});
+}
+
+/* Tanıtım görseli: Feed ve Mekân telefonları (Android hâlleri) */
+function featurePhones(){
+  const box=document.getElementById('fphones');
+  // Harita tuvali (WebGL) kopyalanamaz: Feed ve Mekân sayfası
+  [['s5',800,78,'5deg',1],['s1',568,36,'-4deg',2]].forEach(([id,x,y,rot,z])=>{
+    const p=document.querySelector(`#${id} .phone`).cloneNode(true);
+    Object.assign(p.style,{left:x+'px',top:y+'px',zIndex:z});p.style.setProperty('--rot',rot);box.appendChild(p)});
+}
 
 const q=new URLSearchParams(location.search).get('s');
 function drawLeaders(){document.querySelectorAll('.slide').forEach(sl=>{const svg=sl.querySelector('svg.leaders');if(!svg)return;const o=sl.getBoundingClientRect();let h='';
@@ -684,7 +856,14 @@ function drawLeaders(){document.querySelectorAll('.slide').forEach(sl=>{const sv
 const layer=new URLSearchParams(location.search).get('layer');
 if(layer){document.documentElement.style.background='transparent';document.body.classList.add('layer','layer-'+layer)}
 if(q){document.body.classList.add('single');document.getElementById('s'+q).classList.add('on')}else document.body.classList.add('gallery');
-document.fonts.ready.then(()=>requestAnimationFrame(drawLeaders));
+/* Hazır olunca çizgiler çizilir ve render-play.py'ye haber verilir (__shotReady): yazı tipleri, fotoğraflar, harita */
+const imagesLoaded=[...document.images].filter(i=>!i.complete).map(i=>new Promise(r=>{i.addEventListener('load',r);i.addEventListener('error',r)}));
+Promise.all([...(window.__fontCss??[])])
+  .then(()=>Promise.all([document.fonts.ready,
+    ...(ANDROID?[document.fonts.load('24px "Material Symbols Rounded"','home'),document.fonts.load('500 16px Roboto')]:[]),
+    // Harita gizli slaytta çizilmeyebilir: en fazla 20 sn beklenir
+    Promise.race([window.__mapIdle,new Promise(r=>setTimeout(r,20000))]),...imagesLoaded]))
+  .then(()=>requestAnimationFrame(()=>{drawLeaders();requestAnimationFrame(()=>{window.__shotReady=true})}));
 </script>
 </body>
 </html>

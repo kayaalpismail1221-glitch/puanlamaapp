@@ -2,20 +2,21 @@
  * OSM ve Overture kayıtlarını tek mekân listesine birleştirir.
  *
  * 1. Her kaynaktan aday: isim temizlenir (büyük harf, emoji, Latin olmayan yazı), mekân olmayanlar ayıklanır,
- *    ilçe OSM sınırlarından bulunur (İstanbul dışı atılır), adres/telefon/web tek biçime getirilir.
+ *    ilçe OSM sınırlarından bulunur (il dışı atılır), adres/telefon/web tek biçime getirilir.
  * 2. Aynı mekânın kayıtları birleşir: yakın (≤ 60 m, aynı telefonla ≤ 250 m) ve benzer adlı kayıtlar.
  *    Aynı kaynağın iki kaydı birleşmez (OSM'de iki ayrı düğüm iki ayrı mekândır); kapı numarası farklı
- *    kayıtlar da birleşmez (aynı zincirin komşu şubeleri).
+ *    kayıtlar da birleşmez (aynı zincirin komşu şubeleri). Kümedeki her kayıt çiftinin adı uyuşmalı (zincirleme
+ *    birleşme yok); yalnızca sokak/mahalle adında uyuşan adlar ayrıca aynı türde olmalı.
  * 3. Konum, ad, adres, telefon önce Overture'dan (güncel), eksikler OSM'den; tür önce OSM'den.
  * 4. Yalnızca Overture'da olan, güveni düşük kayıtlar atılır (kapanmış/sahte sayfa riski).
  *
  * Mahalle burada hesaplanmaz: veritabanı her mekânın il/ilçe/mahallesini koordinattan kendisi yazar.
- * Çalıştırma: npm run places:build  → scripts/.cache/places.json + özet
+ * Çalıştırma: [PLACES_CITY=ankara] npm run places:build  → scripts/.cache/places[-il].json + özet
  */
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { districtAt, districtPolygons, distanceToPolygonKm } from './boundaries.mjs';
+import { districtAt, districtPolygons, distanceToPolygonKm, inside, readBoundaries, toPolygon } from './boundaries.mjs';
 import { CACHE_DIR, CITY, OUTPUT_FILE, OVERTURE_FILE } from './config.mjs';
 import {
   buildDiacriticDictionary,
@@ -31,7 +32,9 @@ import {
   OSM_TYPES,
   overtureCategory,
   restoreTurkish,
+  nameTokens,
   similarNames,
+  spellingSimilarity,
 } from './lib.mjs';
 
 /**
@@ -43,6 +46,33 @@ const MIN_CONFIDENCE = 0.75;
 const CLAIMED_DISTRICT_KM = 1.5;
 const MERGE_METERS = 60;
 const MERGE_SAME_PHONE_METERS = 250;
+/**
+ * Aynı nokta: farklı kaynaktan bu kadar yakın, ilk ayırt edici kelimesi ve türü aynı iki kayıt, adlar şunlardan biriyse
+ * tek mekândır: biri İngilizceye çevrilmiş (TRANSLATED_NAME: "Tuğba Ekmek ve Pasta Fırını" / "Tugba Bread and Cake
+ * Bakery", 8 m), yalnızca yazımda ayrışıyor (SPELLING_SIMILARITY: "Burger Yiyelin" / "Burger Yiyelim") ya da yalnızca
+ * tür/şube kelimesinde ayrışıyor (GENERIC_WORDS: "Fornello Pizza" / "Fornello Pizzeria", "Günbilir Balık Restaurant" /
+ * "Gunbilir Fish Restaurant"). Tür şartı kardeş işletmeleri ayırır: "Çiya Sofrası" (restoran) / "Çiya Kebap"
+ * (kebapçı), 4 m; "Sembol Ocakbaşı" / "Sembol Künefe".
+ */
+const SAME_SPOT_METERS = 25;
+const SPELLING_SIMILARITY = 0.85;
+/** Mekânın adında tür ya da şube bildiren kelimeler (fold'lanmış): ayırt edici değil */
+const GENERIC_WORDS = new Set([
+  'restaurant', 'restoran', 'restorani', 'restaurant', 'lokanta', 'lokantasi', 'cafe', 'kafe', 'kafesi', 'balik', 'baligi',
+  'balikcisi', 'balikci', 'fish', 'seafood', 'meze', 'pizza', 'pizzeria', 'pizzacisi', 'kebap', 'kebab', 'kebapcisi',
+  'doner', 'donercisi', 'burger', 'burgers', 'tatli', 'tatlicisi', 'pastane', 'pastanesi', 'pasta', 'borek', 'borekcisi',
+  'firin', 'firini', 'cikolata', 'chocolat', 'chocolate', 'helva', 'helvacisi', 'turkish', 'delight', 'place', 'yeri',
+  'nun', 'nin', 'grill', 'steakhouse', 'steak', 'ocakbasi', 'meyhane', 'meyhanesi', 'kahvalti', 'kahvaltici', 'corba',
+  'corbaci', 'kofte', 'koftecisi', 'pide', 'pidecisi', 'dondurma', 'dondurmacisi', 'evi', 'salon', 'salonu',
+]);
+/**
+ * Zayıf kayıt (silinmez; "yakınımdakiler"de çıkmaz, aramada sona düşer; puanlanınca önemi kalmaz).
+ * 2026-10-02 Google ölçümü: telefonu/sitesi/adresi olmayan yalnız-OSM kaydı 21'de 6, güveni < 0,80 yalnız-Overture
+ * kaydı 17'de ~6 doğru; iki kaynakta olan ~%75, güveni ≥ 0,80 yalnız-Overture ~%60.
+ */
+const WEAK_CONFIDENCE = 0.8;
+/** Overture'ın (Meta) adı İngilizceye çevirdiği kayıtlar: OSM'deki Türkçe ad tercih edilir */
+const TRANSLATED_NAME = /\b(bread|cake|bakery|meatball|soup|kitchen|patisserie|pastry|dessert|grill house|coffee house)\b/i;
 
 const districts = districtPolygons();
 const readTiles = () =>
@@ -59,7 +89,8 @@ const diacritics = buildDiacriticDictionary([
   ...(overtureData?.places ?? []).flatMap((p) => [p.name, p.address]),
 ]);
 const turkish = (text) => restoreTurkish(text, diacritics);
-const skipped = { name: 0, filtered: 0, outside: 0, category: 0, confidence: 0, foursquare: 0, location: 0, deleted: 0 };
+const skipped = { name: 0, filtered: 0, outside: 0, category: 0, confidence: 0, foursquare: 0, location: 0, deleted: 0, mall: 0 };
+let translated = 0;
 const districtByName = new Map(districts.map((d) => [fold(d.name), d]));
 
 /* ---------- OSM ---------- */
@@ -195,7 +226,8 @@ function sameVenue(a, b, d, chains) {
   const na = houseNumber(a.address);
   const nb = houseNumber(b.address);
   if (na && nb && na !== nb && d > 25) return false;
-  if (!similarNames(a.name, b.name)) return false;
+  if (a.source !== b.source && d <= SAME_SPOT_METERS && sameSpotVenue(a, b)) return true;
+  if (!namesMatch(a, b)) return false;
   // Overture kendi içinde de tekrar eder (Meta sayfası + Foursquare); aynı veri kümesinin iki kaydı çok yakın olmalı
   const sameDataset = a.source === 'overture' && b.source === 'overture' && a.datasets[0] === b.datasets[0];
   if (d <= (sameDataset ? 30 : MERGE_METERS)) return true;
@@ -206,13 +238,120 @@ function sameVenue(a, b, d, chains) {
   return equal && !chains.has(nameKey(a.name));
 }
 
-/** Kümede birbirine uymayan kayıt çifti var mı (zincirleme birleşme: A~B, B~C ama A≠C) */
+/** Kaydın türü (birleşmeden önce, kendi bilgisiyle; önbellekli) */
+const recordCategory = new WeakMap();
+function categoryOf(r) {
+  if (!recordCategory.has(r)) recordCategory.set(r, categorize(r.name, { osmCuisine: r.osmCuisine ?? '', fallbacks: [r.type] }));
+  return recordCategory.get(r);
+}
+
+/** Aynı noktadaki iki kaydın adı aynı mekânı mı gösteriyor (bkz. SAME_SPOT_METERS) */
+function sameSpotVenue(a, b) {
+  const tokensA = nameTokens(a.name);
+  const tokensB = nameTokens(b.name);
+  const [first] = tokensA;
+  if (!first || first.length < 4 || first !== tokensB[0]) return false;
+  // Yazım hatası türü de bozabilir ("Mero Lahamcun" tanınmıyor): adlar neredeyse aynıysa tür aranmaz
+  if (spellingSimilarity(a.name, b.name) >= SPELLING_SIMILARITY) return true;
+  if (categoryOf(a) !== categoryOf(b)) return false;
+  if (TRANSLATED_NAME.test(a.name) || TRANSLATED_NAME.test(b.name)) return true;
+  const distinct = (tokens) => new Set(tokens.filter((t) => !GENERIC_WORDS.has(t)));
+  const [da, db] = [distinct(tokensA), distinct(tokensB)];
+  const within = (x, y) => [...x].every((t) => y.has(t));
+  return da.size > 0 && db.size > 0 && (within(da, db) || within(db, da));
+}
+
+/** Sokak ve mahalle adında yer bildirmeyen kelimeler (fold'lanmış) */
+const STREET_WORDS = new Set([
+  'cad', 'cadde', 'caddesi', 'sok', 'sokak', 'sokagi', 'bulvari', 'blv', 'bulv', 'yolu', 'mah', 'mahallesi', 'meydani',
+  'kat', 'apt', 'sitesi', 'carsisi', 'pasaji', 'han', 'hani', 'merkezi',
+]);
+const neighborhoods = readBoundaries('neighborhoods.json').map(toPolygon).filter((n) => n?.name);
+
+const MALL_WORDS = new Set(['avm', 'mall', 'outlet']);
+const MALL_METERS = 300;
+let mallAnchors;
+/**
+ * Yakındaki AVM'lerin adı. AVM: adında ya da adresinde "X AVM", "X Mall", "Mall of X" geçen kayıt. AVM'deki mekânın
+ * adında AVM'nin adı geçer ("Espressolab Anatolium Marmara AVM", "Marmara Forum Subway"); bu ad yalnızca AVM'ye
+ * MALL_METERS'tan yakın kayıtlar için konum kelimesidir (il geneli değil: "Kale AVM" yüzünden Sarıyer'deki "Rumeli
+ * Kale Cafe" bölünmesin).
+ */
+function mallWordsNear(r) {
+  mallAnchors ??= allRecords.flatMap((m) => {
+    const words = new Set();
+    for (const text of [m.name, m.address ?? '']) {
+      const t = fold(text).split(/[^a-z0-9]+/).filter(Boolean);
+      t.forEach((w, i) => {
+        if (!MALL_WORDS.has(w)) return;
+        words.add(w);
+        // "Mall of İstanbul": ad sonra gelir; "Vadi Mall", "Forum AVM": önce
+        const name = w === 'mall' && t[i + 1] === 'of' ? t[i + 2] : t[i - 1];
+        if (name && name.length > 2 && !STREET_WORDS.has(name)) words.add(name);
+      });
+    }
+    return words.size ? [{ words: [...words], latitude: m.latitude, longitude: m.longitude }] : [];
+  });
+  return mallAnchors.filter((m) => distanceMeters(m, r) <= MALL_METERS).flatMap((m) => m.words);
+}
+
+const recordPlaceWords = new WeakMap();
+/** Kaydın konum kelimeleri: adresindeki sokak, bulunduğu mahalle ve yakındaki AVM'nin adı (önbellekli) */
+function placeWords(r) {
+  if (!recordPlaceWords.has(r)) {
+    const words = (text) => fold(text).split(/[^a-z0-9]+/).filter((t) => t.length > 2 && !STREET_WORDS.has(t));
+    const hood = neighborhoods.find((n) => inside([r.longitude, r.latitude], n));
+    recordPlaceWords.set(r, [
+      ...words((r.address ?? '').replace(/No:.*$/, '')),
+      ...(hood ? words(hood.name) : []),
+      ...mallWordsNear(r),
+    ]);
+  }
+  return recordPlaceWords.get(r);
+}
+
+/** AVM'nin kendi kaydı ("Optimum AVM", "Istanbul, Vadi Mall"): mekân değil, AVM'deki mekânları birbirine bağlıyordu */
+function isMallRecord(r) {
+  if (!fold(r.name).split(/[^a-z0-9]+/).some((w) => MALL_WORDS.has(w))) return false;
+  const place = new Set([...placeWords(r), 'of']);
+  return nameTokens(r.name).every((w) => place.has(w));
+}
+
+/**
+ * Adlar aynı mekânı mı gösteriyor (similarNames). Benzerlik yalnızca konum kelimesinden geliyorsa (sokak, mahalle ya
+ * da AVM adı) tür de aynı olmalı ve konum dışında kalan ayırt edici kelimeler çatışmamalı: "Topkapı Pub" / "Topkapı
+ * Kebap", "Espressolab Anatolium Marmara AVM" / "Çaytaze Anatolium Marmara AVM" ayrı kalır; sokağıyla adaş mekân
+ * birleşmeye devam eder ("Ara Cafe" / "Cafe Ara", Ara Güler Sk.; "Asmalıpera Pub" / "Asmalı Pera Bar").
+ */
+function namesMatch(a, b) {
+  if (!similarNames(a.name, b.name)) return false;
+  const ignore = new Set([...placeWords(a), ...placeWords(b)]);
+  if (similarNames(a.name, b.name, { ignore })) return true;
+  if (categoryOf(a) !== categoryOf(b)) return false;
+  const rest = (r) => nameTokens(r.name).filter((t) => !ignore.has(t) && !GENERIC_WORDS.has(t)).join('');
+  const [ra, rb] = [rest(a), rest(b)];
+  return !ra || !rb || ra.includes(rb) || rb.includes(ra);
+}
+
+/** İki kaydın adı aynı mekânın olabilir mi (sameVenue'deki ad koşullarından biri) */
+function namesCompatible(a, b) {
+  if (nameKey(a.name) === nameKey(b.name) || namesMatch(a, b)) return true;
+  return a.source !== b.source && sameSpotVenue(a, b);
+}
+
+/**
+ * İki küme birleşebilir mi: her kayıt çifti birbirine yakın olmalı ve adları uyuşmalı. Zincirleme birleşme olmaz
+ * (A~B, B~C ama A≠C): "Cihangir Lokantası" adı mahalledeki her "… Cihangir" mekânına benzediği için mahallenin
+ * mekânlarını tek kümede topluyordu (2026-10-02, İstanbul'da 150 küme: "Sbarro" + "Popeyes", "Bebek Bar" + "Little
+ * China Bebek" …).
+ */
 function compatible(left, right) {
   for (const a of left) {
     for (const b of right) {
       const d = distanceMeters(a, b);
       if (d > MERGE_SAME_PHONE_METERS) return false;
       if (a.source === 'osm' && b.source === 'osm' && !(nameKey(a.name) === nameKey(b.name) && d <= OSM_DUPLICATE_METERS)) return false;
+      if (!namesCompatible(a, b)) return false;
     }
   }
   return true;
@@ -277,9 +416,14 @@ function merge(group) {
   const address = (ordered.find((r) => houseNumber(r.address)) ?? ordered.find((r) => r.address))?.address ?? '';
   // Ad aynıysa Türkçe karakterli yazım seçilir: Overture'da "Tavuk Dunyasi" gibi sadeleşmiş adlar var
   const turkish = (name) => (name.match(/[çğıöşüÇĞİÖŞÜ]/g) ?? []).length;
-  const name = ordered
+  let name = ordered
     .filter((r) => fold(r.name).replace(/[^a-z0-9]/g, '') === fold(anchor.name).replace(/[^a-z0-9]/g, ''))
     .reduce((best, r) => (turkish(r.name) > turkish(best) ? r.name : best), anchor.name);
+  const osmName = osm.find((r) => !TRANSLATED_NAME.test(r.name))?.name;
+  if (osmName && TRANSLATED_NAME.test(name) && !turkish(name)) {
+    name = osmName;
+    translated++;
+  }
   // Tür: OSM'nin türü Meta etiketlerinden güvenilir ("Cızbız Sucuk Köfte" → mediterranean)
   const cuisine = categorize(name, {
     osmCuisine: osm.map((r) => r.osmCuisine).join(';'),
@@ -289,6 +433,9 @@ function merge(group) {
     skipped.category++;
     return null;
   }
+  const weak = !overture.length
+    ? !osm.some((r) => r.phone || r.website || r.address)
+    : !osm.length && overture[0].confidence < WEAK_CONFIDENCE;
   return {
     sources: ordered.map((r) => ({ source: r.source, external_id: r.id })),
     name,
@@ -300,12 +447,16 @@ function merge(group) {
     longitude: Math.round(anchor.longitude * 1e6) / 1e6,
     city: CITY,
     district: anchor.district,
+    weak,
   };
 }
 
 /* ---------- Ana akış ---------- */
 
-const records = [...osmRecords(), ...overtureRecords()];
+console.log(`İl: ${CITY}`);
+const allRecords = [...osmRecords(), ...overtureRecords()];
+const records = allRecords.filter((r) => !isMallRecord(r));
+skipped.mall = allRecords.length - records.length;
 const groups = cluster(records);
 const rows = groups.map(merge).filter(Boolean);
 writeFileSync(OUTPUT_FILE, JSON.stringify(rows));
@@ -316,11 +467,12 @@ const count = (list, key) =>
 
 console.log(`\n${records.length} kayıt → ${groups.length} küme → ${rows.length} mekân (${OUTPUT_FILE})`);
 console.log(
-  `Atlanan: ${skipped.name} geçersiz ad, ${skipped.filtered} mekân değil, ${skipped.outside} İstanbul dışı, ` +
+  `Atlanan: ${skipped.name} geçersiz ad, ${skipped.filtered} mekân değil, ${skipped.outside} ${CITY} dışı, ` +
     `${skipped.confidence} düşük güven, ${skipped.category} kategorisiz, ${skipped.foursquare} yalnızca Foursquare, ` +
-    `${skipped.location} ilçesi pinle çelişen, ${skipped.deleted} OSM'den silinmiş`,
+    `${skipped.location} ilçesi pinle çelişen, ${skipped.deleted} OSM'den silinmiş, ${skipped.mall} AVM'nin kendisi`,
 );
 const sourceMix = count(rows, (r) => [...new Set(r.sources.map((s) => s.source))].join('+'));
+console.log(`Zayıf (yakınımdakilerde çıkmaz): ${rows.filter((r) => r.weak).length} (${pct(rows.filter((r) => r.weak).length)}); çevrilmiş ad yerine Türkçe ad: ${translated}`);
 console.log(`Kaynak: ${sourceMix.map(([k, n]) => `${k} ${n}`).join(', ')}`);
 console.log(
   `Adres ${pct(rows.filter((r) => r.address).length)} (kapı no ${pct(rows.filter((r) => houseNumber(r.address)).length)}), ` +

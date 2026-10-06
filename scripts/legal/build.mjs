@@ -1,10 +1,10 @@
 /**
- * Yasal metinleri (src/constants/legal.ts) herkese açık sayfalara çevirir:
+ * Yasal metinlerin (src/constants/legal.ts) düz metin yedekleri. Asıl herkese açık sayfalar web sitesinde
+ * (`npm run web:build`, `legalUrl` → https://expeat.app/gizlilik …); bunlar ona bağlantı verir.
  * - .txt: `--upload` ile Supabase Storage'daki herkese açık "legal" klasörüne yüklenir. Supabase güvenlik gereği
- *   HTML'i düz metin olarak sunduğundan (text/plain + sandbox) yayında okunaklı düz metin kullanılır.
+ *   HTML'i düz metin olarak sunduğundan (text/plain + sandbox) okunaklı düz metin kullanılır.
  *   Başa UTF-8 BOM eklenir; tarayıcılar Türkçe karakterleri doğru gösterir.
- * - .html: alan adı alınınca statik barındırmaya (Cloudflare Pages, GitHub Pages…) konacak hazır sayfalar.
- * App Store Connect → Privacy Policy URL: .../storage/v1/object/public/legal/privacy-tr.txt
+ * - .html: yerel önizleme (scripts/.cache/legal/).
  *
  * Çalıştırma: npm run legal:build            (yalnızca scripts/.cache/legal/ altına yazar)
  *             npm run legal:build -- --upload (SUPABASE_SERVICE_ROLE_KEY gerekir)
@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 
 import { createClient } from '@supabase/supabase-js';
 
-import { legalUrl, SUPPORT_EMAIL } from '../../src/constants/app.ts';
+import { legalUrl, SUPPORT_EMAIL } from '../../src/constants/contact.ts';
 import { legalText } from '../../src/constants/legal.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -42,7 +42,7 @@ function page(lang, doc) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${escape(text.title)} · Puanla</title>
+  <title>${escape(text.title)} · Expeat</title>
   <meta name="description" content="${escape(text.intro)}">
   <link rel="alternate" hreflang="${other}" href="${legalUrl(doc, other)}">
   <style>
@@ -68,14 +68,14 @@ function page(lang, doc) {
 <body>
   <main>
     <header>
-      <span class="brand">puanla</span>
+      <span class="brand">Expeat</span>
       <a class="lang" href="${legalUrl(doc, other)}" hreflang="${other}">${other === 'en' ? 'English' : 'Türkçe'}</a>
     </header>
     <h1>${escape(text.title)}</h1>
     <p class="updated">${escape(text.updated)}</p>
     <p class="intro">${linkify(text.intro)}</p>
     ${sections}
-    <footer>© ${new Date().getFullYear()} Puanla · <a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a></footer>
+    <footer>© ${new Date().getFullYear()} Expeat · <a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a></footer>
   </main>
 </body>
 </html>
@@ -100,7 +100,7 @@ function plain(lang, doc) {
     return lines.map((l, i) => (i === 0 ? l : indent + l)).join('\n');
   };
   const out = [
-    'PUANLA',
+    'EXPEAT',
     '',
     text.title.toLocaleUpperCase(lang === 'tr' ? 'tr-TR' : 'en-US'),
     '='.repeat(text.title.length),
@@ -155,7 +155,6 @@ if (process.argv.includes('--upload')) {
       cacheControl: '300',
     });
     if (error) throw error;
-    const [doc, lang] = name.replace('.txt', '').split('-');
-    console.log(`yüklendi: ${legalUrl(doc, lang)}`);
+    console.log(`yüklendi: ${url}/storage/v1/object/public/${BUCKET}/${name}`);
   }
 }

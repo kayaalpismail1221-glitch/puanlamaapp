@@ -2,7 +2,7 @@
  * Mekân verisini temizleyen saf fonksiyonlar (build.mjs kullanır, lib.test.mjs sınar):
  * isim, sokak adresi, telefon, web sitesi, kategori ve iki kaydın aynı mekân olup olmadığı.
  */
-import { DISTRICTS } from './config.mjs';
+import { CITY, DISTRICTS } from './config.mjs';
 
 /* ---------- Metin ---------- */
 
@@ -132,9 +132,9 @@ export function restoreTurkish(text, dictionary) {
 
 /* ---------- Adres ---------- */
 
-// Türkiye'nin 81 ili (İstanbul hariç): adreste başka il geçiyorsa kayıt başka yere aittir
-const OTHER_PROVINCES = [
-  'adana', 'adiyaman', 'afyon', 'agri', 'aksaray', 'amasya', 'ankara', 'antalya', 'ardahan', 'artvin', 'aydin',
+// Türkiye'nin 81 ili ve sık geçen ilçe adları: adreste çalışılan il dışından biri geçiyorsa kayıt başka yere aittir
+const PROVINCES = [
+  'istanbul', 'adana', 'adiyaman', 'afyon', 'agri', 'aksaray', 'amasya', 'ankara', 'antalya', 'ardahan', 'artvin', 'aydin',
   'balikesir', 'bartin', 'batman', 'bayburt', 'bilecik', 'bingol', 'bitlis', 'bolu', 'burdur', 'bursa', 'canakkale',
   'cankiri', 'corum', 'denizli', 'diyarbakir', 'duzce', 'edirne', 'elazig', 'erzincan', 'erzurum', 'eskisehir',
   'gaziantep', 'giresun', 'gumushane', 'hakkari', 'hatay', 'igdir', 'isparta', 'izmir', 'kahramanmaras', 'karabuk',
@@ -143,8 +143,21 @@ const OTHER_PROVINCES = [
   'osmaniye', 'rize', 'sakarya', 'samsun', 'sanliurfa', 'siirt', 'sinop', 'sirnak', 'sivas', 'tekirdag', 'tokat',
   'trabzon', 'tunceli', 'usak', 'van', 'yalova', 'yozgat', 'zonguldak', 'corlu', 'cerkezkoy', 'kapakli',
 ];
-const OTHER_PROVINCE = new RegExp(`(^|[\\s,/(-])(${OTHER_PROVINCES.join('|')})($|[\\s,/)-])`);
 const DISTRICT_FOLDED = new Set([...DISTRICTS].map((d) => fold(d)));
+const CITY_FOLDED = fold(CITY);
+// Çalışılan il ve ilçeleri listeden çıkar (Kocaeli'de "izmit", "gebze" başka il değil)
+const OTHER_PROVINCES = PROVINCES.filter((p) => p !== CITY_FOLDED && !DISTRICT_FOLDED.has(p));
+// İl adıyla anılan yol ve mahalle başka il demek değildir ("Ankara Cd.", "İstanbul Yolu", "İzmir Blv.")
+const STREET_AFTER =
+  '(?!\\s*(?:cd|cad|cadde|caddesi|sk|sok|sokak|sokagi|yolu|yol|blv|bulvar|bulvari|asfalti|karayolu|otoyolu|mah|mahallesi)(?:$|[\\s.,/]))';
+const OTHER_PROVINCE = new RegExp(`(^|[\\s,/(-])(${OTHER_PROVINCES.join('|')})(?=$|[\\s,/)-])${STREET_AFTER}`);
+/** Adreste yinelenen il ve ülke adı (ayrı alanda zaten var); ardından sokak sözcüğü geliyorsa yolun adıdır */
+const OWN_NAMES = new Set([CITY_FOLDED, 'turkiye', 'turkey', 'tr']);
+const STREET_NEXT = new RegExp(`^${STREET_AFTER.slice(3, -1)}`);
+const dropOwnNames = (text) =>
+  text.replace(/(?<=^|[\s,/])\p{L}+(?=$|[\s,/.])/gu, (word, offset, whole) =>
+    OWN_NAMES.has(fold(word)) && !STREET_NEXT.test(fold(whole.slice(offset + word.length))) ? ' ' : word,
+  );
 
 const STREET = /(^|\s)(Cd\.|Sk\.|Blv\.|Yolu|Meydanı|Çıkmazı|Yokuşu|Yokuş|Sahil Yolu|Kavşağı|Çarşısı|Pasajı|Rıhtım)(\s|,|$)/u;
 const BUILDING = /(^|\s)\p{L}*(?:port|park|plaza|center|centre|mall)(\s|,|$)|(^|\s)(AVM|Çarşı|İş Merkezi|İş Hanı|Han|Hanı|Plaza|Pasaj|Pasajı|Center|Centre|Mall|Residence|Rezidans|Sitesi|Park|Port|Marina|Otel|Hotel|Kampüs|Kampüsü|Terminal|İskele|İskelesi|Garı|Havalimanı)(\s|,|$)/u;
@@ -174,15 +187,14 @@ export function formatAddress(raw, { district } = {}) {
   let text = fixCase(tidy(raw).replace(/\\n|\n/g, ', '));
   const folded = fold(text);
   if (OTHER_PROVINCE.test(folded)) return '';
-  // Adreste başka bir İstanbul ilçesi ("…, Başakşehir/İstanbul") geçiyorsa konumla çelişir
+  // Adreste ilin başka bir ilçesi ("…, Başakşehir/İstanbul") geçiyorsa konumla çelişir
   for (const part of folded.split(/[,/]/)) {
     const name = part.replace(/[\d.:-]+/g, ' ').replace(/\s+/g, ' ').trim();
     if (district && DISTRICT_FOLDED.has(name) && name !== fold(district)) return '';
   }
 
-  text = normalizeStreetWords(text)
+  text = dropOwnNames(normalizeStreetWords(text))
     .replace(/\b\d{5}\b/g, ' ') // posta kodu
-    .replace(/(?<=^|[\s,/])(istanbul|İstanbul|ISTANBUL|İSTANBUL|türkiye|Türkiye|TÜRKİYE|turkey|Turkey|TR)(?=$|[\s,/.])/gu, ' ')
     .replace(/(?<=^|[\s,])(?:iç kapı no|İç Kapı No|ic kapi no|daire|Daire|DAİRE|d|D|kat|Kat|KAT|k|K)\s*[:.]\s*[\w/-]+/gu, ' ')
     .replace(/No:\s*(?=[,\s]|$)/g, ' ') // posta kodu silinince boş kalan "No:"
     .replace(/\s*\/\s*(?=,|$)/g, '')
@@ -199,7 +211,7 @@ export function formatAddress(raw, { district } = {}) {
         .replace(/^Mah\.\s*/u, '')
         .replace(/^[\s/.-]+|[\s/,-]+$/g, ''),
     )
-    .filter((p) => p && !/Mah\.$/u.test(p) && !DISTRICT_FOLDED.has(fold(p)) && fold(p) !== 'istanbul' && /\p{L}|\d/u.test(p));
+    .filter((p) => p && !/Mah\.$/u.test(p) && !DISTRICT_FOLDED.has(fold(p)) && fold(p) !== CITY_FOLDED &&/\p{L}|\d/u.test(p));
 
   const streetIndex = parts.findIndex((p) => STREET.test(` ${p} `));
   if (streetIndex === -1) {
@@ -216,7 +228,8 @@ export function formatAddress(raw, { district } = {}) {
     if (bare) street = `${street} No:${bare}`;
   }
   // Sokaktan sonra gelen metin (bina adı, tarif) atılır; sokaktan önceki bina adı korunur
-  street = street.replace(/^(.*?(?:Cd\.|Sk\.|Blv\.|Yolu|Meydanı|Çıkmazı|Yokuşu)(?:\s+No:\S+)?).*$/u, '$1');
+  // ("Ankara Yolu Cd. No:200": yol adındaki "Yolu"dan sonra gelen Cd./Sk./Blv. adın parçasıdır)
+  street = street.replace(/^(.*?(?:Cd\.|Sk\.|Blv\.|Yolu|Meydanı|Çıkmazı|Yokuşu)(?:\s+(?:Cd\.|Sk\.|Blv\.))?(?:\s+No:\S+)?).*$/u, '$1');
   const building = parts.slice(0, streetIndex).find((p) => BUILDING.test(` ${p} `) && p.length <= 40);
   return finish(building ? `${building}, ${street}` : street);
 }
@@ -255,7 +268,7 @@ export function normalizePhone(raw) {
     // Türkiye: 90 + 10 hane; alan kodu 2/3/4/5/8 ile başlar (444 çağrı merkezleri dahil)
     return /^90[2-58]\d{9}$/.test(digits) ? `+${digits}` : null;
   }
-  // Yabancı numara İstanbul'daki bir mekân için neredeyse her zaman hatalı veri
+  // Yabancı numara Türkiye'deki bir mekân için neredeyse her zaman hatalı veri
   return null;
 }
 
@@ -301,6 +314,8 @@ const NAME_RULES = [
   [/pastane|patisser|patiser|pasta ?evi|kurabiye/, 'Pastane & fırın'],
   [/borek|simit|poaca|pogaca/, 'Börekçi'],
   [/firin|bakery/, 'Pastane & fırın'],
+  // Overture mantıcıları "asian_restaurant" sayıyor (dumpling); mantı Türk mutfağı
+  [/(^|\s)manti/, 'Restoran'],
   [/sushi|ramen|noodle|\bwok\b|chinese|cin lokanta|japon|japanese|korean|kore |thai|asian|dim ?sum|uzak ?dogu/, 'Uzak Doğu'],
   [/lokanta/, 'Esnaf lokantası'],
   [/coffee|kahve|cafe|kafe|espresso|roaster/, 'Kafe'],
@@ -412,7 +427,7 @@ export function categorize(name, { osmCuisine = '', fallbacks = [] } = {}) {
 // "Kasap", "Bakkal", "Akademi" elenmez: Günaydın Kasap, Tost Akademisi, Şaşkınbakkal'daki mekânlar gerçek.
 // Bilardo, iskele, kuaför ("Salon + ad" kalıbı; "Pide Salonu" gibi sonda geçen etkilenmez) Google karşılaştırmasında yakalandı.
 const EXCLUDE =
-  /kiraathane|kahvehane|kahve ocagi|cay ocagi|cayocagi|cay bahcesi|cayhane|internet|oyun salonu|playstation|nargile|hookah|shisha|\bokey\b|lokali\b|dernegi|kulubu|yemekhane|kantin|catering|\btekel\b|\bmarket\b|ambalaj|geri donusum| depo$|dugun salonu|toptan|gida san|san\.? ve tic|\bltd\b|a\.s\.|makine|\bkursu\b|bilardo|kuafor|berber|guzellik salonu|iskelesi$|terminali$|^salon [a-z]/;
+  /kiraathane|kahvehane|kahve ocagi|cay ocagi|cayocagi|cay bahcesi|cayhane|internet|oyun salonu|playstation|nargile|hookah|shisha|\bokey\b|lokali\b|dernegi|kulubu|yemekhane|kantin|catering|\btekel\b|\bmarket\b|ambalaj|geri donusum| depo$|dugun salonu|toptan|gida san|san\.? ve tic|\bltd\b|a\.s\.|makine|\bkursu\b|bilardo|kuafor|berber|guzellik salonu|iskelesi$|terminali$|^salon [a-z]|supermarket|et isleme|parti evi|ozel servis|oto servis|^[a-z]+ traktor$|\btraktor (bayi|yedek|servis|galeri|ticaret|tarim|san)|otomotiv|insaat|nakliyat|emlak|sigorta|eczane|\bkuyumcu\b|mobilya|hirdavat/;
 // Ekmek fırınlarını at, pastane/börekçi/simitçi kalsın
 const BAKERY_KEEP = /pastane|patisser|patiser|pasta|borek|simit|cafe|kafe|poaca|pogaca|tatli|kurabiye|cikolata|kahvalti|bakery|coffee/;
 
@@ -428,7 +443,7 @@ export function isVenueName(name, { bakery = false } = {}) {
 // Eşleştirmede anlamsız kelimeler (tür, şube, semt adı eki)
 const STOP = new Set([
   'cafe', 'kafe', 'coffee', 'kahve', 'kahvesi', 'restaurant', 'restoran', 'restorant', 'lokanta', 'lokantasi', 'bar', 'pub',
-  'the', 've', 'and', 'by', 'co', 'istanbul', 'sube', 'subesi', 'salonu', 'evi', 'house', 'shop', 'store', 'bistro',
+  'the', 've', 'and', 'by', 'co', 'istanbul', CITY_FOLDED, 'sube', 'subesi', 'salonu', 'evi', 'house', 'shop', 'store', 'bistro',
   'mutfak', 'mutfagi', 'kitchen', 'lounge', 'bakery', 'patisserie', 'pastanesi', 'pastane',
   ...[...DISTRICT_FOLDED].flatMap((d) => d.split(' ')),
 ]);
@@ -440,10 +455,13 @@ export function nameTokens(name) {
     .filter((t) => t.length > 1 && !STOP.has(t));
 }
 
-/** İki ad aynı mekânı gösteriyor mu: ayırt edici kelimelerin biri diğerini kapsıyor ya da çoğu ortak */
-export function similarNames(a, b) {
-  const ta = nameTokens(a);
-  const tb = nameTokens(b);
+/**
+ * İki ad aynı mekânı gösteriyor mu: ayırt edici kelimelerin biri diğerini kapsıyor ya da çoğu ortak.
+ * `ignore`: ayırt edici sayılmayacak kelimeler (fold'lanmış; build.mjs'te mekânın sokak ve mahalle adı).
+ */
+export function similarNames(a, b, { ignore } = {}) {
+  const ta = nameTokens(a).filter((t) => !ignore?.has(t));
+  const tb = nameTokens(b).filter((t) => !ignore?.has(t));
   const joinedA = fold(a).replace(/[^a-z0-9]/g, '');
   const joinedB = fold(b).replace(/[^a-z0-9]/g, '');
   if (joinedA === joinedB) return true;
@@ -460,10 +478,125 @@ export function similarNames(a, b) {
   return Math.min(ja.length, jb.length) >= 5 && (ja.includes(jb) || jb.includes(ja));
 }
 
+/**
+ * Yazım benzerliği 0–1 (Damerau-Levenshtein, harf yer değiştirmesi tek hata): "Burger Yiyelin" ~ "Burger Yiyelim",
+ * "Mero Lahamcun" ~ "Mero Lahmacun". Türkçe karakter, büyük/küçük harf, boşluk ve noktalama farkı sayılmaz.
+ */
+export function spellingSimilarity(a, b) {
+  const x = fold(a).replace(/[^a-z0-9]/g, '');
+  const y = fold(b).replace(/[^a-z0-9]/g, '');
+  if (!x.length || !y.length) return 0;
+  const d = Array.from({ length: x.length + 1 }, (_, i) => [i, ...Array(y.length).fill(0)]);
+  for (let j = 1; j <= y.length; j++) d[0][j] = j;
+  for (let i = 1; i <= x.length; i++) {
+    for (let j = 1; j <= y.length; j++) {
+      const cost = x[i - 1] === y[j - 1] ? 0 : 1;
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+      if (i > 1 && j > 1 && x[i - 1] === y[j - 2] && x[i - 2] === y[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+    }
+  }
+  return 1 - d[x.length][y.length] / Math.max(x.length, y.length);
+}
+
 /** İki nokta arası metre (kısa mesafede eşdikdörtgen yaklaşımı yeterli) */
 export function distanceMeters(a, b) {
   const k = Math.PI / 180;
   const x = (b.longitude - a.longitude) * k * Math.cos(((a.latitude + b.latitude) / 2) * k);
   const y = (b.latitude - a.latitude) * k;
   return Math.sqrt(x * x + y * y) * 6_371_000;
+}
+
+/* ---------- Canlıdaki mekânlarla eşleme (upload.mjs) ---------- */
+
+/** İki ad aynı mekânın mı: ayırt edici kelimeler uyuşuyor ya da yalnızca yazım farkı var */
+export const sameVenueName = (a, b) => similarNames(a, b) || spellingSimilarity(a, b) >= 0.85;
+
+/**
+ * Yeni yapının satırlarını canlıdaki mekânlara eşler. import_places satırı, kaynak kimliklerinden birinin bağlı olduğu
+ * mekâna yazar; birleştirme kuralı değişince birden çok satır aynı mekâna düşebilir (sonraki öncekini ezer, bir mekân
+ * kaybolur) ya da bir satırın kaynakları birden çok mekâna bağlı olabilir. Her mekânı en fazla bir satır alır. Aday
+ * sırası: adı mekânla aynı olan → bunlardan puanı/gönderisi olan mekân (kullanıcı verisi ayakta kalan kayıtta kalsın) →
+ * adı daha benzer olan → mekânı ilk açan kaynağı taşıyan → daha yakın olan. Bir mekânın kimliği, kullanıcının puanlarken
+ * gördüğü addır: ad uyuşan satır mekânı korur, adı başka bir satır o mekânı ancak ona aday başka satır yoksa alır.
+ *
+ * `sourceToPlace`: "kaynak/kimlik" → mekân kimliği. `places`: mekân kimliği → { name, source, external_id,
+ * rating_count, post_count, latitude, longitude }.
+ * Dönen `detach`: import_places'tan önce çözülecek bağlar, yani satırların aldıkları mekân dışındaki mekânlara bağlı
+ * kaynakları. Mekân alamayan satır böylece yeni mekân açar, birden çok mekâna bağlı satır seçilen mekâna yazılır.
+ * `originals`: ilk kaynağı (places.source/external_id, tekil) başka satıra geçen içe aktarılmış mekânların yeni ilk
+ * kaynağı: aldığı satırın boştaki bir kaynağı, satırı yoksa null. Yeni mekân açan satır o kaynağı ilk kaynak yazar;
+ * eski sahibi bırakmazsa import_places tekillik hatasıyla durur.
+ * `candidates`: mekân → ona bağlı kaynağı olan satırlar.
+ */
+export function assignPlaces(rows, sourceToPlace, places) {
+  const keyOf = (s) => `${s.source}/${s.external_id}`;
+  const candidates = new Map();
+  const pairs = [];
+  for (const row of rows) {
+    for (const id of new Set(row.sources.map((s) => sourceToPlace.get(keyOf(s))).filter(Boolean))) {
+      const place = places.get(id);
+      if (!place) throw new Error(`Kaynağın bağlı olduğu mekân bulunamadı: ${id}`);
+      if (!candidates.has(id)) candidates.set(id, []);
+      candidates.get(id).push(row);
+      const same = sameVenueName(row.name, place.name);
+      const owns = row.sources.some((s) => s.source === place.source && s.external_id === place.external_id);
+      pairs.push({
+        row,
+        id,
+        rank: [
+          same ? 1 : 0,
+          same && place.rating_count + place.post_count > 0 ? 1 : 0,
+          spellingSimilarity(row.name, place.name),
+          owns ? 1 : 0,
+          -distanceMeters(row, place),
+        ],
+      });
+    }
+  }
+  pairs.sort((a, b) => {
+    const i = a.rank.findIndex((value, k) => value !== b.rank[k]);
+    return i === -1 ? 0 : b.rank[i] - a.rank[i];
+  });
+  const assigned = new Map();
+  const taken = new Set();
+  for (const { row, id } of pairs) {
+    if (assigned.has(row) || taken.has(id)) continue;
+    assigned.set(row, id);
+    taken.add(id);
+  }
+  const detach = [];
+  const rowOfKey = new Map();
+  for (const row of rows) {
+    for (const s of row.sources) {
+      rowOfKey.set(keyOf(s), row);
+      const id = sourceToPlace.get(keyOf(s));
+      if (id && id !== assigned.get(row)) detach.push({ place_id: id, source: s.source, external_id: s.external_id });
+    }
+  }
+
+  // İlk kaynaklar: kullanıcının eklediği mekâna dokunulmaz
+  const holder = new Map();
+  for (const [id, place] of places) {
+    if (place.external_id && place.source !== 'user') holder.set(`${place.source}/${place.external_id}`, id);
+  }
+  const placeRow = new Map([...assigned].map(([row, id]) => [id, row]));
+  const moving = new Set();
+  for (const [key, id] of holder) {
+    if (rowOfKey.has(key) && assigned.get(rowOfKey.get(key)) !== id) moving.add(id);
+  }
+  // İlk kaynağı boş, satırı olan içe aktarılmış mekân da satırından ilk kaynak alır (yarıda kalmış yüklemeden)
+  for (const [id, row] of placeRow) {
+    const place = places.get(id);
+    if (!place.external_id && place.source !== 'user' && row) moving.add(id);
+  }
+  for (const [key, id] of [...holder]) if (moving.has(id)) holder.delete(key);
+  const originals = [];
+  for (const id of moving) {
+    const free = placeRow.get(id)?.sources.find((s) => !holder.has(keyOf(s)));
+    if (free) holder.set(keyOf(free), id);
+    const place = places.get(id);
+    if (free ? keyOf(free) === `${place.source}/${place.external_id}` : !place.external_id) continue;
+    originals.push({ id, source: free?.source ?? place.source, external_id: free?.external_id ?? null });
+  }
+  return { assigned, detach, originals, candidates };
 }

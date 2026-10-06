@@ -60,12 +60,15 @@ export function toPolygon(relation) {
   };
 }
 
-/** İstanbul'un 39 ilçesi */
+/** Seçili ilin ilçeleri (cities.json'daki liste; listede olup OSM'de bulunmayan ilçe uyarı verir) */
 export function districtPolygons() {
-  return readBoundaries('districts.json')
+  const found = readBoundaries('districts.json')
     .filter((r) => DISTRICTS.has(r.tags.name))
     .map(toPolygon)
     .filter(Boolean);
+  const missing = [...DISTRICTS].filter((d) => !found.some((f) => f.name === d));
+  if (missing.length) console.warn(`OSM'de bulunamayan ilçe: ${missing.join(', ')}`);
+  return found;
 }
 
 /** Noktanın ilçesi; sınırın hemen dışındaki (iskele, sahil) noktalar için ~300 m tolerans */
