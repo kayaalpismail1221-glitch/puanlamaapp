@@ -105,6 +105,20 @@ export async function offerPushPermission() {
   ]);
 }
 
+/**
+ * Kurulumu bu oturumda biten kullanıcıya açılışta sorulmaz (feed'e ilk düştüğü anda izin penceresi kafa karıştırır);
+ * izin ilk anlamlı eylemde (`offerPushPermissionSoon`: birini takip, mekân puanlama) ya da sonraki açılışta önerilir.
+ */
+let launchOfferDeferred = false;
+export const deferLaunchPushOffer = () => {
+  launchOfferDeferred = true;
+};
+
+/** Eylemden sonra, dokunuşun geri bildirimi ve ekran geçişi bitince izni öner (kurulum başına bir kez) */
+export const offerPushPermissionSoon = () => {
+  setTimeout(() => offerPushPermission().catch(() => {}), 800);
+};
+
 /** Bildirimler ekranından izin: sorulmadıysa sistem penceresi, reddedildiyse iOS ayarları */
 export async function enablePush(): Promise<boolean> {
   if ((await pushPermission()) === 'denied' && !(await Notifications.getPermissionsAsync()).canAskAgain) {
@@ -136,6 +150,7 @@ export function usePushNotifications(active: boolean) {
   useEffect(() => {
     if (!active || !supported) return;
     registerDevice().catch(() => {});
+    if (launchOfferDeferred) return;
     // Açılış ekranı ve ilk yüklemeler bitsin, sonra sor
     const timer = setTimeout(() => offerPushPermission().catch(() => {}), 2500);
     return () => clearTimeout(timer);

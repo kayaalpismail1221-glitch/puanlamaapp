@@ -87,6 +87,7 @@ export default function UserProfileScreen() {
         <ProfileIdentity
           name={user.name}
           username={user.username}
+          bio={user.bio}
           avatarUri={user.avatarUrl}
           onAvatarPress={
             user.avatarUrl

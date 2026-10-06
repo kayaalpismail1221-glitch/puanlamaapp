@@ -71,7 +71,8 @@ function threadRows(comments: Comment[], expanded: Set<string>): Row[] {
 
 /** Gönderi detayı: tam açıklama, yorumlar ve yanıtları; yorum beğenme */
 export default function PostDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  // `yorumlar`: yorum simgesinden/yorum bildiriminden gelindi; açılınca yorumlara kaydırılır
+  const { id, yorumlar } = useLocalSearchParams<{ id: string; yorumlar?: string }>();
   const { profile, actions } = useAppStore();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -129,6 +130,21 @@ export default function PostDetailScreen() {
     return () => subscription.remove();
   }, [reveal]);
 
+  // Yorumlara kaydırarak açılış (kullanıcı isteği 2026-10-03: yorum simgesine basınca yorumlar ekranın altında kalıyordu).
+  // "Yorumlar" başlığının listedeki yeri ölçülünce ve yorumlar yüklenince bir kez başlık üste gelir.
+  const [commentsTop, setCommentsTop] = useState<number>();
+  const scrolledToComments = useRef(false);
+  useEffect(() => {
+    if (!yorumlar || scrolledToComments.current || commentsTop === undefined || comments.isPending) return;
+    scrolledToComments.current = true;
+    // Satırlar çizilsin, sonra kaydır (liste kısaysa kaydırılabilen en alta kadar iner)
+    const timer = setTimeout(
+      () => listRef.current?.scrollToOffset({ offset: Math.max(0, commentsTop - spacing.sm), animated: true }),
+      150,
+    );
+    return () => clearTimeout(timer);
+  }, [yorumlar, commentsTop, comments.isPending]);
+
   if (post === undefined) {
     // Bildirimden çevrimdışı açılınca sonsuz beklemek yerine "Tekrar dene"
     return retryPost ? <ErrorView onRetry={retryPost} style={styles.center} /> : <LoadingView style={styles.center} />;
@@ -170,6 +186,10 @@ export default function PostDetailScreen() {
             while (root?.parentId && byId.has(root.parentId)) root = byId.get(root.parentId);
             if (root) expand(root.id);
           }
+          // Gönderince klavye kapanır (kullanıcı isteği 2026-10-03); kapanınca yazılan yorum görünür kalsın
+          KeyboardController.dismiss();
+          revealTarget.current = created.parentId ? created.id : END;
+          setTimeout(reveal, 350);
         },
         onError: (error) => showError(error, t('failures.commentSend')),
       },
@@ -236,6 +256,7 @@ export default function PostDetailScreen() {
           keyExtractor={(row) => (row.type === 'comment' ? row.comment.id : `more-${row.rootId}`)}
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.listContent}
           contentInsetAdjustmentBehavior="automatic"
           onScrollToIndexFailed={({ index, averageItemLength }) => {
             // Henüz ölçülmemiş satır: yaklaşık yere git, çizilince tam hizala
@@ -246,7 +267,10 @@ export default function PostDetailScreen() {
             <>
               <PostCard post={post} expanded />
               <Divider />
-              <Text variant="headline" style={styles.commentsTitle}>
+              <Text
+                variant="headline"
+                style={styles.commentsTitle}
+                onLayout={(e) => setCommentsTop(e.nativeEvent.layout.y)}>
                 {t('comments.title')}
               </Text>
             </>
@@ -412,6 +436,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.background,
+  },
+  // Son yorum yazma çubuğuna yapışmasın: altında nefes payı
+  listContent: {
+    paddingBottom: spacing.xxl + spacing.lg,
   },
   commentsTitle: {
     paddingHorizontal: spacing.lg,

@@ -75,7 +75,13 @@ export default function TasteMatchScreen() {
               : t('match.needMoreLong', { count: MATCH_MIN_COMMON - match.common, name: firstName })}
           </Text>
           {match.percent !== undefined ? (
-            <Button title={t('match.share')} icon="square.and.arrow.up" variant="outline" size="sm" onPress={share} />
+            // Asıl yayılma yolu hikâye kartı; düz metinle paylaşım başlıktaki düğmede
+            <Button
+              title={t('story.shareToStory')}
+              icon="sparkles"
+              size="sm"
+              onPress={() => router.push({ pathname: '/hikaye', params: { uyum: other.id } })}
+            />
           ) : (
             <Button
               title={t('match.seeTheirPlaces', { name: firstName })}

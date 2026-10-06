@@ -24,12 +24,15 @@ import type { YearChallengeEntry } from '@/types';
 /** Tamamlanma oranı (yüzde, en fazla 100) */
 const percentOf = (e: YearChallengeEntry) => (e.goal ? Math.min(100, Math.round((e.done / e.goal) * 100)) : 0);
 
-/** Sunucudaki year_challenge sırası: oran, sonra sayı */
-const byProgress = (a: YearChallengeEntry, b: YearChallengeEntry) =>
-  b.done / b.goal! - a.done / a.goal! || b.done - a.done;
+/**
+ * Sıra: bu yıl en çok mekân puanlayan üstte, eşitlikte tamamlanma oranı (kullanıcı isteği 2026-10-03; eskiden oran
+ * önceydi: 10'luk hedefin 7'si 50'lik hedefin 30'unun önüne geçiyordu). Sunucunun sırası kullanılmaz.
+ */
+const byPlaces = (a: YearChallengeEntry, b: YearChallengeEntry) =>
+  b.done - a.done || b.done / b.goal! - a.done / a.goal!;
 
 /**
- * Yıllık hedef sayfası: üstte kendi hedefin (lacivert kart), altında takip ettiklerinin hedefleri ilerlemeye göre.
+ * Yıllık hedef sayfası: üstte kendi hedefin (lacivert kart), altında takip ettiklerinin hedefleri mekân sayısına göre.
  * Kendi satırın cihazdaki güncel sayıyla çizilir (yeni puan anında yansısın).
  */
 export default function YearGoalScreen() {
@@ -49,7 +52,7 @@ export default function YearGoalScreen() {
     const mine: YearChallengeEntry | undefined = userId ? { userId, goal, done } : undefined;
     const all = mine ? [mine, ...others] : others;
     return {
-      withGoal: all.filter((e) => e.goal).sort(byProgress),
+      withGoal: all.filter((e) => e.goal).sort(byPlaces),
       withoutGoal: others.filter((e) => !e.goal).length,
       friends: others.length,
     };

@@ -3,7 +3,7 @@
  * adı: Google Play bağlantısında `referrer` içinde, uygulama içinde `davet/<kullanıcı adı>` yolunda taşınır.
  */
 
-/** Uygulama içi yol: `davet/<kullanıcı adı>` (alan adı gelince `https://puanla.app/davet/…` aynı yol) */
+/** Uygulama içi yol: `davet/<kullanıcı adı>` (`https://expeat.app/davet/…` evrensel bağlantısı da aynı yol) */
 export const INVITE_PATH = /^\/?davet\/([^/?#]+)/;
 
 /** Google Play bağlantısına davet edeni ekler; Play `referrer`'ı yüklemeden sonra uygulamaya verir */

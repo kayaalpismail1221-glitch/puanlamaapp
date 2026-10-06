@@ -3,10 +3,11 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { SymbolView, type SFSymbol } from '@/components/symbol';
 import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Linking, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Linking, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown, LinearTransition, ZoomIn } from 'react-native-reanimated';
 
 import { PhotoCropper, type CroppedPhoto, type CropItem } from '@/components/photo-cropper';
+import { HeaderIconButton } from '@/components/header-button';
 import { PlacePicker } from '@/components/place-picker';
 import { CompareStep, SentimentChoice, useRankResultText } from '@/components/rank-steps';
 import { HighlightPicker, MAX_HIGHLIGHTS, postFieldStyles } from '@/components/post-fields';
@@ -45,7 +46,8 @@ type Params = {
  * Gönderi paylaş. Sıra Puanla'nın özünü izler: mekân → puanın (zorunlu, Beli tarzı akış ekranın içinde; sonuç
  * büyük rozetle) → fotoğraf (tek dokunuşla çek/seç) → "Nasıldı?" → "Kimlerle gittin?" (masa döngüsü: etiketlenene
  * "Sen kaç verirdin?" sorulur, Puanla'da olmayana davet gider) → öne çıkanlar. Alanlar "isteğe bağlı" diye
- * etiketlenmez (kullanıcı kararı: görülsün, doldurulsun); yalnızca puan zorunlu. Öğün sorulmaz, açıklamaya yazılır.
+ * etiketlenmez (kullanıcı kararı: görülsün, doldurulsun). Gönderi için puan ve fotoğraf şart; fotoğrafsız yalnızca puan
+ * kaydedilir (gönderi açılmaz). Öğün sorulmaz, açıklamaya yazılır.
  * Fiyat ve ne yenildiği bilerek sorulmaz: paylaşım hafif kalsın, kimse hesap vermek zorunda hissetmesin.
  */
 export default function CreatePostScreen() {
@@ -94,13 +96,21 @@ export default function CreatePostScreen() {
   // Android geri tuşu: yazılanlar sorulmadan gitmesin; ekranda seçilen mekândan mekân seçimine dönülür
   const dirty = photos.length > 0 || caption.trim() !== '' || highlights.length > 0 || tagged.length > 0 || invitees.length > 0;
   const backToPicker = !!place && !params.placeId && !dirty;
+  const confirmDiscard = () =>
+    showAlert(t('compose.discardTitle'), t('compose.discardText'), [
+      { text: t('compose.keepEditing'), style: 'cancel' },
+      { text: t('compose.discard'), style: 'destructive', onPress: () => router.back() },
+    ]);
+  // Üstteki ✕: yazılanlar varsa sorar, yoksa kapatır (paylaşım sürerken kapanmaz)
+  const close = () => {
+    if (createPost.isPending) return;
+    if (dirty) confirmDiscard();
+    else router.back();
+  };
+  const header = <Stack.Screen options={{ headerLeft: () => <CloseButton onPress={close} /> }} />;
   useAndroidBack(
     dirty
-      ? () =>
-          showAlert(t('compose.discardTitle'), t('compose.discardText'), [
-            { text: t('compose.keepEditing'), style: 'cancel' },
-            { text: t('compose.discard'), style: 'destructive', onPress: () => router.back() },
-          ])
+      ? confirmDiscard
       : backToPicker
         ? () => {
             setPlaceId(undefined);
@@ -110,7 +120,12 @@ export default function CreatePostScreen() {
   );
 
   if (!place) {
-    return <PlacePicker title={t('compose.whereDidYouEat')} onSelect={(p) => setPlaceId(p.id)} />;
+    return (
+      <>
+        {header}
+        <PlacePicker title={t('compose.whereDidYouEat')} onSelect={(p) => setPlaceId(p.id)} />
+      </>
+    );
   }
 
   const score = rating ? flow.result?.score : existing?.score;
@@ -160,8 +175,19 @@ export default function CreatePostScreen() {
 
   const toggle = <T,>(list: T[], item: T) => (list.includes(item) ? list.filter((x) => x !== item) : [...list, item]);
 
+  // Gönderi fotoğrafla olur (kullanıcı kararı 2026-10-06: yalnızca puan gönderi olarak görünmesin); fotoğrafsız
+  // yalnızca puan kaydedilir
+  const hasPhoto = photos.length > 0;
+
   const share = () => {
     if (score === undefined) return;
+    if (!hasPhoto) {
+      if (!rating || !flow.result) return;
+      actions.rank(place.id, flow.result, existing?.note);
+      haptics.success();
+      router.back();
+      return;
+    }
     // Yeni puan önce kaydedilir; gönderi puanını sunucudaki sıralamadan alır (bkz. waitForRank)
     if (rating && flow.result) actions.rank(place.id, flow.result, existing?.note);
     createPost.mutate(
@@ -193,11 +219,16 @@ export default function CreatePostScreen() {
       : t('compose.sharing')
     : score === undefined
       ? t('compose.rateFirst')
-      : t('common.share');
+      : hasPhoto
+        ? t('common.share')
+        : rating
+          ? t('compose.saveScore')
+          : t('compose.addPhotoToShare');
 
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ title: onboarding ? t('screens.firstPost') : t('screens.sharePost') }} />
+      {header}
       <ScrollView
         ref={scrollRef}
         contentContainerStyle={styles.form}
@@ -452,7 +483,16 @@ export default function CreatePostScreen() {
       </ScrollView>
 
       <Animated.View style={[styles.footer, footerStyle]}>
-        <Button title={shareTitle} onPress={share} disabled={score === undefined || createPost.isPending} />
+        {!hasPhoto && score !== undefined && (
+          <Text variant="footnote" color={colors.textSecondary} align="center">
+            {t('compose.scoreOnlyHint')}
+          </Text>
+        )}
+        <Button
+          title={shareTitle}
+          onPress={share}
+          disabled={score === undefined || (!hasPhoto && !rating) || createPost.isPending}
+        />
         {onboarding && !createPost.isPending && (
           <Button title={t('compose.skip')} variant="ghost" onPress={() => router.back()} />
         )}
@@ -473,6 +513,19 @@ export default function CreatePostScreen() {
         }}
       />
     </View>
+  );
+}
+
+/** Başlıktaki kapat düğmesi: iOS'ta sistemin cam düğmesine giren ✕, Android'de Material'daki gibi solda ✕ */
+function CloseButton({ onPress }: { onPress: () => void }) {
+  const { t } = useTranslation();
+  if (Platform.OS === 'android') {
+    return <HeaderIconButton icon="xmark" onPress={onPress} accessibilityLabel={t('common.close')} />;
+  }
+  return (
+    <PressableScale onPress={onPress} hitSlop={hitSlop} accessibilityRole="button" accessibilityLabel={t('common.close')}>
+      <SymbolView name="xmark" tintColor={colors.primary} size={17} weight="semibold" />
+    </PressableScale>
   );
 }
 

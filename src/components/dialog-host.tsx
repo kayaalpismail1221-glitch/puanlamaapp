@@ -1,7 +1,7 @@
 import { SymbolView } from '@/components/symbol';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, Platform, Pressable, StyleSheet, TextInput, View, type ColorValue, type ViewStyle } from 'react-native';
+import { Keyboard, Modal, Platform, Pressable, StyleSheet, TextInput, View, type ColorValue, type ViewStyle } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
   Easing,
@@ -77,6 +77,13 @@ function DialogSheet({
   useEffect(() => {
     progress.set(withTiming(1, { duration: OPEN_MS, easing: Easing.out(Easing.cubic) }));
   }, [progress]);
+
+  // Menü ve uyarıda klavye kapanır: `useAnimatedKeyboard` klavye zaten açıkken kurulunca yüksekliği 0 görür, kart
+  // klavyenin altında kalıyordu (kayıtta "Hesabı oluştur" sonrası uyarı: karartma alanı da örttüğü için klavye
+  // kapatılamıyordu). Metin penceresi klavyeyi kendisi açar, onun olayıyla kart yukarı çıkar.
+  useEffect(() => {
+    if (request.kind !== 'prompt') Keyboard.dismiss();
+  }, [request.kind]);
 
   const finish = (action?: () => void) => {
     dialogClosed();

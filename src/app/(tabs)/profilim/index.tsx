@@ -74,6 +74,7 @@ export default function ProfileScreen() {
           username={profile?.username ?? ''}
           avatarUri={profile?.avatarUri}
           joinedAt={profile?.joinedAt}
+          bio={profile?.bio}
           onAvatarPress={() => router.push('/profil-duzenle')}
         />
         <SchoolChip userId={me} schoolId={profile?.schoolId} editable />

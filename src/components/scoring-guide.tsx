@@ -42,22 +42,6 @@ export function useScoringGuide({ auto = false }: { auto?: boolean } = {}) {
   };
 }
 
-/** Rehberi açan şık düğme (mekân sayfası vb.): simge + "Puanlama nasıl çalışır?" + ok */
-export function ScoringGuideLink({ onPress }: { onPress: () => void }) {
-  const { t } = useTranslation();
-  return (
-    <PressableScale onPress={onPress} scaleTo={0.98} style={styles.link} accessibilityRole="button">
-      <View style={styles.linkIcon}>
-        <SymbolView name="sparkles" tintColor={colors.onPrimary} size={14} weight="semibold" />
-      </View>
-      <Text variant="subhead" style={[styles.bold, styles.flex]}>
-        {t('scoringGuide.open')}
-      </Text>
-      <SymbolView name="chevron.right" tintColor={colors.textTertiary} size={12} weight="semibold" />
-    </PressableScale>
-  );
-}
-
 const BANDS: { sentiment: Sentiment; icon: SFSymbol; range: string; sample: number }[] = [
   { sentiment: 'liked', icon: 'hand.thumbsup.fill', range: '6,7 – 10', sample: 9 },
   { sentiment: 'fine', icon: 'hand.raised.fill', range: '3,4 – 6,6', sample: 5 },
@@ -78,6 +62,17 @@ export function ScoringGuide({ visible, onClose }: { visible: boolean; onClose: 
   const insets = useSafeAreaInsets();
   const scroll = useRef<ScrollView>(null);
   const [step, setStep] = useState(0);
+  // Modal kapanınca içi bağlı kalır: son sayfada kapatılan rehber yeniden açılınca bir an son sayfayı ("Tüm
+  // ayrıntılar" düğmesiyle) gösterip başa atlıyordu. Her açılışta adım sıfırlanır ve sayfalar baştan kurulur.
+  const [session, setSession] = useState(0);
+  const [wasVisible, setWasVisible] = useState(visible);
+  if (visible !== wasVisible) {
+    setWasVisible(visible);
+    if (visible) {
+      setSession((s) => s + 1);
+      setStep(0);
+    }
+  }
 
   const goTo = (next: number) => {
     haptics.select();
@@ -96,11 +91,7 @@ export function ScoringGuide({ visible, onClose }: { visible: boolean; onClose: 
       visible={visible}
       animationType="slide"
       presentationStyle="pageSheet"
-      onRequestClose={onClose}
-      onShow={() => {
-        setStep(0);
-        scroll.current?.scrollTo({ x: 0, animated: false });
-      }}>
+      onRequestClose={onClose}>
       <View
         style={[
           styles.sheet,
@@ -118,6 +109,7 @@ export function ScoringGuide({ visible, onClose }: { visible: boolean; onClose: 
 
         {/* Sayfalar yalnızca yana kayar; sayfa sheet'in güvenli alan ayarıyla dikeyde oynamaz */}
         <ScrollView
+          key={session}
           ref={scroll}
           horizontal
           pagingEnabled
@@ -499,22 +491,6 @@ const styles = StyleSheet.create({
   },
   pointText: {
     lineHeight: 18,
-  },
-  link: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.card,
-    backgroundColor: colors.surface,
-  },
-  linkIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primary,
   },
   footer: {
     gap: spacing.md,

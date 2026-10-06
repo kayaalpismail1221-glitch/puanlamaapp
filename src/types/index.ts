@@ -109,6 +109,8 @@ export type UserProfile = User & {
   isFollowing: boolean;
   followsMe: boolean;
   joinedAt: string;
+  /** Profil tanıtımı (adın altında) */
+  bio?: string;
 };
 
 /** Oturum açmış kullanıcının kendi profili */
@@ -123,6 +125,8 @@ export type Profile = {
   email?: string;
   schoolId?: string;
   yearGoal?: number;
+  /** Profil tanıtımı: en fazla 150 karakter, 3 satır (eski önbellekte yok) */
+  bio?: string;
   /** Favori 4: profilde ve hikâyede gösterilen, seçilen sırayla en fazla dört mekân (eski önbellekte yok) */
   favoritePlaces?: string[];
   joinedAt: string;

@@ -13,7 +13,7 @@ import { formatScore, initials, monthYear } from '@/lib/format';
 import { possessive } from '@/lib/possessive';
 import type { ScoredPlace } from '@/lib/insights';
 import { placeShortArea } from '@/lib/place';
-import { STORY_SIZE, type GoalProgress, type MonthRecap } from '@/lib/story';
+import { matchVerdict, STORY_SIZE, type GoalProgress, type MonthRecap } from '@/lib/story';
 import type { CityDot, VisitedSummary } from '@/lib/visited';
 import type { ViewBox } from '@/lib/world-projection';
 import type { Place, PlaceList, PlaceListItem, Post } from '@/types';
@@ -27,7 +27,7 @@ import type { Place, PlaceList, PlaceListItem, Post } from '@/types';
  * çağırır; ekran tüm görseller hazır olmadan görüntü almaz.
  */
 
-/** Kartın altındaki kişi; `hint` verilmezse "Puanla'da beni takip et" (başkasının listesinde "Puanla'da takip et") */
+/** Kartın altındaki kişi; `hint` verilmezse "Beni takip et" (başkasının listesinde "Takip et") */
 export type StoryAuthor = { name: string; username: string; avatarUri?: string; hint?: string };
 
 type Common = { author: StoryAuthor; onImageSettled?: (uri: string) => void };
@@ -55,12 +55,14 @@ const Frame = forwardRef<View, { children: ReactNode; background?: ReactNode }>(
   );
 });
 
-/** Serif "puanla" yazısı ve puan yeşili nokta (uygulama ikonundaki gibi) */
+/**
+ * Serif "Expeat" yazısı (uygulama ikonu ve açılıştaki gibi, büyük E). Kartta marka adı yalnızca burada geçer
+ * (kullanıcı kararı 2026-10-06): imza ve indirme kutusu adı tekrarlamaz.
+ */
 function Wordmark() {
   return (
     <View style={styles.wordmark}>
-      <Text style={styles.wordmarkText}>puanla</Text>
-      <View style={styles.wordmarkDot} />
+      <Text style={styles.wordmarkText}>Expeat</Text>
     </View>
   );
 }
@@ -77,7 +79,7 @@ function ScoreDisc({ score, size }: { score: number; size: number }) {
   );
 }
 
-/** Alt imza: kim paylaştı ve Puanla'da nasıl bulunur */
+/** Alt imza: kim paylaştı ve uygulama nereden indirilir (marka adı üstteki yazıda) */
 function Footer({ author, onImageSettled }: Common) {
   const { t } = useTranslation();
   const uri = author.avatarUri;
@@ -106,7 +108,7 @@ function Footer({ author, onImageSettled }: Common) {
       {/* Uygulaması olmayan izleyici için indirme yolu (Instagram'da tıklanır bağlantı yok) */}
       <View style={styles.getApp}>
         <Text style={styles.getAppSmall}>{t(Platform.OS === 'android' ? 'story.getAppKickerAndroid' : 'story.getAppKicker')}</Text>
-        <Text style={styles.getAppBig}>{t('story.getApp')}</Text>
+        <Text style={styles.getAppBig}>{t(Platform.OS === 'android' ? 'story.getAppAndroid' : 'story.getApp')}</Text>
       </View>
     </View>
   );
@@ -343,12 +345,11 @@ export const MapStoryCard = forwardRef<View, MapStoryProps>(function MapStoryCar
   );
 });
 
-/** Beyaz kartın üstünde lacivert "puanla" yazısı */
+/** Beyaz kartın üstünde lacivert "Expeat" yazısı (lezzet haritası kartında tek marka yeri) */
 function InkWordmark() {
   return (
     <View style={styles.wordmark}>
-      <Text style={[styles.wordmarkText, styles.inkWordmark]}>puanla</Text>
-      <View style={[styles.wordmarkDot, styles.inkWordmarkDot]} />
+      <Text style={[styles.wordmarkText, styles.inkWordmark]}>Expeat</Text>
     </View>
   );
 }
@@ -464,7 +465,196 @@ export const GoalStoryCard = forwardRef<View, Common & { progress: GoalProgress 
   );
 });
 
+/* ---------- Damak uyumu ---------- */
+
+export type MatchPerson = { name: string; username: string; avatarUri?: string };
+
+const MATCH_FACE = 88;
+const MATCH_ROWS = 3;
+
+/** Yuvarlak profil fotoğrafı; yoksa baş harfler */
+function Face({ person, size, onImageSettled }: { person: MatchPerson; size: number; onImageSettled?: (uri: string) => void }) {
+  const uri = person.avatarUri;
+  const frame = { width: size, height: size, borderRadius: size / 2, borderWidth: size > 60 ? 4 : 2 };
+  return uri ? (
+    <Image
+      source={{ uri }}
+      style={[styles.face, frame]}
+      onLoad={() => onImageSettled?.(uri)}
+      onError={() => onImageSettled?.(uri)}
+    />
+  ) : (
+    <View style={[styles.face, styles.avatarFallback, frame]}>
+      <Text style={[styles.avatarInitials, { fontSize: size * 0.36 }]}>{initials(person.name)}</Text>
+    </View>
+  );
+}
+
+/**
+ * Damak uyumu: iki yüz, büyük yüzde (puan renginde çubukla), yüzdeye göre bir yorum ("Damak ikiziyiz") ve ikisinin
+ * de favorisi olan en fazla 3 mekân iki puanla. İmza izleyiciyi kendi uyumuna bakmaya çağırır (ekrandan gelir).
+ */
+export const MatchStoryCard = forwardRef<
+  View,
+  Common & {
+    me: MatchPerson;
+    other: MatchPerson;
+    percent: number;
+    common: number;
+    favorites: { place: Place; myScore: number; theirScore: number }[];
+  }
+>(function MatchStoryCard({ me, other, percent, common, favorites, ...rest }, ref) {
+  const { t } = useTranslation();
+  const shown = favorites.slice(0, MATCH_ROWS);
+  return (
+    <Frame
+      ref={ref}
+      background={<LinearGradient colors={gradients.share} locations={gradients.shareStops} style={StyleSheet.absoluteFill} />}>
+      <Wordmark />
+      <View style={styles.spacer} />
+      <View style={styles.matchHero}>
+        <View style={styles.faces}>
+          <Face person={me} size={MATCH_FACE} onImageSettled={rest.onImageSettled} />
+          <View style={styles.faceOverlap}>
+            <Face person={other} size={MATCH_FACE} onImageSettled={rest.onImageSettled} />
+          </View>
+        </View>
+        <Kicker>{t('story.matchKicker')}</Kicker>
+        <Text style={styles.matchPercent}>{t('profile.percent', { value: percent })}</Text>
+        <View style={styles.matchTrack}>
+          <View style={[styles.matchFill, { width: `${percent}%`, backgroundColor: scoreColor(percent / 10) }]} />
+        </View>
+        <Text style={styles.matchVerdict}>{t(`story.matchVerdict.${matchVerdict(percent)}`)}</Text>
+        <Text style={styles.matchNames} numberOfLines={1}>
+          @{me.username} · @{other.username}
+        </Text>
+      </View>
+      {shown.length > 0 ? (
+        <View style={styles.matchList}>
+          {/* Puan sütunlarının kime ait olduğu: küçük yüzler */}
+          <View style={styles.matchHeader}>
+            <Text style={[styles.tileLabel, styles.flex]} numberOfLines={1}>
+              {t('story.matchFavorites').toLocaleUpperCase(currentLocale())}
+            </Text>
+            <View style={styles.matchColumn}>
+              <Face person={me} size={26} />
+            </View>
+            <View style={styles.matchColumn}>
+              <Face person={other} size={26} />
+            </View>
+          </View>
+          {shown.map(({ place, myScore, theirScore }, i) => (
+            <View key={place.id} style={[styles.matchRow, i > 0 && styles.rowBorder]}>
+              <View style={styles.flex}>
+                <Text style={styles.matchRowTitle} numberOfLines={1}>
+                  {place.name}
+                </Text>
+                <Text style={styles.matchRowSub} numberOfLines={1}>
+                  {placeLine(place)}
+                </Text>
+              </View>
+              <ScoreDisc score={myScore} size={42} />
+              <ScoreDisc score={theirScore} size={42} />
+            </View>
+          ))}
+        </View>
+      ) : (
+        <Text style={[styles.more, styles.matchCommon]}>{t('story.matchCommon', { count: common })}</Text>
+      )}
+      <View style={styles.spacer} />
+      <Footer {...rest} />
+    </Frame>
+  );
+});
+
 const styles = StyleSheet.create({
+  matchHero: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  faces: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  face: {
+    borderWidth: 4,
+    borderColor: INK,
+  },
+  faceOverlap: {
+    marginLeft: -22,
+  },
+  matchPercent: {
+    fontFamily: fonts.serif,
+    fontSize: 104,
+    lineHeight: 108,
+    fontWeight: '700',
+    color: INK,
+    letterSpacing: -3,
+    fontVariant: ['tabular-nums'],
+  },
+  matchTrack: {
+    alignSelf: 'stretch',
+    height: 14,
+    marginHorizontal: 40,
+    borderRadius: 7,
+    overflow: 'hidden',
+    backgroundColor: INK_FAINT,
+  },
+  matchFill: {
+    height: '100%',
+    borderRadius: 7,
+  },
+  matchVerdict: {
+    marginTop: 6,
+    fontFamily: fonts.serif,
+    fontSize: 32,
+    lineHeight: 38,
+    fontWeight: '700',
+    color: INK,
+    textAlign: 'center',
+  },
+  matchNames: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: INK_SOFT,
+  },
+  matchList: {
+    marginTop: 22,
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 4,
+    borderRadius: 22,
+    backgroundColor: INK_FAINT,
+  },
+  matchHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingBottom: 4,
+  },
+  matchColumn: {
+    width: 42,
+    alignItems: 'center',
+  },
+  matchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 9,
+  },
+  matchRowTitle: {
+    fontSize: 19,
+    fontWeight: '700',
+    color: INK,
+  },
+  matchRowSub: {
+    marginTop: 2,
+    fontSize: 14,
+    color: INK_SOFT,
+  },
+  matchCommon: {
+    textAlign: 'center',
+  },
   goalTrack: {
     height: 20,
     marginTop: 28,
@@ -505,9 +695,7 @@ const styles = StyleSheet.create({
   },
   wordmark: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
     alignSelf: 'flex-start',
-    gap: 3,
   },
   wordmarkText: {
     fontFamily: fonts.serif,
@@ -515,13 +703,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: INK,
     letterSpacing: -0.5,
-  },
-  wordmarkDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginBottom: 8,
-    backgroundColor: scoreColor(9),
   },
   titleBlock: {
     marginTop: 40,
@@ -660,11 +841,6 @@ const styles = StyleSheet.create({
   inkWordmark: {
     fontSize: 22,
     color: colors.primary,
-  },
-  inkWordmarkDot: {
-    width: 6,
-    height: 6,
-    marginBottom: 6,
   },
   chips: {
     flexDirection: 'row',

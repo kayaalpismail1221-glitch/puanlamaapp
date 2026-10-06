@@ -10,7 +10,17 @@ import type { Cuisine } from '@/types';
 export const STORY_SIZE = { width: 540, height: 960 } as const;
 export const STORY_EXPORT = { width: 1080, height: 1920 } as const;
 
-export type StoryKind = 'favorites' | 'top5' | 'map' | 'recap' | 'post' | 'list' | 'goal';
+export type StoryKind = 'favorites' | 'top5' | 'map' | 'recap' | 'post' | 'list' | 'goal' | 'match';
+
+/** Damak uyumu kartının yorumu: yüzde aralığına göre (yüksekten düşüğe) */
+export type MatchVerdict = 'twins' | 'agree' | 'common' | 'opposite';
+
+export function matchVerdict(percent: number): MatchVerdict {
+  if (percent >= 85) return 'twins';
+  if (percent >= 70) return 'agree';
+  if (percent >= 50) return 'common';
+  return 'opposite';
+}
 
 /** Yıllık mekân hedefi: bu yıl puanlanan mekân sayısı (`placesThisYear`) ve yıl sonuna kalan gün */
 export type GoalProgress = { year: number; goal: number; done: number; daysLeft: number };

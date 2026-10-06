@@ -48,6 +48,8 @@ export type PopularPage = {
   entries: FeedEntry[];
   radiusKm?: number;
   fallbackCity?: string;
+  /** Feed genelden dolduruldu: listenin başındaki yakın gönderi sayısı */
+  nearbyCount?: number;
   next?: PopularCursor;
 };
 
@@ -68,6 +70,7 @@ export async function fetchPopularFeed(
     entries: posts.map((post, i) => ({ post, distanceKm: feed.entries[i]!.distance_km ?? undefined })),
     radiusKm: feed.radius_km ?? undefined,
     fallbackCity: feed.fallback_city ?? undefined,
+    nearbyCount: feed.nearby_count ?? undefined,
     next: feed.entries.length === PAGE ? { offset: cursor.offset + PAGE, asOf: feed.as_of ?? cursor.asOf } : undefined,
   };
 }

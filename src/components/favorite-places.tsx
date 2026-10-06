@@ -64,6 +64,8 @@ export function FavoritePlaces({ userId, name, mine }: { userId: string; name: s
               </View>
             </PressableScale>
           ))}
+        {/* Başkasının profilinde 4'ten az favori: afişler büyümesin, 4'lü düzendeki boyutta sola dizilsin */}
+        {!mine && Array.from({ length: empty }, (_, i) => <View key={`spacer-${i}`} style={styles.slot} />)}
       </View>
       {mine && items.length === 0 && (
         <Text variant="footnote" color={colors.textSecondary} style={styles.hint}>

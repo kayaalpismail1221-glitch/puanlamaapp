@@ -22,6 +22,12 @@ async function currentPosition() {
 }
 
 /**
+ * İzin bir ekranda verilince aynı anda konum bekleyen diğer kullanıcılar (ör. ilk puan ekranındaki izin kartı ve
+ * altındaki mekân araması) da konumu alsın. Dinleyiciye izni isteyen örnek verilir, kendisi yeniden yüklemez.
+ */
+const grantListeners = new Set<(source: object) => void>();
+
+/**
  * Kullanıcının konumu. `enabled` false iken izin istemez.
  * İzin daha önce sorulmadıysa `ask` true ise ilk kullanımda sorar; false ise yalnızca izin verilmişse konumu alır
  * (ör. arama sonuçlarını yakınlığa göre sıralamak için, kullanıcıyı rahatsız etmeden).
@@ -32,6 +38,8 @@ export function useUserLocation(enabled: boolean, ask = true) {
 
   // Android: kullanıcı bu oturumda izin düğmesine bastı mı (bastıysa ve hâlâ ret varsa Ayarlar gerekir)
   const askedByUser = useRef(false);
+  // Bu örneğin kimliği (izin duyurusunda kendini ayırt etmek için)
+  const [self] = useState(() => ({}));
 
   const load = useCallback(async (ask: boolean, byUser = false) => {
     try {
@@ -41,7 +49,10 @@ export function useUserLocation(enabled: boolean, ask = true) {
       // sistem sorabiliyorsa pencere çıkar, kalıcı retse hemen döner. iOS'ta reddedilen izin sorulamaz (Ayarlar).
       const askable =
         perm.status === 'undetermined' || (Platform.OS === 'android' && byUser && perm.status === 'denied');
-      if (askable && ask) perm = await Location.requestForegroundPermissionsAsync();
+      if (askable && ask) {
+        perm = await Location.requestForegroundPermissionsAsync();
+        if (perm.status === 'granted') for (const listener of grantListeners) listener(self);
+      }
       if (byUser) askedByUser.current = true;
       if (perm.status !== 'granted') {
         const blocked =
@@ -60,7 +71,19 @@ export function useUserLocation(enabled: boolean, ask = true) {
       if (__DEV__) console.warn('[location]', e);
       setStatus('error');
     }
-  }, []);
+  }, [self]);
+
+  // Başka bir ekran izni aldıysa sormadan konumu al
+  useEffect(() => {
+    if (!enabled) return;
+    const listener = (source: object) => {
+      if (source !== self) load(false);
+    };
+    grantListeners.add(listener);
+    return () => {
+      grantListeners.delete(listener);
+    };
+  }, [enabled, load, self]);
 
   useEffect(() => {
     if (!enabled) return;

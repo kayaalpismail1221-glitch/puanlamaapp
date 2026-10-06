@@ -14,6 +14,7 @@ import {
   GoalStoryCard,
   ListStoryCard,
   MapStoryCard,
+  MatchStoryCard,
   PostStoryCard,
   RecapStoryCard,
   STORY_MAP_ASPECT,
@@ -25,7 +26,7 @@ import { Button, ErrorView, LoadingView, Text } from '@/components/ui';
 import { inviteLink } from '@/constants/app';
 import { colors, radius, spacing } from '@/constants/theme';
 import { getPlace, useEntitiesVersion, useEntityRetry, usePlace, usePost } from '@/data/entities';
-import { useListDetails, useUserPosts } from '@/hooks/queries';
+import { useListDetails, useTasteMatch, useUserPosts, useUserProfile } from '@/hooks/queries';
 import { useFavoritePlaces } from '@/hooks/use-favorite-places';
 import { useVisitedPlaces } from '@/hooks/use-visited-places';
 import { showAlert } from '@/lib/dialog';
@@ -33,6 +34,7 @@ import { haptics } from '@/lib/haptics';
 import { isMe } from '@/lib/session';
 import type { ScoredPlace } from '@/lib/insights';
 import { placesThisYear } from '@/lib/stats';
+import { tasteMatchSections } from '@/lib/taste-match';
 import {
   monthRecap,
   recapMonth,
@@ -46,11 +48,12 @@ import { cityDots, visitedSummary } from '@/lib/visited';
 import { fitView, MIN_MAP_VIEW_WIDTH } from '@/lib/world-projection';
 import { useAppStore } from '@/store/app-store';
 
-type Params = { tur?: StoryKind; gonderi?: string; liste?: string };
+type Params = { tur?: StoryKind; gonderi?: string; liste?: string; uyum?: string };
 
 /**
  * Instagram hikâyesi kartı oluşturma: kartı seç, önizle, 1080×1920 görsel olarak paylaş.
- * `gonderi` verilirse yalnızca o gönderinin kartı, `liste` verilirse o listenin kartı;
+ * `gonderi` verilirse yalnızca o gönderinin kartı, `liste` verilirse o listenin kartı, `uyum` (kullanıcı id)
+ * verilirse onunla damak uyumu kartı;
  * yoksa profil kartları (Favori 4, En iyi 5, Lezzet haritası, Bu ay).
  * Paylaşım sistem menüsüyle yapılır; Instagram orada "Hikâye" seçeneğini sunar.
  */
@@ -71,6 +74,11 @@ export default function StoryScreen() {
   const listDetails = listQuery.data;
   const visited = useVisitedPlaces(me);
   const favorites = useFavoritePlaces(me).items;
+  const matchQuery = useTasteMatch(params.uyum);
+  const match = matchQuery.data;
+  const matchUser = useUserProfile(params.uyum);
+  const other = matchUser.data;
+  const matchFavorites = useMemo(() => (match ? tasteMatchSections(match.places).favorites : []), [match]);
 
   const author: StoryAuthor = {
     name: profile?.name ?? '',
@@ -127,6 +135,7 @@ export default function StoryScreen() {
     // Silinmiş gönderide boş önizleme yerine "Bu gönderi artık yok"
     if (params.gonderi) return post && postPlace ? ['post'] : [];
     if (params.liste) return listDetails ? ['list'] : [];
+    if (params.uyum) return match?.percent !== undefined && other ? ['match'] : [];
     return [
       ...(favorites.length ? (['favorites'] as const) : []),
       ...(top.length ? (['top5'] as const) : []),
@@ -134,7 +143,7 @@ export default function StoryScreen() {
       ...(recap ? (['recap'] as const) : []),
       ...(goalProgress ? (['goal'] as const) : []),
     ];
-  }, [params.gonderi, post, postPlace, params.liste, listDetails, favorites.length, top.length, visited.items.length, recap, goalProgress]);
+  }, [params.gonderi, post, postPlace, params.liste, listDetails, params.uyum, match, other, favorites.length, top.length, visited.items.length, recap, goalProgress]);
 
   const [picked, setPicked] = useState<StoryKind | undefined>(params.tur);
   const kind = picked && kinds.includes(picked) ? picked : kinds[0];
@@ -156,12 +165,19 @@ export default function StoryScreen() {
           hint: t('story.followHintOther'),
         }
       : undefined;
-  // Hedef kartında imza izleyiciyi de hedef koymaya çağırır
-  const cardAuthor = listAuthor ?? (kind === 'goal' ? { ...author, hint: t('story.goalHint') } : author);
+  // Hedef ve uyum kartlarında imza izleyiciyi de çağırır (hedef koy, uyumuna bak)
+  const cardAuthor =
+    listAuthor ??
+    (kind === 'goal'
+      ? { ...author, hint: t('story.goalHint') }
+      : kind === 'match'
+        ? { ...author, hint: t('story.matchHint') }
+        : author);
   const expected = [
     cardAuthor.avatarUri,
     kind === 'post' ? post?.photos[0] : undefined,
     ...(kind === 'favorites' ? favorites.map((f) => f.place.photoUrl) : []),
+    kind === 'match' ? other?.avatarUrl : undefined,
   ].filter((u): u is string => !!u);
   const imagesReady = expected.every((u) => settled.has(u));
 
@@ -213,9 +229,21 @@ export default function StoryScreen() {
     ? post === undefined || (post && postPlace === undefined)
     : params.liste
       ? listQuery.isPending
-      : visited.loading;
-  const retry = params.gonderi ? (retryPost ?? retryPostPlace) : params.liste && listQuery.isError ? () => listQuery.refetch() : null;
-  if (loading || (params.liste && listQuery.isError)) {
+      : params.uyum
+        ? matchQuery.isPending || matchUser.isPending
+        : visited.loading;
+  const matchFailed = !!params.uyum && (matchQuery.isError || matchUser.isError);
+  const retry = params.gonderi
+    ? (retryPost ?? retryPostPlace)
+    : params.liste && listQuery.isError
+      ? () => listQuery.refetch()
+      : matchFailed
+        ? () => {
+            matchQuery.refetch();
+            matchUser.refetch();
+          }
+        : null;
+  if (loading || (params.liste && listQuery.isError) || matchFailed) {
     return retry ? <ErrorView onRetry={retry} style={styles.container} /> : <LoadingView style={styles.container} />;
   }
 
@@ -226,7 +254,13 @@ export default function StoryScreen() {
           {t('story.emptyTitle')}
         </Text>
         <Text variant="subhead" color={colors.textSecondary} align="center">
-          {params.gonderi ? t('story.postGone') : params.liste ? t('story.listGone') : t('story.emptyText')}
+          {params.gonderi
+            ? t('story.postGone')
+            : params.liste
+              ? t('story.listGone')
+              : params.uyum
+                ? t('story.matchGone')
+                : t('story.emptyText')}
         </Text>
       </View>
     );
@@ -248,6 +282,15 @@ export default function StoryScreen() {
       <RecapStoryCard {...common} recap={recap} />
     ) : kind === 'goal' && goalProgress ? (
       <GoalStoryCard {...common} progress={goalProgress} />
+    ) : kind === 'match' && match?.percent !== undefined && other ? (
+      <MatchStoryCard
+        {...common}
+        me={author}
+        other={{ name: other.name, username: other.username, avatarUri: other.avatarUrl }}
+        percent={match.percent}
+        common={match.common}
+        favorites={matchFavorites}
+      />
     ) : null;
 
   return (

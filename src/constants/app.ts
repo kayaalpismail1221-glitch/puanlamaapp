@@ -6,31 +6,23 @@ import { playInviteUrl } from '@/lib/invite-referrer';
  * Uygulama geneli sabitler. Alan adı alınınca yalnızca buradaki değerler güncellenir.
  */
 
-/** Destek, şikâyet ve gizlilik talepleri için iletişim adresi (yasal metinlerde de geçer) */
-export const SUPPORT_EMAIL = 'destek@puanla.app';
+// Bağımlılıksız modülde: yasal metin betiği (scripts/legal/build.mjs) Node'da doğrudan okur
+export { legalUrl, SUPPORT_EMAIL } from '@/constants/contact';
 
 /**
- * Herkese açık yasal metinler: Supabase Storage "legal" klasörü (`npm run legal:build -- --upload`).
- * Supabase HTML sunmadığı için düz metin; alan adı alınınca HTML sürümü oraya taşınıp burası güncellenir.
- * App Store Connect'teki Privacy Policy URL alanına `legalUrl('privacy', 'tr')` yazılır.
- */
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
-
-export const legalUrl = (doc: 'terms' | 'privacy' | 'support', lang: 'tr' | 'en') =>
-  `${SUPABASE_URL}/storage/v1/object/public/legal/${doc}-${lang}.txt`;
-
-/**
- * Uygulamayı ilgili ekranda açan bağlantı (ör. `puanla://mekan/<id>`; Expo Router rotaları doğrudan eşler).
+ * Uygulamayı ilgili ekranda açan bağlantı (ör. `expeat://mekan/<id>`; Expo Router rotaları doğrudan eşler).
  * Uygulama yüklü olanlarda açılır. Alan adı alınınca https evrensel bağlantıya (Universal Links) geçilir;
- * paylaşım metinleri yalnızca bu fonksiyonu kullandığı için tek yerden değişir.
+ * paylaşım metinleri yalnızca bu fonksiyonu kullandığı için tek yerden değişir. Eski ad döneminde paylaşılan
+ * `puanla://` bağlantıları da açılır: app.json'da iki şema kayıtlı (ilki, `expeat`, paylaşım uzantısının da şeması).
+ * `expeat://` 1.0.2 derlemesiyle geldi; daha eski derlemelere giden güncellemede bu değer `puanla` kalmalı.
  */
-export const APP_SCHEME = 'puanla';
+export const APP_SCHEME = 'expeat';
 export const appLink = (path: string) => `${APP_SCHEME}://${path}`;
 
 /**
  * Davet mesajlarındaki indirme bağlantısı. Şimdilik App Store sayfası (yayınlanınca) ya da herkese açık
  * TestFlight bağlantısı buraya yazılır; boşsa mesaj "App Store'da Puanla'yı arat" der.
- * Alan adı gelince web önizleme sayfasına çevrilir (ör. `https://puanla.app/indir`) — tek yer burası.
+ * Alan adı gelince web önizleme sayfasına çevrilir (ör. `https://expeat.app/indir`) — tek yer burası.
  */
 export const APP_STORE_URL = '';
 /** Google Play sayfası (yayınlanınca: https://play.google.com/store/apps/details?id=app.puanla) */
@@ -44,3 +36,16 @@ export function inviteLink(username?: string) {
   if (Platform.OS !== 'android') return APP_STORE_URL;
   return PLAY_STORE_URL && username ? playInviteUrl(PLAY_STORE_URL, username) : PLAY_STORE_URL;
 }
+
+/** App Store Connect uygulama kimliği ve Android paket adı (değişmez; `app.json`) */
+export const APP_STORE_ID = '6815859231';
+export const ANDROID_PACKAGE = 'app.puanla';
+
+/**
+ * Uygulamanın mağaza sayfası (zorunlu güncelleme): önce mağaza uygulaması, açılmazsa web adresi.
+ * Yayın öncesi kimlikten kurulur; davet bağlantılarındaki boş `APP_STORE_URL`/`PLAY_STORE_URL`'e bağlı değil.
+ */
+export const storePageUrls = () =>
+  Platform.OS === 'android'
+    ? [`market://details?id=${ANDROID_PACKAGE}`, `https://play.google.com/store/apps/details?id=${ANDROID_PACKAGE}`]
+    : [`itms-apps://apps.apple.com/app/id${APP_STORE_ID}`, `https://apps.apple.com/app/id${APP_STORE_ID}`];

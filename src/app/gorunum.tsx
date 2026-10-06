@@ -1,18 +1,19 @@
 import { useTranslation } from 'react-i18next';
-import { ScrollView } from 'react-native';
+import { Platform, ScrollView } from 'react-native';
 
 import { BottomInsetSpacer } from '@/components/bottom-inset';
 import { SettingsGroup, SettingsRow, settingsStyles } from '@/components/settings-list';
 import {
   APPEARANCES,
   setAppearancePreference,
+  systemAppearanceAvailable,
   useAppearancePreference,
   type AppearancePreference,
 } from '@/lib/appearance';
 import { haptics } from '@/lib/haptics';
 
 /**
- * Görünüm seçimi: açık ya da koyu (varsayılan açık).
+ * Görünüm seçimi: cihazı izle (varsayılan) ya da açık/koyu sabitle.
  * Seçim anında uygulanır; renkler yeniden çizim beklemeden değişir.
  */
 export default function AppearanceScreen() {
@@ -30,7 +31,12 @@ export default function AppearanceScreen() {
       style={settingsStyles.screen}
       contentContainerStyle={settingsStyles.content}
       contentInsetAdjustmentBehavior="automatic">
-      <SettingsGroup>
+      <SettingsGroup
+        footer={
+          systemAppearanceAvailable
+            ? t(Platform.OS === 'android' ? 'appearance.footerAndroid' : 'appearance.footer')
+            : undefined
+        }>
         {APPEARANCES.map((option, i) => (
           <SettingsRow
             key={option}

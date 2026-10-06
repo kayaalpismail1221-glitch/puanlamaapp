@@ -16,6 +16,7 @@ import { useKeyboardFooterStyle } from '@/hooks/use-keyboard-footer';
 import { useRankFlow } from '@/hooks/use-rank-flow';
 import { currentLanguage } from '@/i18n';
 import { haptics } from '@/lib/haptics';
+import { offerPushPermissionSoon } from '@/lib/notifications';
 import { placeSubtitle } from '@/lib/place';
 import { possessive } from '@/lib/possessive';
 import { useAppStore } from '@/store/app-store';
@@ -91,7 +92,11 @@ export default function RateScreen() {
       router.replace({ pathname: '/gonderi-olustur', params: { placeId: place.id, akis: 'onboarding' } });
     } else if (thenShare) {
       router.replace({ pathname: '/gonderi-olustur', params: { placeId: place.id } });
-    } else router.back();
+    } else {
+      router.back();
+      // Puanlama bildirim izni için doğal an ("arkadaşın senin de gittiğin yeri puanladı"); kurulumda sorulmaz
+      if (onboarded) offerPushPermissionSoon();
+    }
   };
 
   return (

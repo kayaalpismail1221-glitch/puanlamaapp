@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet, TextInput, View } from 'react-native';
 
 import { isAppleSignInAvailable, isGoogleSignInAvailable, resendSignupCode, signIn, signInWithApple } from '@/api/auth';
-import { showError } from '@/api/errors';
+import { showError, toUserMessage } from '@/api/errors';
 import { GoogleSignInButton } from '@/components/google-button';
 import { BigInput, OnboardingStep } from '@/components/onboarding-step';
 import { Button, PressableScale, Text } from '@/components/ui';
@@ -27,6 +27,8 @@ export default function SignInScreen() {
   const [email, setEmail] = useState(params.email ?? '');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
+  // Giriş hatası açılır pencere değil, şifre alanının altında; alanlardan biri değişince silinir
+  const [failure, setFailure] = useState<string>();
   const [appleAvailable, setAppleAvailable] = useState(false);
   const passwordRef = useRef<TextInput>(null);
 
@@ -41,6 +43,7 @@ export default function SignInScreen() {
 
   const submit = async () => {
     if (!canSubmit || busy) return;
+    setFailure(undefined);
     setBusy(true);
     const normalized = email.trim().toLowerCase();
     try {
@@ -52,7 +55,7 @@ export default function SignInScreen() {
       if (/email not confirmed/i.test((error as Error).message ?? '')) {
         resendSignupCode(normalized).catch(() => {});
         router.push({ pathname: '/onboarding/dogrula', params: { email: normalized } });
-      } else showError(error, t('failures.signIn'));
+      } else setFailure(toUserMessage(error));
     } finally {
       setBusy(false);
     }
@@ -74,7 +77,10 @@ export default function SignInScreen() {
       <View style={styles.fields}>
         <BigInput
           value={email}
-          onChangeText={setEmail}
+          onChangeText={(text) => {
+            setEmail(text);
+            setFailure(undefined);
+          }}
           placeholder={t('onboarding.emailField')}
           keyboardType="email-address"
           textContentType="emailAddress"
@@ -89,7 +95,11 @@ export default function SignInScreen() {
         <BigInput
           ref={passwordRef}
           value={password}
-          onChangeText={setPassword}
+          onChangeText={(text) => {
+            setPassword(text);
+            setFailure(undefined);
+          }}
+          error={failure}
           placeholder={t('onboarding.password')}
           secureTextEntry
           textContentType="password"

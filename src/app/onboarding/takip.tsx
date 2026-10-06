@@ -13,6 +13,7 @@ import { useUser } from '@/data/entities';
 import { useSuggestedUsers } from '@/hooks/queries';
 import { useMyInvites } from '@/hooks/use-contact-friends';
 import { haptics } from '@/lib/haptics';
+import { deferLaunchPushOffer } from '@/lib/notifications';
 import { useAppSelector, useAppStore } from '@/store/app-store';
 
 const TARGET = 5;
@@ -48,6 +49,8 @@ export default function FollowStep() {
   // Protected rota, onboarding bitince kullanıcıyı sekmelere taşır
   const start = async () => {
     setStarting(true);
+    // Feed'e düşer düşmez bildirim izni sorulmasın; ilk takipte ya da puanlamada sorulur
+    deferLaunchPushOffer();
     if (await actions.completeOnboarding()) haptics.success();
     else setStarting(false);
   };

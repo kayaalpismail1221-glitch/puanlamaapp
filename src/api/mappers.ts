@@ -69,6 +69,7 @@ export function toUserProfile(row: ProfileViewRow): UserProfile {
     isFollowing: row.is_following,
     followsMe: row.follows_me,
     joinedAt: row.created_at,
+    bio: row.bio ?? undefined,
   };
 }
 

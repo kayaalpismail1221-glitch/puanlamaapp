@@ -22,12 +22,15 @@ export function ProfileIdentity({
   username,
   avatarUri,
   joinedAt,
+  bio,
   onAvatarPress,
 }: {
   name: string;
   username: string;
   avatarUri?: string;
   joinedAt?: string;
+  /** Kısa tanıtım: kullanıcı adının altında, okulun üstünde */
+  bio?: string;
   onAvatarPress?: () => void;
 }) {
   const { t } = useTranslation();
@@ -47,6 +50,11 @@ export function ProfileIdentity({
         @{username}
         {joinedAt ? t('profile.memberSince', { date: monthYear(joinedAt) }) : ''}
       </Text>
+      {!!bio && (
+        <Text variant="callout" color={colors.text} align="center" style={styles.bio}>
+          {bio}
+        </Text>
+      )}
     </View>
   );
 }
@@ -460,6 +468,11 @@ const styles = StyleSheet.create({
   },
   name: {
     marginTop: spacing.md,
+  },
+  bio: {
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.xxl,
+    lineHeight: 21,
   },
   bold: {
     fontWeight: '600',

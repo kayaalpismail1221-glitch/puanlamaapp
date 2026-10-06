@@ -61,12 +61,13 @@ export const dark: Palette = {
   card: '#1C1C1E',
   fill: '#2C2C2F',
 
-  primary: '#F2F4F8',
+  // Saf beyaza yakın yazı siyah zeminde sert duruyordu: X'in koyu modundaki kırık beyaz (kullanıcı isteği 2026-10-03)
+  primary: '#E7E9EA',
   onPrimary: '#0F1E3D',
   toggle: '#3BA55C',
   navIndicator: '#2A3242',
 
-  text: '#F5F5F7',
+  text: '#E7E9EA',
   textSecondary: '#A1A1A8',
   textTertiary: '#6D6D74',
 

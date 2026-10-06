@@ -1,5 +1,10 @@
 # Proje: Türkiye için sosyal restoran sıralama uygulaması (Beli uyarlaması)
 
+**Ad: Expeat** (2026-10-04'e kadar "Puanla"; ikon serif "e", slogan "eat the experience"). Kullanıcıya görünen her
+yerde Expeat; Türkçe ekler "ekspiit" okunuşuna göre (Expeat'te, Expeat'e, Expeat'i, Expeat'in). "Puanla" butonları
+fiildir, kalır. Teknik adlar değişmez: paket kimliği `app.puanla`, Expo slug `puanla`, dosya/modül adları,
+paylaşım uzantısı hedefi `PuanlaShare`. Bağlantı şeması `expeat://` (eski `puanla://` bağlantıları da açılır).
+
 ## Fikir
 Kullanıcılar gittikleri restoranları puanlar ve sıralar, arkadaşlarının nerede yediğini görür,
 arkadaş tavsiyesine dayalı öneriler alır. Hedef kitle: Türkiye'de 18–35 yaş, şehirli, genç kullanıcılar.
@@ -12,17 +17,27 @@ hatırlat; biten maddeyi listeden sil. Ayrıntılar SUPABASE.md ve ilgili bölü
   Yoksa rehber eşleştirmesi ve telefonla davetin "arkadaşın katıldı" eşleşmesi hiç çalışmaz (ilk dalga kaçar).
 - [ ] **Mağaza bağlantıları:** `APP_STORE_URL`, `PLAY_STORE_URL` (`constants/app.ts`). `PLAY_STORE_URL` dolmadan
   Android davet bağlantısı davet edeni taşımaz.
-- [ ] **Alan adı + davet sayfası (iOS davet bağlantısı için şart):** `https://puanla.app/davet/<kullanıcı adı>` web
-  sayfası (mağazaya yönlendirir), iOS Universal Links + Android App Links, `appLink` https'e. App Store kaynak
-  taşımadığı için iOS'ta davet edenin kendiliğinden bağlanması ancak bununla olur (bkz. "Davet bağlantısı").
+- [ ] **Alan adı `expeat.app` (kullanıcı kararı 2026-10-05, satın alınacak) + davet bağlantısı:** site hazır (`web/`,
+  `/davet/<kullanıcı adı>` sayfası), uygulamada `associatedDomains` + Android `intentFilters` ve `+native-intent`
+  https desteği hazır (sonraki build'de gelir). Kalan: alan adını Vercel'e bağla; `scripts/web/build.mjs` →
+  `APPLE_TEAM_ID` (+ Android SHA-256) doldur → `/.well-known` dosyaları; davet bağlantısını (`inviteLink`) ve
+  `appLink`'i https'e çevir. App Store kaynak taşımadığı için iOS'ta davet edenin kendiliğinden bağlanması ancak
+  bununla olur (bkz. "Davet bağlantısı").
 - [ ] **E-posta:** alan adıyla Resend SMTP → şablonlar → *Confirm email* açık → `EMAIL_CODES_ENABLED = true`.
-  Kapalıyken aynı e-postalı hesaplar Google girişinde birleşebilir. Destek adresi `destek@puanla.app` çalışır olmalı.
+  Kapalıyken aynı e-postalı hesaplar Google girişinde birleşebilir. Destek adresi `destek@expeat.app` çalışır olmalı
+  (alan adıyla e-posta yönlendirme).
 - [ ] **Android konsol ayarları:** Google ile giriş (Web + Android OAuth istemcileri, Supabase Google sağlayıcısı),
   Firebase + FCM V1; Play App Signing SHA-1'i de Google Cloud'a (SUPABASE.md → "Android: …"). Harita anahtar istemez.
 - [ ] **Apple ile giriş:** Apple Developer + Supabase Apple sağlayıcısı → `APPLE_SIGN_IN_ENABLED = true`.
 - [ ] **Demo hesapları sil:** gerçek mekânlara kurgusal puan veriyorlar.
 - [ ] **Yasal:** KVKK veri sorumlusu gerçek kişi/şirket ve adres; `legal.ts`'teki "devredilemeyen" içerik izni ve
   birleşme/devir maddesi (avukat onayıyla).
+- [ ] **Play kapalı test:** yeni kişisel Play geliştirici hesabında production'dan önce 12 test kullanıcısıyla
+  14 gün kapalı test zorunlu; en uzun süren adım, ilk iş başlatılmalı. Play'in istediği hesap silme web bağlantısı
+  (uygulama dışından silme talebi) ve Veri güvenliği formu da bu aşamada.
+- [ ] **Yedek:** Supabase ücretsiz planda otomatik yedek yok (Pro: günlük, 7 gün); dosyalar hiçbir planın veritabanı
+  yedeğinde değil. Yayında Pro'ya geç ya da `npm run backup`'ı düzenli çalıştır (aşağıda "Yedek").
+- Play görselleri hazır: `docs/app-store-screenshots/out/play/` (8 telefon + tanıtım görseli; bkz. "Geliştirme notları").
 
 ## Geliştirici ortamı
 - Windows PC + iPhone 11 (Mac yok).
@@ -60,6 +75,23 @@ hatırlat; biten maddeyi listeden sil. Ayrıntılar SUPABASE.md ve ilgili bölü
   mekân varsa "Bunlardan biri mi?" (seçilirse yeni kayıt açılmaz). Sonuç çağıran ekrana `lib/place-choice.ts` ile döner. Ekranda yer metni yalnızca `lib/place.ts` (`placeSubtitle`, `placeArea`…).
   Lisans: OSM ODbL + Overture CDLA-Permissive; Ayarlar ve mekân sayfasındaki atıf zorunlu, kaldırma. Fotoğraf yok;
   Google Places kalıcı saklanamaz. Overture aylık yayımlanır: yenilemek için fetch-overture → build → upload.
+  **Çok il (2026-10-02):** betikler `PLACES_CITY=<il>` ile çalışır (varsayılan İstanbul; iller, ISO kodu, kutu ve
+  ilçeler `scripts/places/cities.json`, OSM yazımıyla: "Balâ", "Kâğıthane"). Önbellek `scripts/.cache/osm-<il>/`,
+  `overture/places-<il>.json`, `places-<il>.json`. OSM il sınırıyla (ISO 3166-2) tek sorguda iner. 2026-10-02 son yüklemeden sonra
+  canlıda: İstanbul 35.765, Ankara 8.956, İzmir 11.747, Bursa 5.668, Kocaeli 3.576, Eskişehir 1.816 (toplam 67.528,
+  zayıf 12.248; 2026-10-03 Trabzon eklendi: 1.623, 18/18 ilçe ve 59 mahalle sınırı, ilçesi/mahallesi boş 0, zayıf 324;
+  2026-10-03 Adana: 2.770, 15/15 ilçe ve 243 mahalle, boş 0, zayıf 440; canlı toplam 71.922; sınırdaki ~15 mekân iki ilin yapısında da var, veritabanı tek kayıt tutar). Sınırdaki
+  mekânın ilçesini veritabanı iki ilin sınırına birlikte bakarak seçer (Tuzla–Gebze sınırındaki 12 mekân Tuzla'da kaldı,
+  doğru). OSM'de mahalle sınırı eksik: Bursa'da %19, Eskişehir'de %14 mekânın mahallesi boş (ekranda yalnızca ilçe
+  görünür; iyileştirme: OSM `place=neighbourhood` noktaları). **`--prune` il bazlı** (migration
+  `20261019120000_place_trust`): `prune_imported_places(önce, il)` yalnızca o ilde kaynaktan düşen kullanılmayan
+  içe aktarımı siler, kullanılanı `source_dropped_at` ile işaretler (eski tek parametreli sürüm tüm illeri silerdi, kaldırıldı).
+  **Veri kaynakları (2026-10-02 araştırması):** Google Haritalar'dan veri çekmek/saklamak yasak (Maps Platform şartları
+  3.2.3(a) kazıma, 3.2.3(c) listeleme veritabanı; Places API'de yalnızca place ID saklanır, Google haritası olmayan
+  ekranda Google logosu şart) → Google yalnızca elle ölçüm için. Overture'ın `sources[].update_time`'ı Meta için toplu
+  dışa aktarım tarihi (tazelik bilgisi değil), `operating_status` Türkiye'de boş. Foursquare OS Places (Apache 2.0,
+  `date_refreshed`, `date_closed`) ücretsiz ama Ekim 2025'ten beri hesap ister (places.foursquare.com token ya da
+  Hugging Face onayı): kapanış sinyali olarak sonraki adım, hesabı kullanıcı açar.
   **Doğruluk ilkesi (kullanıcı kararı 2026-09-26: en kritik şey doğru bilgi):** emin olunmayan veri değiştirilmez.
   **Ölçüm:** `npm run places:audit -- <tohum>` katmanlı 50 mekân + Google Haritalar bağlantıları üretir; kurallar
   değişince yeni tohumla ölçülür (Google verisi yalnızca karşılaştırma, saklanmaz). 2026-09-26: gevşek kurallarla
@@ -67,6 +99,53 @@ hatırlat; biten maddeyi listeden sil. Ayrıntılar SUPABASE.md ve ilgili bölü
   7 yok / 3 mekân değil (kurala eklendi) / 7 belirsiz. Telefonlar iki turda da neredeyse hep tuttu. OSM son düzenleme
   tarihi doğrulukla ilişkili çıkmadı (eleme ölçütü değil). Zayıf halka: yalnızca OSM'de olan eski kayıtlar ve
   kapanmış mekânlar → "Bilgi yanlış mı?" bildirimleri ve aylık yenileme.
+  2026-10-02, yeni 5 il (İzmir 15, Ankara 12, Bursa 9, Kocaeli 7, Eskişehir 7; Google'da ad, bulunamazsa telefonla):
+  29 tam doğru + 4 konum doğru/bir bilgi farklı / 4 konum kaymış (225 m, 330 m, 1,3 km, 16 km) / 2 kapanmış /
+  9 Google'da yok / 2 mekân değil. Ölçülen 20 pinin hepsi ≤ 37 m (medyan ~4 m); karşılaştırılan 16 telefonun 13'ü aynı.
+  Kaynağa göre iyi: ikisi 15/20, yalnız Overture 13/21, yalnız OSM 5/9. Google'da olmayan 5 yalnız-Overture kaydın 3'ü
+  güven 0,75–0,76 (eşiğin hemen üstü; bu bantta 4'te 1 doğru). Uygulama araması 10 ad aramasının 10'unda doğru
+  mekânı ilk sırada buldu; sorunlar: Overture'ın İngilizceye çevirdiği adlar kopya yaratıyor ("Tugba Bread and
+  Cake Bakery" = "Tuğba Ekmek ve Pasta Fırını"), genel aramada (ör. "kore restoranı") benzerlik uzaklığı eziyor,
+  başka ildeki sonuç önce geliyor. Hedefli ölçüm (6 il, gruba 12): telefonsuz yalnız-Overture 8/12, telefonlu güveni
+  ≥ 0,80 yalnız-Overture 7/12 (güven 0,87–0,97'de de kapanmış/yok var: güven bu bantta ayırt etmiyor), telefonlu
+  güveni < 0,80 yalnız-Overture 5/12 (3'ünün adı değişmiş: aynı telefonda başka işletme), telefonu/sitesi/adresi
+  olmayan yalnız-OSM 1/12 (İstanbul'da 8'de 0; ilk ölçümle 21'de 6). Sonuç: açık veri eşiği tek kaynaklı kayıtları
+  temizleyemez (restoranlar kapanır, Meta sayfası kalır) → veri tarafında zayıf işaret, aylık yenileme ve il bazlı
+  temizlik; kapanış sinyali için sıradaki kaynak Foursquare OS Places. **Kullanıcı kararı (2026-10-02): kullanıcıya
+  dönük doğrulama yok** ("Hâlâ açık mı?" kartı yapıldı, kullanıcı istemedi, söküldü; kendiliğinden önerme). Kullanıcı
+  düzeltmesi yalnızca mevcut "Bilgi yanlış mı?" ekranından. **Zayıf kayıt** (`places.weak`, build.mjs işaretler,
+  migration `20261019120000_place_trust`): telefonu/sitesi/adresi olmayan yalnız-OSM ve güveni < 0,80 yalnız-Overture
+  (~%18). Silinmez (gerçeklerin yarıya yakını kaybolurdu); "yakınımdakiler"de çıkmaz, aramada sona düşer; puanlanınca
+  önemi kalmaz. **Arama sırası** (`20261019180000_search_near_words`, 2026-10-03 kullanıcı: "önce yakındakiler, ama
+  uydukça uzaktaki de gelsin"; önceki `…130000_search_name_first`, `…140000_search_name_exact`): dilimler
+  0 yakın (50 km) + adında birebir geçen → 1 yakın + her kelime ad/tür/mahalle/ilçe/il'de birebir (adres hariç;
+  Adana'dan "adana kebap" → Kebapçı türündeki "Halil Usta") → 2 uzak + adında birebir geçen → 3 geri kalan (adres,
+  benzerlik; yakın önce). Dilim içinde ad başı → benzerlik (0,1 dilim) → güven (puanlanmış/gönderili ya da kullanıcının
+  eklediği > normal > zayıf; `place_trust`) → benzerlik → uzaklık → popülerlik. Benzerlik değil birebir: "Viya Coffee"
+  "çiya"ya %60 benziyordu; adres dilim 1'e girmez: adresi "Çiya Sk." olan Ankara kafesi Çiya Sofrası'nın önüne
+  geçiyordu. Her dilim indeksle ayrı okunur, trigram benzerliği (dilim 3) yalnızca liste dolmazsa: bench "istanbul
+  kebap" 756 → 86 ms (canlıda eskisi ~3 sn). 2026-10-02: 6 il yeni kurallarla yeniden yüklendi
+  (304 mekân-olmayan/kopya silindi, 0 kullanılan işaretlendi); aynı gün birleştirme düzeltmesiyle iki kez daha
+  (toplam 67.528, puanlı/gönderili 22 mekânın hepsi kendi kaydında). **Birleştirme**
+  (`build.mjs`, 2026-10-02 düzeltmesi; eski gevşek kural kardeş işletmeleri ve bütün semtleri birleştiriyordu):
+  aynı nokta = farklı kaynak, ≤ 25 m, ilk ayırt edici kelime ve tür aynı, adlar çeviri / yazım farkı (≥ 0,85) /
+  yalnızca tür-şube kelimesi farkı (Çiya Sofrası ile Çiya Kebap 4 m'de ayrı kalır); kümedeki **her çiftin** adı
+  uyuşmalı (zincir yok: "Cihangir Lokantası" mahallenin tüm "… Cihangir" mekânlarını topluyordu, İstanbul'da 150
+  küme; "Sbarro" + "Popeyes"); yalnızca konum kelimesinde (sokak, mahalle, 300 m içindeki AVM'nin adı) uyuşan adlar
+  aynı türde olmalı ve geri kalan ayırt edici kelimeleri çatışmamalı ("Topkapı Pub" / "Topkapı Kebap", "Espressolab
+  Anatolium Marmara AVM" / "Çaytaze Anatolium Marmara AVM" ayrı; "Ara Cafe" / "Cafe Ara" bir). AVM'nin kendi kaydı
+  ("Optimum AVM") atılır (İstanbul'da 46; AVM'deki mekânları birbirine bağlıyordu: Marmara Forum'da 6 işletme tek
+  mekândı). İstanbul 35.647 → 35.766 mekân. Bilinen kalan: resmî mahalle adı olmayan semt (Karaköy, Pera) ve
+  "Kahve Dünyası" / "Tavuk Dünyası" gibi tek ortak kelimeli adlar hâlâ birleştirebilir. Overture'ın İngilizce
+  çevirisi yerine OSM'deki Türkçe ad.
+  **Yükleme eşlemesi** (`upload.mjs` `matchPlaces`, `lib.mjs` `assignPlaces`): kural değişince canlıdaki mekân
+  bölünür/birleşir; her mekânı en çok bir satır alır (adı uyuşan → puanlı mekân → daha benzer → ilk kaynağı taşıyan →
+  yakın), diğer satırların bağları çözülür ve yeni mekân açarlar (yoksa import_places ikinci satırı birinciye ezerdi).
+  İlk kaynağı (`places.source/external_id`, tekil, yalnızca bilgi) başka satıra geçen mekân önce kendi satırının
+  kaynağını alır (satırı yoksa boşalır); yoksa yeni mekân aynı kaynakla açılırken tekillik hatası verir (2026-10-02 ilk
+  denemede oldu). Yarıda kalan yükleme yeniden çalıştırılabilir: eşleme o anki durumdan yeniden hesaplanır.
+  Puanlanmış mekâna yazılacak her değişikliği (ad değişikliği, satırsız kalma) `--dry-run` listeler: önce deneme.
+  Bekleyen düzeltmeler: `npm run places:review` (`--accept/--reject <id>`; web yönetim paneli gelene kadar).
   Türkçe karakter düzeltmesi (`buildDiacriticDictionary`) sözlüğü veriden çıkarır, yalnızca tutarlı kelimeleri ve
   hiç Türkçe harf içermeyen metinleri düzeltir. **"Bilgi yanlış mı?"** (`mekan-duzelt/[id]`, migration
   `20261004100000_place_corrections`): tek kişinin önerisi uygulanmaz; bağımsız 2 kişi aynı değeri (kapandı için 3)
@@ -192,10 +271,11 @@ hatırlat; biten maddeyi listeden sil. Ayrıntılar SUPABASE.md ve ilgili bölü
   eşitliği kaçınılmaz (0,1 çözünürlükte 8,4–10 arası 17 değer; "ilk 20'si 8,4 üstü" kararıyla birlikte), ama sıra
   seviyeden: "12 mekân arasında 2." yalnızca "İkisi aynı" denenleri aynı sıraya koyar (`segmentStanding`,
   `RankResult.rank`); "puan netleşecek" notu seviye sayısına bakar (`RankResult.levels`). Sonuç ekranı eşitliği ve eski
-  favorinin yeni puanını söyler (`RankResult.displaced`); mekân sayfasında "Kahvaltıcılar: 12 mekân arasında 2." ve
-  "Puanlar nasıl hesaplanır?". **Puanlama rehberi** (`components/scoring-guide`): 4 kısa görsel sayfa (his aralığı →
-  kıyasla/"İkisi aynı" → favorin 10 merdiveni → Puanla puanı neden güvenilir); ilk puanlamada (`degerlendir`,
-  gönderi ekranı) cihazda bir kez kendiliğinden, sonra ?/mekân sayfası/Ayarlar'dan; son sayfada "Tüm ayrıntılar"
+  favorinin yeni puanını söyler (`RankResult.displaced`); mekân sayfasında "Kahvaltıcılar: 12 mekân arasında 2.".
+  Mekân sayfasında arkadaş puanının altındaki "Puanla puanı · N kişinin kıyaslamasından" satırı ve "Puanlama nasıl
+  çalışır?" kutusu kullanıcı kararıyla kaldırıldı (2026-10-03). **Puanlama rehberi** (`components/scoring-guide`): 4 kısa
+  görsel sayfa (his aralığı → kıyasla/"İkisi aynı" → favorin 10 merdiveni → Puanla puanı neden güvenilir); ilk
+  puanlamada (`degerlendir`, gönderi ekranı) cihazda bir kez kendiliğinden, sonra ? düğmesi/Ayarlar'dan; son sayfada "Tüm ayrıntılar"
   → `app/puanlama`. Migration'lar `20261013130000_top_anchored_scores`,
   `20261013140000_score_curve_ties` (gönderi puanları her ölçek değişiminde bir kez güncel puana eşitlendi).
   Topluluk puanı (mekân sayfası, harita, bölge, öneriler) ham ortalama değil **ağırlıklı** Bayes ortalaması
@@ -214,7 +294,13 @@ hatırlat; biten maddeyi listeden sil. Ayrıntılar SUPABASE.md ve ilgili bölü
   `coalesce(calibrated_score, score)` kullanır (doğrudan eklenen satırda boşsa puan; demo betiği katkıyı kendisi
   yazar). Simülasyon (400 mekân, az/orta/çok puanlayan karışımı): az puanlayanların gittiği yerlerin ~5 yüzdelik puanlık
   kayrılması sıfırlandı, kaliteyle uyum 0,957 → 0,965; C = 2 en iyisi (3 ve 5 kötü).
-  **Puanla puanı modeli (kullanıcı kararı 2026-10-01, migration `20261017100000_place_model`):** gösterilen topluluk
+  **ŞU AN GEÇERLİ: düz ortalama (kullanıcı kararı 2026-10-06, "insanların puanının ortalaması olsun", migration
+  `20261021100000_plain_average`, canlıda doğrulandı):** gösterilen Expeat puanı = mekânı puanlayanların kendi
+  gördüğü puanların (`rankings.score`) düz ortalaması; `puanla_score` imzası aynı, ağırlıklı toplamları yalnızca "puan
+  var mı" için kullanır. Aşağıdaki kalibre katkı, ağırlık, tazelik, öncül ve model yerinde duruyor ve hesaplanmaya devam
+  ediyor ama gösterilen puana girmiyor. Geri dönüş: `puanla_score`'u place_model'deki gövdeye döndür (+ test ve
+  `scoring`/`scoringGuide` metinleri, web SSS). Kullanıcı açmadan modeli geri önerme.
+  **Puanla puanı modeli (kullanıcı kararı 2026-10-01, migration `20261017100000_place_model`; 2026-10-06'dan beri devre dışı):** gösterilen topluluk
   puanı artık Bayes ortalaması değil, tüm listelerden global karşılaştırma modeli (Plackett–Luce): her (kişi, segment)
   listesi tek sıralama = beğendikleri > beğendim çizgisi > idare ettikleri > beğenmedim çizgisi > beğenmedikleri;
   mekân kendinden aşağıdaki her şeyi, çizgi yalnızca aşağıdaki mekânları geçer (çizgiler yarışmaz), eşitler aynı
@@ -267,6 +353,38 @@ hatırlat; biten maddeyi listeden sil. Ayrıntılar SUPABASE.md ve ilgili bölü
 - Web'de Alert görünmez ve tarayıcı aracının tıklaması bazı Pressable'lara ulaşmaz; gerekirse düğmenin
   `onPress`'i React fiber'dan tetiklenir. Reanimated `entering` animasyonları web'de öğeyi gizli bırakabiliyor.
 - `package.json`'daki `tunnel` betiği ve `@expo/ngrok` kullanıcının eklediği, commit edilmemiş değişiklik.
+- **Yedek** (`npm run backup`, `scripts/backup/backup.mjs`, 2026-10-03): servis anahtarıyla tüm `public` tabloları
+  (görünümler hariç, sayfa sayfa JSON), Auth hesap listesi ve tüm Storage kovaları (gönderi/profil fotoğrafları, yasal)
+  `C:\dev\puanla-yedek\<yerel tarih-saat>\` altına (depo ve OneDrive dışı; kişisel veri içerir). `ozet.json` sayılar.
+  İlk yedek 2026-10-03-02-53: 10 hesap, 41 gönderi, 68 puan, 24 yorum, 71.923 mekân, 55 dosya (89 MB). Demo fotoğrafları
+  dış bağlantı (Unsplash), depoda değil. Sayfalama `id`'den sonrası (keyset): atlamalı sayfalamada yedek sürerken
+  eklenen mekân bir satırı iki kez yazdırdı (02-56 yedeği). **Geri yükleme sınaması** `npm run backup:check [-- klasör]`
+  (`restore-check.mjs`): PGlite'ı tüm migration'larla kurar, tüm tabloları önce birlikte boşaltır (tek tek `truncate
+  cascade` bağlıları da siliyordu), tetikleyiciler kapalı (`session_replication_role = replica`) yükler; satır sayısı,
+  her yabancı anahtar için öksüz satır, fotoğraf dosyaları ve görünüm sayılarını denetler. Canlıya geri yükleme betiği
+  yok (gerekirse aynı yol: servis rolüyle, tetikleyiciler kapalı).
+- **Hata ekranı** (`components/error-screen.tsx`): kök Stack'teki `unstable_screenErrorBoundary={ScreenError}` her
+  ekranı ayrı sarar (iç içe gezginler devralır): çöken ekranın yerinde "Bir şeyler ters gitti" + Tekrar dene (önbellek
+  yenilenir) / Geri dön; başlık, geri tuşu ve sekmeler çalışır. Kök düzen çökerse `_layout.tsx`'teki
+  `export const ErrorBoundary = RootError` → "Yeniden başlat" (`Updates.reloadAsync`). Hata ayrıntısı yalnızca
+  geliştirmede görünür; çökme raporlama (Sentry vb.) yok.
+- **Zorunlu güncelleme** (`hooks/use-update-required`, `components/update-required`): `app_min_versions` tablosunda
+  platform başına en düşük sürüm (oturumsuz okunur). Yüklü `nativeApplicationVersion` altındaysa uygulamanın tamamı
+  yerine "Puanla'yı güncelle" (mağaza: `storePageUrls()`, App Store kimliği/paket adından). Açılışta ve uygulamaya
+  dönüşte (30 dk'da bir) denetlenir; yanıt yoksa kilitlemez. Yükseltmek yalnızca SQL Editor'den ve yeni sürüm
+  mağazada herkese açıldıktan SONRA: `update app_min_versions set min_version = '1.0.2', updated_at = now() where
+  platform = 'ios';`. Expo Go ve web'de kapalı. JS hatası OTA ile düzelir; bu yalnızca eski yerel ikiliyi kapatmak için.
+- **Push jetonu temizliği** (migration `20261019100000_push_token_cleanup`): gönderim isteği `push_sends`'e, başarılı
+  gönderimin teslim raporu kimliği `push_receipts`'e yazılır; `push_maintenance()` (pg_cron, 15 dk) Expo'nun
+  yanıtını/raporunu okur, `DeviceNotRegistered` olan jetonu siler. Testlerde pg_net taklit edilir.
+  Bu migration ve `20261019110000_app_min_versions` 2026-10-02'de canlıda (anon sürüm okur, yazamaz; bakım
+  servis rolüyle çalıştı, istemciye kapalı).
+- **Google Play görselleri** (`docs/app-store-screenshots/`): `screens.html?os=android` aynı slaytların Android hâli
+  (450×800 → 1080×1920, Material 3 üst/alt çubuk ve segment, Roboto, Material Symbols, Android telefon çerçevesi;
+  harita MapLibre + OpenFreeMap + uygulamanın stili, `map-style.js` ← `gen-map-style.mjs`). `?os=android&s=feature`
+  tanıtım görseli (1024×500). Üretim `python render-play.py [n…] [feature]` (Edge + DevTools; sayfa
+  `__shotReady` diyene kadar bekler) → `out/play/` + `_onizleme.jpg`. Play en fazla 8 telefon görseli alır: 1–8,
+  9 yedek. iOS seti (parametresiz) değişmedi.
 
 ## Sıradaki işler (büyüme önceliğine göre; bkz. "Büyüme" ilkesi)
 1. **Alan adı + web önizleme sayfaları** (`/p/<gönderi>`, `/m/<mekân>`, `/@<kullanıcı>`, `/l/<liste>`, OG görseli, App Store butonu)
@@ -281,9 +399,8 @@ hatırlat; biten maddeyi listeden sil. Ayrıntılar SUPABASE.md ve ilgili bölü
    bayrakları (A/B), gizlilik metnine paylaşım ölçümü satırı.
 3. **Masa döngüsü canlıya:** 1.0.1 build'i al, `APP_STORE_URL`'i doldur. Sonra: davet web sayfası (`/d/<davet>`),
    ayrı karşılaştırma ekranı. SMS doğrulaması ertelendi (aşağıdaki not).
-4. Bildirimler: ölü jeton temizliği (Expo yanıtı `DeviceNotRegistered`).
-5. Hikâye kartlarına link/CTA; damak uyumu hikâye kartı; grup oylaması; şehir içi "lezzet rotası" kartı.
-6. App Store çıkışı (`docs/app-store.md`), web yönetim paneli (şikâyet kuyruğu; RPC'ler hazır),
+4. Hikâye kartlarına link/CTA; damak uyumu hikâye kartı; grup oylaması; şehir içi "lezzet rotası" kartı.
+5. App Store çıkışı (`docs/app-store.md`), web yönetim paneli (şikâyet kuyruğu; RPC'ler hazır),
    Overture'ın aylık yayınıyla mekân verisini yenileme (`places:fetch` → `build` → `upload -- --prune`).
 
 ## Büyüme: viralite ve ağ etkisi (kalıcı ilke)
@@ -339,8 +456,9 @@ Tutunma tarafı: bildirimler ve rehber eşleştirme olmadan ağın ürettiği de
   kelimeler (got, pic, oc) listede yok — eklerken test yaz.
 - Yasal metinler tek kaynak `src/constants/legal.ts` (terms/privacy/support, TR+EN, `{{email}}` yer tutucu).
   Uygulama içi `app/yasal/[belge]` (kosullar/gizlilik, kayıt öncesi de açılır). Herkese açık kopya:
-  `npm run legal:build -- --upload` → Supabase Storage `legal/*.txt` (Supabase HTML sunmuyor; UTF-8 BOM'lu düz metin).
-  İletişim adresi `constants/app.ts` → `SUPPORT_EMAIL` (şimdilik `destek@puanla.app`, henüz çalışmıyor).
+  web sitesi (`npm run web:build`, `https://expeat.app/gizlilik`, `/kosullar`, `/destek`; `legalUrl`); düz metin yedeği
+  `npm run legal:build -- --upload` → Supabase Storage `legal/*.txt`. Alan adı ve iletişim adresi
+  `constants/contact.ts` → `WEB_URL`, `SUPPORT_EMAIL` (`destek@expeat.app`; alan adı alınana kadar çalışmıyor).
 - Kayıtta telefon isteğe bağlı ("Şimdilik geç"; `profile_private.phone`, yalnızca sahibi görür). Kullanıcı kararı
   (2026-09-25): rehber eşleştirme geldi ama telefon isteğe bağlı kalır; eşleşme için SMS doğrulaması şart. Migration
   `20260929100000_phone_optional`. İlk puan ve takip adımları atlanabilir (2.1).
@@ -349,7 +467,8 @@ Tutunma tarafı: bildirimler ve rehber eşleştirme olmadan ağın ürettiği de
   Hazır RPC'ler: `admin_reports`, `admin_resolve_report` (dismiss/remove/ban; ban = `auth.users.banned_until =
   infinity`), yetki `profiles.is_admin` (yalnızca SQL ile). Panel gelene kadar şikâyetler Supabase → `reports`.
 - `app.json`: `privacyManifests`, `ITSAppUsesNonExemptEncryption: false`. Özellik bayrakları `constants/features.ts`.
-- İkon/açılış görseli `npm run icons:generate` (`scripts/generate-icons.py`, Georgia Bold "p" + puan yeşili nokta).
+- İkon/açılış görseli `npm run icons:generate` (`scripts/generate-icons.py`, Georgia Bold "e"; açılış her görünümde
+  lacivert `#0F1E3D` üstüne beyaz "Expeat", ikonla aynı; `components/launch-intro` aynı renkle devralır).
 
 ## Tasarım sistemi
 - Arka plan: tamamen beyaz `#FFFFFF`. Yemek fotoğrafları öne çıksın diye ekranlar sade ve ferah kalmalı.
@@ -365,13 +484,16 @@ Tutunma tarafı: bildirimler ve rehber eşleştirme olmadan ağın ürettiği de
 - Boşluklar 4'ün katları (4, 8, 12, 16, 24, 32)
 - Renkleri ve ölçüleri tek bir `theme.ts` dosyasında token olarak tut. Bileşenlerde sabit renk yazma.
 - Açık/koyu görünüm (2026-09-29): `colors` iOS'ta `DynamicColorIOS`; Ayarlar → Görünüm değişince yeniden çizim
-  olmadan uyum sağlar. Varsayılan AÇIK (kullanıcı kararı: telefon koyu olsa da uygulama beyaz açılır). Seçenekler yalnızca
-  Açık / Koyu: "Cihazla aynı" kaldırıldı (kullanıcı kararı 2026-09-30), kayıtlı eski tercih açığa döner; açılış ekranı her zaman beyaz. Koyuda `primary` açık mavi-beyaz, `onPrimary` lacivert olur (dolu düğmeler
+  olmadan uyum sağlar. Varsayılan **Cihazla aynı** (kullanıcı kararı 2026-10-03: "telefonun varsayılanından çeksin";
+  eski "hep açık başlar" ve "Cihazla aynı kaldırıldı" kararlarının yerine); seçenekler Cihazla aynı / Açık / Koyu, elle
+  seçilen korunur. iOS 1.0.0/1.0.1 ikilisinde Info.plist açığa sabit: orada seçenek gizli, varsayılan açık
+  (`systemAppearanceAvailable`); 1.0.2 build'iyle açılır. Açılış ekranı her zaman lacivert (1.0.5 build'iyle; öncesinde sistem ekranı beyaz/koyu, örtüye yumuşak geçer). Koyuda `primary` açık mavi-beyaz, `onPrimary` lacivert olur (dolu düğmeler
   tersine döner). Fotoğraf, degrade ya da renkli (puan/kırmızı/beğeni) zemin üstündeki beyaz yazı/simge için
   `fixed.white`; görünümden bağımsız lacivert için `fixed.navy`. Dinamik renk almayan yerlerde (SVG, gezinme teması
   ve başlık seçenekleri, `@expo/ui` seedColor, harita çizgisi, degrade) `usePalette()` düz değerleri. Paylaşılan
   görseller (hikâye kartları) her zaman açık paletle (`palettes.light`) çizilir. Android: bkz. "Android".
-  Koyu palet iOS'un nötr katmanlarıyla uyumlu (zemin #0B0B0D, bir kat yukarısı #1C1C1E). Katmanlar: gruplu liste
+  Koyu palet iOS'un nötr katmanlarıyla uyumlu (zemin #0B0B0D, bir kat yukarısı #1C1C1E). Koyuda ana yazı ve `primary`
+  X'in kırık beyazı #E7E9EA (2026-10-03, kullanıcı: saf beyaz çok parlak, zemini fazla siyah gösteriyordu). Katmanlar: gruplu liste
   ekranı `grouped` + satırlar `card`; açılır pencere/alttan panel `card`; kart üstündeki düğme/alan `fill`.
   Gölge rengi `fixed.navy` (koyuda beyaz parlama olmasın). Açma/kapama için RN `Switch` değil `components/toggle`
   (iOS'ta SwiftUI Toggle; RN Switch iOS 26'da satırda yukarı kayıyordu).
@@ -464,11 +586,27 @@ Aynı ekran iki platformda o platformun diliyle: iOS dosyası/dalı olduğu gibi
    (`PhoneVerification`). Kapalıyken numara hiç sorulmaz.
 6. En az 5 kişiyi takip et ("Hepsini takip et" kısayolu) → Başla; "Şimdilik geç" ile atlanabilir.
 
+**İzinlerin zamanı (2026-10-02, kullanıcı: "ilk girerken kafası karışmasın"):** konum izni ilk kez `ilk-puan`'da,
+listenin başındaki kartla ("Yakınındaki mekânları göster", neden istendiği yazılı) istenir; izin verilince aynı ekrandaki
+mekân araması da konumu alır (`lib/location` izin duyurusu). Eskiden konumsuz liste Türkiye genelindeki en popüler
+mekânları gösteriyordu ve izin feed'e ilk düşüşte açıklamasız soruluyordu. Bildirim izni onboarding'in bittiği oturumda
+açılışta sorulmaz (`deferLaunchPushOffer`); ilk takipte (`FollowButton`) ya da ilk puanlamada (`degerlendir`) sorulur
+(`offerPushPermissionSoon`, kurulum başına bir kez), hiçbiri olmazsa sonraki açılışta.
+
+**Form hataları (kullanıcı kararı 2026-10-02):** kayıt ve giriş ekranlarında hata açılır pencere değil, alanın altında
+kırmızı yazı (`BigInput` `error`); düzeltilmeden ilerlenemiyorsa düğme kapalı. E-posta adımı yazmayı bırakınca
+`email_registered` (migration `20261019150000_email_registered`, girişsiz) sorar: kayıtlıysa "Devam" kapalı + "Bu hesapla
+giriş yap". Sunucuya ulaşılamazsa engellemez; kayıt isteği yine söyler (şifre adımında alan altında). Ayrıca uyarı/menü
+açılınca klavye kapanır (`dialog-host`: `useAnimatedKeyboard` açık klavyeyi görmüyordu, kart klavyenin altında kalıyordu).
+
 ### Alt bar (5 sekme)
 - **Feed:** iki sekme. *Popüler* (varsayılan): konumun yakınındaki en popüler gönderiler (3→10→30 km,
   yoksa en yakın şehir); kullanıcı şehir/ilçe seçerse o bölgenin popüler feed'i. *Takip*: takip edilenlerin
   ve kullanıcının gönderileri. Gönderi = mekân + fotoğraflar (en fazla 5) + yorum
   + birlikte gidilen arkadaş etiketleri + puan. Beğenilir (çift dokunuş dahil), yorum yapılır, kaydedilir.
+  Kartta sıra: ad/mekân/puan → "X ile birlikte" → açıklama (X gibi fotoğrafın üstünde; kullanıcı kararı 2026-10-03,
+  başında kullanıcı adı tekrarlanmaz) → fotoğraf. Not: kullanıcı "yorum" derken çoğu zaman gönderi açıklamasını kastediyor; yorumların sırası değişmedi
+  (eskiden yeniye).
   Mekân sayfasında o mekânın gönderileri "Gönderiler" ızgarasında listelenir.
   Gönderide yapılandırılmış bilgi: öne çıkanlar (en fazla 3), `lib/post-meta.ts` → `HIGHLIGHTS`. Restoran yorumu
   araştırmalarındaki en sık başlıklara göre 5 grup (Lezzet ve değer · Hizmet · Ortam · Kimle, ne için · Bilmen
@@ -504,11 +642,11 @@ Aynı ekran iki platformda o platformun diliyle: iOS dosyası/dalı olduğu gibi
   **Davet bağlantısı (2026-10-01, telefondan bağımsız):** davet eden kendiliğinden bağlanır (`lib/invite-code`,
   biçim `lib/invite-referrer`): Android'den giden davetlerde Play bağlantısı `referrer=…davet=<kullanıcı adı>` taşır
   (`inviteLink(username)`; `PLAY_STORE_URL` dolunca çalışır), ilk açılışta Play yükleme kaynağı bir kez okunur
-  (`expo-application`); uygulama yüklüyse `puanla://davet/<kullanıcı adı>` (`+native-intent`, sayfa değil). Kod
+  (`expo-application`); uygulama yüklüyse `expeat://davet/<kullanıcı adı>` (`+native-intent`, sayfa değil). Kod
   cihazda saklanır, oturum açılınca `set_inviter` (kök düzen `useInviteCode`; kalıcı ret kodu siler, ağ hatası
   bekletir) ve davet eden `takip` önerilerinin başına gelir (`Profile.inviterId`). iOS'tan giden davette App Store
-  kaynak taşımaz: alan adı gelince `https://puanla.app/davet/<kullanıcı adı>` sayfası + evrensel bağlantı aynı yolu
-  kullanır; o zamana dek "@kullanıcı adı yaz" ipucu. İlk girişte 4 adımlı
+  kaynak taşımaz: alan adı gelince `https://expeat.app/davet/<kullanıcı adı>` sayfası (hazır, `web/davet.html`) +
+  evrensel bağlantı aynı yolu kullanır; o zamana dek "@kullanıcı adı yaz" ipucu. İlk girişte 4 adımlı
   tanıtım (`leaderboard-intro`, cihazda bir kez; ⓘ ile tekrar). Migration `20261008100000_xp`.
 - **Yıllık hedef sayfası (2026-09-29, `hedef`):** profildeki hedef kartından (dokun; basılı tut = değiştir/kaldır)
   açılır. Üstte lacivert kartta kendi hedefin, altında sen + takip ettiklerin tamamlanma oranına göre (`year_challenge`:
@@ -540,7 +678,10 @@ Aynı ekran iki platformda o platformun diliyle: iOS dosyası/dalı olduğu gibi
   durumunu dinler (`useAppSelector` / `useAppActions`; uzun listelerde `useAppStore` kullanma, her değişimde yeniden çizer).
   Popüler sıra `posts.hot` (üretilen sütun, `hot_rank`: ln(1 + beğeni + 2×yorum) + yaş; etkileşim 3 katına çıkınca
   gönderi 2 hafta daha yeni sayılır — kullanıcı kararı 2026-09-29: "o konumdaki en popüler gönderiler önce"; migration
-  `20261011100000_feed_popularity`; zamandan bağımsız olduğu için indeksli, sayfalar kaymaz). Bölge yoğunsa indeksten
+  `20261011100000_feed_popularity`; zamandan bağımsız olduğu için indeksli, sayfalar kaymaz). **Doldurma** (migration
+  `20261019160000_feed_fill`, kullanıcı isteği 2026-10-03): yakınımda modunda bölgede 10'dan az gönderi varsa önce
+  bölgenin gönderileri, ardından her yerden en popülerler (birleşik sırada sayfalı; uzaktakinde `distance_km` yok, semt
+  yazar); yanıtta `nearby_count`, üst satır "Yakınında az gönderi var · popülerler de ekli". Şehir/ilçe seçiminde yok. Bölge yoğunsa indeksten
   okunur, seyrekse bölge toplanıp sıralanır (migration `20261010100000_scale`). `p_as_of` sonradan paylaşılanları o
   oturumun sayfalarından uzak tutar (yanıttaki `as_of` geri yollanır), istemci ayrıca tekrarları ayıklar. Yenileme
   yalnızca ilk sayfayı çeker (`restart`); feed'ler 2 dk taze sayılır (ön plana her dönüşte tüm sayfalar çekilmez).
@@ -613,7 +754,7 @@ Aynı ekran iki platformda o platformun diliyle: iOS dosyası/dalı olduğu gibi
   tür bağlamı, ? rehber) → fotoğraf (boşken tek dokunuşla Çek / Galeriden, ilki büyük "Kapak") → "Nasıldı?" →
   "Kimlerle gittin?" (masa döngüsü açıklamalı) → öne çıkanlar (açıkta). Kullanıcı kararı: alanlar "isteğe bağlı" diye
   etiketlenmez (görülsün, doldurulsun), öğün sorulmaz (açıklamaya yazılır; eski gönderilerin öğünü korunur).
-  Paylaş düğmesi puan yokken "Önce puanını ver". Mekân sayfasında rehber düğmesi `ScoringGuideLink`.
+  Paylaş düğmesi puan yokken "Önce puanını ver".
   **Kırpma** (`components/photo-cropper.tsx`): çekilen/seçilen her fotoğraf önce siyah tam ekran kırpma ekranına gider;
   akıştaki 4:5 çerçeve (`POST_PHOTO_ASPECT` = PhotoCarousel), sıkıştır-yakınlaştır/sürükle (fotoğraf çerçeveyi hep
   kaplar), sürüklerken 3×3 ızgara, çift dokunuş sıfırlar, çoklu seçimde İleri/Bitti + küçük resimler. Kesim

@@ -1,17 +1,16 @@
 import { router } from 'expo-router';
 import { SymbolView } from '@/components/symbol';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View, type ColorValue } from 'react-native';
 import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
 
 import { signUp } from '@/api/auth';
-import { showError, toUserMessage } from '@/api/errors';
+import { toUserMessage } from '@/api/errors';
 import { LegalConsent } from '@/components/legal-consent';
 import { BigInput, OnboardingStep } from '@/components/onboarding-step';
 import { Button, PressableScale, Text } from '@/components/ui';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
-import { showAlert } from '@/lib/dialog';
 import { haptics } from '@/lib/haptics';
 import { isAcceptablePassword, passwordChecks, passwordStrength } from '@/lib/validation';
 import { useAppStore } from '@/store/app-store';
@@ -27,13 +26,17 @@ export default function PasswordStep() {
   const [password, setPassword] = useState('');
   const [visible, setVisible] = useState(false);
   const [creating, setCreating] = useState(false);
+  // Klavyedeki "Git" ile düğmeye art arda basılırsa ikinci kayıt isteği gitmesin (durum henüz güncellenmemiş olabilir)
+  const inFlight = useRef(false);
+  // Son kayıt denemesinin hatası; şifre değişince silinir. E-posta kayıtlıysa "Hesabı oluştur" çalışmaz
+  const [failure, setFailure] = useState<{ text: string; registered: boolean } | null>(null);
 
   const strength = passwordStrength(password);
   const checks = passwordChecks(password);
   const valid = isAcceptablePassword(password);
 
   const create = async () => {
-    if (!valid || creating) {
+    if (!valid || inFlight.current || failure?.registered) {
       haptics.warning();
       return;
     }
@@ -42,6 +45,8 @@ export default function PasswordStep() {
       router.replace('/onboarding/eposta');
       return;
     }
+    inFlight.current = true;
+    setFailure(null);
     setCreating(true);
     try {
       const { needsVerification } = await signUp({ ...draft, email }, password);
@@ -50,13 +55,14 @@ export default function PasswordStep() {
       if (needsVerification) router.push({ pathname: '/onboarding/dogrula', params: { email } });
     } catch (error) {
       haptics.warning();
-      if (/already registered/i.test((error as Error).message ?? '')) {
-        showAlert(t('onboarding.emailRegistered'), toUserMessage(error), [
-          { text: t('common.cancel'), style: 'cancel' },
-          { text: t('onboarding.signIn'), onPress: () => router.replace({ pathname: '/onboarding/giris', params: { email } }) },
-        ]);
-      } else showError(error, t('failures.signUp'));
+      // Hata açılır pencere değil, alanın altında (pencere klavyenin altında kalıyordu); kayıtlı e-postada giriş kısayolu
+      setFailure(
+        /already registered/i.test((error as Error).message ?? '')
+          ? { text: t('onboarding.emailTaken'), registered: true }
+          : { text: toUserMessage(error), registered: false },
+      );
     } finally {
+      inFlight.current = false;
       setCreating(false);
     }
   };
@@ -67,14 +73,23 @@ export default function PasswordStep() {
       subtitle={t('onboarding.passwordSubtitle')}
       footer={
         <>
-          <Button title={t('onboarding.createAccount')} onPress={create} disabled={!valid} loading={creating} />
+          <Button
+            title={t('onboarding.createAccount')}
+            onPress={create}
+            disabled={!valid || !!failure?.registered}
+            loading={creating}
+          />
           {/* Kullanım koşulları (topluluk kuralları dahil) hesap oluşturulurken açıkça kabul edilir */}
           <LegalConsent variant="signup" />
         </>
       }>
       <BigInput
         value={password}
-        onChangeText={setPassword}
+        onChangeText={(text) => {
+          setPassword(text);
+          if (failure && !failure.registered) setFailure(null);
+        }}
+        error={failure?.text}
         placeholder={t('onboarding.password')}
         secureTextEntry={!visible}
         textContentType="newPassword"
@@ -93,6 +108,17 @@ export default function PasswordStep() {
           </PressableScale>
         }
       />
+
+      {failure?.registered && (
+        <PressableScale
+          onPress={() => router.replace({ pathname: '/onboarding/giris', params: { email: draft.email } })}
+          haptic={false}
+          style={styles.signIn}>
+          <Text variant="subhead" color={colors.primary} style={styles.bold}>
+            {t('onboarding.signInInstead')}
+          </Text>
+        </PressableScale>
+      )}
 
       <View style={styles.meter}>
         <View style={styles.bars}>
@@ -138,6 +164,14 @@ function StrengthBar({ filled, color }: { filled: boolean; color: ColorValue }) 
 const barColor = (score: number) => (score <= 1 ? colors.danger : score === 2 ? colors.warning : colors.primary);
 
 const styles = StyleSheet.create({
+  signIn: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+  },
+  bold: {
+    fontWeight: '600',
+  },
   meter: {
     flexDirection: 'row',
     alignItems: 'center',

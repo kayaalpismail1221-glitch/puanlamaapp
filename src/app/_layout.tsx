@@ -14,17 +14,21 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 import { BackendSetup } from '@/components/backend-setup';
 import { DialogHost } from '@/components/dialog-host';
+import { RootError, ScreenError } from '@/components/error-screen';
 import { LaunchSkeleton } from '@/components/skeleton';
 import { ErrorView } from '@/components/ui';
 import { FoodMapShareButton } from '@/components/food-map-header';
 import { FloatingBackButton } from '@/components/header-button';
+import { LaunchIntro, LaunchStage, markLaunchReady } from '@/components/launch-intro';
 import { SYMBOL_FONTS } from '@/components/symbol';
+import { UpdateRequired } from '@/components/update-required';
 import { ZoomOverlayProvider } from '@/components/zoom-overlay';
 import { modal, platformStackOptions } from '@/constants/navigation';
 import { type Palette, type Scheme } from '@/constants/theme';
 import { useAppearanceRemountKey } from '@/hooks/use-appearance-remount';
 import { usePalette, useScheme } from '@/hooks/use-palette';
 import { useShareIntentRedirect } from '@/hooks/use-share-intent-redirect';
+import { useUpdateRequired } from '@/hooks/use-update-required';
 import { useLanguageLoaded } from '@/i18n';
 import { useAppearanceLoaded } from '@/lib/appearance';
 import { applyPendingInviter, checkInstallReferrer, onInviterRemembered } from '@/lib/invite-code';
@@ -42,6 +46,12 @@ SplashScreen.preventAutoHideAsync();
  * durur: geri düğmesi ve alt çubuk çalışır, ekran çıkmaza düşmez.
  */
 export const unstable_settings = { anchor: '(tabs)' };
+
+/**
+ * Kök düzen (sağlayıcılar, gezgin) çizilirken çökerse beyaz ekran yerine "Yeniden başlat".
+ * Tek bir ekranın hatası bunu tetiklemez: ekranlar gezginde ayrı ayrı sarılır (`ScreenError`).
+ */
+export const ErrorBoundary = RootError;
 
 /** "Paylaş → Puanla" uzantısı yerel kod ister: Expo Go'da ve web'de kapalı */
 const shareIntentDisabled =
@@ -79,8 +89,9 @@ function RootNavigator() {
   // Android ve web ikon yazı tipleri (components/symbol); iOS'ta boş, hemen hazır
   const [symbolsLoaded, symbolsError] = useFonts(SYMBOL_FONTS);
   const tabIconsReady = useTabIconsReady();
+  const updateRequired = useUpdateRequired();
 
-  // Açılış görseli yalnızca oturum, tercihler, dil ve ikonlar hazır olana kadar kalır (anlık, cihazdan);
+  // Açılış yalnızca oturum, tercihler, dil ve ikonlar hazır olana kadar bekler (anlık, cihazdan);
   // kullanıcı verisi sunucudan beklenirken Feed iskeleti gösterilir
   const booting =
     status === 'loading' ||
@@ -91,16 +102,20 @@ function RootNavigator() {
     !tabIconsReady;
   const loadingData = status === 'signedIn' && !ready;
   const deciding = booting || loadingData;
-  const splashDone = !booting || !!loadError;
   const showOnboarding = status === 'signedOut' || !onboarded;
   usePushNotifications(!deciding && !showOnboarding);
   useShareIntentRedirect(!deciding && !showOnboarding);
   usePendingLink(!deciding && !showOnboarding);
   useInviteCode(!deciding && status === 'signedIn', hasInviter);
 
+  // Sistem açılış ekranını açılış animasyonu kaldırır (components/launch-intro). Animasyon uygulama asıl içeriğiyle
+  // çizildikten sonra başlar: ilk çizimle aynı anda başlayan yakınlaşma takılıyordu.
   useEffect(() => {
-    if (splashDone) SplashScreen.hideAsync();
-  }, [splashDone]);
+    if (!deciding || loadError || updateRequired) markLaunchReady();
+  }, [deciding, loadError, updateRequired]);
+
+  // Desteklenmeyen sürüm: oturum ya da kurulum durumundan bağımsız, uygulamanın tamamının yerine
+  if (updateRequired) return <UpdateRequired />;
 
   if (deciding) {
     // Önbellek yokken veri yüklenemezse: tekrar dene ya da oturumu kapat (ör. profil satırı yoksa çıkış tek yol)
@@ -117,6 +132,8 @@ function RootNavigator() {
 
   return (
     <Stack
+      // Çöken ekran yalnızca kendi yerinde hata gösterir; başlık, geri tuşu ve sekmeler çalışmaya devam eder
+      unstable_screenErrorBoundary={ScreenError}
       screenOptions={{
         ...platformStackOptions(palette),
         headerTintColor: palette.primary,
@@ -251,7 +268,9 @@ export default function RootLayout() {
   const appearanceKey = useAppearanceRemountKey(scheme);
 
   useEffect(() => {
-    if (!isBackendConfigured) SplashScreen.hideAsync();
+    if (isBackendConfigured) return;
+    SplashScreen.hideAsync();
+    markLaunchReady();
   }, []);
 
   // Kök pencere zemini (modal açılırken ve klavye geçişlerinde görünen alan)
@@ -269,14 +288,19 @@ export default function RootLayout() {
             <QueryClientProvider client={queryClient}>
               <AppStoreProvider>
                 <StatusBar style="auto" />
-                <Fragment key={appearanceKey}>
-                  {/* Yakınlaştırılan fotoğraf gezinmenin (başlık, alt bar) üstünde çizilir */}
-                  <ZoomOverlayProvider>
-                    <RootNavigator />
-                  </ZoomOverlayProvider>
-                  {/* Menü ve uyarı pencereleri (lib/dialog): modal ekranların da üstünde */}
-                  <DialogHost />
-                </Fragment>
+                {/* Açılış örtüsü kalkarken uygulama hafif geriden yerine oturur */}
+                <LaunchStage>
+                  <Fragment key={appearanceKey}>
+                    {/* Yakınlaştırılan fotoğraf gezinmenin (başlık, alt bar) üstünde çizilir */}
+                    <ZoomOverlayProvider>
+                      <RootNavigator />
+                    </ZoomOverlayProvider>
+                    {/* Menü ve uyarı pencereleri (lib/dialog): modal ekranların da üstünde */}
+                    <DialogHost />
+                  </Fragment>
+                </LaunchStage>
+                {/* Soğuk açılışta "eat the experience"; görünüm değişince yeniden oynamasın diye Fragment dışında */}
+                <LaunchIntro />
               </AppStoreProvider>
             </QueryClientProvider>
           </ThemeProvider>

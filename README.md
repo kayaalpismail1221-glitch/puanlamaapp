@@ -1,4 +1,4 @@
-# Puanla
+# Expeat
 
 Türkiye için sosyal restoran sıralama uygulaması (Beli uyarlaması). Ürün ve tasarım kuralları: [CLAUDE.md](CLAUDE.md).
 

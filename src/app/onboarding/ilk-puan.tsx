@@ -15,6 +15,7 @@ import { usePlace } from '@/data/entities';
 import { useUserPosts } from '@/hooks/queries';
 import { useMyInvites } from '@/hooks/use-contact-friends';
 import { formatScore } from '@/lib/format';
+import { useUserLocation } from '@/lib/location';
 import { placeSubtitle } from '@/lib/place';
 import { useAppSelector, useAppStore } from '@/store/app-store';
 
@@ -35,6 +36,9 @@ export default function FirstRatingStep() {
 
   const first = scored[0];
   const firstPlace = usePlace(first?.placeId) ?? undefined;
+  // Konum izni ilk kez burada, ne işe yaradığı söylenerek istenir: liste yakındaki mekânlarla dolar ve
+  // feed'e geçince açıklamasız sistem penceresi çıkmaz. Sormadan önce yalnızca durumu okur.
+  const location = useUserLocation(!firstPlace, false);
   const posted = !!firstPlace && !!myPosts.data?.some((p) => p.placeId === firstPlace.id);
 
   return (
@@ -91,6 +95,7 @@ export default function FirstRatingStep() {
           </View>
           <PlaceSearchList
             query={query}
+            header={location.status === 'undetermined' ? <LocationCard onAllow={location.retry} /> : undefined}
             exclude={(p) => scoreOf(p.id) !== undefined}
             onSelect={(p) => rate(p.id)}
             trailing={() => <SymbolView name="plus.circle" tintColor={colors.primary} size={26} />}
@@ -98,6 +103,27 @@ export default function FirstRatingStep() {
         </>
       )}
     </OnboardingStep>
+  );
+}
+
+/** Konum izni sorulmadıysa listenin başında: neden istendiği + izin düğmesi */
+function LocationCard({ onAllow }: { onAllow: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <Animated.View entering={FadeInDown.springify()} style={styles.locationCard}>
+      <View style={styles.locationIcon}>
+        <SymbolView name="location.fill" tintColor={colors.onPrimary} size={16} />
+      </View>
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text variant="headline">{t('onboarding.locationTitle')}</Text>
+        <Text variant="footnote" color={colors.textSecondary}>
+          {t('onboarding.locationText')}
+        </Text>
+        <View style={styles.locationAction}>
+          <Button title={t('onboarding.locationAllow')} size="sm" onPress={onAllow} />
+        </View>
+      </View>
+    </Animated.View>
   );
 }
 
@@ -137,6 +163,29 @@ const styles = StyleSheet.create({
   search: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.sm,
+  },
+  locationCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.xs,
+    marginBottom: spacing.md,
+    padding: spacing.lg,
+    borderRadius: radius.card,
+    backgroundColor: colors.surface,
+  },
+  locationIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.full,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  locationAction: {
+    flexDirection: 'row',
+    paddingTop: spacing.sm,
   },
   rated: {
     flexDirection: 'row',

@@ -24,10 +24,18 @@ export async function signUp(draft: SignupDraft & { email: string }, password: s
       data: { name: draft.name, username: draft.username },
     },
   });
-  if (error) throw error;
   // Supabase, kayıtlı bir e-postayı sızdırmamak için hata yerine boş kimlikli kullanıcı döner
-  if (data.user && data.user.identities?.length === 0) {
-    throw Object.assign(new Error('User already registered'), { name: 'AuthApiError' });
+  const failure =
+    error ??
+    (data.user && data.user.identities?.length === 0
+      ? Object.assign(new Error('User already registered'), { name: 'AuthApiError' })
+      : null);
+  if (failure) {
+    // İstek hata verse de hesap açılıp oturum kurulmuş olabilir (yavaş bağlantıda yanıt kayboldu, art arda iki
+    // istekte ikincisi "kayıtlı" dedi): oturum bu e-postaysa kayıt başarılı, kullanıcıya uyarı gösterilmez
+    const { data: current } = await supabase.auth.getSession();
+    if (current.session?.user.email?.toLowerCase() === draft.email.trim().toLowerCase()) return { needsVerification: false };
+    throw failure;
   }
   return { needsVerification: !data.session };
 }
@@ -153,6 +161,19 @@ export async function updatePassword(password: string) {
 
 export async function usernameAvailable(username: string): Promise<boolean> {
   return unwrap(await supabase.rpc('username_available', { p_username: username })) ?? false;
+}
+
+/**
+ * Kayıtta e-posta adımı: adres zaten kayıtlı mı (giriş gerektirmez). İstek başarısızsa `undefined`: kullanıcı
+ * engellenmez, kayıt isteği yine söyler (şifre adımında alanın altında).
+ */
+export async function emailRegistered(email: string): Promise<boolean | undefined> {
+  try {
+    const { data, error } = await supabase.rpc('email_registered', { p_email: email });
+    return error ? undefined : !!data;
+  } catch {
+    return undefined;
+  }
 }
 
 export async function signOut() {

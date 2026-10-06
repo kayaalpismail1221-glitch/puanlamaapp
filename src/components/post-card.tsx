@@ -68,6 +68,8 @@ export const PostCard = memo(function PostCard({ post: initial, expanded, distan
 
   const openPlace = () => router.push({ pathname: '/mekan/[id]', params: { id: place.id } });
   const openPost = () => router.push({ pathname: '/gonderi/[id]', params: { id: post.id } });
+  // Yorum simgesi ve "yorumların tümünü gör": gönderi yorumlara kaydırılmış açılır
+  const openComments = () => router.push({ pathname: '/gonderi/[id]', params: { id: post.id, yorumlar: '1' } });
 
   const bounceHeart = () => heart.set(withSequence(withSpring(1.3, { duration: 120 }), withSpring(1, { duration: 200 })));
 
@@ -178,7 +180,7 @@ export const PostCard = memo(function PostCard({ post: initial, expanded, distan
         </PressableScale>
       </View>
 
-      {/* Birlikte gidilen arkadaşlar */}
+      {/* Birlikte gidilen arkadaşlar (açıklamanın üstünde; kullanıcı isteği 2026-10-03) */}
       {tagged.length > 0 && (
         <View style={styles.tagged}>
           <SymbolView name="person.2.fill" tintColor={colors.textSecondary} size={14} />
@@ -193,6 +195,13 @@ export const PostCard = memo(function PostCard({ post: initial, expanded, distan
             {t('post.togetherSuffix')}
           </Text>
         </View>
+      )}
+
+      {/* Açıklama X gibi fotoğrafın üstünde (kullanıcı isteği 2026-10-03); ad üstte yazdığı için tekrarlanmaz */}
+      {post.caption && (
+        <Text variant="callout" numberOfLines={expanded ? undefined : 3} style={styles.caption} onPress={expanded ? undefined : openPost}>
+          {post.caption}
+        </Text>
       )}
 
       {post.photos.length > 0 ? (
@@ -235,7 +244,11 @@ export const PostCard = memo(function PostCard({ post: initial, expanded, distan
             {likeCount}
           </Text>
         </PressableScale>
-        <PressableScale onPress={openPost} hitSlop={hitSlop} style={styles.action} accessibilityLabel={t('post.comments')}>
+        <PressableScale
+          onPress={expanded ? undefined : openComments}
+          hitSlop={hitSlop}
+          style={styles.action}
+          accessibilityLabel={t('post.comments')}>
           <SymbolView name="bubble.right" tintColor={colors.text} size={23} />
           <Text variant="subhead" style={styles.bold}>
             {commentCount}
@@ -264,19 +277,10 @@ export const PostCard = memo(function PostCard({ post: initial, expanded, distan
         </PressableScale>
       </View>
 
-      {post.caption && (
-        <Text variant="callout" numberOfLines={expanded ? undefined : 3} style={styles.caption} onPress={expanded ? undefined : openPost}>
-          <Text variant="callout" style={styles.bold}>
-            {user.username || user.name}{' '}
-          </Text>
-          {post.caption}
-        </Text>
-      )}
-
       <PostMeta post={post} />
 
       {!expanded && commentCount > 0 && (
-        <Text variant="subhead" color={colors.textSecondary} style={styles.caption} onPress={openPost}>
+        <Text variant="subhead" color={colors.textSecondary} style={styles.caption} onPress={openComments}>
           {t('post.viewComments', { count: commentCount })}
         </Text>
       )}

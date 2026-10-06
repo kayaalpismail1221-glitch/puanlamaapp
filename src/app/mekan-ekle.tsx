@@ -25,7 +25,7 @@ import { deliverPlaceChoice } from '@/lib/place-choice';
 import { queryClient } from '@/lib/query-client';
 import type { Cuisine, Place } from '@/types';
 
-/** İğnenin durduğu yer: bilinen bölgede (İstanbul) semt veritabanından, dışında kullanıcıdan */
+/** İğnenin durduğu yer: bilinen bölgede (sınırları yüklü iller) semt veritabanından, dışında kullanıcıdan */
 type AreaState = { status: 'idle' | 'loading' } | { status: 'known'; area: AreaAt } | { status: 'unknown' };
 
 /**
@@ -45,7 +45,7 @@ const DUPLICATE_RADIUS_KM = 0.15;
 /**
  * Veritabanında olmayan mekânı ekleme. Doğruluk için:
  * 1. İğne açıkça yerleştirilir (GPS konumu onaylanır ya da harita/adres aramasıyla taşınır).
- * 2. İl/ilçe/mahalle iğneden hesaplanır, elle yazılamaz (İstanbul dışında kullanıcı yazar).
+ * 2. İl/ilçe/mahalle iğneden hesaplanır, elle yazılamaz (sınırları yüklü iller dışında kullanıcı yazar).
  * 3. Sokak adresi Apple'dan önerilir, veri setindeki biçime getirilir; kapı numarası varsa iğneyle karşılaştırılır.
  * 4. Yakında benzer adlı mekân varsa "Bunlardan biri mi?" diye sorulur; seçilirse yeni kayıt açılmaz.
  */
@@ -144,13 +144,17 @@ export default function AddPlaceScreen() {
     setManual((m) => ({ ...m, [key]: value }));
   };
 
-  /** Apple ile adres/semt arama; önce İstanbul içinde, bulunamazsa her yerde */
+  /**
+   * Apple ile adres/semt arama; önce iğnenin bulunduğu ilde (aynı adlı cadde birçok ilde var: "Atatürk Blv."),
+   * il bilinmiyorsa Türkiye'de, bulunamazsa her yerde
+   */
   const searchAddress = async () => {
     const q = query.trim();
     if (q.length < 3) return;
     setSearching(true);
     try {
-      let points = await Location.geocodeAsync(`${q}, İstanbul, Türkiye`).catch(() => []);
+      const city = where.city.trim();
+      let points = await Location.geocodeAsync([q, city, 'Türkiye'].filter(Boolean).join(', ')).catch(() => []);
       if (!points.length) points = await Location.geocodeAsync(q).catch(() => []);
       const found = await Promise.all(
         points.slice(0, 5).map(async (p) => {

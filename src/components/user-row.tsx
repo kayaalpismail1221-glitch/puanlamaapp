@@ -5,6 +5,7 @@ import { HighlightText } from '@/components/highlight-text';
 import { Avatar, PressableScale, Text } from '@/components/ui';
 import { colors, radius, spacing } from '@/constants/theme';
 import { openUserProfile } from '@/lib/navigation';
+import { offerPushPermissionSoon } from '@/lib/notifications';
 import { isMe } from '@/lib/session';
 import { useAppActions, useAppSelector } from '@/store/app-store';
 import type { User } from '@/types';
@@ -43,10 +44,16 @@ export function FollowButton({ userId, large }: { userId: string; large?: boolea
   // Listede çok kopyası olur: yalnızca bu kişinin takip durumunu dinler
   const isFollowing = useAppSelector((s) => s.following.includes(userId));
   const actions = useAppActions();
+  const onboarded = useAppSelector((s) => !!s.profile?.onboardedAt);
   const { t } = useTranslation();
+  const toggle = () => {
+    actions.toggleFollow(userId);
+    // İlk takip bildirim izni için doğal an (kurulum sırasındaki takipler hariç)
+    if (!isFollowing && onboarded) offerPushPermissionSoon();
+  };
   return (
     <PressableScale
-      onPress={() => actions.toggleFollow(userId)}
+      onPress={toggle}
       style={[styles.follow, large && styles.followLarge, isFollowing && styles.following]}
       accessibilityRole="button">
       <Text

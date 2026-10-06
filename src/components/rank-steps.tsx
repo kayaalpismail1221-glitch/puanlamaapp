@@ -5,7 +5,7 @@ import Animated, { FadeIn, FadeInDown, FadeOut } from 'react-native-reanimated';
 
 import { Button, PlaceImage, PressableScale, Text } from '@/components/ui';
 import { SEGMENT_ICONS } from '@/constants/segments';
-import { colors, radius, spacing } from '@/constants/theme';
+import { colors, onScoreColor, radius, scoreColor, scoreInk, spacing, withAlpha } from '@/constants/theme';
 import { getPlace } from '@/data/entities';
 import type { RankResult } from '@/hooks/use-rank-flow';
 import { formatScore } from '@/lib/format';
@@ -26,20 +26,38 @@ const SENTIMENT_ICONS: Record<Sentiment, SFSymbol> = {
   disliked: 'hand.thumbsdown.fill',
 };
 
+/** Seçeneklerin rengi: o grubun puan renginin ortası (yeşil / sarı / kırmızı; bkz. theme `scoreColor`) */
+const SENTIMENT_TONES: Record<Sentiment, number> = {
+  liked: 8.4,
+  fine: 5,
+  disliked: 1.7,
+};
+
 /** 1) Beğendim / İdare eder / Beğenmedim */
 export function SentimentChoice({ onChoose, compact }: { onChoose: (s: Sentiment) => void; compact?: boolean }) {
   const { t } = useTranslation();
   if (compact) {
     return (
       <Animated.View entering={FadeIn} style={styles.pills}>
-        {SENTIMENTS.map((s) => (
-          <PressableScale key={s} onPress={() => onChoose(s)} haptic={false} style={styles.pill}>
-            <SymbolView name={SENTIMENT_ICONS[s]} tintColor={colors.primary} size={20} />
-            <Text variant="footnote" style={styles.bold} numberOfLines={1}>
-              {t(`sentiments.${s}`)}
-            </Text>
-          </PressableScale>
-        ))}
+        {SENTIMENTS.map((s) => {
+          const tone = SENTIMENT_TONES[s];
+          return (
+            <PressableScale
+              key={s}
+              onPress={() => onChoose(s)}
+              haptic={false}
+              scaleTo={0.95}
+              accessibilityRole="button"
+              style={[styles.pill, { backgroundColor: withAlpha(scoreColor(tone), 0.14), borderColor: withAlpha(scoreColor(tone), 0.45) }]}>
+              <View style={[styles.pillIcon, { backgroundColor: scoreColor(tone) }]}>
+                <SymbolView name={SENTIMENT_ICONS[s]} tintColor={onScoreColor(tone)} size={17} />
+              </View>
+              <Text variant="footnote" color={scoreInk(tone)} style={styles.heavy} numberOfLines={1}>
+                {t(`sentiments.${s}`)}
+              </Text>
+            </PressableScale>
+          );
+        })}
       </Animated.View>
     );
   }
@@ -50,11 +68,22 @@ export function SentimentChoice({ onChoose, compact }: { onChoose: (s: Sentiment
       </Text>
       {SENTIMENTS.map((s, i) => (
         <Animated.View key={s} entering={FadeInDown.delay(60 * i).springify()}>
-          <PressableScale onPress={() => onChoose(s)} haptic={false} style={styles.sentiment}>
-            <View style={styles.sentimentIcon}>
-              <SymbolView name={SENTIMENT_ICONS[s]} tintColor={colors.primary} size={20} />
+          <PressableScale
+            onPress={() => onChoose(s)}
+            haptic={false}
+            style={[
+              styles.sentiment,
+              {
+                backgroundColor: withAlpha(scoreColor(SENTIMENT_TONES[s]), 0.12),
+                borderColor: withAlpha(scoreColor(SENTIMENT_TONES[s]), 0.4),
+              },
+            ]}>
+            <View style={[styles.sentimentIcon, { backgroundColor: scoreColor(SENTIMENT_TONES[s]) }]}>
+              <SymbolView name={SENTIMENT_ICONS[s]} tintColor={onScoreColor(SENTIMENT_TONES[s])} size={20} />
             </View>
-            <Text variant="headline">{t(`sentiments.${s}`)}</Text>
+            <Text variant="headline" color={scoreInk(SENTIMENT_TONES[s])}>
+              {t(`sentiments.${s}`)}
+            </Text>
           </PressableScale>
         </Animated.View>
       ))}
@@ -206,11 +235,21 @@ const styles = StyleSheet.create({
   pill: {
     flex: 1,
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: spacing.sm,
     paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xs,
     borderRadius: radius.button,
     borderWidth: 1,
-    borderColor: colors.border,
+  },
+  pillIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heavy: {
+    fontWeight: '700',
   },
   sentiment: {
     flexDirection: 'row',
@@ -219,13 +258,11 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     borderRadius: radius.card,
     borderWidth: 1,
-    borderColor: colors.border,
   },
   sentimentIcon: {
     width: 40,
     height: 40,
     borderRadius: radius.full,
-    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },

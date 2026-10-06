@@ -87,6 +87,9 @@ export default function FeedScreen() {
         // Fotoğraflı ve fotoğrafsız kartlar ayrı havuzlarda geri dönüştürülür
         getItemType={(e) => (e.post.photos.length ? 'photo' : 'tile')}
         contentInsetAdjustmentBehavior="automatic"
+        // FlashList görünür gönderiyi yerinde tutmaya çalışır (varsayılan): iki sekmede de olan bir gönderi (ör. kendi
+        // gönderin) ekrandayken sekme değişince liste onun diğer listedeki yerine, çok aşağıya atlıyordu
+        maintainVisibleContentPosition={{ disabled: true }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
         onEndReached={() => active.hasNextPage && !active.isFetchingNextPage && active.fetchNextPage()}
         // Sonraki sayfa, sona bir ekran kala istenir: kaydırma hiç beklemez
@@ -127,7 +130,9 @@ export default function FeedScreen() {
                         ? t('feed.locationOff', { city: FALLBACK_AREA.type === 'area' ? FALLBACK_AREA.city : '' })
                         : firstPage?.fallbackCity
                           ? t('feed.fallbackCity', { city: firstPage.fallbackCity })
-                          : firstPage?.radiusKm
+                          : firstPage?.nearbyCount !== undefined
+                            ? t('feed.filled')
+                            : firstPage?.radiusKm
                             ? t('feed.radius', { km: firstPage.radiusKm })
                             : t('feed.areaPopular')}
                   </Text>

@@ -10,7 +10,6 @@ import { PlaceDetailSkeleton, PostGridSkeleton } from '@/components/skeleton';
 import { Avatar, Button, Divider, ErrorView, PlaceImage, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { colors, hitSlop, onScoreColor, radius, scoreColor, spacing } from '@/constants/theme';
 import { PlaceInfo } from '@/components/place-info';
-import { ScoringGuide, ScoringGuideLink, useScoringGuide } from '@/components/scoring-guide';
 import { PostGrid } from '@/components/post-grid';
 import { usePlace, useUser } from '@/data/entities';
 import { usePlaceDetails, usePlacePosts } from '@/hooks/queries';
@@ -34,7 +33,6 @@ export default function PlaceDetailScreen() {
   const details = usePlaceDetails(id);
   const placePosts = usePlacePosts(id);
   const { scoreOf, scored, rankings, isSaved, saved: savedPlaces, actions } = useAppStore();
-  const guide = useScoringGuide();
   const { t } = useTranslation();
   const place = cached ?? details.data?.place;
 
@@ -250,16 +248,6 @@ export default function PlaceDetailScreen() {
               ))}
             </ScrollView>
           )}
-
-          {community !== undefined && (
-            <Text variant="footnote" color={colors.textSecondary}>
-              {t('place.communityBasis', { score: formatScore(community), count: communityCount })}
-              {/* Puan az kişiden geliyorsa neden bir kişinin puanından farklı olabileceğini söyle */}
-              {communityCount < 5 && `\n${t('place.communityHint')}`}
-            </Text>
-          )}
-          <ScoringGuideLink onPress={guide.open} />
-          <ScoringGuide visible={guide.visible} onClose={guide.close} />
 
           <Divider />
 

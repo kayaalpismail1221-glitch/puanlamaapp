@@ -21,7 +21,7 @@ export function BackendSetup() {
         Sunucu bağlantısı yok
       </Text>
       <Text variant="body" color={colors.textSecondary}>
-        Puanla verilerini Supabase’te saklıyor. Uygulamayı çalıştırmak için bağlantı bilgilerini bir kez girmen gerekiyor.
+        Expeat verilerini Supabase’te saklıyor. Uygulamayı çalıştırmak için bağlantı bilgilerini bir kez girmen gerekiyor.
       </Text>
       <View style={styles.steps}>
         {STEPS.map((step, i) => (

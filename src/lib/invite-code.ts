@@ -11,8 +11,8 @@ import type { User } from '@/types';
  * davet eden önce katılmış olmalı). Kod iki yoldan gelir:
  * - Android: Google Play bağlantısındaki `referrer` (`lib/invite-referrer` → `playInviteUrl`); Play yüklemeden sonra uygulamaya aktarır,
  *   ilk açılışta bir kez okunur (`checkInstallReferrer`).
- * - Uygulama yüklüyse `puanla://davet/<kullanıcı adı>` (`+native-intent`). Alan adı gelince
- *   `https://puanla.app/davet/<kullanıcı adı>` evrensel bağlantısı aynı yolu kullanır.
+ * - Uygulama yüklüyse `expeat://davet/<kullanıcı adı>` ya da `https://expeat.app/davet/<kullanıcı adı>` evrensel
+ *   bağlantısı (`+native-intent`; evrensel bağlantı alan adı ve `associatedDomains`'li derlemeyle çalışır).
  * iOS mağazası kaynak aktarmaz: alan adı + web sayfası gelene kadar orada mesajdaki "@kullanıcı adı yaz" ipucu kalır.
  * Kod kayıttan önce gelebilir: cihazda saklanır, oturum açılınca uygulanır (`applyPendingInviter`).
  */

@@ -3,11 +3,11 @@ import { router, Stack } from 'expo-router';
 import { SymbolView } from '@/components/symbol';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, TextInput, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import type { LocalImage } from '@/api/storage';
 import { Avatar, PressableScale, Text } from '@/components/ui';
-import { FormScrollView } from '@/components/form-scroll-view';
 import { ModalCloseButton } from '@/components/header-button';
 import { colors, hitSlop, radius, spacing, typography } from '@/constants/theme';
 import { schoolById, schoolLabel } from '@/data/schools';
@@ -15,12 +15,18 @@ import { toUsername } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
 import { useAppStore } from '@/store/app-store';
 
-/** Profili düzenle: fotoğraf, ad, kullanıcı adı, okul */
+/** Bio sınırları (veritabanındaki kuralla aynı: `20261019170000_profile_bio`) */
+const BIO_MAX = 150;
+const BIO_MAX_LINES = 3;
+const limitBio = (text: string) => text.split('\n').slice(0, BIO_MAX_LINES).join('\n');
+
+/** Profili düzenle: fotoğraf, ad, kullanıcı adı, okul, bio */
 export default function EditProfileScreen() {
   const { profile, actions } = useAppStore();
   const { t } = useTranslation();
   const [name, setName] = useState(profile?.name ?? '');
   const [username, setUsername] = useState(profile?.username ?? '');
+  const [bio, setBio] = useState(profile?.bio ?? '');
   const [avatar, setAvatar] = useState<LocalImage>();
   const [saving, setSaving] = useState(false);
   const avatarUri = avatar?.uri ?? profile?.avatarUri;
@@ -45,6 +51,7 @@ export default function EditProfileScreen() {
     const patch = {
       ...(name.trim() !== profile.name && { name: name.trim() }),
       ...(username !== profile.username && { username }),
+      ...(bio.trim() !== (profile.bio ?? '') && { bio: bio.trim() }),
     };
     // Hata olursa kullanıcıya gösterilir ve ekran açık kalır
     const ok =
@@ -58,7 +65,7 @@ export default function EditProfileScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <View style={styles.container}>
       <Stack.Screen
         options={{
           // iOS: "Vazgeç" metni; Android: Material tam ekran diyaloğundaki gibi ✕
@@ -84,7 +91,13 @@ export default function EditProfileScreen() {
             ),
         }}
       />
-      <FormScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
+      {/* Odaklanan alan klavyenin üstüne kayar (iOS'ta sayfa olarak açılan ekranda KeyboardAvoidingView payı
+          yanlış hesaplıyor, en alttaki bio klavyenin altında kalıyordu) */}
+      <KeyboardAwareScrollView
+        bottomOffset={spacing.xl}
+        contentContainerStyle={styles.form}
+        keyboardShouldPersistTaps="handled"
+        contentInsetAdjustmentBehavior="automatic">
         <PressableScale onPress={pickPhoto} style={styles.avatar} accessibilityLabel={t('editProfile.changePhotoLabel')}>
           <Avatar uri={avatarUri} name={name || '?'} size={104} />
           <Text variant="subhead" color={colors.primary} style={styles.bold}>
@@ -122,6 +135,24 @@ export default function EditProfileScreen() {
             </View>
           </Field>
           <View style={styles.separator} />
+          {/* Bio: profilde adın altında; sayaç yalnızca sınıra yaklaşınca */}
+          <Field label={t('editProfile.bio')} top>
+            <TextInput
+              value={bio}
+              onChangeText={(text) => setBio(limitBio(text))}
+              placeholder={t('editProfile.bioPlaceholder')}
+              placeholderTextColor={colors.textTertiary}
+              multiline
+              maxLength={BIO_MAX}
+              style={[typography.body, styles.input, styles.bioInput]}
+            />
+            {bio.length > BIO_MAX - 30 && (
+              <Text variant="caption" color={bio.length >= BIO_MAX ? colors.warning : colors.textTertiary} style={styles.bioCount}>
+                {bio.length}/{BIO_MAX}
+              </Text>
+            )}
+          </Field>
+          <View style={styles.separator} />
           <PressableScale onPress={() => router.push('/okul-sec')} scaleTo={0.99}>
             <Field label={t('editProfile.school')}>
               <View style={styles.usernameRow}>
@@ -136,15 +167,16 @@ export default function EditProfileScreen() {
         <Text variant="footnote" color={colors.textSecondary} style={styles.hint}>
           {t('editProfile.usernameHint')}
         </Text>
-      </FormScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
+    </View>
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+/** `top`: çok satırlı alan; etiket ilk satırla hizalı kalır */
+function Field({ label, children, top }: { label: string; children: React.ReactNode; top?: boolean }) {
   return (
-    <View style={styles.field}>
-      <Text variant="body" style={styles.label}>
+    <View style={[styles.field, top && styles.fieldTop]}>
+      <Text variant="body" style={[styles.label, top && styles.labelTop]}>
         {label}
       </Text>
       <View style={{ flex: 1 }}>{children}</View>
@@ -204,5 +236,21 @@ const styles = StyleSheet.create({
   },
   hint: {
     paddingHorizontal: spacing.lg,
+  },
+  fieldTop: {
+    alignItems: 'flex-start',
+  },
+  labelTop: {
+    paddingTop: spacing.md,
+  },
+  // Tek satır gibi başlar, yazdıkça 3 satıra kadar uzar
+  bioInput: {
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
+    textAlignVertical: 'top',
+  },
+  bioCount: {
+    alignSelf: 'flex-end',
+    paddingBottom: spacing.sm,
   },
 });

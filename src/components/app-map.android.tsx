@@ -32,7 +32,7 @@ import { useScheme } from '@/hooks/use-palette';
  * Android haritası: MapLibre + OpenFreeMap (ücretsiz OpenStreetMap karoları, anahtar yok; stil
  * `constants/map-style`). Ekranlar iOS'taki react-native-maps arayüzüyle yazılır (`app-map.tsx`); burada
  * kullandıkları kısım MapLibre'ye çevrilir: `initialRegion`/`initialCamera`, `onRegionChangeComplete`, `onPress`,
- * dokunma kilitleri, `showsUserLocation`, ref'te `animateToRegion`/`fitToCoordinates`/`animateCamera`.
+ * dokunma kilitleri, `showsUserLocation`, ref'te `animateToRegion`/`fitToCoordinates`/`animateCamera`/`setCamera`.
  * Yakınlaştırma: MapLibre 512 px'lik karo kullanır, Google/Apple yakınlığının bir eksiği.
  * Haritada çocuk olarak yalnızca `PinMarker` çizilir (çoklu çizgi vb. Android'de yok: uygulama içi rota iOS'ta).
  */
@@ -114,6 +114,15 @@ export function AppMapView({
             ...(target.heading !== undefined && { bearing: target.heading }),
             ...(target.pitch !== undefined && { pitch: target.pitch }),
             duration: options?.duration ?? 500,
+          }),
+        // Animasyonsuz: karede bir çağrılarak elle canlandırılan kamera için (karşılama haritası)
+        setCamera: (target: Partial<MapsCamera>) =>
+          target.center &&
+          camera.current?.jumpTo({
+            center: [target.center.longitude, target.center.latitude],
+            ...(target.zoom !== undefined && { zoom: target.zoom - 1 }),
+            ...(target.heading !== undefined && { bearing: target.heading }),
+            ...(target.pitch !== undefined && { pitch: target.pitch }),
           }),
       }) as unknown as MapView,
   );

@@ -18,12 +18,12 @@ const termsTr: LegalText = {
   title: 'Kullanım Koşulları',
   updated: UPDATED_TR,
   intro:
-    'Puanla’yı kullanarak bu koşulları ve topluluk kurallarını kabul etmiş olursun. Lütfen dikkatlice oku; kabul etmiyorsan uygulamayı kullanma.',
+    'Expeat’i kullanarak bu koşulları ve topluluk kurallarını kabul etmiş olursun. Lütfen dikkatlice oku; kabul etmiyorsan uygulamayı kullanma.',
   sections: [
     {
       heading: '1. Hizmet',
       paragraphs: [
-        'Puanla; gittiğin restoran ve kafeleri puanlayıp sıralayabildiğin, fotoğraf ve yorum paylaşabildiğin, arkadaşlarının önerilerini görebildiğin bir sosyal uygulamadır. Hizmet “olduğu gibi” sunulur ve zaman içinde değişebilir.',
+        'Expeat; gittiğin restoran ve kafeleri puanlayıp sıralayabildiğin, fotoğraf ve yorum paylaşabildiğin, arkadaşlarının önerilerini görebildiğin bir sosyal uygulamadır. Hizmet “olduğu gibi” sunulur ve zaman içinde değişebilir.',
       ],
     },
     {
@@ -37,7 +37,7 @@ const termsTr: LegalText = {
     {
       heading: '3. Topluluk kuralları — sıfır tolerans',
       paragraphs: [
-        'Puanla’da uygunsuz içeriğe ve taciz eden kullanıcılara karşı sıfır tolerans uygulanır. Aşağıdakileri paylaşmak yasaktır:',
+        'Expeat’te uygunsuz içeriğe ve taciz eden kullanıcılara karşı sıfır tolerans uygulanır. Aşağıdakileri paylaşmak yasaktır:',
         '• Küfür, hakaret, taciz, zorbalık, tehdit ya da nefret söylemi (ırk, etnik köken, din, cinsiyet, cinsel yönelim, engellilik vb. hedef alan içerik);',
         '• Cinsel içerik, çıplaklık, şiddet ya da kan içeren görseller;',
         '• Yasa dışı faaliyetleri, uyuşturucuyu ya da kendine zarar vermeyi teşvik eden içerik;',
@@ -50,20 +50,20 @@ const termsTr: LegalText = {
     {
       heading: '4. Paylaştığın içerik',
       paragraphs: [
-        'Paylaştığın fotoğraf, yorum ve puanların sahibi sensin. Bunları paylaşarak Puanla’ya, içeriği uygulamada göstermek, depolamak ve hizmeti işletmek amacıyla dünya çapında, ücretsiz, devredilemeyen bir kullanım izni vermiş olursun. İçeriğini sildiğinde bu izin sona erer.',
+        'Paylaştığın fotoğraf, yorum ve puanların sahibi sensin. Bunları paylaşarak Expeat’e, içeriği uygulamada göstermek, depolamak ve hizmeti işletmek amacıyla dünya çapında, ücretsiz, devredilemeyen bir kullanım izni vermiş olursun. İçeriğini sildiğinde bu izin sona erer.',
         'Paylaştığın içeriğin sana ait olduğunu ya da paylaşma hakkına sahip olduğunu kabul edersin.',
       ],
     },
     {
       heading: '5. Mekân bilgileri',
       paragraphs: [
-        'Mekân adları ve konumları OpenStreetMap katkıcılarının verisinden (ODbL lisansı) ve kullanıcı eklemelerinden oluşur; güncel ya da eksiksiz olmayabilir. Puanlar ve yorumlar kullanıcıların kişisel görüşleridir, Puanla’nın görüşünü yansıtmaz.',
+        'Mekân adları ve konumları OpenStreetMap katkıcılarının verisinden (ODbL lisansı) ve kullanıcı eklemelerinden oluşur; güncel ya da eksiksiz olmayabilir. Puanlar ve yorumlar kullanıcıların kişisel görüşleridir, Expeat’in görüşünü yansıtmaz.',
       ],
     },
     {
       heading: '6. Sorumluluğun sınırlandırılması',
       paragraphs: [
-        'Puanla, kullanıcı içeriğinden ya da mekânlarda yaşanan deneyimlerden sorumlu değildir. Yürürlükteki hukukun izin verdiği ölçüde hizmetin kullanımından doğan dolaylı zararlardan sorumluluk kabul edilmez.',
+        'Expeat, kullanıcı içeriğinden ya da mekânlarda yaşanan deneyimlerden sorumlu değildir. Yürürlükteki hukukun izin verdiği ölçüde hizmetin kullanımından doğan dolaylı zararlardan sorumluluk kabul edilmez.',
       ],
     },
     {
@@ -83,12 +83,12 @@ const termsEn: LegalText = {
   title: 'Terms of Use',
   updated: UPDATED_EN,
   intro:
-    'By using Puanla you agree to these terms and our community guidelines. Please read them carefully; if you don’t agree, don’t use the app.',
+    'By using Expeat you agree to these terms and our community guidelines. Please read them carefully; if you don’t agree, don’t use the app.',
   sections: [
     {
       heading: '1. The service',
       paragraphs: [
-        'Puanla is a social app for rating and ranking the restaurants and cafés you visit, sharing photos and reviews, and discovering places your friends recommend. The service is provided “as is” and may change over time.',
+        'Expeat is a social app for rating and ranking the restaurants and cafés you visit, sharing photos and reviews, and discovering places your friends recommend. The service is provided “as is” and may change over time.',
       ],
     },
     {
@@ -102,7 +102,7 @@ const termsEn: LegalText = {
     {
       heading: '3. Community guidelines — zero tolerance',
       paragraphs: [
-        'Puanla has zero tolerance for objectionable content and abusive users. You may not post:',
+        'Expeat has zero tolerance for objectionable content and abusive users. You may not post:',
         '• Profanity, insults, harassment, bullying, threats or hate speech (content targeting race, ethnicity, religion, gender, sexual orientation, disability, etc.);',
         '• Sexual content, nudity, or violent or graphic imagery;',
         '• Content promoting illegal activity, drugs or self-harm;',
@@ -115,20 +115,20 @@ const termsEn: LegalText = {
     {
       heading: '4. Your content',
       paragraphs: [
-        'You own the photos, reviews and ratings you share. By sharing them, you grant Puanla a worldwide, royalty-free, non-transferable license to display and store that content in the app and to operate the service. This license ends when you delete the content.',
+        'You own the photos, reviews and ratings you share. By sharing them, you grant Expeat a worldwide, royalty-free, non-transferable license to display and store that content in the app and to operate the service. This license ends when you delete the content.',
         'You confirm that the content you share is yours or that you have the right to share it.',
       ],
     },
     {
       heading: '5. Place information',
       paragraphs: [
-        'Place names and locations come from OpenStreetMap contributors (ODbL license) and user submissions, and may not be current or complete. Ratings and reviews are users’ personal opinions and do not represent Puanla’s views.',
+        'Place names and locations come from OpenStreetMap contributors (ODbL license) and user submissions, and may not be current or complete. Ratings and reviews are users’ personal opinions and do not represent Expeat’s views.',
       ],
     },
     {
       heading: '6. Limitation of liability',
       paragraphs: [
-        'Puanla is not responsible for user content or for experiences at any venue. To the extent permitted by law, we are not liable for indirect damages arising from use of the service.',
+        'Expeat is not responsible for user content or for experiences at any venue. To the extent permitted by law, we are not liable for indirect damages arising from use of the service.',
       ],
     },
     {
@@ -148,7 +148,7 @@ const privacyTr: LegalText = {
   title: 'Gizlilik Politikası',
   updated: UPDATED_TR,
   intro:
-    'Bu politika, Puanla’nın (“biz”) hangi kişisel verileri neden işlediğini ve haklarını açıklar. 6698 sayılı Kişisel Verilerin Korunması Kanunu (KVKK) kapsamında veri sorumlusu Puanla’dır.',
+    'Bu politika, Expeat’in (“biz”) hangi kişisel verileri neden işlediğini ve haklarını açıklar. 6698 sayılı Kişisel Verilerin Korunması Kanunu (KVKK) kapsamında veri sorumlusu Expeat’tir.',
   sections: [
     {
       heading: '1. Topladığımız veriler',
@@ -158,8 +158,8 @@ const privacyTr: LegalText = {
         '• Paylaştıkların: puanlar ve sıralamalar, gönderiler, fotoğraflar, yorumlar, beğeniler, kaydettiklerin, Listem’e eklediğin bağlantı ve notlar, takip ilişkileri, şikâyet ve engellemeler.',
         '• Konum: “Yakınımda” feed’i ve harita için cihazının konumu yalnızca izin verirsen ve uygulama açıkken kullanılır. Konumun yakındaki gönderileri bulmak için anlık sorguda kullanılır; sunucularımızda saklanmaz.',
         '• Fotoğraflar ve kamera: yalnızca paylaşmak için seçtiğin ya da çektiğin fotoğraflar yüklenir; fotoğraf arşivinin geri kalanına erişmeyiz.',
-        '• Rehber: yalnızca izin verirsen ve “Rehberini tara” ya da gönderide “Rehberden” dediğinde okunur. Rehberindeki cep numaraları, Puanla’da olan arkadaşlarını bulmak için sunucumuza gönderilir ve yalnızca geri döndürülemez özet (hash) olarak saklanır; isimler ve diğer rehber bilgileri cihazından çıkmaz. Bu özetler, rehberindeki biri sonradan katıldığında sana haber vermek için kullanılır ve hesabını silince silinir.',
-        '• Davetler: gönderide rehberden eklediğin, Puanla’da olmayan kişinin numarası özet olarak saklanır; o kişi katılıp numarasını doğrularsa davetinle eşleşir ve sana haber verilir. Davet mesajını sen kendi WhatsApp ya da Mesajlar uygulamandan gönderirsin; biz kimseye mesaj göndermeyiz.',
+        '• Rehber: yalnızca izin verirsen ve “Rehberini tara” ya da gönderide “Rehberden” dediğinde okunur. Rehberindeki cep numaraları, Expeat’te olan arkadaşlarını bulmak için sunucumuza gönderilir ve yalnızca geri döndürülemez özet (hash) olarak saklanır; isimler ve diğer rehber bilgileri cihazından çıkmaz. Bu özetler, rehberindeki biri sonradan katıldığında sana haber vermek için kullanılır ve hesabını silince silinir.',
+        '• Davetler: gönderide rehberden eklediğin, Expeat’te olmayan kişinin numarası özet olarak saklanır; o kişi katılıp numarasını doğrularsa davetinle eşleşir ve sana haber verilir. Davet mesajını sen kendi WhatsApp ya da Mesajlar uygulamandan gönderirsin; biz kimseye mesaj göndermeyiz.',
       ],
     },
     {
@@ -172,7 +172,7 @@ const privacyTr: LegalText = {
     {
       heading: '3. Kimler görebilir',
       paragraphs: [
-        'Profilin (ad, kullanıcı adı, fotoğraf, okul), puanların, gönderilerin ve yorumların Puanla kullanıcılarına görünür. Oluşturduğun listeler (başlık, açıklama, notlar ve mekânlardaki puanların) de Puanla kullanıcılarına görünür. E-posta adresin diğer kullanıcılara gösterilmez. Engellediğin kişiler seni ve paylaşımlarını göremez.',
+        'Profilin (ad, kullanıcı adı, fotoğraf, okul), puanların, gönderilerin ve yorumların Expeat kullanıcılarına görünür. Oluşturduğun listeler (başlık, açıklama, notlar ve mekânlardaki puanların) de Expeat kullanıcılarına görünür. E-posta adresin diğer kullanıcılara gösterilmez. Engellediğin kişiler seni ve paylaşımlarını göremez.',
       ],
     },
     {
@@ -195,7 +195,7 @@ const privacyTr: LegalText = {
     },
     {
       heading: '7. Çocuklar',
-      paragraphs: ['Puanla 13 yaşından küçük çocuklara yönelik değildir ve bilerek onlardan veri toplamayız.'],
+      paragraphs: ['Expeat 13 yaşından küçük çocuklara yönelik değildir ve bilerek onlardan veri toplamayız.'],
     },
     {
       heading: '8. Güvenlik ve değişiklikler',
@@ -214,7 +214,7 @@ const privacyEn: LegalText = {
   title: 'Privacy Policy',
   updated: UPDATED_EN,
   intro:
-    'This policy explains what personal data Puanla (“we”) processes, why, and what your rights are. Puanla is the data controller under Türkiye’s Personal Data Protection Law No. 6698 (KVKK).',
+    'This policy explains what personal data Expeat (“we”) processes, why, and what your rights are. Expeat is the data controller under Türkiye’s Personal Data Protection Law No. 6698 (KVKK).',
   sections: [
     {
       heading: '1. Data we collect',
@@ -224,8 +224,8 @@ const privacyEn: LegalText = {
         '• What you share: ratings and rankings, posts, photos, comments, likes, saves, links and notes in My List, follows, reports and blocks.',
         '• Location: used only if you allow it and only while the app is open, for the “Near me” feed and the map. Your location is used in a live query to find nearby posts and is not stored on our servers.',
         '• Photos and camera: only the photos you choose or take to share are uploaded; we don’t access the rest of your library.',
-        '• Contacts: read only if you allow it and only when you tap “Scan contacts” or “Contacts” in a post. Mobile numbers in your contacts are sent to our server to find friends already on Puanla and are stored only as irreversible hashes; names and other contact details never leave your device. The hashes are used to let you know when a contact joins later and are deleted when you delete your account.',
-        '• Invites: when you add someone from your contacts to a post who isn’t on Puanla, their number is stored as a hash; if they join and verify their number, they’re matched to your invite and we let you know. You send the invite message yourself from your own WhatsApp or Messages app; we never message anyone.',
+        '• Contacts: read only if you allow it and only when you tap “Scan contacts” or “Contacts” in a post. Mobile numbers in your contacts are sent to our server to find friends already on Expeat and are stored only as irreversible hashes; names and other contact details never leave your device. The hashes are used to let you know when a contact joins later and are deleted when you delete your account.',
+        '• Invites: when you add someone from your contacts to a post who isn’t on Expeat, their number is stored as a hash; if they join and verify their number, they’re matched to your invite and we let you know. You send the invite message yourself from your own WhatsApp or Messages app; we never message anyone.',
       ],
     },
     {
@@ -238,7 +238,7 @@ const privacyEn: LegalText = {
     {
       heading: '3. Who can see it',
       paragraphs: [
-        'Your profile (name, username, photo, school), ratings, posts and comments are visible to Puanla users. Lists you create (title, description, notes and your scores for the places) are also visible to Puanla users. Your email is never shown to other users. People you block can’t see you or your content.',
+        'Your profile (name, username, photo, school), ratings, posts and comments are visible to Expeat users. Lists you create (title, description, notes and your scores for the places) are also visible to Expeat users. Your email is never shown to other users. People you block can’t see you or your content.',
       ],
     },
     {
@@ -261,7 +261,7 @@ const privacyEn: LegalText = {
     },
     {
       heading: '7. Children',
-      paragraphs: ['Puanla is not directed at children under 13 and we don’t knowingly collect data from them.'],
+      paragraphs: ['Expeat is not directed at children under 13 and we don’t knowingly collect data from them.'],
     },
     {
       heading: '8. Security and changes',
@@ -279,7 +279,7 @@ const privacyEn: LegalText = {
 const supportTr: LegalText = {
   title: 'Destek',
   updated: UPDATED_TR,
-  intro: 'Puanla ile ilgili her soru, öneri ve sorun için bize yazabilirsin. Genellikle 1 iş günü içinde yanıt veririz.',
+  intro: 'Expeat ile ilgili her soru, öneri ve sorun için bize yazabilirsin. Genellikle 1 iş günü içinde yanıt veririz.',
   sections: [
     { heading: 'İletişim', paragraphs: ['E-posta: {{email}}', 'Uygulama içinden: Ayarlar > Bize yaz.'] },
     {
@@ -303,7 +303,7 @@ const supportTr: LegalText = {
 const supportEn: LegalText = {
   title: 'Support',
   updated: UPDATED_EN,
-  intro: 'Write to us about any question, idea or problem with Puanla. We usually reply within 1 business day.',
+  intro: 'Write to us about any question, idea or problem with Expeat. We usually reply within 1 business day.',
   sections: [
     { heading: 'Contact', paragraphs: ['Email: {{email}}', 'In the app: Settings > Contact us.'] },
     {

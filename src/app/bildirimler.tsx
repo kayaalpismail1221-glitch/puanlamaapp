@@ -51,7 +51,11 @@ function suggestionsSection(sections: Section[]): Section['key'] | undefined {
 function openTarget(n: AppNotification) {
   if (n.kind === 'follow' || n.kind === 'friend_joined') openUserProfile(n.actor.id);
   else if (n.kind === 'friend_rated' && n.placeId) router.push({ pathname: '/mekan/[id]', params: { id: n.placeId } });
-  else if (n.postId) router.push({ pathname: '/gonderi/[id]', params: { id: n.postId } });
+  else if (n.postId) {
+    // Yorum bildirimleri gönderiyi yorumlara kaydırılmış açar
+    const toComments = n.kind === 'comment' || n.kind === 'reply' || n.kind === 'comment_like';
+    router.push({ pathname: '/gonderi/[id]', params: { id: n.postId, ...(toComments && { yorumlar: '1' }) } });
+  }
 }
 
 /**

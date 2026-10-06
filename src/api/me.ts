@@ -54,6 +54,7 @@ export async function loadMyData(userId: string, email?: string): Promise<MyData
       schoolId: row.school_id ?? undefined,
       yearGoal: row.year_goal ?? undefined,
       favoritePlaces: row.favorite_places ?? [],
+      bio: row.bio ?? undefined,
       joinedAt: row.created_at,
       onboardedAt: row.onboarded_at ?? undefined,
       phoneVerified: !!privateRow?.phone_verified_at,
@@ -67,7 +68,7 @@ export async function loadMyData(userId: string, email?: string): Promise<MyData
   };
 }
 
-export type ProfilePatch = Partial<Pick<Profile, 'name' | 'username' | 'schoolId' | 'yearGoal' | 'favoritePlaces'>> & {
+export type ProfilePatch = Partial<Pick<Profile, 'name' | 'username' | 'schoolId' | 'yearGoal' | 'favoritePlaces' | 'bio'>> & {
   onboarded?: boolean;
 };
 
@@ -78,6 +79,8 @@ export async function updateMyProfile(userId: string, patch: ProfilePatch) {
   if ('schoolId' in patch) update.school_id = patch.schoolId ?? null;
   if ('yearGoal' in patch) update.year_goal = patch.yearGoal ?? null;
   if (patch.favoritePlaces) update.favorite_places = patch.favoritePlaces;
+  // Boş bio silinir (veritabanı boş metni kabul etmez)
+  if ('bio' in patch) update.bio = patch.bio?.trim() || null;
   if (patch.onboarded) update.onboarded_at = new Date().toISOString();
   unwrap(await supabase.from('profiles').update(update).eq('id', userId));
 }
