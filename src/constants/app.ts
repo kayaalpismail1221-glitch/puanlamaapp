@@ -20,11 +20,11 @@ export const APP_SCHEME = 'expeat';
 export const appLink = (path: string) => `${APP_SCHEME}://${path}`;
 
 /**
- * Davet mesajlarındaki indirme bağlantısı. Şimdilik App Store sayfası (yayınlanınca) ya da herkese açık
- * TestFlight bağlantısı buraya yazılır; boşsa mesaj "App Store'da Puanla'yı arat" der.
+ * Davet mesajlarındaki indirme bağlantısı: App Store sayfası (uygulama kimliğinden; yayından önce açılmaz, "bu
+ * uygulama mevcut değil" der). Boş bırakılırsa mesaj "App Store'da Expeat'i arat" der.
  * Alan adı gelince web önizleme sayfasına çevrilir (ör. `https://expeat.app/indir`) — tek yer burası.
  */
-export const APP_STORE_URL = '';
+export const APP_STORE_URL = 'https://apps.apple.com/app/id6815859231';
 /** Google Play sayfası (yayınlanınca: https://play.google.com/store/apps/details?id=app.puanla) */
 export const PLAY_STORE_URL = '';
 /**
