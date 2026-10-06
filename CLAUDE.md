@@ -227,7 +227,9 @@ Amaç: kullanıcı kazanımını ürünün kendisi üretsin, dağıtım pahalı 
 
 Durum (2026-09-25): K ≈ 0. `puanla://` linkleri uygulaması olmayana açılmıyor, Ayarlar'daki davet mesajında link yok,
 etiketleme yalnızca mevcut kullanıcılar arası ve bildirimsiz, ölçüm yok. En zayıf halka: link → karşılama.
-Başlangıç dağıtımı kullanıcının ~180 bin takipçili gastronomi hesabı: bu bir kanal, döngü değil; döngüler onu çoğaltır.
+Başlangıç dağıtımı kullanıcının bir tanıdığının ~180 bin takipçili gastronomi hesabı (kullanıcının değil; kanal
+kontrolümüzde değil, marka işleri gelirini o alır): bu bir kanal, döngü değil; döngüler onu çoğaltır. Ana kanal
+kullanıcının sıfırdan açacağı Puanla TikTok/Instagram hesapları (uygulama verisinden içerik).
 Gerçekçi hedef K ≈ 0,3 (her kampanyanın etkisini ~1,4 katına çıkarmak), K > 1 beklenmez.
 
 **Ana döngü, Masa döngüsü:** restorana genelde birlikte gidilir. Puanla → masadakileri rehberden etiketle →
