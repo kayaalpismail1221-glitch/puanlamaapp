@@ -1,6 +1,6 @@
 <!--
   Supabase → Authentication → Emails → Templates → "Confirm signup"
-  Konu (Subject): Puanla doğrulama kodun: {{ .Token }}
+  Konu (Subject): Expeat doğrulama kodun: {{ .Token }}
   E-posta programlarında düzgün görünsün diye tablo düzeni ve satır içi stil kullanılır.
 -->
 <!DOCTYPE html>
@@ -9,12 +9,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light" />
-    <title>Puanla doğrulama kodu</title>
+    <title>Expeat doğrulama kodu</title>
   </head>
   <body style="margin:0;padding:0;background:#F5F6F8;">
     <!-- Gelen kutusundaki önizleme satırı -->
     <div style="display:none;max-height:0;overflow:hidden;opacity:0;">
-      Doğrulama kodun: {{ .Token }} · Puanla’ya hoş geldin!
+      Doğrulama kodun: {{ .Token }} · Expeat’e hoş geldin!
     </div>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F5F6F8;">
       <tr>
@@ -58,7 +58,7 @@
             </tr>
           </table>
           <p style="margin:20px 0 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#9CA3AF;">
-            Puanla · Gittiğin her yeri puanla, arkadaşlarının nerede yediğini gör.
+            Expeat · Gittiğin her yeri puanla, arkadaşlarının nerede yediğini gör.
           </p>
         </td>
       </tr>

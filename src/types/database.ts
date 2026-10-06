@@ -31,6 +31,8 @@ export type ProfileRow = {
   year_goal: number | null;
   /** Favori 4: seçilen sırayla en fazla dört mekân kimliği */
   favorite_places: string[];
+  /** Profil tanıtımı: en fazla 150 karakter, 3 satır */
+  bio: string | null;
   onboarded_at: string | null;
   is_admin: boolean;
   follower_count: number;
@@ -158,6 +160,8 @@ export type ProfileViewRow = PublicProfileJson & {
   created_at: string;
   is_following: boolean;
   follows_me: boolean;
+  /** Yalnızca profile_view'da (aramada yok; eski sunucuda yok) */
+  bio?: string | null;
 };
 
 export type PostViewRow = {
@@ -230,6 +234,8 @@ export type PopularFeedJson = {
   as_of?: string;
   radius_km: number | null;
   fallback_city: string | null;
+  /** Yakınımda bölgesi küçükse (< 10) genelden doldurulur: baştaki bölge gönderisi sayısı (eski sunucuda yok) */
+  nearby_count?: number | null;
   entries: { post: PostViewRow; distance_km: number | null }[];
 };
 
@@ -313,7 +319,10 @@ export type Database = {
         ProfileRow,
         never,
         Partial<
-          Pick<ProfileRow, 'name' | 'username' | 'avatar_path' | 'school_id' | 'year_goal' | 'favorite_places' | 'onboarded_at'>
+          Pick<
+            ProfileRow,
+            'name' | 'username' | 'avatar_path' | 'school_id' | 'year_goal' | 'favorite_places' | 'bio' | 'onboarded_at'
+          >
         >
       >;
       profile_private: Table<
@@ -475,6 +484,7 @@ export type Database = {
         },
         never
       >;
+      app_min_versions: Table<{ platform: 'ios' | 'android'; min_version: string; updated_at: string }, never, never>;
     };
     Views: {
       profile_view: View<ProfileViewRow>;
@@ -629,6 +639,7 @@ export type Database = {
       };
       growth_stats: { Args: { p_days?: number }; Returns: Json };
       username_available: { Args: { p_username: string }; Returns: boolean };
+      email_registered: { Args: { p_email: string }; Returns: boolean };
       delete_account: { Args: Record<string, never>; Returns: undefined };
       my_notifications: { Args: { p_before?: string | null; p_limit?: number }; Returns: NotificationRow[] };
       unread_notification_count: { Args: Record<string, never>; Returns: number };

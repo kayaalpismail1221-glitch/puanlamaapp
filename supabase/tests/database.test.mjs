@@ -31,6 +31,7 @@ import {
   startComparison,
   tieComparison,
 } from '../../src/lib/ranking.ts';
+import { isBelowMinVersion } from '../../src/lib/version.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (path) => readFileSync(join(root, path), 'utf8');
@@ -133,6 +134,13 @@ describe('kayıt', () => {
     assert.equal((await one(null, `select username_available('zeynepyer') as ok`)).ok, false);
     assert.equal((await one(null, `select username_available('yepyeni_ad') as ok`)).ok, true);
     assert.equal((await one(null, `select username_available('A B') as ok`)).ok, false);
+  });
+
+  test('e-postanın kayıtlı olup olmadığı girişsiz sorulabilir (büyük harf ve boşluk fark etmez)', async () => {
+    await signUp({}, 'kayitli.kisi@test.dev');
+    assert.equal((await one(null, `select email_registered('kayitli.kisi@test.dev') as ok`)).ok, true);
+    assert.equal((await one(null, `select email_registered('  Kayitli.Kisi@TEST.dev ') as ok`)).ok, true);
+    assert.equal((await one(null, `select email_registered('yeni.kisi@test.dev') as ok`)).ok, false);
   });
 });
 
@@ -277,14 +285,40 @@ describe('mekân konumu ve birleşik içe aktarım', () => {
       assert.deepEqual(again, { id: first.id, name: 'Yeni Ad', address: 'Moda Cd. No:3' });
       assert.equal((await tx.query(`select count(*)::int as n from place_sources where place_id = $1`, [first.id])).rows[0].n, 2);
 
-      // Bu turda görülmeyen, kullanılmayan mekân silinir; Listem'deki kalır
+      // Başka ilin (sınırı yüklenmemiş) eski mekânı: İstanbul temizliği ona dokunmaz
+      await importRows([
+        row([{ source: 'overture', external_id: 'ov-ank' }], 'Ankara Kafe', {
+          latitude: 39.92,
+          longitude: 32.85,
+          city: 'Ankara',
+          district: 'Çankaya',
+        }),
+      ]);
+
+      // Bu turda görülmeyen, kullanılmayan mekân silinir; Listem'deki kalır ama "kaynaktan düştü" işaretlenir
       await tx.query(
-        `update places set imported_at = $1::timestamptz - interval '1 minute' where name in ('Kapanan Kafe', 'Puanlı Kafe')`,
+        `update places set imported_at = $1::timestamptz - interval '1 minute'
+         where name in ('Kapanan Kafe', 'Puanlı Kafe', 'Ankara Kafe')`,
         [cutoff],
       );
-      assert.equal((await tx.query(`select prune_imported_places($1) as n`, [cutoff])).rows[0].n, 1);
-      const left = (await tx.query(`select name from places where name in ('Kapanan Kafe', 'Puanlı Kafe', 'Yeni Ad') order by name`)).rows;
-      assert.deepEqual(left.map((r) => r.name), ['Puanlı Kafe', 'Yeni Ad']);
+      assert.deepEqual((await tx.query(`select prune_imported_places($1, 'İstanbul') as r`, [cutoff])).rows[0].r, [1, 1]);
+      const left = (
+        await tx.query(
+          `select name, source_dropped_at is not null as dropped from places
+           where name in ('Kapanan Kafe', 'Puanlı Kafe', 'Yeni Ad', 'Ankara Kafe') order by name`,
+        )
+      ).rows;
+      assert.deepEqual(left, [
+        { name: 'Ankara Kafe', dropped: false },
+        { name: 'Puanlı Kafe', dropped: true },
+        { name: 'Yeni Ad', dropped: false },
+      ]);
+      // Kaynakta yeniden görülünce işaret kalkar; il verilmeden temizlik çalışmaz
+      await importRows([row([{ source: 'overture', external_id: 'ov-3' }], 'Puanlı Kafe')]);
+      assert.equal((await tx.query(`select source_dropped_at from places where name = 'Puanlı Kafe'`)).rows[0].source_dropped_at, null);
+      await tx.exec('savepoint no_city');
+      await rejects(tx.query(`select prune_imported_places(now(), '')`), /İl gerekli/);
+      await tx.exec('rollback to savepoint no_city');
     });
   });
 });
@@ -416,6 +450,114 @@ describe('mekân bilgisi düzeltmeleri', () => {
     assert.equal(after.website, 'https://ciya.com.tr');
     assert.equal(after.name, 'Düzeltme Kafe Moda');
     assert.ok(after.locked_fields.includes('website'));
+  });
+});
+
+describe('mekân güveni ve arama', () => {
+  const created = [];
+  /** İçe aktarılmış gibi mekân; `rated`: puanı var (sayaç), `weak`: zayıf kayıt */
+  const importedPlace = async (name, lat, lng, city, extra = {}) => {
+    const { rows: [p] } = await db.query(
+      `insert into places (name, cuisine, district, city, latitude, longitude, source, external_id, weak, rating_count, address)
+       values ($1, $9, 'Merkez', $2, $3, $4, 'overture', $5, $6, $7, $8) returning id`,
+      [name, city, lat, lng, `ov-${randomUUID()}`, !!extra.weak, extra.rated ? 1 : 0, extra.address ?? '', extra.cuisine ?? 'Kafe'],
+    );
+    created.push(p.id);
+    return p.id;
+  };
+  after(() => db.query('delete from places where id = any($1)', [created]));
+
+  test('arama: yakındaki önce, aynı benzerlikte puanlanmış önce; konum yoksa ad başı eşleşmesi önce', async () => {
+    const user = await signUp({ name: 'Arayan' });
+    const istanbul = await importedPlace('Kore Sofrası', 41.0, 29.0, 'İstanbul', { rated: true });
+    const plain = await importedPlace('Boyang Kore Sofrası', 39.7812, 30.5081, 'Eskişehir');
+    const rated = await importedPlace('Dostlar Kore Sofrası', 39.7815, 30.5121, 'Eskişehir', { rated: true });
+    const order = async (lat, lng) =>
+      (await rows(user, 'select id from search_places($1, $2, $3)', ['kore sofrasi', lat, lng]))
+        .map((p) => p.id)
+        .filter((id) => [istanbul, plain, rated].includes(id));
+
+    // Eskişehir'den: önce yakındakiler (puanlanmış önce), İstanbul'daki ad başı eşleşmesi sonra
+    assert.deepEqual(await order(39.78, 30.51), [rated, plain, istanbul]);
+    // İstanbul'dan: İstanbul'daki önce
+    assert.equal((await order(41.0, 29.0))[0], istanbul);
+    // Konum yoksa hepsi "yakın": ad başı eşleşmesi önce
+    assert.equal((await order(null, null))[0], istanbul);
+  });
+
+  test('arama: adında geçen önce; yalnızca adresi eşleşen yakın mekân adı eşleşen uzak mekânın arkasında', async () => {
+    const user = await signUp({ name: 'Ankara’dan Arayan' });
+    const famous = await importedPlace('Çiya Sofrası Deneme', 40.9895, 29.0255, 'İstanbul', { rated: true });
+    const byAddress = await importedPlace('Viya Kahve Deneme', 39.9208, 32.8541, 'Ankara', { address: 'Çiya Sk. No:3' });
+    // Canlıdaki gerçek örnekler: adlar iki kelimeye yayılan parçalarla "çiya"ya %60 benziyor ama içermiyor
+    const lookalikes = [
+      await importedPlace('Viya Coffee&More Deneme', 39.9209, 32.8542, 'Ankara'),
+      await importedPlace('Vanilya Çikolata Deneme', 39.9210, 32.8543, 'Ankara'),
+    ];
+    const ids = (await rows(user, 'select id from search_places($1, $2, $3)', ['çiya', 39.92, 32.85]))
+      .map((p) => p.id)
+      .filter((id) => [famous, byAddress, ...lookalikes].includes(id));
+    assert.equal(ids[0], famous);
+  });
+
+  test('arama: önce yakındakiler (adında geçen, sonra türü/şehri tutan), adı birebir tutan uzak mekân arkada ama listede', async () => {
+    const user = await signUp({ name: 'Adanalı Arayan' });
+    const nearByName = await importedPlace('Büyük Adana Kebap Deneme', 37.0001, 35.3211, 'Adana', { cuisine: 'Kebapçı' });
+    // Adında "adana" ve "kebap" yok; türü Kebapçı, şehri Adana
+    const nearByKind = await importedPlace('Halil Usta Deneme', 37.0003, 35.3213, 'Adana', { cuisine: 'Kebapçı' });
+    const farByName = await importedPlace('Adana Kebap Salonu Deneme', 39.7767, 30.5206, 'Eskişehir', { cuisine: 'Kebapçı', rated: true });
+    const order = async (lat, lng) =>
+      (await rows(user, 'select id from search_places($1, $2, $3)', ['adana kebap', lat, lng]))
+        .map((p) => p.id)
+        .filter((id) => [nearByName, nearByKind, farByName].includes(id));
+
+    assert.deepEqual(await order(37.0, 35.32), [nearByName, nearByKind, farByName]);
+    // Eskişehir'den: oradaki önce; Adana'dakilerden adında geçen gelir (Halil Usta uzakta yalnızca benzerlikle)
+    const fromEskisehir = await order(39.78, 30.52);
+    assert.equal(fromEskisehir[0], farByName);
+    assert.ok(fromEskisehir.includes(nearByName));
+  });
+
+  test('zayıf kayıt: içe aktarım işaretler; yakınımdakilerde çıkmaz, aramada en sonda; puanlanınca normal', async () => {
+    const user = await signUp({ name: 'Yakın Arayan' });
+    const imported = (weak) =>
+      db.query('select import_places($1)', [
+        JSON.stringify([
+          {
+            sources: [{ source: 'overture', external_id: 'ov-zayif-1' }],
+            name: 'İçe Aktarılan Lokanta',
+            cuisine: 'Kafe',
+            latitude: 37.0003,
+            longitude: 35.3003,
+            city: 'Adana',
+            district: 'Seyhan',
+            weak,
+          },
+        ]),
+      ]);
+    await imported(true);
+    const { rows: [fromImport] } = await db.query(`select id, weak from places where name = 'İçe Aktarılan Lokanta'`);
+    created.push(fromImport.id);
+    assert.equal(fromImport.weak, true);
+    await imported(false);
+    assert.equal((await db.query('select weak from places where id = $1', [fromImport.id])).rows[0].weak, false);
+
+    const weak = await importedPlace('Zayıf Lokanta', 37.0001, 35.3001, 'Adana', { weak: true });
+    const normal = await importedPlace('Normal Lokanta', 37.0002, 35.3002, 'Adana');
+    const nearby = async () => (await rows(user, 'select id from search_places($1, $2, $3)', ['', 37.0, 35.3])).map((p) => p.id);
+    const ids = await nearby();
+    assert.ok(ids.includes(normal));
+    assert.ok(!ids.includes(weak));
+    const order = (await rows(user, 'select id from search_places($1, $2, $3)', ['lokanta', 37.0, 35.3]))
+      .map((p) => p.id)
+      .filter((id) => id === weak || id === normal);
+    assert.deepEqual(order, [normal, weak]);
+    // Adıyla aranınca bulunur
+    assert.ok((await rows(user, `select id from search_places('Zayıf Lokanta')`)).some((p) => p.id === weak));
+
+    // Biri puanlayınca zayıflığın önemi kalmaz: yakınımdakilerde görünür
+    await as(user, `select rank_place($1, 'liked', 0)`, [weak]);
+    assert.ok((await nearby()).includes(weak));
   });
 });
 
@@ -835,7 +977,7 @@ describe('sıralama', () => {
     for (let t = 0; t < 30; t++) assert.ok(Math.abs(calibratedScoreAt('liked', t, 30) - scoreAt('liked', t, 30)) < 0.25);
   });
 
-  test('topluluk puanı kalibre katkıdan: kişinin gördüğü puan 10, ortalamaya 8,9 girer', async () => {
+  test('topluluk puanı düz ortalama: kişinin gördüğü 10 ortalamaya 10 girer (kalibre katkı yalnızca saklanır)', async () => {
     const me = await signUp({ name: 'Tek Mekânlı' });
     const target = PLACE(22);
     await as(me, `select rank_place($1, 'liked', 0)`, [target]);
@@ -845,22 +987,12 @@ describe('sıralama', () => {
       [me],
     );
     assert.deepEqual(mine, { score: 10, calibrated: 8.9 });
-    const expected = await one(
-      me,
-      `select
-         place_community_score(place_id, sum(coalesce(calibrated_score, score) * weight * rating_recency(rated_at)),
-           sum(weight * rating_recency(rated_at))) as calibrated,
-         place_community_score(place_id, sum(score * weight * rating_recency(rated_at)),
-           sum(weight * rating_recency(rated_at))) as raw
-       from rankings where place_id = $1 group by place_id`,
-      [target],
-    );
-    assert.ok(expected.calibrated < expected.raw, 'kısa listenin 10’u tam 10 sayılmaz');
+    const expected = await one(me, 'select avg(score)::double precision as a, count(*)::int as c from rankings where place_id = $1', [target]);
     const details = (await one(me, 'select place_details($1) as d', [target])).d;
-    assert.equal(details.rating.average, expected.calibrated);
+    assert.equal(details.rating.average, expected.a);
     const { city, district } = await one(me, 'select city, district from places where id = $1', [target]);
     const area = await rows(me, 'select id, average from area_top_places($1, $2)', [city, district]);
-    assert.equal(area.find((p) => p.id === target).average, expected.calibrated);
+    assert.equal(area.find((p) => p.id === target).average, expected.a);
   });
 
   test('segment eşlemesi veritabanıyla aynı', async () => {
@@ -964,8 +1096,8 @@ describe('sıralama', () => {
     assert.equal(await weightOf(fresh[0]), 0.2);
     const after = (await one(fresh[0], 'select place_details($1) as d', [target])).d.rating;
     assert.equal(after.count, (before.d.rating.count ?? 0) + 5, 'sayı ağırlıksız');
-    // Tek bir deneyimli kişinin 10'u kadar sayılır; eskiden ~9,1 olurdu
-    assert.ok(after.average < 8.6, `beş yeni hesap mekânı uca taşıyamaz (${after.average})`);
+    // Expeat puanı şimdilik düz ortalama: ağırlık saklanır ama puana girmez
+    assert.equal(after.average, (await one(fresh[0], 'select avg(score)::double precision as a, count(*)::int as c from rankings where place_id = $1', [target])).a);
 
     // Kişi puanladıkça ağırlığı artar, 5 mekânda tam olur; puan silinince geri düşer
     const me = fresh[0];
@@ -1134,6 +1266,26 @@ describe('moderasyon', () => {
       assert.equal(error.hint, 'objectionable');
     }
   });
+
+  test('bio: sahibi yazar, herkes profilde görür; 150 karakter, 3 satır, uygunsuz ifade yok', async () => {
+    const me = await signUp({ name: 'Bio Sahibi' });
+    const other = await signUp({ name: 'Bakan' });
+    const setBio = (who, bio) => as(who, `update profiles set bio = $2 where id = $1`, [me, bio]);
+    await setBio(me, 'Kahvaltı avcısı 🍳\nKadıköy');
+    assert.equal((await one(other, 'select bio from profile_view where id = $1', [me])).bio, 'Kahvaltı avcısı 🍳\nKadıköy');
+
+    // Başkası yazamaz (RLS: satır güncellenmez)
+    await setBio(other, 'başkası yazdı');
+    assert.equal((await one(me, 'select bio from profiles where id = $1', [me])).bio, 'Kahvaltı avcısı 🍳\nKadıköy');
+
+    await rejects(setBio(me, 'a'.repeat(151)), /check/);
+    await rejects(setBio(me, 'bir\niki\nüç\ndört'), /check/);
+    await rejects(setBio(me, ' boşlukla başlar'), /check/);
+    await rejects(setBio(me, ''), /check/);
+    await rejects(setBio(me, 'siktir git'), /Uygunsuz ifade/);
+    await setBio(me, null);
+    assert.equal((await one(other, 'select bio from profile_view where id = $1', [me])).bio, null);
+  });
 });
 
 describe('öneriler', () => {
@@ -1242,7 +1394,46 @@ describe('feed ve arama', () => {
     const me = await signUp({ name: 'Antalyalı' });
     const feed = (await one(me, 'select feed_popular($1, $2) as f', [ANTALYA.lat, ANTALYA.lng])).f;
     assert.equal(feed.fallback_city, 'İzmir');
-    assert.ok(feed.entries.every((e) => e.post.place.city === 'İzmir'));
+    // İzmir'in gönderileri önce (10'dan azsa ardından genelden doldurulur)
+    const nearby = feed.nearby_count ?? feed.entries.length;
+    assert.ok(nearby > 0);
+    assert.ok(feed.entries.slice(0, nearby).every((e) => e.post.place.city === 'İzmir'));
+  });
+
+  test('yakınımda bölgede 10\'dan az gönderi varsa genelden doldurulur; sayfalar tekrarsız, uzaktakinde uzaklık yok', async () => {
+    const author = await signUp({ name: 'Vanlı Yazar' });
+    const placeId = (
+      await db.query(
+        `insert into places (name, cuisine, district, city, latitude, longitude) values ('Van Kahvaltı Evi', 'Kahvaltıcı', 'İpekyolu', 'Van', 38.4946, 43.38) returning id`,
+      )
+    ).rows[0].id;
+    await as(author, `select rank_place($1, 'liked', 0)`, [placeId]);
+    const postId = randomUUID();
+    await as(author, `select create_post($1, $2, 'kahvaltı', null, null, '{}', '{}', '{}', '[]')`, [postId, placeId]);
+
+    const me = await signUp({ name: 'Vanlı' });
+    const feed = (await one(me, 'select feed_popular($1, $2, p_limit => 50) as f', [38.5, 43.37])).f;
+    assert.equal(feed.nearby_count, 1);
+    assert.equal(feed.entries[0].post.id, postId);
+    assert.ok(feed.entries[0].distance_km < 3);
+    const { rows: rest } = await db.query('select id from posts where id <> $1 order by hot desc limit 49', [postId]);
+    assert.deepEqual(feed.entries.slice(1).map((e) => e.post.id), rest.map((r) => r.id));
+    assert.ok(feed.entries.slice(1).every((e) => e.distance_km === null));
+
+    // Sayfalar birleşik sırada yürür: bölge sayfa sınırında bitse de tekrar ya da boşluk yok
+    const page = async (offset) =>
+      (await one(me, 'select feed_popular($1, $2, p_offset => $3, p_limit => 3, p_as_of => $4) as f', [38.5, 43.37, offset, feed.as_of])).f;
+    const paged = [...(await page(0)).entries, ...(await page(3)).entries].map((e) => e.post.id);
+    assert.deepEqual(paged, feed.entries.slice(0, 6).map((e) => e.post.id));
+
+    // Şehir seçilince doldurma yok
+    const city = (await one(me, `select feed_popular(p_city => 'Van') as f`)).f;
+    assert.deepEqual(city.entries.map((e) => e.post.id), [postId]);
+    assert.equal(city.nearby_count, null);
+
+    await db.query('delete from posts where id = $1', [postId]);
+    await db.query('delete from rankings where place_id = $1', [placeId]);
+    await db.query('delete from places where id = $1', [placeId]);
   });
 
   test('şehir ve ilçe seçimi', async () => {
@@ -1300,7 +1491,7 @@ describe('feed ve arama', () => {
     const moda = pins.find((p) => p.id === PLACE(1));
     const expected = await one(
       me,
-      'select place_community_score(place_id, sum(coalesce(calibrated_score, score) * weight * rating_recency(rated_at)), sum(weight * rating_recency(rated_at))) as a, count(*)::int as c from rankings where place_id = $1 group by place_id',
+      'select avg(score)::double precision as a, count(*)::int as c from rankings where place_id = $1',
       [PLACE(1)],
     );
     assert.equal(moda.rating_count, expected.c);
@@ -1658,7 +1849,7 @@ describe('rehber ve masa döngüsü', () => {
       `select notification_text(n, 'tr') as t, notification_path(n) as p from notifications n where user_id = $1`,
       [me],
     );
-    assert.deepEqual(text.rows[0], { t: "Rehberindeki Yeni Katılan Puanla'ya katıldı", p: `kullanici/${friend}` });
+    assert.deepEqual(text.rows[0], { t: "Rehberindeki Yeni Katılan Expeat'e katıldı", p: `kullanici/${friend}` });
 
     // Numarayı yeniden doğrulamak ikinci bildirim üretmez
     await db.query('update auth.users set phone_confirmed_at = now() + interval \'1 minute\' where id = $1', [friend]);
@@ -2160,7 +2351,7 @@ describe('semt araması ve bölgenin en iyileri', () => {
     for (let i = 1; i < rated.length; i++) assert.ok(rated[i - 1].average >= rated[i].average);
     const first = await one(
       me,
-      'select place_community_score(place_id, sum(coalesce(calibrated_score, score) * weight * rating_recency(rated_at)), sum(weight * rating_recency(rated_at))) as a, count(*)::int as n from rankings where place_id = $1 group by place_id',
+      'select avg(score)::double precision as a, count(*)::int as n from rankings where place_id = $1',
       [rated[0].id],
     );
     assert.equal(rated[0].average, first.a);
@@ -2372,12 +2563,22 @@ describe('ölçek: sayaçlar ve indeksli okumalar', () => {
       [41.04, 29.0],
     ]) {
       const feed = (await one(me, 'select feed_popular($1, $2, p_limit => 50) as f', [lat, lng])).f;
-      const { rows: expected } = await db.query(
+      const { rows: region } = await db.query(
         `select p.id from posts p join places pl on pl.id = p.place_id
          where extensions.st_dwithin(pl.location, extensions.st_setsrid(extensions.st_makepoint($2, $1), 4326)::extensions.geography, $3 * 1000)
          order by p.hot desc limit 50`,
         [lat, lng, feed.radius_km],
       );
+      // Bölgede 10'dan az gönderi varsa ardından genelden doldurulur (20261019160000_feed_fill)
+      const { rows: rest } =
+        region.length < 10
+          ? await db.query('select id from posts where id <> all($1::uuid[]) order by hot desc limit $2', [
+              region.map((r) => r.id),
+              50 - region.length,
+            ])
+          : { rows: [] };
+      const expected = [...region, ...rest];
+      assert.equal(feed.nearby_count ?? null, region.length < 10 ? region.length : null);
       assert.deepEqual(feed.entries.map((e) => e.post.id), expected.map((r) => r.id));
       // Küçük sayfa: bölge toplanmadan sıcaklık indeksinden okunur; aynı sıra
       const page = (await one(me, 'select feed_popular($1, $2, p_offset => 1, p_limit => 2) as f', [lat, lng])).f;
@@ -2476,7 +2677,7 @@ describe('büyüme ölçümü', () => {
 });
 
 /**
- * Puanla puanı modelinin başvuru uygulaması (migration 20261017100000_place_model'deki `refresh_place_strengths` ile
+ * Expeat puanı modelinin başvuru uygulaması (migration 20261017100000_place_model'deki `refresh_place_strengths` ile
  * birebir): Plackett–Luce, listeler + beğendim/beğenmedim çizgileri, MM yinelemesi, sonra gösterilen puan.
  */
 function fitPlaceModel(rows, iterations) {
@@ -2577,7 +2778,7 @@ function fitPlaceModel(rows, iterations) {
   return { items, scores };
 }
 
-describe('Puanla puanı modeli', () => {
+describe('Expeat puanı modeli', () => {
   const resetModel = () =>
     db.exec(`delete from place_strengths; delete from segment_anchors; update model_state set fitted_at = now();`);
   after(resetModel);
@@ -2651,21 +2852,21 @@ describe('Puanla puanı modeli', () => {
     for (let i = 1; i < seg.length; i++) assert.ok(seg[i].score <= seg[i - 1].score + 1e-12, 'puan güçle azalır');
     assert.ok(seg.every((r) => r.score >= 0 && r.score <= 10));
 
-    // Son hesaptan sonraki puan hemen yansır (kalibre katkıyla harmanlanır)
+    // Model hesaplanmaya devam eder ama gösterilen Expeat puanı şimdilik düz ortalama (20261021100000_plain_average)
     const late = await signUp({ name: 'Geç Gelen' });
+    const plain = async (id) => (await one(late, 'select avg(score)::double precision as a, count(*)::int as c from rankings where place_id = $1', [id])).a;
     const before = (await one(late, 'select place_details($1) as d', [x])).d.rating.average;
+    assert.equal(before, await plain(x));
     await as(late, `select rank_place($1, 'disliked', 0)`, [x]);
     const after = (await one(late, 'select place_details($1) as d', [x])).d.rating.average;
-    const { rows: [ps] } = await db.query('select fit_weight, score from place_strengths where place_id = $1', [x]);
-    const w = 0.2;
     assert.ok(after < before, 'beğenmeyen yeni puan düşürür');
-    assert.ok(Math.abs(after - (ps.fit_weight * ps.score + w * calibratedScoreAt('disliked', 0, 1)) / (ps.fit_weight + w)) < 1e-9);
+    assert.equal(after, await plain(x));
 
-    // Modelin görmediği mekân kalibre katkıların ortalamasıyla
+    // Modelin görmediği mekân da düz ortalamayla
     const [fresh] = await newPlaces(1);
     await as(late, `select rank_place($1, 'liked', 0)`, [fresh]);
     const shown = (await one(late, 'select place_details($1) as d', [fresh])).d.rating.average;
-    assert.ok(Math.abs(shown - (await bayes(fresh))) < 1e-9);
+    assert.equal(shown, 10);
   });
 
   test('öneriler: tek arkadaşın puanı topluluğu ezmez', async () => {
@@ -2729,5 +2930,190 @@ describe('XP sayaçları', () => {
     // Profildeki sıra genel tablodaki kendi satırınla aynı
     const own = (await rows(me, 'select * from leaderboard()')).find((e) => e.user_id === me);
     assert.equal((await one(me, 'select user_rank($1) as r', [me])).r, own.rank);
+  });
+});
+
+describe('push jetonu temizliği', () => {
+  // Supabase'in pg_net'inin taklidi: istekler kaydedilir, yanıtlar testte elle yazılır
+  before(async () => {
+    await db.exec(`
+      create schema net;
+      create table net.requests (id bigint generated always as identity primary key, url text, body jsonb);
+      create table net._http_response (id bigint primary key, status_code integer, content text);
+      create function net.http_post(url text, body jsonb) returns bigint language sql
+        as $$ insert into net.requests (url, body) values (url, body) returning id $$;
+    `);
+  });
+  // Diğer testlerde push yine atlansın
+  after(() => db.exec('drop schema net cascade'));
+
+  const tokensOf = async (userId) =>
+    (await db.query('select token from push_tokens where user_id = $1 order by token', [userId])).rows.map((r) => r.token);
+  const lastRequest = async () => (await db.query('select * from net.requests order by id desc limit 1')).rows[0];
+  const respond = (id, body, status = 200) =>
+    db.query('insert into net._http_response (id, status_code, content) values ($1, $2, $3)', [
+      id,
+      status,
+      typeof body === 'string' ? body : JSON.stringify(body),
+    ]);
+  const maintain = () => db.query('select push_maintenance()');
+  const count = async (table) => Number((await db.query(`select count(*) as n from ${table}`)).rows[0].n);
+  /** Takip bildirimi: alıcının tüm cihazlarına tek istek */
+  const notify = async (to) => {
+    const fan = await signUp({ name: 'Takipçi' });
+    await as(fan, 'insert into follows (followee_id) values ($1)', [to]);
+    return lastRequest();
+  };
+  const dead = { status: 'error', message: 'not registered', details: { error: 'DeviceNotRegistered' } };
+
+  test('gönderim yanıtında ya da teslim raporunda "DeviceNotRegistered" olan jeton silinir', async () => {
+    const me = await signUp({ name: 'Üç Cihazlı' });
+    const [a, b, c] = ['ExponentPushToken[aaa]', 'ExponentPushToken[bbb]', 'ExponentPushToken[ccc]'];
+    for (const token of [c, a, b]) await as(me, 'select register_push_token($1)', [token]);
+
+    const send = await notify(me);
+    assert.equal(send.url, 'https://exp.host/--/api/v2/push/send');
+    assert.deepEqual(
+      send.body.map((m) => m.to),
+      [a, b, c],
+    );
+    // Jetonlar mesaj sırasıyla saklanır (Expo yanıtı aynı sırada döner)
+    const sent = await db.query('select tokens from push_sends where request_id = $1', [send.id]);
+    assert.deepEqual(sent.rows[0].tokens, [a, b, c]);
+
+    // Yanıt gelmeden bakım hiçbir şey silmez
+    await maintain();
+    assert.deepEqual(await tokensOf(me), [a, b, c]);
+
+    // a hemen ölü; b ve c gönderildi, teslim raporları beklenir
+    await respond(send.id, { data: [dead, { status: 'ok', id: 'r-b' }, { status: 'ok', id: 'r-c' }] });
+    await maintain();
+    assert.deepEqual(await tokensOf(me), [b, c]);
+    assert.equal(await count('push_sends'), 0);
+    assert.deepEqual((await db.query('select ticket_id, token from push_receipts order by ticket_id')).rows, [
+      { ticket_id: 'r-b', token: b },
+      { ticket_id: 'r-c', token: c },
+    ]);
+
+    // Raporlar 15 dakika dolmadan istenmez
+    await maintain();
+    assert.equal((await lastRequest()).id, send.id);
+    await db.query(`update push_receipts set created_at = now() - interval '20 minutes'`);
+    await maintain();
+    const ask = await lastRequest();
+    assert.equal(ask.url, 'https://exp.host/--/api/v2/push/getReceipts');
+    assert.deepEqual([...ask.body.ids].sort(), ['r-b', 'r-c']);
+    // Yanıt beklenirken aynı raporlar bir saat dolmadan yeniden istenmez
+    await maintain();
+    assert.equal((await lastRequest()).id, ask.id);
+
+    // b'nin uygulaması silinmiş, c teslim edildi
+    await respond(ask.id, { data: { 'r-b': dead, 'r-c': { status: 'ok' } } });
+    await maintain();
+    assert.deepEqual(await tokensOf(me), [c]);
+    assert.equal(await count('push_receipts'), 0);
+    assert.equal(await count('push_receipt_requests'), 0);
+  });
+
+  test('henüz hazır olmayan rapor bir saat sonra yeniden istenir; 24 saatten eskisi atılır', async () => {
+    const me = await signUp({ name: 'Bekleyen' });
+    const token = 'ExponentPushToken[late]';
+    await as(me, 'select register_push_token($1)', [token]);
+    const send = await notify(me);
+    await respond(send.id, { data: [{ status: 'ok', id: 'r-late' }] });
+    await maintain();
+    await db.query(`update push_receipts set created_at = now() - interval '20 minutes'`);
+    await maintain();
+    const ask = await lastRequest();
+    assert.deepEqual(ask.body.ids, ['r-late']);
+    // Rapor henüz yok: yanıtta kimliği yok, kayıt bekler
+    await respond(ask.id, { data: {} });
+    await maintain();
+    assert.equal(await count('push_receipts'), 1);
+    await db.query(`update push_receipts set requested_at = now() - interval '61 minutes'`);
+    await maintain();
+    const again = await lastRequest();
+    assert.notEqual(again.id, ask.id);
+    assert.deepEqual(again.body.ids, ['r-late']);
+    await db.query(`update push_receipts set created_at = now() - interval '25 hours'`);
+    await maintain();
+    assert.equal(await count('push_receipts'), 0);
+    assert.deepEqual(await tokensOf(me), [token]);
+    await db.query('delete from push_receipt_requests');
+  });
+
+  test('başka hatalar, uyuşmayan ya da bozuk yanıt jeton silmez', async () => {
+    const me = await signUp({ name: 'İki Cihazlı' });
+    const tokens = ['ExponentPushToken[xxx]', 'ExponentPushToken[yyy]'];
+    for (const token of tokens) await as(me, 'select register_push_token($1)', [token]);
+    const rate = { status: 'error', details: { error: 'MessageRateExceeded' } };
+    const cases = [
+      { data: [rate, rate] }, // başka hata
+      { data: [dead] }, // mesaj sayısıyla uyuşmuyor: hangi jetonun öldüğü bilinemez
+      { errors: [{ code: 'VALIDATION_ERROR' }] }, // istek bütünüyle reddedildi
+      'Bad Gateway', // JSON değil
+    ];
+    for (const body of cases) {
+      const send = await notify(me);
+      await respond(send.id, body, typeof body === 'string' ? 502 : 200);
+      await maintain();
+      assert.deepEqual(await tokensOf(me), tokens);
+    }
+    // 200 dönen ama JSON olmayan yanıt da bakımı durdurmaz
+    const send = await notify(me);
+    await respond(send.id, '<html>', 200);
+    await maintain();
+    assert.deepEqual(await tokensOf(me), tokens);
+    assert.equal(await count('push_sends'), 0);
+    assert.equal(await count('push_receipts'), 0);
+  });
+
+  test('çıkışta silinen jetonun bekleyen raporu da gider; bakım istemciye kapalı', async () => {
+    const me = await signUp({ name: 'Çıkan' });
+    const token = 'ExponentPushToken[out]';
+    await as(me, 'select register_push_token($1)', [token]);
+    const send = await notify(me);
+    await respond(send.id, { data: [{ status: 'ok', id: 'r-out' }] });
+    await maintain();
+    assert.equal(await count('push_receipts'), 1);
+    await as(me, 'select unregister_push_token($1)', [token]);
+    assert.equal(await count('push_receipts'), 0);
+
+    await rejects(as(me, 'select push_maintenance()'), /42501/);
+    await rejects(as(me, `select push_apply_receipts('{}'::jsonb)`), /42501/);
+    await rejects(as(null, `select push_apply_tickets('{}'::text[], '{}'::jsonb)`), /42501/);
+    await rejects(as(me, 'select * from push_receipts'), /42501/);
+    await rejects(as(null, 'select * from push_sends'), /42501/);
+    await rejects(as(me, 'select * from push_receipt_requests'), /42501/);
+  });
+});
+
+describe('zorunlu güncelleme', () => {
+  test('en düşük sürüm oturumsuz da okunur; istemci değiştiremez', async () => {
+    const user = await signUp({ name: 'Sürümcü' });
+    const expected = [
+      { platform: 'android', min_version: '1.0.0' },
+      { platform: 'ios', min_version: '1.0.0' },
+    ];
+    assert.deepEqual(await rows(null, 'select platform, min_version from app_min_versions order by platform'), expected);
+    assert.deepEqual(await rows(user, 'select platform, min_version from app_min_versions order by platform'), expected);
+    await rejects(as(user, `update app_min_versions set min_version = '9.9.9'`), /42501/);
+    await rejects(as(null, `insert into app_min_versions (platform, min_version) values ('web', '1.0.0')`), /42501/);
+    await rejects(as(user, `delete from app_min_versions`), /42501/);
+    await rejects(db.query(`update app_min_versions set min_version = 'yeni' where platform = 'ios'`), /check constraint/);
+  });
+
+  test('sürüm karşılaştırması: sayısal, belirsizlikte kilitlemez', () => {
+    assert.equal(isBelowMinVersion('1.0.1', '1.0.2'), true);
+    assert.equal(isBelowMinVersion('1.0.9', '1.0.10'), true);
+    assert.equal(isBelowMinVersion('1.9.9', '2.0'), true);
+    assert.equal(isBelowMinVersion('1.0.2', '1.0.2'), false);
+    assert.equal(isBelowMinVersion('1.1', '1.0.10'), false);
+    assert.equal(isBelowMinVersion('2.0.0', '1.9.9'), false);
+    assert.equal(isBelowMinVersion(' 1.0.1 ', '1.0.1'), false);
+    assert.equal(isBelowMinVersion(null, '1.0.2'), false);
+    assert.equal(isBelowMinVersion('1.0.1', null), false);
+    assert.equal(isBelowMinVersion('1.0.1-beta', '1.0.2'), false);
+    assert.equal(isBelowMinVersion('1.0.1', '1.0.2.3'), false);
   });
 });
