@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>Expeat — App Store arama sonucu görseli</title>
+<!--
+  App Store arama sonucu görseli (Search results asset, 3:2, 3840×2560). 1920×1280 çizilir, 2 kat ölçekle alınır:
+  bash render-search.sh → out/search-tr.png, out/search-en.png. ?lang=en İngilizce.
+  Telefonlar mağaza görsellerinin şeffaf telefon katmanı (screens.html?layer=phone): ekranlar birebir aynı.
+  Başlık görseliyle (header.html) aynı zemin ve yazı dili.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,500;14..32,600&family=Newsreader:ital,opsz,wght@0,6..72,600;1,6..72,500&display=block" rel="stylesheet">
+<style>
+html,body{margin:0;width:1920px;height:1280px;overflow:hidden;background:#0F1E3D}
+body{font-family:Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased;position:relative;
+  background:radial-gradient(ellipse 70% 55% at 50% 62%,#2A4378 0%,rgba(34,56,106,.5) 42%,rgba(15,30,61,0) 75%),
+             linear-gradient(180deg,#14264D 0%,#0F1E3D 100%)}
+.copy{position:absolute;left:0;right:0;top:92px;text-align:center;color:#fff}
+.h{font-family:Newsreader,serif;font-weight:600;font-size:104px;line-height:1;letter-spacing:-2px;margin:0;white-space:nowrap;display:inline-block}
+.h em{font-style:italic;font-weight:500;color:#9FD474}
+.sub{margin-top:24px;font-size:32px;font-weight:500;color:rgba(255,255,255,.72);letter-spacing:-.2px}
+/* Slayt 440×956; telefon slaytta y=214'ten başlar, 339 px genişliğinde */
+iframe{position:absolute;width:440px;height:956px;border:0;background:transparent;transform-origin:top left}
+</style>
+</head>
+<body>
+<div class="copy">
+  <h1 class="h" id="h"></h1>
+  <div class="sub" id="sub"></div>
+</div>
+<script>
+const EN=new URLSearchParams(location.search).get('lang')==='en';
+document.documentElement.lang=EN?'en':'tr';
+// İngilizcede markanın sözü, Türkçede aynı fikir Türkçe başlıkla; genişliğe sığana dek küçülür
+const h=document.getElementById('h');
+h.innerHTML=EN?'Eat the <em>experience</em>':'Deneyimini <em>arkadaşlarınla</em> paylaş';
+document.getElementById('sub').textContent=EN?'Share where you ate, see what your friends think.':'Gittiğin yerleri puanla, arkadaşlarının ne düşündüğünü gör.';
+document.fonts.ready.then(()=>{let px=104;while(h.scrollWidth>1640&&px>60){px-=2;h.style.fontSize=px+'px'}});
+// [slayt, telefonun ortası (x), telefonun üstü (y)]: deneyim paylaşımı — ortada akıştaki gönderi (biraz yukarıda),
+// solda mekândaki arkadaş puanları, sağda paylaşılan liste
+const K=1.42;
+const phones=[[5,410,430],[1,960,370],[6,1510,430]];
+for(const [s,cx,top] of phones){
+  const f=document.createElement('iframe');
+  f.src=`screens.html?s=${s}&layer=phone${EN?'&lang=en':''}`;
+  f.style.left=`${cx-220*K}px`;f.style.top=`${top-214*K}px`;f.style.transform=`scale(${K})`;
+  f.setAttribute('scrolling','no');
+  document.body.appendChild(f);
+}
+</script>
+</body>
+</html>

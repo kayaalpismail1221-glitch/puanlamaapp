@@ -844,6 +844,78 @@ function featurePhones(){
     Object.assign(p.style,{left:x+'px',top:y+'px',zIndex:z});p.style.setProperty('--rot',rot);box.appendChild(p)});
 }
 
+/* ---------- İngilizce mağaza seti: ?lang=en ----------
+   Çizimden sonra metinler çevrilir: başlık/alt yazı elle, arayüz metinleri uygulamanın en.ts karşılığıyla,
+   puanlar "9,3" → "9.3", XP binlik ayırıcısı virgül. Mekân ve kişi adları olduğu gibi kalır. */
+if(new URLSearchParams(location.search).get('lang')==='en'){
+  document.documentElement.lang='en';
+  const H={
+    'Mekân yorumlarıartık feed’de':'Food reviews,<br><em>right in your feed</em>',
+    'Nerede yiyeceğiniarkadaşların bilir':'Where to eat?<br><em>Your friends</em> know',
+    'Kıyasla, puanınkendiliğinden çıksın':'Just compare.<br><em>Scores</em> do the rest',
+    'Gitmek istediğin yeriartık unutma':'Never forget<br><em>a place to try</em>',
+    'Şehrin en iyileri,haritada':'The city’s best,<br><em>on the map</em>',
+    'Hangi arkadaşınkaç puan verdi?':'What did your<br><em>friends</em> give it?',
+    'Zevkin kiminleuyuşuyor?':'Whose taste<br><em>matches</em> yours?',
+    'Lezzet haritan,şehir şehir':'Your food map,<br><em>city by city</em>',
+    'Favori listeni oluştur,arkadaşların görsün':'Build your lists,<br><em>show your friends</em>',
+    'Puanla, XP kazan,zirveye çık':'Rate, earn XP,<br><em>reach the top</em>'};
+  document.querySelectorAll('h1.h').forEach(h=>{const v=H[h.textContent.trim()];if(v)h.innerHTML=v});
+  const T={
+    'Arkadaşlarının ve çevrendeki yorumları hızlıca keşfet.':'Discover reviews from friends and people nearby.',
+    'Puan vermek yok: yeni mekânı gittiklerinle karşılaştır.':'No stars: just compare it with places you’ve been.',
+    'Sosyal medyada gördüğün yeri tek dokunuşla kaydet.':'Save spots you see on social media in one tap.',
+    'Yakınındaki en iyi mekânlar, puan renkleriyle.':'The best places near you, color-coded by score.',
+    'Her mekânda arkadaşlarının puanları bir bakışta.':'Your friends’ scores for every place, at a glance.',
+    'Ortak mekânlardaki puanlarınızdan uyum yüzdesi.':'A match % from your scores at shared places.',
+    'Gittiğin şehirler ve mekânlar, tek haritada.':'Every city and place you’ve been, on one map.',
+    'Listelerin profilinde; istersen hikâyende de paylaş.':'Lists live on your profile, and in your story.',
+    'Arkadaşlarınla yarış; her davete +100 XP.':'Compete with friends; +100 XP for every invite.',
+    '· Beyoğlu · 2 sa':'· Beyoğlu · 2h','Ben de gittim':'I’ve been',
+    'Ocakbaşına oturun, ustayı izleyin. Adana ve kaburga efsane, lavaşı közde ısıtıyorlar.':'Sit at the grill and watch the chef. The Adana and ribs are legendary, and they warm the lavash over the coals.',
+    'Akşam':'Dinner','Kalabalık gruba uygun':'Good for groups','Ara':'Search','Harita':'Map','Listem':'My List','Profilim':'Profile',
+    'Arkadaşının puanı':'Your friend’s score','Kiminle gittiği':'Who they went with','Sen de puanla':'Rate it yourself',
+    'Puanla':'Rate','Beğendim':'I liked it','Hangisi daha iyiydi?':'Which one was better?','Restoranlar':'Restaurants',
+    'Yalnızca aynı türdeki mekânlarla kıyaslanır':'Only compared with places of the same kind','veya':'or','Emin değilim':'Not sure',
+    '“Beğendim” listende 24 mekân arasında 2. sırada.':'#2 of 24 places in your “I liked it” list.',
+    'Şehzade Cağ Kebap · Restoranlar':'Şehzade Cağ Kebap · Restaurants',
+    'Sosyal medyadan':'From social','Kaydettiklerim':'Saved','Panoda bir bağlantı var':'There’s a link on your clipboard',
+    'Kopyaladığın gönderiyi listene ekle':'Add the post you copied to your list','Kahvaltıcı 3':'Breakfast 3',
+    '7 mekân':'7 places','En yeni':'Newest','şimdi':'now','2 g':'2d','5 g':'5d','1 hf':'1w',
+    '“Pazar sabahı, erken gidilecek”':'“Sunday morning, go early”','Listem’e kaydedildi':'Saved to My List',
+    'Instagram’dan · Arnavutköy Balıkçısı':'From Instagram · Arnavutköy Balıkçısı',
+    'Mekân, semt, ilçe ara':'Search places and areas','Gittiklerim':'Been there',
+    'Expeat puanı · 86 kişi':'Expeat score · 86 people','Sıralamanda 1. sırada':'#1 in your ranking','Yeniden puanla':'Rate again',
+    'Kaydedildi':'Saved','Arkadaşların puanı':'Friends’ scores','Ortalama 9,3':'Average 9.3',
+    'Expeat kullanıcılarına göre':'What Expeat users say','Expeat puanı 9,2 · 214 kişi':'Expeat score 9.2 · 214 people',
+    'Gönderiler (38)':'Posts (38)','Beyoğlu’nda akşam yemeği':'Dinner in Beyoğlu',
+    'Hepsine en az iki kez gittim, gönül rahatlığıyla.':'Been to each at least twice. Go with confidence.',
+    '· 5 mekân · 214 kişi kaydetti':'· 5 places · saved by 214','Listeyi kaydet':'Save list','Paylaş':'Share',
+    '“Ciğer tava mutlaka”':'“Get the fried liver”','Sen':'You','Damak uyumu':'Taste match',
+    'Selin ile damak uyumunuz':'Your taste match with Selin','14 ortak mekânda verdiğiniz puanlara göre':'Based on your scores at 14 shared places',
+    'Uyumu paylaş':'Share match','Gittiklerine bak':'See where they’ve been','İkinizin de favorisi':'You both love',
+    'Ayrıldığınız yerler':'Where you disagree','Expeat Ligi':'Expeat League','Bu ay':'This month','Tüm zamanlar':'All time',
+    'Genel':'Overall','Arkadaşlar':'Friends','Okulum':'My school','Sıran: #5':'Your rank: #5','#4 için 40 XP daha':'40 XP to #4',
+    'Davet et':'Invite','Lezzet haritası':'Food map','şehir':'cities','mekân':'places','gönderi':'posts',
+    '14 ilçe · 52 mekân · 31 gönderi':'14 districts · 52 places · 31 posts'};
+  const CUISINE={'Kebapçı':'Kebab','Balıkçı':'Seafood','Kahvaltıcı':'Breakfast','Tatlıcı':'Desserts','Restoran':'Restaurant',
+    'Meyhane':'Meyhane','Esnaf lokantası':'Home-style diner'};
+  // "Burak, Ece ile birlikte" → "with Burak, Ece"
+  document.querySelectorAll('span').forEach(sp=>{const l=sp.lastChild;if(l&&l.nodeType===3&&l.nodeValue.trim()==='ile birlikte'){l.remove();sp.prepend('with ')}});
+  const tr1=t=>{
+    if(T[t])return T[t];
+    let m;
+    if((m=t.match(/^(\d+),(\d)$/)))return m[1]+'.'+m[2];
+    if((m=t.match(/^([\d.]+) XP$/)))return m[1].replace(/\./g,',')+' XP';
+    if((m=t.match(/^%(\d+)$/)))return m[1]+'%';
+    if((m=t.match(/^(.+?) · (.+)$/))&&CUISINE[m[1]])return CUISINE[m[1]]+' · '+m[2];
+    if(/^İ(stanbul|zmir)/.test(t))return 'I'+t.slice(1);
+    return null};
+  const w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);let n;
+  while((n=w.nextNode())){if(n.parentElement?.closest('script,style'))continue;const v=n.nodeValue,t=v.trim();if(!t)continue;
+    const r=tr1(t);if(r!==null)n.nodeValue=v.replace(t,r)}
+}
+
 const q=new URLSearchParams(location.search).get('s');
 function drawLeaders(){document.querySelectorAll('.slide').forEach(sl=>{const svg=sl.querySelector('svg.leaders');if(!svg)return;const o=sl.getBoundingClientRect();let h='';
   sl.querySelectorAll('.callout').forEach(c=>{const t=sl.querySelector(`[data-co="${c.dataset.for}"]`);if(!t)return;const a=c.getBoundingClientRect(),b=t.getBoundingClientRect();
