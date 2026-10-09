@@ -63,6 +63,15 @@
       ]
     },
     {
+      "source": "/admin",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://kzedsqgegrzmngxvhmfk.supabase.co wss://kzedsqgegrzmngxvhmfk.supabase.co; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+        }
+      ]
+    },
+    {
       "source": "/(.*)",
       "headers": [
         {

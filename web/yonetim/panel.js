@@ -1,9 +1,9 @@
 /**
  * Expeat yönetim paneli (expeat.app/admin).
  *
- * Giriş ekranı yok: panel bağlantısı `expeat.app/admin#k=<anahtar>` bir kez açılınca anahtar bu tarayıcıda saklanır,
- * sonra `expeat.app/admin` doğrudan açılır. Her istek Supabase'deki `admin_panel(anahtar, işlem, argümanlar)`
- * fonksiyonuna gider; anahtarı veritabanı denetler (yalnızca özeti saklanır). Publishable key herkese açıktır,
+ * Giriş Google ile (Supabase Auth, PKCE). Her istek oturumun jetonuyla Supabase'deki `admin_panel(işlem, argümanlar)`
+ * fonksiyonuna gider; yetkiyi veritabanı verir: hesap yönetici (`profiles.is_admin`, yalnızca SQL ile) ve oturum
+ * Google ile açılmış olmalı. Yönetici olmayan hesap hemen çıkış yapar. Publishable key herkese açıktır,
  * service role anahtarı bu sayfada yoktur.
  */
 (() => {
@@ -11,7 +11,7 @@
 
   const SUPABASE_URL = 'https://kzedsqgegrzmngxvhmfk.supabase.co';
   const PUBLISHABLE_KEY = 'sb_publishable_QH4Pwd_N_pHuUQDetyLpCw_HWtXlKLe';
-  const KEY_STORE = 'expeat-admin-key';
+  const LEGACY_KEY_STORE = 'expeat-admin-key';
   const THEME_STORE = 'expeat-admin-theme';
 
   const main = document.getElementById('main');
@@ -25,18 +25,18 @@
     del(k) { try { localStorage.removeItem(k); } catch { /* yok say */ } },
   };
 
-  /* ---------- Anahtar ---------- */
-  let adminKey = null;
-  (function readKey() {
-    const m = location.hash.match(/(?:^#|&)k=([A-Za-z0-9_-]{32,200})/);
-    if (m) {
-      adminKey = m[1];
-      store.set(KEY_STORE, adminKey);
-      history.replaceState(null, '', location.pathname + '#/genel');
-    } else {
-      adminKey = store.get(KEY_STORE);
-    }
-  })();
+  /* ---------- Oturum (Google ile giriş) ---------- */
+  store.del(LEGACY_KEY_STORE); // eski gizli anahtar düzeni
+  const sb = window.supabase.createClient(SUPABASE_URL, PUBLISHABLE_KEY, {
+    auth: {
+      flowType: 'pkce',
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      storageKey: 'expeat-admin-auth',
+    },
+  });
+  let me = null;
 
   /* ---------- Yardımcılar ---------- */
   const esc = (v) =>
@@ -119,24 +119,21 @@
   async function api(action, args = {}) {
     let res;
     try {
-      res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/admin_panel`, {
-        method: 'POST',
-        headers: { apikey: PUBLISHABLE_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ p_key: adminKey, p_action: action, p_args: args }),
-      });
+      res = await sb.rpc('admin_panel', { p_action: action, p_args: args });
     } catch {
       throw new ApiError('Bağlantı kurulamadı. İnternetini kontrol et.', 'network');
     }
-    const text = await res.text();
-    let body = null;
-    try { body = text ? JSON.parse(text) : null; } catch { /* düz metin */ }
-    if (!res.ok) {
-      const code = body?.code ?? String(res.status);
-      if (code === '42501') throw new ApiError('Panel anahtarı geçersiz.', code);
-      if (code === 'PGRST202') throw new ApiError('Veritabanında panel fonksiyonu yok: admin_panel migration\'ı henüz çalıştırılmamış.', code);
-      throw new ApiError(body?.message || `Hata (${res.status})`, code);
+    const { data, error } = res;
+    if (error) {
+      const code = error.code || 'error';
+      if (code === 'PGRST202') {
+        throw new ApiError('Veritabanında panelin Google girişli sürümü yok: admin_google_login migration\'ı henüz çalıştırılmamış.', code);
+      }
+      const e = new ApiError(error.message || 'Hata', code);
+      e.hint = error.hint;
+      throw e;
     }
-    return body;
+    return data;
   }
 
   /* ---------- Bildirim, onay, çekmece ---------- */
@@ -271,25 +268,42 @@
       await ROUTES[name](params, () => token === renderToken);
     } catch (e) {
       if (token !== renderToken) return;
-      if (e.code === '42501') return showGate('Bu tarayıcıdaki panel anahtarı geçersiz. Panel bağlantısını yeniden aç.');
-      main.innerHTML = `<div class="card empty-state"><h3>Yüklenemedi</h3><p>${esc(e.message)}</p><button class="btn" type="button" onclick="location.reload()">Yeniden dene</button></div>`;
+      if (e.code === '42501') { await signOutTo(e.message); return; }
+      main.innerHTML = `<div class="card empty-state"><h3>Yüklenemedi</h3><p>${esc(e.message)}</p><button class="btn" type="button" id="retry">Yeniden dene</button></div>`;
+      $('#retry').onclick = () => location.reload();
     }
     main.focus({ preventScroll: true });
     window.scrollTo(0, 0);
   }
-  window.addEventListener('hashchange', () => {
-    // Sayfa açıkken anahtarlı bağlantı açıldı: anahtarı baştan okumak için yeniden yükle
-    if (/(?:^#|&)k=/.test(location.hash)) location.reload();
-    else render();
-  });
+  window.addEventListener('hashchange', () => { if (me) render(); });
   const go = (hash) => { if (location.hash === hash) render(); else location.hash = hash; };
 
-  function showGate(text) {
+  /** Giriş ekranı: yalnızca "Google ile giriş yap" */
+  function showLogin(message) {
+    me = null;
     document.body.innerHTML = `
-      <div class="gate"><div>
+      <div class="gate"><div class="gate-box">
         <div class="wordmark">Expeat</div>
-        <p>${esc(text)}</p>
+        <div class="gate-sub">Yönetim</div>
+        <button class="google-btn" id="google" type="button">
+          <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.6 5.4 2.6 13.3l7.9 6.1C12.4 13.7 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.7 6c4.5-4.2 6.9-10.3 6.9-17.7z"/><path fill="#FBBC05" d="M10.5 28.6c-.5-1.4-.8-3-.8-4.6s.3-3.2.8-4.6l-7.9-6.1C.9 16.6 0 20.2 0 24s.9 7.4 2.6 10.7l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.7-6c-2.2 1.5-5 2.3-8.2 2.3-6.3 0-11.6-4.2-13.5-9.9l-7.9 6.1C6.6 42.6 14.6 48 24 48z"/></svg>
+          Google ile giriş yap
+        </button>
+        ${message ? `<p class="gate-msg">${esc(message)}</p>` : '<p>Yalnızca yönetici olarak tanımlı Google hesapları girebilir.</p>'}
       </div></div>`;
+    document.getElementById('google').onclick = async (e) => {
+      e.currentTarget.disabled = true;
+      const { error } = await sb.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: `${location.origin}${location.pathname}`, queryParams: { prompt: 'select_account' } },
+      });
+      if (error) showLogin(error.message);
+    };
+  }
+
+  async function signOutTo(message) {
+    try { await sb.auth.signOut({ scope: 'local' }); } catch { /* yok say */ }
+    showLogin(message);
   }
 
   function head(title, sub, actions = '') {
@@ -1368,11 +1382,36 @@
   }, true);
 
   /* ---------- Başlat ---------- */
-  if (!adminKey) {
-    showGate('Bu sayfa yalnızca yönetici bağlantısıyla açılır.');
-    return;
+  const NOT_ADMIN = 'Bu Google hesabı yönetici değil. Yönetici hesabıyla giriş yap.';
+  async function start() {
+    // Google'dan dönüşte hata (ör. izin verilmedi)
+    const q = new URLSearchParams(location.search);
+    const oauthError = q.get('error_description') || q.get('error');
+    const { data, error } = await sb.auth.getSession();
+    // ?code=… Supabase istemcisi tarafından oturuma çevrildi; adres çubuğunda kalmasın
+    if (location.search) history.replaceState(null, '', `${location.pathname}${location.hash.startsWith('#/') ? location.hash : '#/genel'}`);
+    if (error || !data.session) { showLogin(oauthError || error?.message); return; }
+    try {
+      me = await api('me');
+    } catch (e) {
+      if (e.code === '42501') {
+        await signOutTo(e.hint === 'not_admin' ? NOT_ADMIN : e.hint === 'oauth_required' ? 'Yönetim paneline yalnızca Google ile girilir.' : e.message);
+      } else {
+        showLogin(e.message);
+      }
+      return;
+    }
+    $('#meBox').innerHTML = `
+      <div class="me">${avatar(me)}<div style="min-width:0"><div class="me-name">${esc(me.name)}</div><div class="me-mail">${esc(me.email || '')}</div></div></div>
+      <button class="theme-btn" id="logout" type="button"><svg viewBox="0 0 24 24"><path d="M10 17v-3H3v-4h7V7l5 5zm2-15h7a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2h-7v-2h7V4h-7z"/></svg><span>Çıkış yap</span></button>`;
+    $('#logout').onclick = () => signOutTo('Çıkış yapıldı.');
+    $('#app').hidden = false;
+    if (!location.hash.startsWith('#/')) history.replaceState(null, '', `${location.pathname}#/genel`);
+    render();
+    loadOverview().catch(() => { /* sayfa kendi hatasını gösterir */ });
   }
-  if (!location.hash.startsWith('#/')) history.replaceState(null, '', location.pathname + '#/genel');
-  render();
-  loadOverview().catch(() => { /* sayfa kendi hatasını gösterir */ });
+  sb.auth.onAuthStateChange((event) => {
+    if (event === 'SIGNED_OUT' && me) showLogin('Oturum kapandı.');
+  });
+  start();
 })();

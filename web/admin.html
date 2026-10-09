@@ -9,11 +9,11 @@
 <title>Expeat Yönetim</title>
 <link rel="icon" href="/favicon.ico">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" crossorigin="anonymous">
+<link rel="stylesheet" href="/yonetim/vendor/leaflet-1.9.4.css">
 <link rel="stylesheet" href="/yonetim/panel.css">
 </head>
 <body>
-<div class="app" id="app">
+<div class="app" id="app" hidden>
   <aside class="side">
     <div class="brand">
       <span class="wordmark">Expeat</span>
@@ -31,6 +31,7 @@
       <a href="#/gecmis" data-route="gecmis"><svg viewBox="0 0 24 24"><path d="M13 3a9 9 0 0 0-9 9H1l3.9 3.9L9 12H6a7 7 0 1 1 2 4.9l-1.4 1.4A9 9 0 1 0 13 3m-1 5v5l4.3 2.5.7-1.2-3.5-2.1V8z"/></svg><span>İşlem geçmişi</span></a>
     </nav>
     <div class="side-foot">
+      <div id="meBox"></div>
       <button class="theme-btn" id="themeBtn" type="button" title="Tema">
         <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9c0-.5 0-.9-.1-1.4A5.5 5.5 0 0 1 13.4 3.1 9 9 0 0 0 12 3"/></svg>
         <span id="themeLabel">Tema</span>
@@ -48,7 +49,8 @@
   <section class="modal" id="modal" role="dialog" aria-modal="true"></section>
 </div>
 <div class="toasts" id="toasts" aria-live="polite"></div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" crossorigin="anonymous" defer></script>
+<script src="/yonetim/vendor/supabase-2.117.1.js" defer></script>
+<script src="/yonetim/vendor/leaflet-1.9.4.js" defer></script>
 <script src="/yonetim/panel.js" defer></script>
 </body>
 </html>

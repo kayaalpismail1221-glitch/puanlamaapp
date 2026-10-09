@@ -1349,6 +1349,19 @@ const JS = `// Menü, beliren bölümler, sayaçlar, sabit telefon ve içindekil
 })();
 `;
 
+const ADMIN_CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: https:",
+  "connect-src 'self' https://kzedsqgegrzmngxvhmfk.supabase.co wss://kzedsqgegrzmngxvhmfk.supabase.co",
+  "font-src 'self'",
+  "object-src 'none'",
+  "base-uri 'none'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join('; ');
+
 const VERCEL = {
   $schema: 'https://openapi.vercel.sh/vercel.json',
   cleanUrls: true,
@@ -1371,6 +1384,8 @@ const VERCEL = {
         { key: 'Cache-Control', value: 'no-store' },
       ],
     },
+    // Panel yalnızca kendi dosyalarını çalıştırır ve yalnızca Supabase'e bağlanır (XSS'e karşı ikinci kat)
+    { source: '/admin', headers: [{ key: 'Content-Security-Policy', value: ADMIN_CSP }] },
     {
       source: '/(.*)',
       headers: [
