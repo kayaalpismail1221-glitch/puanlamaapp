@@ -1363,6 +1363,14 @@ const VERCEL = {
   headers: [
     { source: '/img/(.*)', headers: [{ key: 'Cache-Control', value: 'public, max-age=604800' }] },
     { source: '/.well-known/apple-app-site-association', headers: [{ key: 'Content-Type', value: 'application/json' }] },
+    // Yönetim paneli (web/admin.html + web/yonetim/, elle yazılır; bu üretici dokunmaz): aranmaz, önbelleğe alınmaz
+    {
+      source: '/(admin|yonetim/.*)',
+      headers: [
+        { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
+        { key: 'Cache-Control', value: 'no-store' },
+      ],
+    },
     {
       source: '/(.*)',
       headers: [
@@ -1415,7 +1423,7 @@ if (ANDROID_SHA256.length) {
   const target = { namespace: 'android_app', package_name: BUNDLE_ID, sha256_cert_fingerprints: ANDROID_SHA256 };
   write('.well-known/assetlinks.json', JSON.stringify([{ relation: ['delegate_permission/common.handle_all_urls'], target }], null, 2) + '\n');
 }
-write('robots.txt', `User-agent: *\nAllow: /\n\nSitemap: ${SITE}/sitemap.xml\n`);
+write('robots.txt', `User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /yonetim/\n\nSitemap: ${SITE}/sitemap.xml\n`);
 const urls = ['/', '/en', ...Object.values(ALT).flatMap((a) => [a.tr, a.en])];
 write(
   'sitemap.xml',

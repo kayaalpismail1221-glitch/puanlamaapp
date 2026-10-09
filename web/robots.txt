@@ -1,4 +1,6 @@
 User-agent: *
 Allow: /
+Disallow: /admin
+Disallow: /yonetim/
 
 Sitemap: https://expeat.app/sitemap.xml
