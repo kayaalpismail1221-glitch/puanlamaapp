@@ -29,7 +29,7 @@ hatırlat; biten maddeyi listeden sil. Ayrıntılar SUPABASE.md ve ilgili bölü
 - [ ] **Android konsol ayarları:** Google ile giriş (Web + Android OAuth istemcileri, Supabase Google sağlayıcısı),
   Firebase + FCM V1; Play App Signing SHA-1'i de Google Cloud'a (SUPABASE.md → "Android: …"). Harita anahtar istemez.
 - [ ] **Apple ile giriş:** Apple Developer + Supabase Apple sağlayıcısı → `APPLE_SIGN_IN_ENABLED = true`.
-- [ ] **Demo hesapları sil:** gerçek mekânlara kurgusal puan veriyorlar.
+- [x] **Demo hesapları sil:** 2026-10-09 canlıdan silindi (7 `@demo.puanla.app` hesabı ve tüm verileri; kullanıcı SQL Editor'de çalıştırdı).
 - [ ] **Yasal:** KVKK veri sorumlusu gerçek kişi/şirket ve adres; `legal.ts`'teki "devredilemeyen" içerik izni ve
   birleşme/devir maddesi (avukat onayıyla).
 - [ ] **Play kapalı test:** yeni kişisel Play geliştirici hesabında production'dan önce 12 test kullanıcısıyla
@@ -194,8 +194,8 @@ hatırlat; biten maddeyi listeden sil. Ayrıntılar SUPABASE.md ve ilgili bölü
   `20261005100000_segment_rankings`, `20261006100000_comment_notification_types` ve `20261006110000_comment_social`
   2026-09-26'da canlıya uygulandı ve iki geçici hesapla uçtan uca doğrulandı (segment puanları, Bayes topluluk puanı,
   harita/öneriler, yorum yanıtı ve beğenisi, bildirimler, kişi önerileri ve gizleme; 13/13). Canlıdaki fonksiyonu yeniden tanımlayan migration her zaman o fonksiyonun **en son**
-  tanımından (tüm dallar dahil) yola çıkmalı. Eski demo silindi; canlıda OSM + Overture mekânları ve gerçek mekânlar
-  üzerine yeni demo var (`npm run demo:seed`: 7 `@demo.puanla.app` hesabı, 25 gönderi).
+  tanımından (tüm dallar dahil) yola çıkmalı. Demo hesapları 2026-10-09'da canlıdan silindi (kullanıcı
+  kararı); gerekirse `npm run demo:seed` yeniden kurar (7 `@demo.puanla.app` hesabı, 25 gönderi).
 - **Denetim düzeltmeleri (2026-09-30), `20261014100000_audit_fixes`:** mekân düzeltmesi yalnızca güvenilir hesapların
   (≥ 7 gün, ≥ 5 puan) oyuyla kendiliğinden uygulanır (telefon/web/kapandı 3 kişi), engelliler birbirinin puanlarını
   görmez (`rankings` politikası `block_peer_ids()`), `avatar_path` yalnızca kendi klasörü, `xp_totals` istemciye kapalı.
@@ -245,10 +245,15 @@ hatırlat; biten maddeyi listeden sil. Ayrıntılar SUPABASE.md ve ilgili bölü
   arkadaş > etkileşen > okul > popüler; gerekçesiyle, Takip et + ✕). ✕ `suggestion_dismissals`'a yazılır, kişi hiçbir
   öneri listesinde (`suggested_users` dahil) bir daha çıkmaz.
 - Puan formülü istemci (`lib/ranking.ts` `scoreAt`) ve sunucu (`sentiment_score`) birebir aynı (tam sayı onda birlik).
-- **Segment bazlı sıralama (2026-09-26, kullanıcı isteği: "aynı segmentteki mekânlarla kıyasla"):** 24 kategori 9
-  segmente ayrılır (`constants/segments.ts` = `cuisines.segment`): restoran · kebapçı · sokak lezzeti (dürüm, döner,
-  kokoreç, ciğer, köfte, çiğ köfte, pide) · pizza ve burger (+ büfe) · kahvaltı · börekçi ve fırın · kafe · tatlıcı ve
-  pastane (+ dondurma) · meyhane ve bar. İlk hâli 5 segmentti; 2026-10-01 kullanıcı kararıyla bölündü ("börekçi kafe ve
+- **Segment bazlı sıralama (2026-09-26, kullanıcı isteği: "aynı segmentteki mekânlarla kıyasla"):** 24 kategori 16
+  segmente (benzer aileye) ayrılır (`constants/segments.ts` = `cuisines.segment`): restoran (esnaf lokantası, balıkçı,
+  Uzak Doğu, dünya mutfağı) · kebapçı · döner ve dürüm · kokoreç ve ciğer · köfteci · çiğ köfteci · pideci · pizzacı ·
+  burgerci · büfe ve fast food · kahvaltı · börekçi · kafe · tatlıcı ve pastane (+ dondurma) · meyhane · bar.
+  **2026-10-08 kullanıcı kararı** ("kafe restoranla olmasın, benzer aileler olsun, abuksubutluk asla olmasın; burgerci
+  burgerciyle"): sokak lezzeti, pizza ve burger, meyhane ve bar bölündü (migration `20261022100000_segment_family_values`
+  (enum değerleri, ayrı çalıştırılır) + `20261022110000_segment_families`); enum'daki 'street' ve 'nightlife'
+  kullanılmıyor. Aile yalnızca gerçekten aynı deneyimi birleştirir; yeni aile her zaman tek bir eski aileden bölünür
+  (sorulmamış karşılaştırma uydurulmaz). İlk hâli 5 segmentti; 2026-10-01 kullanıcı kararıyla bölündü ("börekçi kafe ve
   tatlıcıyla, pizzacı kokoreççiyle aynı listede olmasın"; migration `20261016100000_segment_values` (enum değerleri, ayrı
   çalıştırılır) + `20261016110000_segment_split`). Yeni "Börekçi" kategorisi: adında börek/simit/poğaça geçen, pastane
   geçmeyen ve kategorisi kilitli olmayan pastaneler taşındı; içe aktarım kuralı `scripts/places/lib.mjs` aynı. Mevcut
@@ -463,9 +468,22 @@ Tutunma tarafı: bildirimler ve rehber eşleştirme olmadan ağın ürettiği de
   (2026-09-25): rehber eşleştirme geldi ama telefon isteğe bağlı kalır; eşleşme için SMS doğrulaması şart. Migration
   `20260929100000_phone_optional`. İlk puan ve takip adımları atlanabilir (2.1).
   Hesap silme Ayarlar'da.
-- Şikâyet işleme **ayrı bir web yönetim panelinden** yapılacak (kullanıcı kararı; uygulamada moderasyon ekranı yok).
+- Şikâyet işleme **ayrı bir web yönetim panelinden** (kullanıcı kararı; uygulamada moderasyon ekranı yok).
   Hazır RPC'ler: `admin_reports`, `admin_resolve_report` (dismiss/remove/ban; ban = `auth.users.banned_until =
-  infinity`), yetki `profiles.is_admin` (yalnızca SQL ile). Panel gelene kadar şikâyetler Supabase → `reports`.
+  infinity`), yetki `profiles.is_admin` (yalnızca SQL ile).
+- **Web yönetim paneli** (2026-10-09): `expeat.app/admin` (`web/admin.html`, `web/yonetim/panel.{js,css}`, kütüphaneler
+  `web/yonetim/vendor/` içinde sabit sürüm — dış CDN yok; elle yazılır, site üreticisi yalnızca noindex/no-store/CSP
+  başlıklarını ve robots kuralını yazar). **Giriş Google ile** (kullanıcı kararı: "gmail ile giriş, asla veri açığı
+  bırakma"; ilk denemedeki gizli anahtarlı bağlantı kaldırıldı, migration `20261023110000_admin_google_login`):
+  Supabase Auth PKCE. Yetki veritabanında: `is_admin()` = `profiles.is_admin` (yalnızca SQL ile) **ve** oturum Google
+  ile açılmış (`session_is_oauth()`, JWT `amr`); şifreli oturum hiçbir yönetici işlevini çalıştıramaz. Tek giriş
+  `admin_panel(işlem, argümanlar)` (yalnızca authenticated), iç fonksiyonlar kapalı, değiştirici işlemler yapanın
+  kimliğiyle `admin_audit`'e. Yönetici olmayan hesap girişten hemen sonra çıkış yapar. Panel sayfasında sıkı CSP
+  (yalnızca kendi dosyaları + Supabase). Gereken ayar: Supabase Google sağlayıcısı + Redirect URL'lerde `/admin` adresleri.
+  Sayfalar: genel bakış, şikâyetler, yanlış bilgi (harita), kullanıcılar (yasakla/kaldır), mekânlar (düzenle → alan
+  kilitlenir), gönderiler (sil), doğrulanmış mekân satışları (`place_verifications`, rozet süresi `places.verified_until`;
+  uygulamada rozet henüz gösterilmiyor), zorunlu güncelleme sürümü, büyüme, işlem geçmişi. Migration
+  `20261023100000_admin_panel`. Yerel deneme: PGlite'ta migration'lar + `admin_panel` RPC'si sunan küçük bir sunucu.
 - `app.json`: `privacyManifests`, `ITSAppUsesNonExemptEncryption: false`. Özellik bayrakları `constants/features.ts`.
 - İkon/açılış görseli `npm run icons:generate` (`scripts/generate-icons.py`, Georgia Bold "e"; açılış her görünümde
   lacivert `#0F1E3D` üstüne beyaz "Expeat", ikonla aynı; `components/launch-intro` aynı renkle devralır).
@@ -491,7 +509,7 @@ Tutunma tarafı: bildirimler ve rehber eşleştirme olmadan ağın ürettiği de
   tersine döner). Fotoğraf, degrade ya da renkli (puan/kırmızı/beğeni) zemin üstündeki beyaz yazı/simge için
   `fixed.white`; görünümden bağımsız lacivert için `fixed.navy`. Dinamik renk almayan yerlerde (SVG, gezinme teması
   ve başlık seçenekleri, `@expo/ui` seedColor, harita çizgisi, degrade) `usePalette()` düz değerleri. Paylaşılan
-  görseller (hikâye kartları) her zaman açık paletle (`palettes.light`) çizilir. Android: bkz. "Android".
+  görseller (hikâye kartları) görünümden bağımsız kendi siyah paletleriyle çizilir (`story-cards.tsx`). Android: bkz. "Android".
   Koyu palet iOS'un nötr katmanlarıyla uyumlu (zemin #0B0B0D, bir kat yukarısı #1C1C1E). Koyuda ana yazı ve `primary`
   X'in kırık beyazı #E7E9EA (2026-10-03, kullanıcı: saf beyaz çok parlak, zemini fazla siyah gösteriyordu). Katmanlar: gruplu liste
   ekranı `grouped` + satırlar `card`; açılır pencere/alttan panel `card`; kart üstündeki düğme/alan `fill`.
@@ -646,8 +664,10 @@ açılınca klavye kapanır (`dialog-host`: `useAnimatedKeyboard` açık klavyey
   cihazda saklanır, oturum açılınca `set_inviter` (kök düzen `useInviteCode`; kalıcı ret kodu siler, ağ hatası
   bekletir) ve davet eden `takip` önerilerinin başına gelir (`Profile.inviterId`). iOS'tan giden davette App Store
   kaynak taşımaz: alan adı gelince `https://expeat.app/davet/<kullanıcı adı>` sayfası (hazır, `web/davet.html`) +
-  evrensel bağlantı aynı yolu kullanır; o zamana dek "@kullanıcı adı yaz" ipucu. İlk girişte 4 adımlı
-  tanıtım (`leaderboard-intro`, cihazda bir kez; ⓘ ile tekrar). Migration `20261008100000_xp`.
+  evrensel bağlantı aynı yolu kullanır; o zamana dek "@kullanıcı adı yaz" ipucu. 4 adımlı tanıtım
+  (`leaderboard-intro`) yalnızca başlıktaki ⓘ ve alttaki "senin durumun" kartıyla açılır (kullanıcı kararı
+  2026-10-09: profildeki sıralamaya dokunan doğrudan lige gelsin, ilk girişte kendiliğinden açılmasın).
+  Migration `20261008100000_xp`.
 - **Yıllık hedef sayfası (2026-09-29, `hedef`):** profildeki hedef kartından (dokun; basılı tut = değiştir/kaldır)
   açılır. Üstte lacivert kartta kendi hedefin, altında sen + takip ettiklerin tamamlanma oranına göre (`year_challenge`:
   o yılın `rated_at`'ı, İstanbul yılı, engellenenler yok; kendi satırın cihazdaki `placesThisYear` ile). Hedefsiz
@@ -674,6 +694,11 @@ açılınca klavye kapanır (`dialog-host`: `useAnimatedKeyboard` açık klavyey
   tür başına kapatma `profile_private.push_muted`. İstemci: `lib/notifications.ts` (izin öncesi açıklama, cihaz kaydı,
   dokununca yönlendirme, çıkışta jeton silme), `bildirimler` (Bugün/Bu hafta/Daha önce, açılınca okundu), `bildirim-ayarlari`,
   Feed'de zil + okunmamış rozeti. APNs anahtarı EAS build sırasında kurulur; yeni build gerekir.
+  **Spam koruması** (migration `20261023120000_notify_throttle`, güvenlik taraması 2026-10-09): geri alınıp tekrar
+  yapılabilen bildirimlerde (beğeni, takip, yorum beğenisi, etiket, arkadaşın puanladı) aynı kişi → aynı kişi, aynı
+  tür ve hedef için push 24 saatte bir (`notification_throttle`; `notify` işlem yerel `expeat.push_throttled`
+  ayarıyla push tetikleyicisine bildirir). Bildirim kutusundaki kayıt eskisi gibi oluşur; yalnızca push gitmez.
+  Yorum/yanıt sınırlanmaz. Günlük sınır: takip 300, beğeni 1000. Testte sahte `net.http_post` ile push sayılır.
 - **Feed mekaniği (akıcılık):** FlashList (`getItemType` foto/fotosuz), `PostCard` memo ve yalnızca kendi beğeni/kaydetme
   durumunu dinler (`useAppSelector` / `useAppActions`; uzun listelerde `useAppStore` kullanma, her değişimde yeniden çizer).
   Popüler sıra `posts.hot` (üretilen sütun, `hot_rank`: ln(1 + beğeni + 2×yorum) + yaş; etkileşim 3 katına çıkınca
@@ -729,14 +754,19 @@ açılınca klavye kapanır (`dialog-host`: `useAnimatedKeyboard` açık klavyey
   Puanla" rozeti (uygulaması olmayan izleyici için); `APP_STORE_URL` doluysa paylaşırken bağlantı panoya kopyalanır
   ve Instagram'ın Bağlantı çıkartması önerilir. Kartlar: Favori 4, En iyi 5, Lezzet haritası,
   Bu ay (aylık özet; bu ay boşsa geçen ay), tek gönderi. Kartlar `components/story-cards.tsx` (540×960 çizilir,
-  Instagram güvenli alanı içinde), veri `lib/story.ts`. Giriş: Profil → Paylaş menüsü, kendi gönderisinin … menüsü,
+  Instagram güvenli alanı içinde), veri `lib/story.ts`. **Tasarım (kullanıcı isteği 2026-10-09: "siyah temelli, çok
+  şık"):** zemin `STORY_BACKGROUND` #0A0A0B + köşelerde çok hafif ışık (hedef/uyumda puan renginde), kırık beyaz yazı
+  (#F2EFE9), üstte serif "Expeat" + ince çizgi, serif başlıklar (sayılar italik), ince ayırıcılar; puan dolu disk
+  değil puan renginde halka (`scoreOnBlack`), fotoğraf siyaha erir, lezzet haritası koyu haritada. Önizleme
+  ekranları (hikâye, harita paylaş) da siyah. Mağaza görsellerindeki hikâye kartı slaytı hâlâ eski lacivert. Giriş: Profil → Paylaş menüsü, kendi gönderisinin … menüsü,
   lezzet haritası paylaş ikonu, gönderi paylaşıldıktan sonra öneri (onboarding hariç).
 - **"Sen kaç verirdin?" (feed):** başkasının puanlı gönderisinde aksiyon satırında hap: mekânı puanladıysan "Sen 7,9"
   (dokununca mekân), puanlamadıysan "Ben de gittim" → `degerlendir` (`karsi`/`karsiPuan` parametreleriyle sonuçta
   "İsmail'in puanı 8,7" gösterilir). Kart yalnızca kendi mekânının puanını dinler (`scoreInRankings` seçicisi).
 - **Damak uyumu** (migration `20261003100000_taste_match`, `taste_match(p_user_id)`): başkasının profilinde menünün
   başında "%82 · 14 ortak mekân" satırı (`components/taste-match.tsx`); ayrıntı `uyum/[id]` (ikinizin de favorisi,
-  ayrıldığınız yerler, tüm ortak mekânlar, paylaş). Formül: ortak mekân başına 1 − |fark|/5, iki yarı uyumlu mekânla
+  ayrıldığınız yerler, tüm ortak mekânlar). Paylaş (başlıktaki düğme ve "Hikâyede paylaş") görsel uyum kartını açar
+  (`hikaye?uyum=<id>`); düz metin/bağlantı paylaşımı yok (kullanıcı kararı 2026-10-09: "paylaşta foto çıksın"). Formül: ortak mekân başına 1 − |fark|/5, iki yarı uyumlu mekânla
   dengelenir; 3 ortak mekândan az ise yüzde yok (`taste_match_percent`). Yüzde puan renk skalasında (%82 → 8,2 rengi).
 - **Paylaşılabilir listeler** (migration `20261003110000_lists`): `lists` + `list_places` (listeye özel not) +
   `list_saves` (kaydetme, `save_count` tetikleyiciyle). Yazma yalnızca `save_list` (1–50 mekân, günde 20 liste, uygunsuz

@@ -3,6 +3,7 @@ import { SymbolView, type SFSymbol } from '@/components/symbol';
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Linking, StyleSheet, View, type ColorValue } from 'react-native';
+import { Pressable as GesturePressable } from 'react-native-gesture-handler';
 import ReanimatedSwipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 
 import type { FriendScore } from '@/api/content';
@@ -62,7 +63,7 @@ export function SavedPlaceCard({ entry, place, friends }: { entry: SavedPlace; p
   return (
     <ReanimatedSwipeable
       ref={swipeRef}
-      friction={2}
+      friction={1}
       rightThreshold={40}
       overshootRight={false}
       onSwipeableWillOpen={() => haptics.select()}
@@ -72,7 +73,8 @@ export function SavedPlaceCard({ entry, place, friends }: { entry: SavedPlace; p
           <SwipeAction icon="trash.fill" label={t('common.delete')} color={colors.danger} ink={fixed.white} onPress={remove} />
         </View>
       )}>
-      <PressableScale scaleTo={0.98} haptic={false} onPress={openPlace} onLongPress={showActions} style={styles.card}>
+      {/* RNGH'nin kendi Pressable'ı: React Native'in dokunma yanıtçısı sola kaydırmayı yutmasın */}
+      <GesturePressable onPress={openPlace} onLongPress={showActions} style={styles.card}>
         <PlaceImage uri={place.thumbUrl ?? place.photoUrl} style={styles.image} />
 
         <View style={styles.info}>
@@ -118,7 +120,7 @@ export function SavedPlaceCard({ entry, place, friends }: { entry: SavedPlace; p
             </Text>
           </View>
         </View>
-      </PressableScale>
+      </GesturePressable>
     </ReanimatedSwipeable>
   );
 }

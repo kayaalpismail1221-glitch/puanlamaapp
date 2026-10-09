@@ -1349,6 +1349,19 @@ const JS = `// Menü, beliren bölümler, sayaçlar, sabit telefon ve içindekil
 })();
 `;
 
+const ADMIN_CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: https:",
+  "connect-src 'self' https://kzedsqgegrzmngxvhmfk.supabase.co wss://kzedsqgegrzmngxvhmfk.supabase.co",
+  "font-src 'self'",
+  "object-src 'none'",
+  "base-uri 'none'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join('; ');
+
 const VERCEL = {
   $schema: 'https://openapi.vercel.sh/vercel.json',
   cleanUrls: true,
@@ -1363,6 +1376,16 @@ const VERCEL = {
   headers: [
     { source: '/img/(.*)', headers: [{ key: 'Cache-Control', value: 'public, max-age=604800' }] },
     { source: '/.well-known/apple-app-site-association', headers: [{ key: 'Content-Type', value: 'application/json' }] },
+    // Yönetim paneli (web/admin.html + web/yonetim/, elle yazılır; bu üretici dokunmaz): aranmaz, önbelleğe alınmaz
+    {
+      source: '/(admin|yonetim/.*)',
+      headers: [
+        { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
+        { key: 'Cache-Control', value: 'no-store' },
+      ],
+    },
+    // Panel yalnızca kendi dosyalarını çalıştırır ve yalnızca Supabase'e bağlanır (XSS'e karşı ikinci kat)
+    { source: '/admin', headers: [{ key: 'Content-Security-Policy', value: ADMIN_CSP }] },
     {
       source: '/(.*)',
       headers: [
@@ -1415,7 +1438,7 @@ if (ANDROID_SHA256.length) {
   const target = { namespace: 'android_app', package_name: BUNDLE_ID, sha256_cert_fingerprints: ANDROID_SHA256 };
   write('.well-known/assetlinks.json', JSON.stringify([{ relation: ['delegate_permission/common.handle_all_urls'], target }], null, 2) + '\n');
 }
-write('robots.txt', `User-agent: *\nAllow: /\n\nSitemap: ${SITE}/sitemap.xml\n`);
+write('robots.txt', `User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /yonetim/\n\nSitemap: ${SITE}/sitemap.xml\n`);
 const urls = ['/', '/en', ...Object.values(ALT).flatMap((a) => [a.tr, a.en])];
 write(
   'sitemap.xml',

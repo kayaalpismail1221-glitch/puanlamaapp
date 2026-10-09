@@ -8,7 +8,7 @@ import type {
   RankingViewRow,
   SavedPlaceViewRow,
 } from '@/types/database';
-import type { Comment, Cuisine, Place, Post, RankedEntry, SavedPlace, User, UserProfile } from '@/types';
+import type { Comment, Cuisine, Place, Post, RankedEntry, SavedPlace, Segment, User, UserProfile } from '@/types';
 
 /**
  * Veritabanı satırlarını (snake_case) uygulama tiplerine çevirir.
@@ -110,7 +110,8 @@ export function toComment(row: CommentViewRow): Comment {
 export function toRankedEntry(row: RankingViewRow): RankedEntry {
   return {
     placeId: row.place_id,
-    segment: row.segment,
+    // Eski 'street' / 'nightlife' değerleri 20261022110000_segment_families ile taşındı; satırlarda artık yoklar
+    segment: row.segment as Segment,
     note: row.note ?? undefined,
     ratedAt: row.rated_at,
     tied: row.tied || undefined,

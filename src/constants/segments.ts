@@ -5,20 +5,29 @@ import type { Cuisine, Segment } from '@/types';
 /**
  * Segmentler: birbiriyle kıyaslanması anlamlı mekân aileleri. Puanlamada yeni mekân yalnızca aynı
  * segmentteki mekânlarla karşılaştırılır ve puanı o segmentteki sırasından hesaplanır (kokoreççi
- * meyhaneyle ya da pizzacıyla değil, kokoreççiler ve dürümcülerle yarışır). Veritabanındaki `cuisines.segment` ile
- * aynı (migration 20261016110000_segment_split). Saf modül (i18n yok): demo betikleri de kullanır. Ekrandaki adı:
+ * meyhaneyle, burgerci pizzacıyla değil; kokoreççi ciğerciyle, burgerci burgerciyle yarışır). Aile yalnızca gerçekten
+ * aynı deneyimi birleştirir (Döner + Dürüm, Kokoreç + Ciğer, Tatlıcı + Pastane + Dondurma, oturup yemek yenen
+ * restoranlar); gerisi tek kategoridir. Veritabanındaki `cuisines.segment` ile aynı (migration
+ * 20261022110000_segment_families). Saf modül (i18n yok): demo betikleri de kullanır. Ekrandaki adı:
  * `t(`segments.${segment}`)`.
  */
 export const SEGMENTS: Segment[] = [
   'restaurant',
   'kebab',
-  'street',
+  'doner',
+  'offal',
+  'meatball',
+  'cigkofte',
+  'pide',
+  'pizza',
+  'burger',
   'fastfood',
   'breakfast',
   'bakery',
   'cafe',
   'dessert',
-  'nightlife',
+  'meyhane',
+  'bar',
 ];
 
 export const SEGMENT_OF: Record<Cuisine, Segment> = {
@@ -30,16 +39,22 @@ export const SEGMENT_OF: Record<Cuisine, Segment> = {
 
   Kebapçı: 'kebab',
 
-  Dürümcü: 'street',
-  Dönerci: 'street',
-  Kokoreççi: 'street',
-  Ciğerci: 'street',
-  Köfteci: 'street',
-  'Çiğ köfteci': 'street',
-  Pideci: 'street',
+  Dürümcü: 'doner',
+  Dönerci: 'doner',
 
-  Pizzacı: 'fastfood',
-  Burgerci: 'fastfood',
+  Kokoreççi: 'offal',
+  Ciğerci: 'offal',
+
+  Köfteci: 'meatball',
+
+  'Çiğ köfteci': 'cigkofte',
+
+  Pideci: 'pide',
+
+  Pizzacı: 'pizza',
+
+  Burgerci: 'burger',
+
   'Büfe & fast food': 'fastfood',
 
   Kahvaltıcı: 'breakfast',
@@ -52,20 +67,29 @@ export const SEGMENT_OF: Record<Cuisine, Segment> = {
   'Pastane & fırın': 'dessert',
   Dondurmacı: 'dessert',
 
-  Meyhane: 'nightlife',
-  Bar: 'nightlife',
+  Meyhane: 'meyhane',
+
+  Bar: 'bar',
 };
 
+/** Yalnızca Android karşılığı olan SF sembolleri (constants/android-symbols) */
 export const SEGMENT_ICONS: Record<Segment, SFSymbol> = {
   restaurant: 'fork.knife',
   kebab: 'flame',
-  street: 'figure.walk',
+  doner: 'figure.walk',
+  offal: 'moon.stars',
+  meatball: 'fork.knife.circle',
+  cigkofte: 'leaf',
+  pide: 'oven',
+  pizza: 'flame.fill',
+  burger: 'takeoutbag.and.cup.and.straw',
   fastfood: 'takeoutbag.and.cup.and.straw',
   breakfast: 'sun.horizon',
   bakery: 'basket',
   cafe: 'cup.and.saucer',
   dessert: 'birthday.cake',
-  nightlife: 'wineglass',
+  meyhane: 'wineglass',
+  bar: 'music.note',
 };
 
 /** Bilinmeyen kategori (eski istemci / yeni eklenen) restoran sayılır; sunucu da aynısını yapar */

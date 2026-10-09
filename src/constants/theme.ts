@@ -165,6 +165,14 @@ export function scoreInk(score: number): ColorValue {
   );
 }
 
+/**
+ * Siyah zeminde (hikâye kartları) puan halkası ve yazısı: koyu yeşil ve kırmızı uçlar siyahta kaybolmasın diye açılır,
+ * sarı zaten parlak.
+ */
+export function scoreOnBlack(score: number): string {
+  return mix(scoreColor(score), '#FFFFFF', score >= 6.7 ? 0.34 : score >= 3.4 ? 0.08 : 0.22);
+}
+
 /** Puan rengiyle dolu yüzeyin (pin) üstündeki yazı rengi: açık tonlarda koyu, diğerlerinde beyaz */
 export function onScoreColor(score: number): string {
   const [r, g, b] = hexToRgb(scoreColor(score)).map((c) => {

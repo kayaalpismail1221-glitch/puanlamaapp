@@ -55,13 +55,20 @@ export type Sentiment = 'liked' | 'fine' | 'disliked';
 export type Segment =
   | 'restaurant'
   | 'kebab'
-  | 'street'
+  | 'doner'
+  | 'offal'
+  | 'meatball'
+  | 'cigkofte'
+  | 'pide'
+  | 'pizza'
+  | 'burger'
   | 'fastfood'
   | 'breakfast'
   | 'bakery'
   | 'cafe'
   | 'dessert'
-  | 'nightlife';
+  | 'meyhane'
+  | 'bar';
 
 /** Kullanıcının puanladığı bir mekân. Puan, segmentindeki sıralamadan hesaplanır. */
 export type RankedEntry = {

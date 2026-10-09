@@ -89,6 +89,23 @@ export function ModalCloseButton() {
 }
 
 /**
+ * iOS sayfasının (sheet) kapat düğmesi: sağ üstte ✕ (kullanıcı alışkanlığı; aşağı çekmeyi bilmeyen de kapatabilsin).
+ * `onPress` verilmezse geri gider. Android'de modal kendi sol ✕'ini kullanır (`ModalCloseButton`).
+ */
+export function SheetCloseButton({ onPress }: { onPress?: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <PressableScale
+      onPress={onPress ?? (() => (router.canGoBack() ? router.back() : router.replace('/')))}
+      hitSlop={hitSlop}
+      accessibilityRole="button"
+      accessibilityLabel={t('common.close')}>
+      <SymbolView name="xmark" tintColor={colors.primary} size={17} weight="semibold" />
+    </PressableScale>
+  );
+}
+
+/**
  * Fotoğraf üstündeki saydam başlıkta geri düğmesi (Android): yarı saydam yuvarlak zeminde ok, her fotoğrafta
  * okunur. iOS'ta sistem geri düğmesi (iOS 26'da cam) kalır.
  */

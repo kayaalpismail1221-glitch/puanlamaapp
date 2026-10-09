@@ -17,6 +17,7 @@ import {
   MatchStoryCard,
   PostStoryCard,
   RecapStoryCard,
+  STORY_BACKGROUND,
   STORY_MAP_ASPECT,
   TopFiveCard,
   type StoryAuthor,
@@ -356,8 +357,8 @@ const styles = StyleSheet.create({
   },
   preview: {
     borderRadius: radius.card,
-    backgroundColor: colors.primary,
-    boxShadow: '0 12px 32px rgba(15, 30, 61, 0.22)',
+    backgroundColor: STORY_BACKGROUND,
+    boxShadow: '0 12px 32px rgba(0, 0, 0, 0.28)',
   },
   clip: {
     flex: 1,

@@ -23,13 +23,18 @@ const AUTH_MESSAGES: [RegExp, () => string][] = [
 ];
 
 // Veritabanının günlük sınır mesajındaki Türkçe etiket → i18n anahtarı
-const LIMIT_THINGS: Record<string, 'post' | 'comment' | 'place' | 'report' | 'list' | 'correction'> = {
+/** Veritabanındaki sınır adı (`enforce_daily_limit` üçüncü argümanı) → çeviri anahtarı */
+const LIMIT_THINGS: Record<string, 'post' | 'comment' | 'place' | 'report' | 'list' | 'correction' | 'follow' | 'like'> = {
   gönderi: 'post',
   liste: 'list',
   yorum: 'comment',
   mekân: 'place',
+  'mekân ekleme': 'place',
   şikâyet: 'report',
   düzeltme: 'correction',
+  takip: 'follow',
+  beğeni: 'like',
+  'yorum beğenme': 'like',
 };
 
 export function isNetworkError(error: unknown): boolean {

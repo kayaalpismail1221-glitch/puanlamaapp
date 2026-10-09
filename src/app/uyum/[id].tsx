@@ -12,7 +12,6 @@ import { Avatar, Button, ErrorView,  Text } from '@/components/ui';
 import { colors,  spacing } from '@/constants/theme';
 import { useTasteMatch, useUserProfile } from '@/hooks/queries';
 import { tasteMatchSections } from '@/lib/taste-match';
-import { shareTasteMatch } from '@/lib/share';
 import { useAppSelector } from '@/store/app-store';
 
 /**
@@ -34,7 +33,8 @@ export default function TasteMatchScreen() {
 
   const firstName = other.name.split(' ')[0] || other.username;
   const openPlace = (placeId: string) => router.push({ pathname: '/mekan/[id]', params: { id: placeId } });
-  const share = () => match.percent !== undefined && shareTasteMatch(other, match.percent, match.common);
+  // Paylaş görsel kartı açar (kullanıcı isteği 2026-10-09: "paylaşta foto çıksın, link atıp ne yapacan")
+  const openCard = () => router.push({ pathname: '/hikaye', params: { uyum: other.id } });
 
   const renderRows = (rows: typeof match.places) =>
     rows.map((r) => (
@@ -53,7 +53,7 @@ export default function TasteMatchScreen() {
           title: t('match.title'),
           headerRight: () =>
             match.percent === undefined ? null : (
-              <HeaderAction icon="square.and.arrow.up" iosSize={20} onPress={share} accessibilityLabel={t('common.share')} />
+              <HeaderAction icon="square.and.arrow.up" iosSize={20} onPress={openCard} accessibilityLabel={t('common.share')} />
             ),
         }}
       />
@@ -75,13 +75,7 @@ export default function TasteMatchScreen() {
               : t('match.needMoreLong', { count: MATCH_MIN_COMMON - match.common, name: firstName })}
           </Text>
           {match.percent !== undefined ? (
-            // Asıl yayılma yolu hikâye kartı; düz metinle paylaşım başlıktaki düğmede
-            <Button
-              title={t('story.shareToStory')}
-              icon="sparkles"
-              size="sm"
-              onPress={() => router.push({ pathname: '/hikaye', params: { uyum: other.id } })}
-            />
+            <Button title={t('story.shareToStory')} icon="sparkles" size="sm" onPress={openCard} />
           ) : (
             <Button
               title={t('match.seeTheirPlaces', { name: firstName })}

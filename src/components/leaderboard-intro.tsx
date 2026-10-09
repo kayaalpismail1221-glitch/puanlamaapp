@@ -1,6 +1,5 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SymbolView } from '@/components/symbol';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Modal, Platform, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -11,18 +10,15 @@ import { colors, hitSlop, radius, spacing } from '@/constants/theme';
 import { haptics } from '@/lib/haptics';
 import { LEVELS, XP_RULES } from '@/lib/xp';
 
-const SEEN_KEY = 'puanla:leaderboard-intro:v1';
 const STEPS = 4;
 
-/** Tanıtım ilk girişte kendiliğinden açılır; sonra ⓘ ile. Görüldü bilgisi cihazda. */
+/**
+ * Tanıtım yalnızca istenince açılır (başlıktaki ⓘ ya da alttaki "senin durumun" kartı). Kullanıcı kararı
+ * (2026-10-09): sıralamaya dokunan doğrudan lige gelsin, ilk girişte kendiliğinden açılmasın.
+ */
 export function useLeaderboardIntro() {
   const [visible, setVisible] = useState(false);
   const [startAt, setStartAt] = useState(0);
-  useEffect(() => {
-    AsyncStorage.getItem(SEEN_KEY)
-      .then((seen) => !seen && setVisible(true))
-      .catch(() => {});
-  }, []);
   return {
     visible,
     startAt,
@@ -30,10 +26,7 @@ export function useLeaderboardIntro() {
       setStartAt(step);
       setVisible(true);
     },
-    close: () => {
-      setVisible(false);
-      AsyncStorage.setItem(SEEN_KEY, '1').catch(() => {});
-    },
+    close: () => setVisible(false),
   };
 }
 

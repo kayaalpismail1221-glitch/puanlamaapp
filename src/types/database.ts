@@ -7,6 +7,7 @@
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 type Sentiment = 'liked' | 'fine' | 'disliked';
+// 'street' ve 'nightlife' 20261022110000_segment_families'ten beri kullanılmıyor (enum değeri silinemez)
 type Segment =
   | 'restaurant'
   | 'kebab'
@@ -16,7 +17,16 @@ type Segment =
   | 'bakery'
   | 'cafe'
   | 'dessert'
-  | 'nightlife';
+  | 'nightlife'
+  | 'doner'
+  | 'offal'
+  | 'meatball'
+  | 'cigkofte'
+  | 'pide'
+  | 'pizza'
+  | 'burger'
+  | 'meyhane'
+  | 'bar';
 type SaveOrigin = 'social' | 'app';
 type PriceBucket = 'u250' | '250-500' | '500-1000' | '1000-2000' | 'o2000';
 type Meal = 'kahvalti' | 'ogle' | 'aksam' | 'gece';

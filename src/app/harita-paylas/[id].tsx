@@ -1,4 +1,3 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SymbolView, type SFSymbol } from '@/components/symbol';
@@ -10,9 +9,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { logShare } from '@/api/growth';
 import { GlassSurface } from '@/components/glass-surface';
-import { MapStoryCard, STORY_MAP_ASPECT, type StoryAuthor } from '@/components/story-cards';
+import { MapStoryCard, STORY_BACKGROUND, STORY_MAP_ASPECT, type StoryAuthor } from '@/components/story-cards';
 import { PressableScale, Text } from '@/components/ui';
-import { colors, fixed, gradients, hitSlop, radius, scoreColor, spacing } from '@/constants/theme';
+import { colors, fixed, hitSlop, radius, scoreColor, spacing } from '@/constants/theme';
 import { useUser } from '@/data/entities';
 import { useVisitedPlaces } from '@/hooks/use-visited-places';
 import { showAlert } from '@/lib/dialog';
@@ -121,7 +120,6 @@ export default function ShareTasteMapScreen() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={gradients.share} locations={gradients.shareStops} style={StyleSheet.absoluteFill} />
       {Platform.OS === 'android' && <StatusBar style="light" />}
 
       <PressableScale
@@ -153,6 +151,7 @@ export default function ShareTasteMapScreen() {
                   <MapStoryCard ref={cardRef} author={author} onImageSettled={onImageSettled} {...card} />
                 </View>
               </View>
+              <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.previewEdge]} />
             </View>
           )
         )}
@@ -198,7 +197,8 @@ export default function ShareTasteMapScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: fixed.navy,
+    // Kartla aynı siyah: önizleme sahnenin içine oturur
+    backgroundColor: STORY_BACKGROUND,
   },
   close: {
     position: 'absolute',
@@ -221,7 +221,13 @@ const styles = StyleSheet.create({
   },
   preview: {
     borderRadius: 22,
-    boxShadow: '0 20px 50px rgba(0, 0, 0, 0.35)',
+    boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5)',
+  },
+  /** Siyah kart siyah sahnede: kenarı ince bir çizgiyle belli olsun (kartın üstünde, görüntüye girmez) */
+  previewEdge: {
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(242, 239, 233, 0.12)',
   },
   clip: {
     flex: 1,

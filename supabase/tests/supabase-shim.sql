@@ -24,6 +24,13 @@ create function auth.uid() returns uuid language sql stable as $$
   )::uuid
 $$;
 
+create function auth.jwt() returns jsonb language sql stable as $$
+  select coalesce(
+    nullif(current_setting('request.jwt.claim', true), ''),
+    nullif(current_setting('request.jwt.claims', true), '')
+  )::jsonb
+$$;
+
 create table auth.users (
   instance_id uuid,
   id uuid primary key,
@@ -42,6 +49,7 @@ create table auth.users (
   recovery_token text,
   email_change text,
   email_change_token_new text,
+  last_sign_in_at timestamptz,
   banned_until timestamptz
 );
 

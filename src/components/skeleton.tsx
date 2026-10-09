@@ -260,12 +260,14 @@ export function ProfileSkeleton() {
   );
 }
 
-/** Mekân sayfası: büyük görsel (başlığın altına uzanır), ad, bilgi satırları ve gönderi ızgarası */
+/** Mekân sayfası: kapak haritası (durum çubuğunun arkasına uzanır; mekan/[id] ile aynı), ad, bilgi satırları ve gönderi ızgarası */
 export function PlaceDetailSkeleton() {
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   return (
     <View style={styles.screen}>
       <Skeleton>
-        <Bone height={320} round={0} />
+        <Bone height={insets.top + width} round={0} />
         <View style={styles.body}>
           <Bone width="70%" height={28} />
           <Bone width="45%" height={14} />
@@ -278,19 +280,6 @@ export function PlaceDetailSkeleton() {
       </Skeleton>
       <PostGridSkeleton count={6} />
     </View>
-  );
-}
-
-/** Harita + mekân listesi (gittiği yerler) */
-export function MapListSkeleton({ mapHeight }: { mapHeight: number }) {
-  return (
-    <SkeletonScreen>
-      <Skeleton style={styles.body}>
-        <Bone width="60%" height={14} />
-        <Bone height={mapHeight} round={radius.card} />
-      </Skeleton>
-      <PlaceRowsSkeleton count={4} />
-    </SkeletonScreen>
   );
 }
 

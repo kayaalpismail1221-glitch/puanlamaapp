@@ -57,12 +57,22 @@ before(async () => {
 
 after(() => db?.close());
 
+/** Google ile oturum açmış kullanıcılar (yönetici yetkisi yalnızca Google oturumunda geçerli); diğerleri şifreyle */
+const googleSessions = new Set();
+
+/** Yöneticiyi atar ve Google ile oturum açtırır */
+async function makeAdmin(userId) {
+  await db.query(`update profiles set is_admin = true where id = $1`, [userId]);
+  googleSessions.add(userId);
+}
+
 /** Sorguyu belirli bir kullanıcı olarak (RLS etkin) çalıştırır; işlem sonunda geri alınmaz */
 async function as(userId, sql, params = []) {
   return db.transaction(async (tx) => {
     if (userId) {
+      const method = googleSessions.has(userId) ? 'oauth' : 'password';
       await tx.query(`select set_config('request.jwt.claims', $1, true)`, [
-        JSON.stringify({ sub: userId, role: 'authenticated' }),
+        JSON.stringify({ sub: userId, role: 'authenticated', amr: [{ method, timestamp: 1 }] }),
       ]);
       await tx.exec('set local role authenticated');
     } else {
@@ -435,7 +445,7 @@ describe('mekân bilgisi düzeltmeleri', () => {
 
   test('yönetici kuyruğu: yalnızca yönetici görür, onaylar ya da reddeder', async () => {
     const [user, admin] = await Promise.all([signUp({ name: 'Önerici' }), signUp({ name: 'Yönetici Düzeltme' })]);
-    await db.query(`update profiles set is_admin = true where id = $1`, [admin]);
+    await makeAdmin(admin);
     assert.equal(await suggest(user, 'website', 'https://ciya.com.tr'), 'pending');
     assert.equal(await suggest(user, 'name', 'Çiya'), 'pending');
     await rejects(rows(user, 'select * from admin_place_corrections()'), /42501/);
@@ -632,7 +642,7 @@ describe('erişim kuralları', () => {
 
 describe('sıralama', () => {
   // Seed'de aynı segmentteki (sokak lezzeti) mekânlar: dürümcü, kokoreççi, ciğerci, pideci, dürümcü (Ankara)
-  const places = [3, 4, 5, 11, 19].map(PLACE);
+  const places = [2, 6, 16, 17, 22].map(PLACE); // hepsi restoran ailesi (esnaf lokantası, balıkçı)
   const BREAKFAST = [PLACE(1), PLACE(14)];
 
   async function myRankings(me) {
@@ -658,7 +668,7 @@ describe('sıralama', () => {
       [places[1], places[0], places[2]],
     );
     liked.forEach((r, i) => assert.equal(r.score, scoreAt('liked', i, 3)));
-    assert.ok(list.every((r) => r.segment === 'street'));
+    assert.ok(list.every((r) => r.segment === 'restaurant'));
     assert.equal((await one(me, 'select note from rankings where place_id = $1 and user_id = $2', [places[3], me])).note, 'fena değil');
 
     // Ortadaki mekânı "idare eder" grubuna taşı: iki grup da yeniden puanlanır
@@ -721,7 +731,7 @@ describe('sıralama', () => {
     } finally {
       await db.query('update places set cuisine = $2 where id = $1', [places[4], original]);
     }
-    assert.equal((await one(me, 'select segment::text from rankings where place_id = $1', [places[4]])).segment, 'street');
+    assert.equal((await one(me, 'select segment::text from rankings where place_id = $1', [places[4]])).segment, 'restaurant');
   });
 
   test('aşırı indeks gruba sığdırılır, puanlanan mekân Listem’den düşer', async () => {
@@ -805,7 +815,7 @@ describe('sıralama', () => {
     // Uygulama aynısını yapar
     let client = emptyRankings();
     for (const [id, index, tied] of [[a, 0, false], [b, 1, false], [c, 2, true]]) {
-      client = insertEntry(client, { sentiment: 'liked', index, tied }, { placeId: id, segment: 'street', ratedAt: '' });
+      client = insertEntry(client, { sentiment: 'liked', index, tied }, { placeId: id, segment: 'restaurant', ratedAt: '' });
     }
     client = removeFromRankings(client, b);
     assert.deepEqual(client.liked.map((e) => [e.placeId, !!e.tied]), [[a, false], [c, false]]);
@@ -828,7 +838,7 @@ describe('sıralama', () => {
     assert.deepEqual(order.map((r) => r.score), [10, 10, scoreAt('liked', 1, 3), scoreAt('liked', 2, 3)], 'A = B korunur');
     let client = emptyRankings();
     for (const [id, index, tied] of [[a, 0, false], [b, 1, true], [c, 2, false], [x, 1, false]]) {
-      client = insertEntry(client, { sentiment: 'liked', index, tied }, { placeId: id, segment: 'street', ratedAt: '' });
+      client = insertEntry(client, { sentiment: 'liked', index, tied }, { placeId: id, segment: 'restaurant', ratedAt: '' });
     }
     assert.deepEqual(client.liked.map((e) => e.placeId), [a, b, x, c]);
   });
@@ -839,7 +849,7 @@ describe('sıralama', () => {
     for (let trial = 0; trial < 500; trial++) {
       const values = Array.from({ length: Math.floor(rand() * 12) }, () => Math.floor(rand() * 6)).sort((p, q) => q - p);
       const value = Object.fromEntries(values.map((v, i) => [`p${i}`, v]));
-      const list = values.map((v, i) => ({ placeId: `p${i}`, segment: 'street', ratedAt: '', tied: i > 0 && v === values[i - 1] }));
+      const list = values.map((v, i) => ({ placeId: `p${i}`, segment: 'restaurant', ratedAt: '', tied: i > 0 && v === values[i - 1] }));
       const mine = Math.floor(rand() * 6);
       const levels = levelStarts(list);
       let c = startComparison(levels.length);
@@ -853,7 +863,7 @@ describe('sıralama', () => {
       const placed = insertEntry(
         { ...emptyRankings(), liked: list },
         { sentiment: 'liked', index: placementIndex(levels, list.length, c), tied: c.tied },
-        { placeId: 'yeni', segment: 'street', ratedAt: '' },
+        { placeId: 'yeni', segment: 'restaurant', ratedAt: '' },
       ).liked;
       value.yeni = mine;
       assert.deepEqual(placed.map((e) => value[e.placeId]), [...values, mine].sort((p, q) => q - p), 'doğru sırada');
@@ -864,7 +874,7 @@ describe('sıralama', () => {
   });
 
   test('listedeki sıra seviyeden: yuvarlamada eşit görünenler ayrı, "İkisi aynı" olanlar aynı sırada', () => {
-    const entries = (ids, tied = []) => ids.map((id) => ({ placeId: id, segment: 'street', ratedAt: '', tied: tied.includes(id) }));
+    const entries = (ids, tied = []) => ids.map((id) => ({ placeId: id, segment: 'restaurant', ratedAt: '', tied: tied.includes(id) }));
     const rankings = {
       liked: entries(Array.from({ length: 10 }, (_, i) => `l${i}`)),
       fine: entries(['f0', 'f1'], ['f1']),
@@ -875,7 +885,7 @@ describe('sıralama', () => {
     assert.equal(segmentStanding(rankings, 'l1').rank, 2, 'sıraladığın ikinci, ikinci');
     assert.equal(segmentStanding(rankings, 'f0').rank, 11);
     assert.equal(segmentStanding(rankings, 'f1').rank, 11, 'eşitler aynı sırada');
-    assert.deepEqual(segmentStanding(rankings, 'f1'), { segment: 'street', rank: 11, total: 12 });
+    assert.deepEqual(segmentStanding(rankings, 'f1'), { segment: 'restaurant', rank: 11, total: 12 });
     assert.deepEqual(segmentStanding(rankings, 'b0'), { segment: 'cafe', rank: 1, total: 1 });
     assert.equal(segmentStanding(rankings, 'yok'), undefined);
   });
@@ -1000,18 +1010,58 @@ describe('sıralama', () => {
     assert.deepEqual(Object.fromEntries(cuisines.map((c) => [c.name, c.segment])), SEGMENT_OF);
   });
 
-  test('segmentler bölünür: börekçi pastaneyle, pizzacı kokoreççiyle, kebapçı restoranla aynı listede değil', async () => {
-    const { rows } = await db.query(`select name, segment::text from cuisines where name = any($1)`, [
-      ['Börekçi', 'Pastane & fırın', 'Tatlıcı', 'Kafe', 'Pizzacı', 'Kokoreççi', 'Pideci', 'Kebapçı', 'Restoran'],
-    ]);
+  test('segmentler benzer ailelerdir: kafe restoranla, burgerci pizzacıyla, meyhane barla aynı listede değil', async () => {
+    const { rows } = await db.query('select name, segment::text from cuisines');
     const seg = Object.fromEntries(rows.map((r) => [r.name, r.segment]));
-    assert.notEqual(seg['Börekçi'], seg['Pastane & fırın']);
-    assert.notEqual(seg['Börekçi'], seg['Kafe']);
-    assert.notEqual(seg['Tatlıcı'], seg['Kafe']);
-    assert.equal(seg['Tatlıcı'], seg['Pastane & fırın']);
-    assert.notEqual(seg['Pizzacı'], seg['Kokoreççi']);
-    assert.equal(seg['Pideci'], seg['Kokoreççi']);
-    assert.notEqual(seg['Kebapçı'], seg['Restoran']);
+    const same = (a, b) => assert.equal(seg[a], seg[b], `${a} ile ${b} aynı ailede olmalı`);
+    const apart = (a, b) => assert.notEqual(seg[a], seg[b], `${a} ile ${b} ayrı ailede olmalı`);
+    // Ayrı: farklı deneyimler asla kıyaslanmaz
+    apart('Kafe', 'Restoran');
+    apart('Burgerci', 'Pizzacı');
+    apart('Burgerci', 'Büfe & fast food');
+    apart('Pideci', 'Kokoreççi');
+    apart('Dürümcü', 'Kokoreççi');
+    apart('Köfteci', 'Çiğ köfteci');
+    apart('Köfteci', 'Kebapçı');
+    apart('Meyhane', 'Bar');
+    apart('Kebapçı', 'Restoran');
+    apart('Börekçi', 'Pastane & fırın');
+    apart('Börekçi', 'Kafe');
+    apart('Tatlıcı', 'Kafe');
+    // Aynı: gerçekten aynı deneyim
+    same('Dürümcü', 'Dönerci');
+    same('Kokoreççi', 'Ciğerci');
+    same('Tatlıcı', 'Pastane & fırın');
+    same('Tatlıcı', 'Dondurmacı');
+    same('Restoran', 'Esnaf lokantası');
+    same('Restoran', 'Balıkçı');
+    // Kullanılmayan eski değerlere hiçbir kategori eşlenmez
+    assert.ok(rows.every((r) => r.segment !== 'street' && r.segment !== 'nightlife'));
+  });
+
+  test('aileler bölünürken her yeni liste tek eski listeden gelir: sıra korunur, karşılaştırma uydurulmaz', async () => {
+    const me = await signUp({ name: 'Aile Bölünen' });
+    // Eski "sokak lezzeti" listesi: Dürüm 1 > Kokoreç > Pide > Dürüm 2 (Kızılay Döner Evi, Dürümcü)
+    const [durum1, kokorec, pide, durum2] = [3, 4, 11, 19].map(PLACE);
+    for (const id of [durum1, kokorec, pide, durum2]) await as(me, `select rank_place($1, 'liked', 99)`, [id]);
+    const list = [durum1, kokorec, pide, durum2];
+    await db.query(
+      `update rankings r set segment = 'street', position = v.position, tied = false
+       from (select * from unnest($2::uuid[], $3::int[]) as t(place_id, position)) v
+       where r.user_id = $1 and r.place_id = v.place_id`,
+      [me, list, list.map((_, i) => i)],
+    );
+    await db.query('select resegment_rankings($1)', [me]);
+    await db.query('select normalize_rankings($1)', [me]);
+    const { rows } = await db.query(
+      'select place_id, segment::text, position, score::float as score from rankings where user_id = $1',
+      [me],
+    );
+    const s = Object.fromEntries(rows.map((r) => [r.place_id, r]));
+    assert.deepEqual([s[durum1].segment, s[durum2].segment, s[kokorec].segment, s[pide].segment], ['doner', 'doner', 'offal', 'pide']);
+    assert.deepEqual([s[durum1].position, s[durum2].position], [0, 1], 'dürümcüler eski sırasını korur');
+    assert.equal(s[kokorec].score, 10, 'kendi ailesinde tek: favori');
+    assert.equal(s[pide].score, 10);
   });
 
   test('segment eşlemesi değişince listeler sırası ve eşitliği korunarak bölünür', async () => {
@@ -1063,7 +1113,8 @@ describe('sıralama', () => {
 
   test('topluluk puanı türün ortalamasından başlar; eski puanlar hafifler', async () => {
     const priors = (await db.query('select segment::text, mean::float as mean from community_priors')).rows;
-    assert.equal(priors.length, SEGMENTS.length, 'her tür için başlangıç değeri');
+    // Kullanılmayan eski enum değerlerinin ('street', 'nightlife') satırı zararsız; her güncel türün değeri olmalı
+    assert.ok(SEGMENTS.every((s) => priors.some((p) => p.segment === s)), 'her tür için başlangıç değeri');
     assert.ok(priors.every((p) => p.mean >= 0 && p.mean <= 10));
     const recency = async (ago) =>
       Number((await db.query(`select rating_recency(now() - $1::interval) as w`, [ago])).rows[0].w);
@@ -1310,7 +1361,7 @@ describe('öneriler', () => {
 describe('yönetici moderasyonu', () => {
   test('yalnızca yönetici şikâyetleri görür; kapatma, kaldırma ve yasaklama', async () => {
     const admin = await signUp({ name: 'Yönetici' });
-    await db.exec(`update profiles set is_admin = true where id = '${admin}'`);
+    await makeAdmin(admin);
     const reporter = await signUp({ name: 'Şikâyetçi' });
     const offender = await signUp({ name: 'Kural Dışı' });
 
@@ -1947,7 +1998,7 @@ describe('damak uyumu', () => {
 
 describe('paylaşılabilir listeler', () => {
   // Aynı segmentteki (sokak lezzeti) mekânlar: sahibin puan sırası tek listeden gelir
-  const ps = [3, 4, 5, 9].map(PLACE);
+  const ps = [3, 4, 19, 9].map(PLACE); // p1 ve p3 aynı ailede (dürümcü): sıra karşılaştırmadan
   const saveList = (userId, args) =>
     one(userId, 'select save_list($1, $2, $3, $4, $5) as id', [
       args.id ?? null,
@@ -2073,7 +2124,7 @@ describe('paylaşılabilir listeler', () => {
     await rejects(as(reporter, `insert into reports (list_id, user_id, reason) values ($1, $2, 'spam')`, [id, owner]), /23514/);
 
     const admin = await signUp({ name: 'Liste Yönetici' });
-    await db.exec(`update profiles set is_admin = true where id = '${admin}'`);
+    await makeAdmin(admin);
     const queue = await rows(admin, 'select * from admin_reports()');
     const item = queue.find((r) => r.target_id === id);
     assert.equal(item.target_type, 'list');
@@ -2667,7 +2718,7 @@ describe('büyüme ölçümü', () => {
 
     await rejects(as(inviter, 'select growth_stats(30)'), /42501/);
     const admin = await signUp({ name: 'Ölçen' });
-    await db.query(`update profiles set is_admin = true where id = $1`, [admin]);
+    await makeAdmin(admin);
     const stats = (await one(admin, 'select growth_stats(30) as s')).s;
     assert.ok(stats.shares >= 2 && stats.shares_completed >= 1 && stats.sharers >= 1);
     assert.ok(stats.shares_by_kind.story >= 1);
@@ -2847,7 +2898,7 @@ describe('Expeat puanı modeli', () => {
     assert.ok(ms1.score > mw1.score, 'güçlüler zayıfların önünde');
     // Segment içinde puan sırası güç sırasıyla aynı; puan 0–10
     const { rows: seg } = await db.query(
-      `select strength, score from place_strengths where segment = 'street' order by strength desc`,
+      `select strength, score from place_strengths where segment = 'meatball' order by strength desc`,
     );
     for (let i = 1; i < seg.length; i++) assert.ok(seg[i].score <= seg[i - 1].score + 1e-12, 'puan güçle azalır');
     assert.ok(seg.every((r) => r.score >= 0 && r.score <= 10));
@@ -3115,5 +3166,222 @@ describe('zorunlu güncelleme', () => {
     assert.equal(isBelowMinVersion('1.0.1', null), false);
     assert.equal(isBelowMinVersion('1.0.1-beta', '1.0.2'), false);
     assert.equal(isBelowMinVersion('1.0.1', '1.0.2.3'), false);
+  });
+});
+
+describe('web yönetim paneli', () => {
+  let ADMIN;
+  const panel = (user, action, args = {}) =>
+    one(user, 'select admin_panel($1, $2) as r', [action, args]).then((row) => row.r);
+
+  before(async () => {
+    ADMIN = await signUp({ name: 'Panel Yöneticisi' }, 'panel.yoneticisi@gmail.com');
+    await makeAdmin(ADMIN);
+  });
+
+  test('yalnızca Google ile oturum açmış yönetici; anahtar yok, iç fonksiyonlar kapalı', async () => {
+    const user = await signUp({ name: 'Meraklı' });
+    googleSessions.add(user);
+    await rejects(panel(null, 'overview'), /42501/);
+    await rejects(panel(user, 'overview'), /yönetici değil/);
+    // Şifreyle açılmış yönetici oturumu hiçbir yönetici işlevini çalıştıramaz
+    const pwAdmin = await signUp({ name: 'Şifreli Yönetici' });
+    await db.query('update profiles set is_admin = true where id = $1', [pwAdmin]);
+    await rejects(panel(pwAdmin, 'overview'), /Google ile giriş gerekli/);
+    await rejects(rows(pwAdmin, 'select * from admin_reports()'), /42501/);
+    assert.equal((await one(pwAdmin, 'select is_admin() as a')).a, false);
+    assert.equal((await one(ADMIN, 'select is_admin() as a')).a, true);
+    assert.equal((await panel(ADMIN, 'me')).email, 'panel.yoneticisi@gmail.com');
+
+    await rejects(rows(user, 'select admin_overview()'), /42501/);
+    await rejects(rows(user, `select admin_set_ban($1, true)`, [user]), /42501/);
+    await rejects(rows(user, 'select * from place_verifications'), /42501/);
+    await rejects(rows(user, 'select * from admin_audit'), /42501/);
+    await rejects(rows(ADMIN, 'select admin_overview()'), /42501/);
+    await rejects(db.query('select * from admin_panel_keys'), /does not exist/);
+    await rejects(panel(ADMIN, 'yok_boyle'), /Bilinmeyen/);
+    await rejects(panel(ADMIN, 'set_ban', { id: ADMIN, banned: true }), /yasaklayamazsın/);
+  });
+
+  test('pano, kullanıcılar, gönderiler ve mevcut yönetici işlevleri çalışır', async () => {
+    const overview = await panel(ADMIN, 'overview');
+    assert.ok(overview.users > 0 && overview.places > 0);
+    assert.equal(overview.daily.length, 30);
+    assert.ok(overview.cuisines.length > 0);
+    assert.ok(overview.cities.some((c) => c.city === 'İstanbul'));
+    assert.ok('k' in (await panel(ADMIN, 'growth', { days: 7 })));
+
+    const target = await signUp({ name: 'Panel Kişisi', username: 'panelkisisi' }, 'panel.kisisi@test.dev');
+    const found = await panel(ADMIN, 'users', { q: 'panel.kisisi@' });
+    assert.equal(found.total, 1);
+    assert.equal(found.rows[0].username, 'panelkisisi');
+    assert.equal(found.rows[0].email, 'panel.kisisi@test.dev');
+    const page = await panel(ADMIN, 'users', { limit: 2, sort: 'posts' });
+    assert.equal(page.rows.length, 2);
+    assert.ok(page.rows[0].post_count >= page.rows[1].post_count);
+
+    const detail = await panel(ADMIN, 'user', { id: USER(1) });
+    assert.equal(detail.profile.id, USER(1));
+    assert.ok(!('search_text' in detail.profile));
+    assert.ok(Array.isArray(detail.posts) && Array.isArray(detail.rankings));
+
+    // Yasakla / kaldır; yönetici yasaklanamaz
+    await panel(ADMIN, 'set_ban', { id: target, banned: true });
+    assert.equal((await panel(ADMIN, 'users', { q: 'panelkisisi', filter: 'banned' })).total, 1);
+    await panel(ADMIN, 'set_ban', { id: target, banned: false });
+    assert.equal((await db.query('select banned_until from auth.users where id = $1', [target])).rows[0].banned_until, null);
+    const admin = await signUp({ name: 'Uygulama Yöneticisi' });
+    await makeAdmin(admin);
+    await rejects(panel(ADMIN, 'set_ban', { id: admin, banned: true }), /yasaklanamaz/);
+
+    // Şikâyet kuyruğu (mevcut admin_reports / admin_resolve_report)
+    const author = await signUp({ name: 'Gönderen' });
+    const post = randomUUID();
+    await as(author, `select create_post($1, $2, 'panel deneme', null, null, '{}', '{}', '{}', '[]')`, [post, PLACE(1)]);
+    await as(target, `insert into reports (post_id, reason) values ($1, 'spam')`, [post]);
+    const reports = await panel(ADMIN, 'reports');
+    const report = reports.find((r) => r.target_id === post);
+    assert.equal(report.report_count, 1);
+    const posts = await panel(ADMIN, 'posts', { user_id: author });
+    assert.equal(posts[0].id, post);
+    assert.equal(posts[0].open_reports, 1);
+    await panel(ADMIN, 'resolve_report', { id: report.id, action: 'remove' });
+    assert.equal((await db.query('select id from posts where id = $1', [post])).rows.length, 0);
+
+    const audit = await panel(ADMIN, 'audit');
+    assert.ok(audit.some((a) => a.action === 'resolve_report' && a.args.id === report.id && a.admin_id === ADMIN));
+    assert.ok(!audit.some((a) => a.action === 'reports'));
+  });
+
+  test('mekân düzeltme: alanlar kilitlenir, öneri kuyruğu', async () => {
+    const list = await panel(ADMIN, 'places', { q: 'kadıköy', limit: 5 });
+    assert.ok(list.total > 0 && list.rows.length <= 5);
+    const place = list.rows[0];
+    const result = await panel(ADMIN, 'update_place', {
+      id: place.id,
+      patch: { phone: '+902161234567', website: '', closed: true },
+    });
+    assert.equal(result.id, place.id);
+    const row = (await db.query('select phone, website, closed_at, locked_fields from places where id = $1', [place.id])).rows[0];
+    assert.equal(row.phone, '+902161234567');
+    assert.equal(row.website, null);
+    assert.ok(row.closed_at);
+    assert.deepEqual(row.locked_fields.filter((f) => ['closed', 'phone', 'website'].includes(f)).sort(), ['closed', 'phone', 'website']);
+    assert.equal((await panel(ADMIN, 'places', { q: place.id, filter: 'closed' })).total, 1);
+    await panel(ADMIN, 'update_place', { id: place.id, patch: { closed: false } });
+    assert.equal((await db.query('select closed_at from places where id = $1', [place.id])).rows[0].closed_at, null);
+    await rejects(panel(ADMIN, 'update_place', { id: place.id, patch: { name: '  ' } }), /boş olamaz/);
+
+    // Kullanıcı "Bilgi yanlış mı?" → panelde görünür, kabul edilince uygulanır
+    const reporter = await signUp({ name: 'Düzeltici' });
+    await as(reporter, `select suggest_place_correction($1, 'address', 'Panel Sk. No:1', null, null)`, [PLACE(2)]);
+    const queue = await panel(ADMIN, 'corrections');
+    const item = queue.find((c) => c.place_id === PLACE(2) && c.field === 'address');
+    assert.equal(item.reporter, (await one(reporter, 'select username from profiles where id = $1', [reporter])).username);
+    assert.ok(item.place_latitude && item.city);
+    await panel(ADMIN, 'resolve_correction', { id: item.id, accept: true });
+    assert.equal((await db.query('select address from places where id = $1', [PLACE(2)])).rows[0].address, 'Panel Sk. No:1');
+  });
+
+  test('doğrulanmış mekân satışı: rozet süresi, iptal, gelir özeti', async () => {
+    const sale = await panel(ADMIN, 'add_verification', {
+      place_id: PLACE(3),
+      plan: 'monthly',
+      price: 1500,
+      starts_on: '2026-10-01',
+      contact_name: 'Mekân Sahibi',
+    });
+    assert.equal(sale.ends_on, '2026-10-31');
+    const until = (await db.query('select verified_until from places where id = $1', [PLACE(3)])).rows[0].verified_until;
+    assert.equal(new Date(until).toISOString(), '2026-10-31T21:00:00.000Z'); // 1 Kasım 00:00 İstanbul
+    const yearly = await panel(ADMIN, 'add_verification', { place_id: PLACE(3), plan: 'yearly', price: 12000, starts_on: '2026-11-01' });
+    assert.equal(yearly.ends_on, '2027-10-31');
+    await rejects(panel(ADMIN, 'add_verification', { place_id: PLACE(3), plan: 'custom', price: 1 }), /Bitiş/);
+
+    const summary = await panel(ADMIN, 'verifications');
+    assert.equal(summary.rows.filter((r) => r.place_id === PLACE(3)).length, 2);
+    assert.ok(summary.revenue.TRY.total >= 13500);
+
+    await panel(ADMIN, 'cancel_verification', { id: yearly.id });
+    const after = (await db.query('select verified_until from places where id = $1', [PLACE(3)])).rows[0].verified_until;
+    assert.equal(new Date(after).toISOString(), '2026-10-31T21:00:00.000Z');
+    await panel(ADMIN, 'cancel_verification', { id: sale.id });
+    assert.equal((await db.query('select verified_until from places where id = $1', [PLACE(3)])).rows[0].verified_until, null);
+  });
+
+  test('zorunlu güncelleme sürümü panelden değişir', async () => {
+    await panel(ADMIN, 'set_version', { platform: 'ios', version: '1.0.5' });
+    assert.equal((await panel(ADMIN, 'versions')).find((v) => v.platform === 'ios').min_version, '1.0.5');
+    await rejects(panel(ADMIN, 'set_version', { platform: 'ios', version: 'yeni' }), /check constraint/);
+    await panel(ADMIN, 'set_version', { platform: 'ios', version: '1.0.0' });
+  });
+});
+
+describe('bildirim spamına karşı', () => {
+  const count = async (userId, type) =>
+    (await db.query('select count(*)::int as n from notifications where user_id = $1 and type = $2', [userId, type])).rows[0].n;
+  const pushes = async () => (await db.query('select count(*)::int as n from net_push_log')).rows[0].n;
+
+  // Push yolunu sınamak için sahte pg_net: gönderilen her istek kaydedilir (testin sonunda kaldırılır)
+  before(async () => {
+    await db.exec(`
+      create schema if not exists net;
+      create table public.net_push_log (id bigint generated always as identity primary key, url text, body jsonb);
+      create function net.http_post(url text, body jsonb) returns bigint language sql as
+        $f$ insert into public.net_push_log (url, body) values (url, body) returning id $f$;
+    `);
+  });
+  after(async () => {
+    await db.exec('drop function net.http_post(text, jsonb); drop table public.net_push_log;');
+  });
+
+  test('beğen-geri al-tekrar beğen ve takip et-bırak döngüsü 24 saatte bir push gönderir', async () => {
+    const author = await signUp({ name: 'Paylaşan' });
+    const fan = await signUp({ name: 'Israrcı' });
+    await as(author, `select register_push_token('ExponentPushToken[spam-deneme]', 'tr')`);
+    const post = randomUUID();
+    await as(author, `select create_post($1, $2, 'spam deneme', null, null, '{}', '{}', '{}', '[]')`, [post, PLACE(4)]);
+    const start = await pushes();
+
+    await as(fan, 'insert into post_likes (post_id) values ($1)', [post]);
+    assert.equal(await count(author, 'like'), 1);
+    assert.equal(await pushes(), start + 1);
+    await as(fan, 'delete from post_likes where post_id = $1', [post]);
+    assert.equal(await count(author, 'like'), 0);
+    await as(fan, 'insert into post_likes (post_id) values ($1)', [post]);
+    // Bildirim kutusunda yine görünür, push gitmez
+    assert.equal(await count(author, 'like'), 1);
+    assert.equal(await pushes(), start + 1);
+
+    await as(fan, 'insert into follows (followee_id) values ($1)', [author]);
+    await as(fan, 'delete from follows where followee_id = $1', [author]);
+    await as(fan, 'insert into follows (followee_id) values ($1)', [author]);
+    assert.equal(await count(author, 'follow'), 1);
+    assert.equal(await pushes(), start + 2);
+
+    // 24 saat geçince yeniden push gider
+    await db.query(`update notification_throttle set last_at = now() - interval '25 hours' where actor_id = $1`, [fan]);
+    await as(fan, 'delete from post_likes where post_id = $1', [post]);
+    await as(fan, 'insert into post_likes (post_id) values ($1)', [post]);
+    assert.equal(await pushes(), start + 3);
+
+    // Yorumlar ayrı içerik: her biri bildirilir
+    await as(fan, `insert into comments (post_id, body) values ($1, 'Bir')`, [post]);
+    await as(fan, `insert into comments (post_id, body) values ($1, 'İki')`, [post]);
+    assert.equal(await count(author, 'comment'), 2);
+    assert.equal(await pushes(), start + 5);
+
+    // İşaret işlem sonunda kalmaz: aynı işlemde sonraki farklı bildirimin push'u gider
+    assert.equal((await one(fan, `select coalesce(current_setting('expeat.push_throttled', true), '') as v`)).v, '');
+    await rejects(rows(fan, 'select * from notification_throttle'), /42501/);
+    await rejects(as(fan, `select notify($1, $2, 'like')`, [author, fan]), /42501/);
+  });
+
+  test('takipte günlük sınır', async () => {
+    const busy = await signUp({ name: 'Herkesi Takip Eden' });
+    const targets = [];
+    for (let i = 0; i < 301; i++) targets.push(await signUp({ name: `Hedef ${i}` }));
+    for (const t of targets.slice(0, 300)) await as(busy, 'insert into follows (followee_id) values ($1)', [t]);
+    await rejects(as(busy, 'insert into follows (followee_id) values ($1)', [targets[300]]), /takip sınırına/);
   });
 });

@@ -6,7 +6,7 @@ import i18n, { currentLanguage } from '@/i18n';
 import { formatScore } from '@/lib/format';
 import { placeShortArea, placeSubtitle } from '@/lib/place';
 import { possessive } from '@/lib/possessive';
-import { getCurrentUserId, isMe } from '@/lib/session';
+import { isMe } from '@/lib/session';
 import type { Place, PlaceList, Post } from '@/types';
 
 /**
@@ -74,22 +74,6 @@ export function shareList(list: PlaceList) {
         count: list.placeCount,
       });
   return share(text, `liste/${list.id}`, 'list', list.id);
-}
-
-/** Damak uyumu: "@zeynepyer ile damak uyumumuz %82"; bağlantı kendi profiline, alan kişi kendi uyumunu görsün */
-export function shareTasteMatch(other: { username: string }, percent: number, common: number) {
-  const me = getCurrentUserId();
-  if (!me) return;
-  return share(
-    i18n.t('share.tasteMatch', {
-      username: other.username,
-      percent: i18n.t('profile.percent', { value: percent }),
-      count: common,
-    }),
-    `kullanici/${me}`,
-    'taste',
-    other.username,
-  );
 }
 
 /** Yıllık hedef: "2026'da 50 mekân hedefliyorum, 31'ine gittim"; bağlantı hedef sayfası, alan kişi kendi hedefini koysun */

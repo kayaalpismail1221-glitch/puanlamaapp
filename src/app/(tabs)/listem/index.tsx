@@ -2,7 +2,9 @@ import { router, Stack } from 'expo-router';
 import { SymbolView, type SFSymbol } from '@/components/symbol';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FlatList, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, View } from 'react-native';
+// Gesture-handler listesi: dikey kaydırma ile kartların sola kaydırma jesti çakışmasın
+import { FlatList } from 'react-native-gesture-handler';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { HeaderIconButton } from '@/components/header-button';

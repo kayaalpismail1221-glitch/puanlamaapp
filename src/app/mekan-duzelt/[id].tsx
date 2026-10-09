@@ -1,7 +1,7 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import type { Region } from 'react-native-maps';
 import Animated from 'react-native-reanimated';
 import { SymbolView } from '@/components/symbol';
@@ -9,6 +9,7 @@ import { SymbolView } from '@/components/symbol';
 import { suggestPlaceCorrection } from '@/api/content';
 import { showError } from '@/api/errors';
 import { AppMapView } from '@/components/app-map';
+import { SheetCloseButton } from '@/components/header-button';
 import { SettingsGroup, SettingsRow } from '@/components/settings-list';
 import { Button, ErrorView, LoadingView, Text } from '@/components/ui';
 import { colors, radius, spacing, typography } from '@/constants/theme';
@@ -120,6 +121,8 @@ export default function FixPlaceScreen() {
 
   return (
     <View style={styles.container}>
+      {/* iOS sayfasında sağ üstte ✕ (Android'de modalın sol ✕'i zaten var) */}
+      {Platform.OS === 'ios' && <Stack.Screen options={{ headerRight: () => <SheetCloseButton /> }} />}
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text variant="footnote" color={colors.textSecondary}>
           {t('fixPlace.explain')}

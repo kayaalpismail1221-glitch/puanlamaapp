@@ -9,7 +9,6 @@ import { BottomInsetSpacer } from '@/components/bottom-inset';
 import { PlaceRow } from '@/components/place-row';
 import { PostGrid } from '@/components/post-grid';
 import { SegmentedControl } from '@/components/segmented-control';
-import { MapListSkeleton } from '@/components/skeleton';
 import { Divider, PressableScale, ScoreBadge, Text } from '@/components/ui';
 import { WorldMap } from '@/components/world-map';
 import { colors, hitSlop, radius, spacing } from '@/constants/theme';
@@ -34,7 +33,8 @@ type Selection = { kind: BreakdownKind; key: string };
 
 /**
  * Lezzet haritasının büyük hâli: üstte şehir · mekân · gönderi sayıları, çizim tarzı harita + şehir / ilçe kırılımı;
- * sağ üstte paylaş (hikâye kartı, kaydet, mesaj, bağlantı).
+ * sağ üstte paylaş (hikâye kartı, kaydet, mesaj, bağlantı). Yüklenirken ayrı iskelet yerine aynı düzen yer tutar:
+ * veri gelince hiçbir şey kaymaz.
  * Bir şehir noktasına ya da satıra dokununca oradaki gönderiler çıkar; gönderiye dokununca açılır.
  */
 export default function VisitedPlacesScreen() {
@@ -91,19 +91,19 @@ export default function VisitedPlacesScreen() {
     };
   }, [navigation]);
 
-  if (loading && !items.length) return <MapListSkeleton mapHeight={mapWidth / ASPECT} />;
+  const pending = loading && !items.length;
 
   return (
     <ScrollView style={styles.container} contentInsetAdjustmentBehavior="automatic">
       {/* Sayılar tek satıra sıkışmasın: üç ayrı kutu, büyük rakam ve altında etiket */}
       <View style={styles.summary}>
-        <SummaryStat value={summary.cities} label={t('foodMap.statCities', { count: summary.cities })} />
-        <SummaryStat value={summary.places} label={t('foodMap.statPlaces', { count: summary.places })} />
-        <SummaryStat value={summary.posts} label={t('foodMap.statPosts', { count: summary.posts })} />
+        <SummaryStat value={pending ? undefined : summary.cities} label={t('foodMap.statCities', { count: summary.cities })} />
+        <SummaryStat value={pending ? undefined : summary.places} label={t('foodMap.statPlaces', { count: summary.places })} />
+        <SummaryStat value={pending ? undefined : summary.posts} label={t('foodMap.statPosts', { count: summary.posts })} />
       </View>
 
       <View style={[styles.map, { width: mapWidth, height: mapWidth / ASPECT }]}>
-        {mapReady && (
+        {mapReady && !pending && (
           <Animated.View entering={FadeIn.duration(220)}>
             <WorldMap
               view={view}
@@ -185,11 +185,12 @@ export default function VisitedPlacesScreen() {
   );
 }
 
-function SummaryStat({ value, label }: { value: number; label: string }) {
+/** `value` yoksa (yükleniyor) rakam yeri boş kalır, kutu yerini korur */
+function SummaryStat({ value, label }: { value?: number; label: string }) {
   return (
     <View style={styles.stat}>
       <Text variant="title2" color={colors.primary} style={styles.statValue}>
-        {value}
+        {value ?? ' '}
       </Text>
       <Text variant="footnote" color={colors.textSecondary} numberOfLines={1}>
         {label}

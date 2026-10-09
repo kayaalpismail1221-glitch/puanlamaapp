@@ -7,7 +7,7 @@ import { Linking, Platform, ScrollView, StyleSheet, TextInput, View } from 'reac
 import Animated, { FadeIn, FadeInDown, LinearTransition, ZoomIn } from 'react-native-reanimated';
 
 import { PhotoCropper, type CroppedPhoto, type CropItem } from '@/components/photo-cropper';
-import { HeaderIconButton } from '@/components/header-button';
+import { HeaderIconButton, SheetCloseButton } from '@/components/header-button';
 import { PlacePicker } from '@/components/place-picker';
 import { CompareStep, SentimentChoice, useRankResultText } from '@/components/rank-steps';
 import { HighlightPicker, MAX_HIGHLIGHTS, postFieldStyles } from '@/components/post-fields';
@@ -40,6 +40,8 @@ type Params = {
   placeId?: string;
   /** 'onboarding': kayıt sonrası ilk gönderi (atlanabilir) */
   akis?: string;
+  /** '1': puanlanmış mekânda puanlama akışı doğrudan açılır (mekân sayfasındaki "Yeniden puanla") */
+  yeniden?: string;
 };
 
 /**
@@ -73,7 +75,7 @@ export default function CreatePostScreen() {
   /** Rehberden eklenen, Puanla'da olmayanlar: paylaşınca davet edilir (masa döngüsü) */
   const [invitees, setInvitees] = useState<DeviceContact[]>([]);
   /** Daha önce puanlanmış mekânı yeniden puanlıyor mu */
-  const [rerating, setRerating] = useState(false);
+  const [rerating, setRerating] = useState(params.yeniden === '1');
   const flow = useRankFlow(placeId);
   const resultText = useRankResultText();
 
@@ -107,7 +109,16 @@ export default function CreatePostScreen() {
     if (dirty) confirmDiscard();
     else router.back();
   };
-  const header = <Stack.Screen options={{ headerLeft: () => <CloseButton onPress={close} /> }} />;
+  // iOS'ta ✕ sağ üstte (kullanıcı alışkanlığı), Android'de Material tam ekran diyaloğundaki gibi solda
+  const header = (
+    <Stack.Screen
+      options={
+        Platform.OS === 'android'
+          ? { headerLeft: () => <CloseButton onPress={close} /> }
+          : { headerRight: () => <SheetCloseButton onPress={close} /> }
+      }
+    />
+  );
   useAndroidBack(
     dirty
       ? confirmDiscard
@@ -516,17 +527,10 @@ export default function CreatePostScreen() {
   );
 }
 
-/** Başlıktaki kapat düğmesi: iOS'ta sistemin cam düğmesine giren ✕, Android'de Material'daki gibi solda ✕ */
+/** Android başlığındaki kapat düğmesi: Material'daki gibi solda ✕ (iOS'ta sağ üstte `SheetCloseButton`) */
 function CloseButton({ onPress }: { onPress: () => void }) {
   const { t } = useTranslation();
-  if (Platform.OS === 'android') {
-    return <HeaderIconButton icon="xmark" onPress={onPress} accessibilityLabel={t('common.close')} />;
-  }
-  return (
-    <PressableScale onPress={onPress} hitSlop={hitSlop} accessibilityRole="button" accessibilityLabel={t('common.close')}>
-      <SymbolView name="xmark" tintColor={colors.primary} size={17} weight="semibold" />
-    </PressableScale>
-  );
+  return <HeaderIconButton icon="xmark" onPress={onPress} accessibilityLabel={t('common.close')} />;
 }
 
 function SectionTitle({ title, hint }: { title: string; hint?: string }) {

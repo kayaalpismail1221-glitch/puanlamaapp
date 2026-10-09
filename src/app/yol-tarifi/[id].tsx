@@ -68,7 +68,8 @@ export default function DirectionsScreen() {
   const mapRef = useRef<MapView>(null);
 
   const location = useUserLocation(true);
-  const [mode, setMode] = useState<TravelMode>('walking');
+  // Önce araçla rota açılır; yürüyerek ya da toplu taşıma isteyen kendisi seçer
+  const [mode, setMode] = useState<TravelMode>('driving');
   /** Navigasyonda rotadan çıkınca yeni başlangıç */
   const [rerouteFrom, setRerouteFrom] = useState<Coords | null>(null);
   const [showSteps, setShowSteps] = useState(false);
@@ -118,7 +119,7 @@ export default function DirectionsScreen() {
     );
   }
 
-  const modes = (['walking', 'driving', 'transit'] as const).map((key) => ({ key, label: t(`directions.modes.${key}`) }));
+  const modes = (['driving', 'walking', 'transit'] as const).map((key) => ({ key, label: t(`directions.modes.${key}`) }));
   const summary =
     mode === 'transit'
       ? transitEta.data
