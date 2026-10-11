@@ -26,7 +26,7 @@ const STORES = { ios: '', android: '' };
  * `android.intentFilters` bu alan adını gösterir. Apple: Developer → Membership → Team ID; Android: imza
  * sertifikalarının SHA-256 parmak izleri (EAS yükleme anahtarı + Play App Signing). Boşken dosya yazılmaz.
  */
-const APPLE_TEAM_ID = '';
+const APPLE_TEAM_ID = '9D7J9XJTC9';
 const ANDROID_SHA256 = [];
 const BUNDLE_ID = 'app.puanla';
 const APP_SCHEME = 'expeat';

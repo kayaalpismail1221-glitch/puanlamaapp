@@ -1,0 +1,17 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [
+          "9D7J9XJTC9.app.puanla"
+        ],
+        "components": [
+          {
+            "/": "/davet/*",
+            "comment": "Davet"
+          }
+        ]
+      }
+    ]
+  }
+}
