@@ -1368,6 +1368,13 @@ const VERCEL = {
   trailingSlash: false,
   rewrites: [{ source: '/davet/:user', destination: '/davet' }],
   redirects: [
+    // Eski Vercel adresi kopya site olarak kalmasın (arama motorları tek adres görsün); yol ve sorgu korunur
+    {
+      source: '/:path*',
+      has: [{ type: 'host', value: 'puanlamaapp.vercel.app' }],
+      destination: `${SITE}/:path*`,
+      permanent: true,
+    },
     { source: '/privacy', destination: '/en/privacy', permanent: true },
     { source: '/terms', destination: '/en/terms', permanent: true },
     { source: '/support', destination: '/en/support', permanent: true },

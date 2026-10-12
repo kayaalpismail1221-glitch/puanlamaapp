@@ -10,6 +10,17 @@
   ],
   "redirects": [
     {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "puanlamaapp.vercel.app"
+        }
+      ],
+      "destination": "https://expeat.app/:path*",
+      "permanent": true
+    },
+    {
       "source": "/privacy",
       "destination": "/en/privacy",
       "permanent": true
