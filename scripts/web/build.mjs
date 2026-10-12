@@ -1370,9 +1370,9 @@ const VERCEL = {
   redirects: [
     // Eski Vercel adresi kopya site olarak kalmasın (arama motorları tek adres görsün); yol ve sorgu korunur
     {
-      source: '/:path*',
+      source: '/:path(.*)',
       has: [{ type: 'host', value: 'puanlamaapp.vercel.app' }],
-      destination: `${SITE}/:path*`,
+      destination: `${SITE}/:path`,
       permanent: true,
     },
     { source: '/privacy', destination: '/en/privacy', permanent: true },

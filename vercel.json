@@ -10,14 +10,14 @@
   ],
   "redirects": [
     {
-      "source": "/:path*",
+      "source": "/:path(.*)",
       "has": [
         {
           "type": "host",
           "value": "puanlamaapp.vercel.app"
         }
       ],
-      "destination": "https://expeat.app/:path*",
+      "destination": "https://expeat.app/:path",
       "permanent": true
     },
     {
