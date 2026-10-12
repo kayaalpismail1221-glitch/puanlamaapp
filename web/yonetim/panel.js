@@ -1264,6 +1264,18 @@
     const kinds = Object.entries(g.shares_by_kind || {}).sort((a, b) => b[1] - a[1]);
     const maxKind = Math.max(1, ...kinds.map((k) => k[1]));
     const pct = (v) => (v == null ? '—' : `%${nf1.format(Number(v) * 100)}`);
+    // Kayıt hunisi: dönemde kuruluma başlayanların (ilk puan adımına gelenler) kaçı hangi adıma geldi
+    const FUNNEL = [
+      ['ilk-puan', 'Kuruluma başladı'],
+      ['puan', 'İlk mekânı puanladı'],
+      ['takip', 'Takip adımına geldi'],
+      ['eposta', 'Hesabını kaydetmeye geldi'],
+      ['dogrula', 'Kod istedi'],
+      ['sifre', 'E-postasını doğruladı'],
+      ['bitti', 'Kurulumu bitirdi'],
+    ];
+    const funnel = g.onboarding || {};
+    const started = funnel['ilk-puan'] || 0;
     main.innerHTML = `
       ${head('Uygulama', 'Zorunlu güncelleme ve büyüme ölçümleri.')}
       <div class="grid two">
@@ -1287,6 +1299,12 @@
             <div class="card-head"><h2>Neler paylaşılıyor</h2><span class="sub">${num(g.shares_completed)} tamamlandı</span></div>
             <div class="list-rows" style="padding:8px 0">
               ${kinds.map(([k, n]) => `<div class="it"><span style="width:120px">${esc(KIND[k] || k)}</span><div class="bar-inline"><i style="width:${(n / maxKind) * 100}%"></i></div><span class="num" style="width:48px;text-align:right">${num(n)}</span></div>`).join('') || '<div class="empty-state">Bu dönemde paylaşım yok</div>'}
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h2>Kayıt hunisi</h2><span class="sub">${num(funnel.gonderi || 0)} kişi kurulumda gönderi paylaştı</span></div>
+            <div class="list-rows" style="padding:8px 0">
+              ${started ? FUNNEL.map(([k, label]) => `<div class="it"><span style="width:170px">${esc(label)}</span><div class="bar-inline"><i style="width:${((funnel[k] || 0) / started) * 100}%"></i></div><span class="num" style="width:96px;text-align:right">${num(funnel[k] || 0)} · ${pct((funnel[k] || 0) / started)}</span></div>`).join('') : '<div class="empty-state">Bu dönemde kuruluma başlayan yok</div>'}
             </div>
           </div>
         </div>
