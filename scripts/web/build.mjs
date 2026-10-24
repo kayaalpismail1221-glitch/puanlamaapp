@@ -19,8 +19,11 @@ const out = join(root, 'web');
 
 /** Sitenin adresi (paylaşım önizlemeleri ve site haritası mutlak adres ister); src/constants/contact.ts → WEB_URL ile aynı */
 const SITE = 'https://expeat.app';
-/** Mağaza sayfaları yayınlanınca: `src/constants/app.ts` APP_STORE_URL / PLAY_STORE_URL ile aynı tutulur */
-const STORES = { ios: '', android: '' };
+/**
+ * Mağaza sayfaları: `src/constants/app.ts` APP_STORE_URL / PLAY_STORE_URL ile aynı tutulur. Boşken düğme "Yakında".
+ * App Store 2026-10-23'ten beri yayında; Google Play kapalı testte.
+ */
+const STORES = { ios: 'https://apps.apple.com/app/id6815859231', android: '' };
 /**
  * Evrensel bağlantılar (yalnızca davet: /davet/<kullanıcı adı>). Uygulamada app.json → `ios.associatedDomains` ve
  * `android.intentFilters` bu alan adını gösterir. Apple: Developer → Membership → Team ID; Android: imza
