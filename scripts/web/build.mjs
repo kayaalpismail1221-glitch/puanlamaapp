@@ -854,7 +854,12 @@ function invitePage() {
 `;
 }
 
-/* ---------- /indir: cihazın mağazasına yönlendirir, mağaza yoksa ana sayfaya ---------- */
+/*
+ * ---------- /indir[?davet=<kullanıcı adı>]: açanın cihazının mağazasına yönlendirir ----------
+ * Uygulamadaki davet mesajlarının bağlantısı (src/constants/app.ts → inviteLink). Android'de davet eden Google Play
+ * `referrer`'ıyla uygulamaya taşınır (src/lib/invite-referrer.ts ile aynı biçim). Mağazası olmayan cihazda (ya da Play
+ * yayınlanmadan Android'de) davet varsa davet sayfasına, yoksa ana sayfanın indirme bölümüne.
+ */
 function downloadPage() {
   return `${head(T.tr, { title: 'Expeat’i indir', description: T.tr.meta.description, path: '/indir', noindex: true })}
 <body class="invite">
@@ -863,9 +868,16 @@ function downloadPage() {
   const S = ${JSON.stringify(STORES)};
   const ua = navigator.userAgent;
   const ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  const url = ios ? S.ios : /Android/.test(ua) ? S.android : '';
+  const android = /Android/.test(ua);
+  const u = (new URLSearchParams(location.search).get('davet') || '').replace(/^@/, '').toLowerCase();
+  const user = /^[a-z0-9._]{3,24}$/.test(u) ? u : '';
+  let url = ios ? S.ios : android ? S.android : '';
+  if (url && android && user) {
+    const ref = 'utm_source=davet&utm_medium=invite&davet=' + user;
+    url += (url.includes('?') ? '&' : '?') + 'referrer=' + encodeURIComponent(ref);
+  }
   const tr = (navigator.language || 'tr').toLowerCase().startsWith('tr');
-  location.replace(url || (tr ? '/#indir' : '/en#indir'));
+  location.replace(url || (user ? '/davet/' + user : tr ? '/#indir' : '/en#indir'));
 })();
 </script>
 <noscript><meta http-equiv="refresh" content="0; url=/#indir"></noscript>
